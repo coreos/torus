@@ -3,6 +3,7 @@ package server
 import "github.com/barakmich/agro"
 
 type Server struct {
-	cold     *agro.MFile
+	cold     agro.KeyStorage
 	metadata agro.Metadata
+	inodes   agro.INodeStorage
 }
