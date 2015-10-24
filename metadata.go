@@ -25,13 +25,28 @@ func (p Path) Key() string {
 }
 
 type Metadata interface {
-	Mkfs()
-	CreateVolume(volume string) // TODO(barakmich): Volume and FS options
+	Mkfs() error
+	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
 
-	CommitInodeIndex() uint64
+	CommitInodeIndex() (uint64, error)
 
-	Mkdir(path Path, dir *types.Directory)
-	Getdir(path Path) (*types.Directory, []Path)
+	Mkdir(path Path, dir *types.Directory) error
+	Getdir(path Path) (*types.Directory, []Path, error)
 	// TODO(barakmich): Get ring, get other nodes, look up nodes for keys, etc.
 	// TODO(barakmich): Extend with GC interaction, et al
+}
+
+type CreateMetadataFunc func(address string) Metadata
+
+var metadata map[string]CreateMetadataFunc
+
+func RegisterMetadataProvider(name string, newFunc CreateMetadataFunc) {
+	if metadata == nil {
+		metadata = make(map[string]CreateMetadataFunc)
+	}
+	metadata[name] = newFunc
+}
+
+func CreateMetadata(name, address string) Metadata {
+	return metadata[name](address)
 }
