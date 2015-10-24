@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package types;
+
+message Metadata {
+  uint32 uid = 1;
+  uint32 gid = 2;
+  uint32 mode = 3;
+  uint32 flags = 4;
+  uint64 ctime = 5;
+  uint64 mtime = 6;
+}
+message INode {
+  string filename = 1;
+  uint64 replaces = 2;
+  Metadata permissions = 3;
+  map<string, string> attrs = 4;
+  repeated string hard_links = 5;
+  repeated uint64 blocks = 6;
+}
+
+message Directory {
+  Metadata metadata = 1;
+  map<string, uint64> files = 2;
+  // TODO(barakmich) Soft Link
+}

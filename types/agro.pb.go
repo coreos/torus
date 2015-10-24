@@ -3,17 +3,19 @@
 // DO NOT EDIT!
 
 /*
-	Package proto is a generated protocol buffer package.
+	Package types is a generated protocol buffer package.
 
 	It is generated from these files:
 		agro.proto
 
 	It has these top-level messages:
+		Metadata
 		INode
+		Directory
 */
-package proto
+package types
 
-import proto1 "github.com/gogo/protobuf/proto"
+import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 
@@ -22,33 +24,119 @@ import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 import io "io"
 
 // Reference imports to suppress errors if they are not otherwise used.
-var _ = proto1.Marshal
+var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+type Metadata struct {
+	Uid   uint32 `protobuf:"varint,1,opt,name=uid,proto3" json:"uid,omitempty"`
+	Gid   uint32 `protobuf:"varint,2,opt,name=gid,proto3" json:"gid,omitempty"`
+	Mode  uint32 `protobuf:"varint,3,opt,name=mode,proto3" json:"mode,omitempty"`
+	Flags uint32 `protobuf:"varint,4,opt,name=flags,proto3" json:"flags,omitempty"`
+	Ctime uint64 `protobuf:"varint,5,opt,name=ctime,proto3" json:"ctime,omitempty"`
+	Mtime uint64 `protobuf:"varint,6,opt,name=mtime,proto3" json:"mtime,omitempty"`
+}
+
+func (m *Metadata) Reset()         { *m = Metadata{} }
+func (m *Metadata) String() string { return proto.CompactTextString(m) }
+func (*Metadata) ProtoMessage()    {}
+
 type INode struct {
-	Filename  string            `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
-	Replaces  uint64            `protobuf:"varint,2,opt,name=replaces,proto3" json:"replaces,omitempty"`
-	Uid       uint32            `protobuf:"varint,3,opt,name=uid,proto3" json:"uid,omitempty"`
-	Gid       uint32            `protobuf:"varint,4,opt,name=gid,proto3" json:"gid,omitempty"`
-	Mode      uint32            `protobuf:"varint,5,opt,name=mode,proto3" json:"mode,omitempty"`
-	Flags     uint32            `protobuf:"varint,6,opt,name=flags,proto3" json:"flags,omitempty"`
-	Ctime     uint64            `protobuf:"varint,7,opt,name=ctime,proto3" json:"ctime,omitempty"`
-	Mtime     uint64            `protobuf:"varint,8,opt,name=mtime,proto3" json:"mtime,omitempty"`
-	Attrs     map[string]string `protobuf:"bytes,9,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	HardLinks []string          `protobuf:"bytes,10,rep,name=hard_links" json:"hard_links,omitempty"`
-	Blocks    []uint64          `protobuf:"varint,11,rep,name=blocks" json:"blocks,omitempty"`
+	Filename    string            `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	Replaces    uint64            `protobuf:"varint,2,opt,name=replaces,proto3" json:"replaces,omitempty"`
+	Permissions *Metadata         `protobuf:"bytes,3,opt,name=permissions" json:"permissions,omitempty"`
+	Attrs       map[string]string `protobuf:"bytes,4,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	HardLinks   []string          `protobuf:"bytes,5,rep,name=hard_links" json:"hard_links,omitempty"`
+	Blocks      []uint64          `protobuf:"varint,6,rep,name=blocks" json:"blocks,omitempty"`
 }
 
 func (m *INode) Reset()         { *m = INode{} }
-func (m *INode) String() string { return proto1.CompactTextString(m) }
+func (m *INode) String() string { return proto.CompactTextString(m) }
 func (*INode) ProtoMessage()    {}
+
+func (m *INode) GetPermissions() *Metadata {
+	if m != nil {
+		return m.Permissions
+	}
+	return nil
+}
 
 func (m *INode) GetAttrs() map[string]string {
 	if m != nil {
 		return m.Attrs
 	}
 	return nil
+}
+
+type Directory struct {
+	Metadata *Metadata         `protobuf:"bytes,1,opt,name=metadata" json:"metadata,omitempty"`
+	Files    map[string]uint64 `protobuf:"bytes,2,rep,name=files" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+}
+
+func (m *Directory) Reset()         { *m = Directory{} }
+func (m *Directory) String() string { return proto.CompactTextString(m) }
+func (*Directory) ProtoMessage()    {}
+
+func (m *Directory) GetMetadata() *Metadata {
+	if m != nil {
+		return m.Metadata
+	}
+	return nil
+}
+
+func (m *Directory) GetFiles() map[string]uint64 {
+	if m != nil {
+		return m.Files
+	}
+	return nil
+}
+
+func (m *Metadata) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *Metadata) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Uid != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Uid))
+	}
+	if m.Gid != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Gid))
+	}
+	if m.Mode != 0 {
+		data[i] = 0x18
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Mode))
+	}
+	if m.Flags != 0 {
+		data[i] = 0x20
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Flags))
+	}
+	if m.Ctime != 0 {
+		data[i] = 0x28
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Ctime))
+	}
+	if m.Mtime != 0 {
+		data[i] = 0x30
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Mtime))
+	}
+	return i, nil
 }
 
 func (m *INode) Marshal() (data []byte, err error) {
@@ -77,35 +165,15 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Replaces))
 	}
-	if m.Uid != 0 {
-		data[i] = 0x18
+	if m.Permissions != nil {
+		data[i] = 0x1a
 		i++
-		i = encodeVarintAgro(data, i, uint64(m.Uid))
-	}
-	if m.Gid != 0 {
-		data[i] = 0x20
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Gid))
-	}
-	if m.Mode != 0 {
-		data[i] = 0x28
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Mode))
-	}
-	if m.Flags != 0 {
-		data[i] = 0x30
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Flags))
-	}
-	if m.Ctime != 0 {
-		data[i] = 0x38
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Ctime))
-	}
-	if m.Mtime != 0 {
-		data[i] = 0x40
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Mtime))
+		i = encodeVarintAgro(data, i, uint64(m.Permissions.Size()))
+		n1, err := m.Permissions.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n1
 	}
 	if len(m.Attrs) > 0 {
 		keysForAttrs := make([]string, 0, len(m.Attrs))
@@ -114,7 +182,7 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 		}
 		github_com_gogo_protobuf_sortkeys.Strings(keysForAttrs)
 		for _, k := range keysForAttrs {
-			data[i] = 0x4a
+			data[i] = 0x22
 			i++
 			v := m.Attrs[k]
 			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + len(v) + sovAgro(uint64(len(v)))
@@ -131,7 +199,7 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.HardLinks) > 0 {
 		for _, s := range m.HardLinks {
-			data[i] = 0x52
+			data[i] = 0x2a
 			i++
 			l = len(s)
 			for l >= 1<<7 {
@@ -146,9 +214,58 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Blocks) > 0 {
 		for _, num := range m.Blocks {
-			data[i] = 0x58
+			data[i] = 0x30
 			i++
 			i = encodeVarintAgro(data, i, uint64(num))
+		}
+	}
+	return i, nil
+}
+
+func (m *Directory) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *Directory) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Metadata != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Metadata.Size()))
+		n2, err := m.Metadata.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n2
+	}
+	if len(m.Files) > 0 {
+		keysForFiles := make([]string, 0, len(m.Files))
+		for k, _ := range m.Files {
+			keysForFiles = append(keysForFiles, k)
+		}
+		github_com_gogo_protobuf_sortkeys.Strings(keysForFiles)
+		for _, k := range keysForFiles {
+			data[i] = 0x12
+			i++
+			v := m.Files[k]
+			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + sovAgro(uint64(v))
+			i = encodeVarintAgro(data, i, uint64(mapSize))
+			data[i] = 0xa
+			i++
+			i = encodeVarintAgro(data, i, uint64(len(k)))
+			i += copy(data[i:], k)
+			data[i] = 0x10
+			i++
+			i = encodeVarintAgro(data, i, uint64(v))
 		}
 	}
 	return i, nil
@@ -181,16 +298,9 @@ func encodeVarintAgro(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	return offset + 1
 }
-func (m *INode) Size() (n int) {
+func (m *Metadata) Size() (n int) {
 	var l int
 	_ = l
-	l = len(m.Filename)
-	if l > 0 {
-		n += 1 + l + sovAgro(uint64(l))
-	}
-	if m.Replaces != 0 {
-		n += 1 + sovAgro(uint64(m.Replaces))
-	}
 	if m.Uid != 0 {
 		n += 1 + sovAgro(uint64(m.Uid))
 	}
@@ -208,6 +318,23 @@ func (m *INode) Size() (n int) {
 	}
 	if m.Mtime != 0 {
 		n += 1 + sovAgro(uint64(m.Mtime))
+	}
+	return n
+}
+
+func (m *INode) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Filename)
+	if l > 0 {
+		n += 1 + l + sovAgro(uint64(l))
+	}
+	if m.Replaces != 0 {
+		n += 1 + sovAgro(uint64(m.Replaces))
+	}
+	if m.Permissions != nil {
+		l = m.Permissions.Size()
+		n += 1 + l + sovAgro(uint64(l))
 	}
 	if len(m.Attrs) > 0 {
 		for k, v := range m.Attrs {
@@ -231,6 +358,24 @@ func (m *INode) Size() (n int) {
 	return n
 }
 
+func (m *Directory) Size() (n int) {
+	var l int
+	_ = l
+	if m.Metadata != nil {
+		l = m.Metadata.Size()
+		n += 1 + l + sovAgro(uint64(l))
+	}
+	if len(m.Files) > 0 {
+		for k, v := range m.Files {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + sovAgro(uint64(v))
+			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
+		}
+	}
+	return n
+}
+
 func sovAgro(x uint64) (n int) {
 	for {
 		n++
@@ -243,6 +388,170 @@ func sovAgro(x uint64) (n int) {
 }
 func sozAgro(x uint64) (n int) {
 	return sovAgro(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (m *Metadata) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Metadata: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Metadata: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Uid", wireType)
+			}
+			m.Uid = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Uid |= (uint32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Gid", wireType)
+			}
+			m.Gid = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Gid |= (uint32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Mode", wireType)
+			}
+			m.Mode = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Mode |= (uint32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Flags", wireType)
+			}
+			m.Flags = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Flags |= (uint32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Ctime", wireType)
+			}
+			m.Ctime = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Ctime |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Mtime", wireType)
+			}
+			m.Mtime = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Mtime |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 func (m *INode) Unmarshal(data []byte) error {
 	l := len(data)
@@ -322,10 +631,10 @@ func (m *INode) Unmarshal(data []byte) error {
 				}
 			}
 		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Uid", wireType)
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Permissions", wireType)
 			}
-			m.Uid = 0
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowAgro
@@ -335,107 +644,26 @@ func (m *INode) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				m.Uid |= (uint32(b) & 0x7F) << shift
+				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			if msglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Permissions == nil {
+				m.Permissions = &Metadata{}
+			}
+			if err := m.Permissions.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Gid", wireType)
-			}
-			m.Gid = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Gid |= (uint32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Mode", wireType)
-			}
-			m.Mode = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Mode |= (uint32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 6:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Flags", wireType)
-			}
-			m.Flags = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Flags |= (uint32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 7:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ctime", wireType)
-			}
-			m.Ctime = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Ctime |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 8:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Mtime", wireType)
-			}
-			m.Mtime = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Mtime |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 9:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Attrs", wireType)
 			}
@@ -546,7 +774,7 @@ func (m *INode) Unmarshal(data []byte) error {
 			}
 			m.Attrs[mapkey] = mapvalue
 			iNdEx = postIndex
-		case 10:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field HardLinks", wireType)
 			}
@@ -575,7 +803,7 @@ func (m *INode) Unmarshal(data []byte) error {
 			}
 			m.HardLinks = append(m.HardLinks, string(data[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 11:
+		case 6:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Blocks", wireType)
 			}
@@ -595,6 +823,190 @@ func (m *INode) Unmarshal(data []byte) error {
 				}
 			}
 			m.Blocks = append(m.Blocks, v)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Directory) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Directory: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Directory: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Metadata", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Metadata == nil {
+				m.Metadata = &Metadata{}
+			}
+			if err := m.Metadata.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Files", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var keykey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				keykey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var stringLenmapkey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLenmapkey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLenmapkey := int(stringLenmapkey)
+			if intStringLenmapkey < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postStringIndexmapkey := iNdEx + intStringLenmapkey
+			if postStringIndexmapkey > l {
+				return io.ErrUnexpectedEOF
+			}
+			mapkey := string(data[iNdEx:postStringIndexmapkey])
+			iNdEx = postStringIndexmapkey
+			var valuekey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				valuekey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var mapvalue uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				mapvalue |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if m.Files == nil {
+				m.Files = make(map[string]uint64)
+			}
+			m.Files[mapkey] = mapvalue
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])
