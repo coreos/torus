@@ -1,7 +1,7 @@
 package server
 
-import "github.com/barakmich/agro"
 import (
+	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/storage"
 	"github.com/barakmich/agro/types"
 )
@@ -13,14 +13,22 @@ type server struct {
 }
 
 func NewMemoryServer() agro.Server {
-	md := agro.CreateMetadata("temp", "")
+	mds := agro.CreateMetadata("temp", "")
 	return &server{
 		cold:     storage.OpenTempKeyStore(),
-		metadata: md,
+		metadata: mds,
 		inodes:   storage.OpenTempINodeStore(),
 	}
 }
 
-func (s *server) Create(agro.Path, types.Metadata) (agro.File, error) {
-	return &file{}, nil
+func (s *server) Create(path agro.Path, md types.Metadata) (agro.File, error) {
+	// Truncate the file if it already exists. This is equivalent to creating
+	// a new (empty) inode with the path that we're going to overwrite later.
+	n := types.NewEmptyInode()
+	n.Permissions = &md
+	return &file{
+		path:  path,
+		inode: n,
+		srv:   s,
+	}, nil
 }
