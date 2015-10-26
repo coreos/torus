@@ -104,3 +104,11 @@ func (t *temp) Getdir(path agro.Path) (*types.Directory, []agro.Path, error) {
 	}
 	return dir.data, subdirs, nil
 }
+
+func (t *temp) GetVolumes() ([]string, error) {
+	var out []string
+	for k := range t.volumes {
+		out = append(out, k)
+	}
+	return out, nil
+}

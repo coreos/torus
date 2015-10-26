@@ -26,3 +26,6 @@ _testmain.go
 
 *.swp
 *.swo
+
+# Binaries in root dir
+agro

@@ -32,3 +32,11 @@ func (s *server) Create(path agro.Path, md types.Metadata) (agro.File, error) {
 		srv:   s,
 	}, nil
 }
+
+func (s *server) CreateVolume(vol string) error {
+	return s.metadata.CreateVolume(vol)
+}
+
+func (s *server) GetVolumes() ([]string, error) {
+	return s.metadata.GetVolumes()
+}

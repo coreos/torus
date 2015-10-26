@@ -27,6 +27,7 @@ func (p Path) Key() string {
 type Metadata interface {
 	Mkfs() error
 	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
+	GetVolumes() ([]string, error)
 
 	CommitInodeIndex() (uint64, error)
 
