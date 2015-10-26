@@ -1,9 +1,7 @@
 package main
 
-import (
-	"fmt"
-)
+import "github.com/barakmich/agro/server"
 
 func main() {
-	fmt.Println("Placeholder Main file")
+	srv := server.NewMemoryServer()
 }
