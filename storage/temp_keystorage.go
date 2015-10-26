@@ -8,7 +8,7 @@ type tempKeyStore struct {
 
 func CreateTempKeyStore() {}
 
-func OpenTempKeyStore() KeyStore {
+func OpenTempKeyStore() agro.KeyStore {
 	return &tempKeyStore{
 		store: make(map[string][]byte),
 	}

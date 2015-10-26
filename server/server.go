@@ -1,7 +1,10 @@
 package server
 
 import "github.com/barakmich/agro"
-import "github.com/barakmich/agro/storage"
+import (
+	"github.com/barakmich/agro/storage"
+	"github.com/barakmich/agro/types"
+)
 
 type server struct {
 	cold     agro.KeyStore
@@ -16,4 +19,8 @@ func NewMemoryServer() agro.Server {
 		metadata: md,
 		inodes:   storage.OpenTempINodeStore(),
 	}
+}
+
+func (s *server) Create(agro.Path, types.Metadata) (agro.File, error) {
+	return &file{}, nil
 }

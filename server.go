@@ -1,10 +1,7 @@
 package agro
 
-import (
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/types"
-)
+import "github.com/barakmich/agro/types"
 
 type Server interface {
-	Create(agro.Path, types.Metadata) error
+	Create(Path, types.Metadata) (File, error)
 }
