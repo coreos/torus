@@ -16,8 +16,7 @@ func (p Path) GetDepth() int {
 	if p.Path == "/" {
 		return 0
 	}
-	a := strings.TrimSuffix(p.Path, "/")
-	return len(strings.Split(a, "/")) - 1
+	return strings.Count(strings.TrimSuffix(p.Path, "/"), "/")
 }
 
 func (p Path) Key() string {
