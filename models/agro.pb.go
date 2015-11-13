@@ -3,7 +3,7 @@
 // DO NOT EDIT!
 
 /*
-	Package types is a generated protocol buffer package.
+	Package models is a generated protocol buffer package.
 
 	It is generated from these files:
 		agro.proto
@@ -13,7 +13,7 @@
 		INode
 		Directory
 */
-package types
+package models
 
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"

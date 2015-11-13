@@ -1,4 +1,4 @@
-package types
+package models
 
 func NewEmptyInode() *INode {
 	return &INode{

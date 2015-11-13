@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package types;
+package models;
 
 message Metadata {
   uint32 uid = 1;

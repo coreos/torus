@@ -4,12 +4,12 @@ import (
 	"io"
 
 	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/types"
+	"github.com/barakmich/agro/models"
 )
 
 type file struct {
 	path   agro.Path
-	inode  *types.INode
+	inode  *models.INode
 	srv    *server
 	offset int64
 }
