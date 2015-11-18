@@ -3,9 +3,7 @@ package agro
 type Blockset interface {
 	Length() int
 	GetBlock(i int) ([]byte, error)
-	PutBlock(i int, b []byte) error
-
-	SetStore(store BlockStore)
+	PutBlock(inode INodeRef, i int, b []byte) error
 
 	Marshal() ([]byte, error)
 	Unmarshal(data []byte) error
