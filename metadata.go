@@ -13,7 +13,7 @@ type Path struct {
 }
 
 func (p Path) IsDir() (b bool) {
-	if len(p.path) == 0 {
+	if len(p.Path) == 0 {
 		return false
 	}
 
