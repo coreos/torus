@@ -1,6 +1,7 @@
 package server
 
 import (
+	"os"
 	"path"
 
 	"github.com/barakmich/agro"
@@ -9,17 +10,17 @@ import (
 )
 
 type server struct {
-	cold     agro.BlockStore
-	metadata agro.MetadataService
-	inodes   agro.INodeStore
+	cold   agro.BlockStore
+	mds    agro.MetadataService
+	inodes agro.INodeStore
 }
 
 func NewMemoryServer() agro.Server {
 	mds := agro.CreateMetadata("temp", "")
 	return &server{
-		cold:     storage.OpenTempBlockStore(),
-		metadata: mds,
-		inodes:   storage.OpenTempINodeStore(),
+		cold:   storage.OpenTempBlockStore(),
+		mds:    mds,
+		inodes: storage.OpenTempINodeStore(),
 	}
 }
 
@@ -36,26 +37,45 @@ func (s *server) Create(path agro.Path, md models.Metadata) (agro.File, error) {
 }
 
 func (s *server) Open(p agro.Path) (agro.File, error) {
-	dir, _, err := s.metadata.Getdir(p)
+	ref, err := s.inodeRefForPath(p)
+	if err != nil {
+		return nil, err
+	}
+
+	inode, err := s.inodes.GetINode(ref)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO(jzelinskie): check metadata for permission
 
-	_, filename := path.Split(p.Path)
-	inode, err := s.inodes.GetINode(dir.Files[filename])
-	if err != nil {
-		return nil, err
-	}
-
 	return s.newFile(p, inode), nil
 }
 
+func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
+	dir, _, err := s.mds.Getdir(p)
+	if err != nil {
+		return agro.INodeRef{}, err
+	}
+
+	volID, err := s.mds.GetVolumeID(p.Volume)
+	if err != nil {
+		return agro.INodeRef{}, err
+	}
+
+	_, filename := path.Split(p.Path)
+	inodeID, ok := dir.Files[filename]
+	if !ok {
+		return agro.INodeRef{}, os.ErrNotExist
+	}
+
+	return agro.INodeRef{volID, agro.INodeID(inodeID)}, nil
+}
+
 func (s *server) CreateVolume(vol string) error {
-	return s.metadata.CreateVolume(vol)
+	return s.mds.CreateVolume(vol)
 }
 
 func (s *server) GetVolumes() ([]string, error) {
-	return s.metadata.GetVolumes()
+	return s.mds.GetVolumes()
 }

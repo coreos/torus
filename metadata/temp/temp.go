@@ -19,14 +19,17 @@ func init() {
 }
 
 type temp struct {
-	mut   sync.Mutex
-	inode uint64
-	tree  *iradix.Tree
+	mut      sync.Mutex
+	inode    agro.INodeID
+	tree     *iradix.Tree
+	volIndex map[string]agro.VolumeID
+	vol      agro.VolumeID
 }
 
 func newTempMetadata(address string) agro.MetadataService {
 	return &temp{
-		tree: iradix.New(),
+		volIndex: make(map[string]agro.VolumeID),
+		tree:     iradix.New(),
 	}
 }
 
@@ -42,11 +45,15 @@ func (t *temp) CreateVolume(volume string) error {
 	if _, ok := tx.Get(k); !ok {
 		tx.Insert(k, (*models.Directory)(nil))
 		t.tree = tx.Commit()
+		t.volIndex[volume] = t.vol
+		t.vol++
 	}
+
+	// TODO(jzelinskie): maybe raise volume already exists
 	return nil
 }
 
-func (t *temp) CommitInodeIndex() (uint64, error) {
+func (t *temp) CommitInodeIndex() (agro.INodeID, error) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 
@@ -143,4 +150,11 @@ func (t *temp) GetVolumes() ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+func (t *temp) GetVolumeID(volume string) (agro.VolumeID, error) {
+	if vol, ok := t.volIndex[volume]; ok {
+		return vol, nil
+	}
+	return 0, errors.New("temp: no such volume exists")
 }

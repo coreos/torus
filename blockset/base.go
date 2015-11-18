@@ -9,7 +9,7 @@ import (
 )
 
 type basicBlockset struct {
-	ids    int64
+	ids    uint64
 	blocks []agro.BlockID
 	store  agro.BlockStore
 }
@@ -53,10 +53,10 @@ func (b *basicBlockset) PutBlock(inode agro.INodeRef, i int, data []byte) error 
 }
 
 func (b *basicBlockset) makeID(i agro.INodeRef) agro.BlockID {
-	id := atomic.AddInt64(&b.ids, 2)
+	id := atomic.AddUint64(&b.ids, 2)
 	return agro.BlockID{
 		INodeRef: i,
-		Index:    id,
+		Index:    agro.IndexID(id),
 	}
 }
 

@@ -6,14 +6,14 @@ import (
 )
 
 type tempINodeStore struct {
-	store map[uint64]*models.INode
+	store map[agro.INodeRef]*models.INode
 }
 
 func CreateTempINodeStore() {}
 
 func OpenTempINodeStore() agro.INodeStore {
 	return &tempINodeStore{
-		store: make(map[uint64]*models.INode),
+		store: make(map[agro.INodeRef]*models.INode),
 	}
 }
 
@@ -23,7 +23,7 @@ func (t *tempINodeStore) Close() error {
 	return nil
 }
 
-func (t *tempINodeStore) GetINode(i uint64) (*models.INode, error) {
+func (t *tempINodeStore) GetINode(i agro.INodeRef) (*models.INode, error) {
 	x, ok := t.store[i]
 	if !ok {
 		return nil, agro.ErrBlockNotExist
@@ -31,12 +31,12 @@ func (t *tempINodeStore) GetINode(i uint64) (*models.INode, error) {
 	return x, nil
 }
 
-func (t *tempINodeStore) WriteINode(i uint64, inode *models.INode) error {
+func (t *tempINodeStore) WriteINode(i agro.INodeRef, inode *models.INode) error {
 	t.store[i] = inode
 	return nil
 }
 
-func (t *tempINodeStore) DeleteINode(i uint64) error {
+func (t *tempINodeStore) DeleteINode(i agro.INodeRef) error {
 	delete(t.store, i)
 	return nil
 }

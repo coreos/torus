@@ -2,19 +2,23 @@ package agro
 
 import "github.com/barakmich/agro/models"
 
+type VolumeID uint64
+type IndexID uint64
+type INodeID uint64
+
 type Store interface {
 	Flush() error
 	Close() error
 }
 
 type INodeRef struct {
-	Volume int64
-	INode  int64
+	Volume VolumeID
+	INode  INodeID
 }
 
 type BlockID struct {
 	INodeRef
-	Index int64
+	Index IndexID
 }
 
 type BlockStore interface {
@@ -26,7 +30,7 @@ type BlockStore interface {
 
 type INodeStore interface {
 	Store
-	GetINode(i uint64) (*models.INode, error)
-	WriteINode(i uint64, inode *models.INode) error
-	DeleteINode(i uint64) error
+	GetINode(i INodeRef) (*models.INode, error)
+	WriteINode(i INodeRef, inode *models.INode) error
+	DeleteINode(i INodeRef) error
 }
