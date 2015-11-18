@@ -14,6 +14,15 @@ type file struct {
 	offset int64
 }
 
+func (s *server) newFile(path agro.Path, inode *models.INode) agro.File {
+	return &file{
+		path:   path,
+		inode:  inode,
+		srv:    s,
+		offset: 0,
+	}
+}
+
 func (f *file) Write(b []byte) (n int, err error) {
 	return 0, nil
 }

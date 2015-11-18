@@ -10,6 +10,7 @@ message Metadata {
   uint64 ctime = 5;
   uint64 mtime = 6;
 }
+
 message INode {
   string filename = 1;
   uint64 replaces = 2;
@@ -27,6 +28,7 @@ message BlockLayer {
 
 message Directory {
   Metadata metadata = 1;
+  // key is the filename without the path
   map<string, uint64> files = 2;
   // TODO(barakmich) Soft Link
 }

@@ -12,6 +12,14 @@ type Path struct {
 	Path   string
 }
 
+func (p Path) IsDir() (b bool) {
+	if len(p.path) == 0 {
+		return false
+	}
+
+	return p.Path[len(p.Path)-1] == byte('/')
+}
+
 func (p Path) GetDepth() int {
 	if p.Path == "/" {
 		return 0
