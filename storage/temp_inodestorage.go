@@ -26,7 +26,7 @@ func (t *tempINodeStore) Close() error {
 func (t *tempINodeStore) GetINode(i uint64) (*models.INode, error) {
 	x, ok := t.store[i]
 	if !ok {
-		return nil, agro.ErrKeyNotFound
+		return nil, agro.ErrBlockNotExist
 	}
 	return x, nil
 }
