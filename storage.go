@@ -7,9 +7,14 @@ type Store interface {
 	Close() error
 }
 
+type INodeRef struct {
+	Volume int64
+	INode  int64
+}
+
 type BlockID struct {
-	Path
-	index int64
+	INodeRef
+	Index int64
 }
 
 type BlockStore interface {
