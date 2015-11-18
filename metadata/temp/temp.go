@@ -1,12 +1,17 @@
 package temp
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"os"
+	"path"
 	"strings"
 	"sync"
 
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/models"
+	"github.com/hashicorp/go-immutable-radix"
 )
 
 func init() {
@@ -14,101 +19,128 @@ func init() {
 }
 
 type temp struct {
-	mut     sync.Mutex
-	inode   uint64
-	volumes map[string]dir
-}
-
-type dir struct {
-	path    string
-	subdirs map[string]dir
-	data    *models.Directory
-}
-
-func makedir(path string) dir {
-	return dir{
-		path:    path,
-		subdirs: make(map[string]dir),
-	}
+	mut   sync.Mutex
+	inode uint64
+	tree  *iradix.Tree
 }
 
 func newTempMetadata(address string) agro.Metadata {
 	return &temp{
-		volumes: make(map[string]dir),
+		tree: iradix.New(),
 	}
 }
 
 func (t *temp) Mkfs() error { return nil }
 
 func (t *temp) CreateVolume(volume string) error {
-	t.volumes[volume] = makedir("/")
+	t.mut.Lock()
+	defer t.mut.Unlock()
+
+	tx := t.tree.Txn()
+
+	k := []byte(agro.Path{Volume: volume, Path: "/"}.Key())
+	if _, ok := tx.Get(k); !ok {
+		tx.Insert(k, (*models.Directory)(nil))
+		t.tree = tx.Commit()
+	}
 	return nil
 }
 
 func (t *temp) CommitInodeIndex() (uint64, error) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
+
 	t.inode++
 	return t.inode, nil
 }
 
-func (t *temp) Mkdir(path agro.Path, dir *models.Directory) error {
-	if path.Path == "/" {
-		return errors.New("Can't create the root directory")
+func (t *temp) Mkdir(p agro.Path, dir *models.Directory) error {
+	if p.Path == "/" {
+		return errors.New("can't create the root directory")
 	}
-	root, ok := t.volumes[path.Volume]
-	if !ok {
-		return errors.New("ENOENT")
+
+	t.mut.Lock()
+	defer t.mut.Unlock()
+
+	tx := t.tree.Txn()
+
+	k := []byte(p.Key())
+	if _, ok := tx.Get(k); ok {
+		return &os.PathError{
+			Op:   "mkdir",
+			Path: p.Path,
+			Err:  os.ErrExist,
+		}
 	}
-	part := strings.Split(path.Path, "/")
-	part = part[1:]
-	d := root
-	for i, p := range part {
-		newdir, ok := d.subdirs[p]
-		if !ok {
-			if i != len(part)-1 {
-				return errors.New("cannot create directory recursively")
-			}
-			newdir = makedir(d.path + "/" + p)
-			d.subdirs[p] = newdir
+	tx.Insert(k, dir)
+
+	for {
+		p.Path, _ = path.Split(strings.TrimSuffix(p.Path, "/"))
+		if p.Path == "" {
 			break
 		}
-		d = newdir
+		k = []byte(p.Key())
+		if _, ok := tx.Get(k); !ok {
+			return &os.PathError{
+				Op:   "stat",
+				Path: p.Path,
+				Err:  os.ErrNotExist,
+			}
+		}
 	}
+
+	t.tree = tx.Commit()
 	return nil
 }
 
-func (t *temp) Getdir(path agro.Path) (*models.Directory, []agro.Path, error) {
-	root, ok := t.volumes[path.Volume]
+func (t *temp) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
+	var (
+		tx = t.tree.Txn()
+		k  = []byte(p.Key())
+	)
+	v, ok := tx.Get(k)
 	if !ok {
-		return nil, nil, errors.New("EBADF")
-	}
-	dir := root
-	if path.Path != "/" {
-		part := strings.Split(path.Path, "/")
-		part = part[1:]
-		for _, p := range part {
-			newdir, ok := dir.subdirs[p]
-			if !ok {
-				return nil, nil, errors.New("cannot find directory")
-			}
-			dir = newdir
+		return nil, nil, &os.PathError{
+			Op:   "stat",
+			Path: p.Path,
+			Err:  os.ErrNotExist,
 		}
 	}
-	var subdirs []agro.Path
-	for k := range dir.subdirs {
+
+	var (
+		dir     = v.(*models.Directory)
+		prefix  = []byte(p.SubdirsPrefix())
+		subdirs []agro.Path
+	)
+	tx.Root().WalkPrefix(prefix, func(k []byte, v interface{}) bool {
 		subdirs = append(subdirs, agro.Path{
-			Volume: path.Volume,
-			Path:   path.Path + "/" + k,
+			Volume: p.Volume,
+			Path:   fmt.Sprintf("%s%s", p.Path, bytes.TrimPrefix(k, prefix)),
 		})
-	}
-	return dir.data, subdirs, nil
+		return false
+	})
+	return dir, subdirs, nil
 }
 
 func (t *temp) GetVolumes() ([]string, error) {
-	var out []string
-	for k := range t.volumes {
-		out = append(out, k)
+	var (
+		iter = t.tree.Root().Iterator()
+		out  []string
+		last string
+	)
+	for {
+		k, _, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if i := bytes.IndexByte(k, ':'); i != -1 {
+			vol := string(k[:i])
+			if vol == last {
+				continue
+			}
+			out = append(out, vol)
+			last = vol
+		}
 	}
 	return out, nil
 }

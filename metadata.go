@@ -20,7 +20,11 @@ func (p Path) GetDepth() int {
 }
 
 func (p Path) Key() string {
-	return fmt.Sprintf("%s:%4x:%s", p.Volume, p.GetDepth(), p.Path)
+	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth(), p.Path)
+}
+
+func (p Path) SubdirsPrefix() string {
+	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth()+1, p.Path)
 }
 
 type Metadata interface {
