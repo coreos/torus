@@ -3,7 +3,7 @@ package agro
 import (
 	"errors"
 
-	"github.com/barakmich/agro/types"
+	"github.com/barakmich/agro/models"
 )
 
 var ErrKeyNotFound = errors.New("Couldn't find key in storage")
@@ -22,7 +22,7 @@ type KeyStore interface {
 
 type INodeStore interface {
 	Store
-	GetINode(i uint64) (*types.INode, error)
-	WriteINode(i uint64, inode *types.INode) error
+	GetINode(i uint64) (*models.INode, error)
+	WriteINode(i uint64, inode *models.INode) error
 	DeleteINode(i uint64) error
 }

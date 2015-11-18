@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/types"
+	"github.com/barakmich/agro/models"
 )
 
 func init() {
@@ -22,7 +22,7 @@ type temp struct {
 type dir struct {
 	path    string
 	subdirs map[string]dir
-	data    *types.Directory
+	data    *models.Directory
 }
 
 func makedir(path string) dir {
@@ -52,7 +52,7 @@ func (t *temp) CommitInodeIndex() (uint64, error) {
 	return t.inode, nil
 }
 
-func (t *temp) Mkdir(path agro.Path, dir *types.Directory) error {
+func (t *temp) Mkdir(path agro.Path, dir *models.Directory) error {
 	if path.Path == "/" {
 		return errors.New("Can't create the root directory")
 	}
@@ -78,7 +78,7 @@ func (t *temp) Mkdir(path agro.Path, dir *types.Directory) error {
 	return nil
 }
 
-func (t *temp) Getdir(path agro.Path) (*types.Directory, []agro.Path, error) {
+func (t *temp) Getdir(path agro.Path) (*models.Directory, []agro.Path, error) {
 	root, ok := t.volumes[path.Volume]
 	if !ok {
 		return nil, nil, errors.New("EBADF")

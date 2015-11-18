@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/barakmich/agro/types"
+	"github.com/barakmich/agro/models"
 )
 
 type Path struct {
@@ -30,8 +30,8 @@ type Metadata interface {
 
 	CommitInodeIndex() (uint64, error)
 
-	Mkdir(path Path, dir *types.Directory) error
-	Getdir(path Path) (*types.Directory, []Path, error)
+	Mkdir(path Path, dir *models.Directory) error
+	Getdir(path Path) (*models.Directory, []Path, error)
 	// TODO(barakmich): Get ring, get other nodes, look up nodes for keys, etc.
 	// TODO(barakmich): Extend with GC interaction, et al
 }
