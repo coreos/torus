@@ -153,6 +153,9 @@ func (t *temp) GetVolumes() ([]string, error) {
 }
 
 func (t *temp) GetVolumeID(volume string) (agro.VolumeID, error) {
+	t.mut.Lock()
+	defer t.mut.Unlock()
+
 	if vol, ok := t.volIndex[volume]; ok {
 		return vol, nil
 	}
