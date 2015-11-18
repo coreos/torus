@@ -1,23 +1,22 @@
 package agro
 
-import (
-	"errors"
-
-	"github.com/barakmich/agro/models"
-)
-
-var ErrKeyNotFound = errors.New("Couldn't find key in storage")
+import "github.com/barakmich/agro/models"
 
 type Store interface {
 	Flush() error
 	Close() error
 }
 
-type KeyStore interface {
+type BlockID struct {
+	Path
+	index int64
+}
+
+type BlockStore interface {
 	Store
-	GetKey(s string) ([]byte, error)
-	WriteKey(s string, data []byte) error
-	DeleteKey(s string) error
+	GetBlock(b BlockID) ([]byte, error)
+	WriteBlock(b BlockID, data []byte) error
+	DeleteBlock(b BlockID) error
 }
 
 type INodeStore interface {
