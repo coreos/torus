@@ -10,7 +10,7 @@ import (
 
 type server struct {
 	cold     agro.BlockStore
-	metadata agro.Metadata
+	metadata agro.MetadataService
 	inodes   agro.INodeStore
 }
 

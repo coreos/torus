@@ -35,7 +35,7 @@ func (p Path) SubdirsPrefix() string {
 	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth()+1, p.Path)
 }
 
-type Metadata interface {
+type MetadataService interface {
 	Mkfs() error
 	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
 	GetVolumes() ([]string, error)
@@ -48,7 +48,7 @@ type Metadata interface {
 	// TODO(barakmich): Extend with GC interaction, et al
 }
 
-type CreateMetadataFunc func(address string) Metadata
+type CreateMetadataFunc func(address string) MetadataService
 
 var metadata map[string]CreateMetadataFunc
 
@@ -59,6 +59,6 @@ func RegisterMetadataProvider(name string, newFunc CreateMetadataFunc) {
 	metadata[name] = newFunc
 }
 
-func CreateMetadata(name, address string) Metadata {
+func CreateMetadata(name, address string) MetadataService {
 	return metadata[name](address)
 }

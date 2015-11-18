@@ -24,7 +24,7 @@ type temp struct {
 	tree  *iradix.Tree
 }
 
-func newTempMetadata(address string) agro.Metadata {
+func newTempMetadata(address string) agro.MetadataService {
 	return &temp{
 		tree: iradix.New(),
 	}
