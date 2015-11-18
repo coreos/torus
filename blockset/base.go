@@ -94,3 +94,5 @@ func (b *basicBlockset) Unmarshal(data []byte) error {
 	b.blocks = out
 	return nil
 }
+
+func (b *basicBlockset) GetSubBlockset() agro.Blockset { return nil }
