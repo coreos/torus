@@ -7,7 +7,7 @@ import (
 )
 
 type server struct {
-	cold     agro.KeyStore
+	cold     agro.BlockStore
 	metadata agro.Metadata
 	inodes   agro.INodeStore
 }
