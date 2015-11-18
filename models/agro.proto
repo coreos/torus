@@ -13,10 +13,16 @@ message Metadata {
 message INode {
   string filename = 1;
   uint64 replaces = 2;
-  Metadata permissions = 3;
-  map<string, string> attrs = 4;
-  repeated string hard_links = 5;
-  repeated uint64 blocks = 6;
+  uint64 filesize = 3;
+  Metadata permissions = 4;
+  map<string, string> attrs = 5;
+  repeated string hard_links = 6;
+  repeated BlockLayer blocks = 7;
+}
+
+message BlockLayer {
+  uint32 type = 1;
+  bytes content = 2;
 }
 
 message Directory {

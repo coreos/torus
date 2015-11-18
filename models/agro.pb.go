@@ -11,6 +11,7 @@
 	It has these top-level messages:
 		Metadata
 		INode
+		BlockLayer
 		Directory
 */
 package models
@@ -44,10 +45,11 @@ func (*Metadata) ProtoMessage()    {}
 type INode struct {
 	Filename    string            `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
 	Replaces    uint64            `protobuf:"varint,2,opt,name=replaces,proto3" json:"replaces,omitempty"`
-	Permissions *Metadata         `protobuf:"bytes,3,opt,name=permissions" json:"permissions,omitempty"`
-	Attrs       map[string]string `protobuf:"bytes,4,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	HardLinks   []string          `protobuf:"bytes,5,rep,name=hard_links" json:"hard_links,omitempty"`
-	Blocks      []uint64          `protobuf:"varint,6,rep,name=blocks" json:"blocks,omitempty"`
+	Filesize    uint64            `protobuf:"varint,3,opt,name=filesize,proto3" json:"filesize,omitempty"`
+	Permissions *Metadata         `protobuf:"bytes,4,opt,name=permissions" json:"permissions,omitempty"`
+	Attrs       map[string]string `protobuf:"bytes,5,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	HardLinks   []string          `protobuf:"bytes,6,rep,name=hard_links" json:"hard_links,omitempty"`
+	Blocks      []*BlockLayer     `protobuf:"bytes,7,rep,name=blocks" json:"blocks,omitempty"`
 }
 
 func (m *INode) Reset()         { *m = INode{} }
@@ -67,6 +69,22 @@ func (m *INode) GetAttrs() map[string]string {
 	}
 	return nil
 }
+
+func (m *INode) GetBlocks() []*BlockLayer {
+	if m != nil {
+		return m.Blocks
+	}
+	return nil
+}
+
+type BlockLayer struct {
+	Type    uint32 `protobuf:"varint,1,opt,name=type,proto3" json:"type,omitempty"`
+	Content []byte `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+}
+
+func (m *BlockLayer) Reset()         { *m = BlockLayer{} }
+func (m *BlockLayer) String() string { return proto.CompactTextString(m) }
+func (*BlockLayer) ProtoMessage()    {}
 
 type Directory struct {
 	Metadata *Metadata         `protobuf:"bytes,1,opt,name=metadata" json:"metadata,omitempty"`
@@ -165,8 +183,13 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Replaces))
 	}
+	if m.Filesize != 0 {
+		data[i] = 0x18
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Filesize))
+	}
 	if m.Permissions != nil {
-		data[i] = 0x1a
+		data[i] = 0x22
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Permissions.Size()))
 		n1, err := m.Permissions.MarshalTo(data[i:])
@@ -182,7 +205,7 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 		}
 		github_com_gogo_protobuf_sortkeys.Strings(keysForAttrs)
 		for _, k := range keysForAttrs {
-			data[i] = 0x22
+			data[i] = 0x2a
 			i++
 			v := m.Attrs[k]
 			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + len(v) + sovAgro(uint64(len(v)))
@@ -199,7 +222,7 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.HardLinks) > 0 {
 		for _, s := range m.HardLinks {
-			data[i] = 0x2a
+			data[i] = 0x32
 			i++
 			l = len(s)
 			for l >= 1<<7 {
@@ -213,10 +236,46 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 		}
 	}
 	if len(m.Blocks) > 0 {
-		for _, num := range m.Blocks {
-			data[i] = 0x30
+		for _, msg := range m.Blocks {
+			data[i] = 0x3a
 			i++
-			i = encodeVarintAgro(data, i, uint64(num))
+			i = encodeVarintAgro(data, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	return i, nil
+}
+
+func (m *BlockLayer) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *BlockLayer) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Type != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Type))
+	}
+	if m.Content != nil {
+		if len(m.Content) > 0 {
+			data[i] = 0x12
+			i++
+			i = encodeVarintAgro(data, i, uint64(len(m.Content)))
+			i += copy(data[i:], m.Content)
 		}
 	}
 	return i, nil
@@ -332,6 +391,9 @@ func (m *INode) Size() (n int) {
 	if m.Replaces != 0 {
 		n += 1 + sovAgro(uint64(m.Replaces))
 	}
+	if m.Filesize != 0 {
+		n += 1 + sovAgro(uint64(m.Filesize))
+	}
 	if m.Permissions != nil {
 		l = m.Permissions.Size()
 		n += 1 + l + sovAgro(uint64(l))
@@ -352,7 +414,23 @@ func (m *INode) Size() (n int) {
 	}
 	if len(m.Blocks) > 0 {
 		for _, e := range m.Blocks {
-			n += 1 + sovAgro(uint64(e))
+			l = e.Size()
+			n += 1 + l + sovAgro(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *BlockLayer) Size() (n int) {
+	var l int
+	_ = l
+	if m.Type != 0 {
+		n += 1 + sovAgro(uint64(m.Type))
+	}
+	if m.Content != nil {
+		l = len(m.Content)
+		if l > 0 {
+			n += 1 + l + sovAgro(uint64(l))
 		}
 	}
 	return n
@@ -631,6 +709,25 @@ func (m *INode) Unmarshal(data []byte) error {
 				}
 			}
 		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Filesize", wireType)
+			}
+			m.Filesize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Filesize |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Permissions", wireType)
 			}
@@ -663,7 +760,7 @@ func (m *INode) Unmarshal(data []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 4:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Attrs", wireType)
 			}
@@ -774,7 +871,7 @@ func (m *INode) Unmarshal(data []byte) error {
 			}
 			m.Attrs[mapkey] = mapvalue
 			iNdEx = postIndex
-		case 5:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field HardLinks", wireType)
 			}
@@ -803,11 +900,11 @@ func (m *INode) Unmarshal(data []byte) error {
 			}
 			m.HardLinks = append(m.HardLinks, string(data[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 6:
-			if wireType != 0 {
+		case 7:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Blocks", wireType)
 			}
-			var v uint64
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowAgro
@@ -817,12 +914,120 @@ func (m *INode) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				v |= (uint64(b) & 0x7F) << shift
+				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.Blocks = append(m.Blocks, v)
+			if msglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Blocks = append(m.Blocks, &BlockLayer{})
+			if err := m.Blocks[len(m.Blocks)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *BlockLayer) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: BlockLayer: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: BlockLayer: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
+			}
+			m.Type = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Type |= (uint32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Content", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Content = append([]byte{}, data[iNdEx:postIndex]...)
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])
