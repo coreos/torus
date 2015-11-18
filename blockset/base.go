@@ -62,6 +62,10 @@ func (b *basicBlockset) makeID(i agro.INodeRef) agro.BlockID {
 
 func (b *basicBlockset) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, int32(len(b.blocks)))
+	if err != nil {
+		return nil, err
+	}
 	for _, x := range b.blocks {
 		err := binary.Write(buf, binary.LittleEndian, x)
 		if err != nil {
@@ -77,8 +81,13 @@ func (b *basicBlockset) setStore(s agro.BlockStore) {
 
 func (b *basicBlockset) Unmarshal(data []byte) error {
 	r := bytes.NewReader(data)
-	var out []agro.BlockID
-	err := binary.Read(r, binary.LittleEndian, &out)
+	var l int32
+	err := binary.Read(r, binary.LittleEndian, &l)
+	if err != nil {
+		return err
+	}
+	out := make([]agro.BlockID, l)
+	err = binary.Read(r, binary.LittleEndian, &out)
 	if err != nil {
 		return err
 	}
