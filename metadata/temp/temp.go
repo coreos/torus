@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -65,7 +66,11 @@ func (t *temp) Mkdir(p agro.Path, dir *models.Directory) error {
 
 	k := []byte(p.Key())
 	if _, ok := tx.Get(k); ok {
-		return errors.New("EEXIST: directory already exists")
+		return &os.PathError{
+			Op:   "mkdir",
+			Path: p.Path,
+			Err:  os.ErrExist,
+		}
 	}
 	tx.Insert(k, dir)
 
@@ -76,7 +81,11 @@ func (t *temp) Mkdir(p agro.Path, dir *models.Directory) error {
 		}
 		k = []byte(p.Key())
 		if _, ok := tx.Get(k); !ok {
-			return fmt.Errorf("ENOENT: cannot create directory (%q) recursively", k)
+			return &os.PathError{
+				Op:   "stat",
+				Path: p.Path,
+				Err:  os.ErrNotExist,
+			}
 		}
 	}
 
@@ -91,7 +100,11 @@ func (t *temp) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	)
 	v, ok := tx.Get(k)
 	if !ok {
-		return nil, nil, errors.New("ENOENT: cannot find directory")
+		return nil, nil, &os.PathError{
+			Op:   "stat",
+			Path: p.Path,
+			Err:  os.ErrNotExist,
+		}
 	}
 
 	var (
