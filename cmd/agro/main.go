@@ -9,5 +9,5 @@ import (
 
 func main() {
 	srv := server.NewMemoryServer()
-	http.ServeHTTP("127.0.0.1", 4321, srv)
+	http.ServeHTTP("127.0.0.1:4321", srv)
 }

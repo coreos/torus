@@ -5,34 +5,50 @@ import (
 	"strings"
 
 	"github.com/barakmich/agro"
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
-type apiV1 struct {
-	srv agro.Server
+type Server struct {
+	router *gin.Engine
+	dfs    agro.Server
 }
 
-func (a *apiV1) SetupRoutes(h *httprouter.Router) error {
-	h.PUT("/api/v1/volume/:volume", a.CreateVolume)
-	h.GET("/api/v1/volume", a.GetVolumes)
-	return nil
-}
-
-func (a *apiV1) CreateVolume(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	vol := ps.ByName("volume")
-	err := a.srv.CreateVolume(vol)
-	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
+func NewServer(dfs agro.Server) *Server {
+	s := &Server{
+		router: gin.Default(),
+		dfs:    dfs,
 	}
-	w.WriteHeader(200)
+	s.setupRoutes()
+	return s
 }
 
-func (a *apiV1) GetVolumes(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	list, err := a.srv.GetVolumes()
-	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
+func (s *Server) setupRoutes() {
+	v0 := s.router.Group("/v0")
+	{
+		v0.PUT("/volume/:volume", s.createVolume)
+		v0.GET("/volume", s.getVolumes)
 	}
-	w.Write([]byte(strings.Join(list, "\n")))
+}
+
+func (s *Server) createVolume(c *gin.Context) {
+	vol := c.Params.ByName("volume")
+	err := s.dfs.CreateVolume(vol)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		c.Writer.Write([]byte(err.Error()))
+	}
+	c.Writer.WriteHeader(http.StatusCreated)
+}
+
+func (s *Server) getVolumes(c *gin.Context) {
+	list, err := s.dfs.GetVolumes()
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		c.Writer.Write([]byte(err.Error()))
+	}
+	c.Writer.Write([]byte(strings.Join(list, "\n")))
+}
+
+func ServeHTTP(addr string, srv agro.Server) error {
+	return NewServer(srv).router.Run(addr)
 }
