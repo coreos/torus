@@ -16,7 +16,7 @@ type server struct {
 }
 
 func NewMemoryServer() agro.Server {
-	mds := agro.CreateMetadata("temp", "")
+	mds := agro.CreateMetadataService("temp", "")
 	return &server{
 		cold:   storage.OpenTempBlockStore(),
 		mds:    mds,

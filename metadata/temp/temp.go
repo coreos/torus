@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	agro.RegisterMetadataProvider("temp", newTempMetadata)
+	agro.RegisterMetadataService("temp", newTempMetadata)
 }
 
 type temp struct {

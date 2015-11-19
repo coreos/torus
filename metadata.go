@@ -7,11 +7,14 @@ import (
 	"github.com/barakmich/agro/models"
 )
 
+// Path represents the location of a File including the Volume and the
+// unix-style path string.
 type Path struct {
 	Volume string
 	Path   string
 }
 
+// IsDir returns whether or not a path is a directory.
 func (p Path) IsDir() (b bool) {
 	if len(p.Path) == 0 {
 		return false
@@ -20,6 +23,8 @@ func (p Path) IsDir() (b bool) {
 	return p.Path[len(p.Path)-1] == byte('/')
 }
 
+// GetDepth returns the distance of the current path from the root of the
+// filesystem.
 func (p Path) GetDepth() int {
 	if p.Path == "/" {
 		return 0
@@ -35,6 +40,8 @@ func (p Path) SubdirsPrefix() string {
 	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth()+1, p.Path)
 }
 
+// MetadataService is the interface representing the basic ways to manipulate
+// consistently stored fileystem metadata.
 type MetadataService interface {
 	Mkfs() error
 	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
@@ -49,17 +56,30 @@ type MetadataService interface {
 	// TODO(barakmich): Extend with GC interaction, et al
 }
 
-type CreateMetadataFunc func(address string) MetadataService
+// CreateMetadataServiceFunc is the signature of a constructor used to create
+// a registered MetadataService.
+type CreateMetadataServiceFunc func(address string) MetadataService
 
-var metadata map[string]CreateMetadataFunc
+var metadataServices map[string]CreateMetadataServiceFunc
 
-func RegisterMetadataProvider(name string, newFunc CreateMetadataFunc) {
-	if metadata == nil {
-		metadata = make(map[string]CreateMetadataFunc)
+// RegisterMetadataService is the hook used for implementions of
+// MetadataServices to register themselves to the system. This is usually
+// called in the init() of the package that implements the MetadataService.
+// A similar pattern is used in database/sql of the standard library.
+func RegisterMetadataService(name string, newFunc CreateMetadataServiceFunc) {
+	if metadataServices == nil {
+		metadataServices = make(map[string]CreateMetadataServiceFunc)
 	}
-	metadata[name] = newFunc
+
+	if _, ok := metadataServices[name]; ok {
+		panic("agro: attempted to register MetadataService " + name + " twice")
+	}
+
+	metadataServices[name] = newFunc
 }
 
-func CreateMetadata(name, address string) MetadataService {
-	return metadata[name](address)
+// CreateMetadataService calls the constructor of the specified MetadataService
+// with the provided address.
+func CreateMetadataService(name, address string) MetadataService {
+	return metadataServices[name](address)
 }
