@@ -11,7 +11,7 @@ var (
 	// non-existant block.
 	ErrBlockNotExist = errors.New("agro: block doesn't exist")
 
-	// ErrClosed is returned when a function attempts to manipulate a storage
-	// that is not currently available.
+	// ErrClosed is returned when a function attempts to manipulate a Store
+	// that is not currently open.
 	ErrClosed = errors.New("agro: store is closed")
 )

@@ -13,7 +13,7 @@ type (
 	INodeID uint64
 )
 
-// Store is the interface that represents methods that should be coommon across
+// Store is the interface that represents methods that should be common across
 // all types of storage providers.
 type Store interface {
 	Flush() error
