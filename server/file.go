@@ -69,6 +69,13 @@ func (f *file) openWrite() error {
 }
 
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
+	f.offset = off
+	defer func() {
+		f.offset += int64(n)
+		if f.offset > int64(f.inode.Filesize) {
+			f.inode.Filesize = uint64(f.offset)
+		}
+	}()
 	toWrite := len(b)
 	err = f.openWrite()
 	if err != nil {
@@ -114,7 +121,6 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	toWrite = len(b)
 	if toWrite == 0 {
 		// We're done
-		f.offset += int64(n)
 		return n, nil
 	}
 
@@ -137,7 +143,6 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 
 	if toWrite == 0 {
 		// We're done
-		f.offset += int64(n)
 		return n, nil
 	}
 
@@ -166,10 +171,70 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	b = b[wrote:]
 	n += wrote
 	off += int64(wrote)
-	f.offset += int64(n)
 	return n, nil
 }
 
 func (f *file) Read(b []byte) (n int, err error) {
-	return 0, io.EOF
+	return f.ReadAt(b, f.offset)
+}
+
+func (f *file) ReadAt(b []byte, off int64) (n int, err error) {
+	f.offset = off
+	defer func() { f.offset += int64(n) }()
+	toRead := len(b)
+	n = 0
+	if int64(toRead)+off > int64(f.inode.Filesize) {
+		toRead = int(int64(f.inode.Filesize) - off)
+	}
+	for toRead > n {
+		blkIndex := int(off / f.blkSize)
+		if f.blocks.Length() <= blkIndex {
+			// TODO(barakmich) Support truncate in the block abstraction, fill/return 0s
+			return n, io.EOF
+		}
+		blkOff := off - int64(int(f.blkSize)*blkIndex)
+		blk, err := f.blocks.GetBlock(blkIndex)
+		if err != nil {
+			return n, err
+		}
+		thisRead := f.blkSize - blkOff
+		if int64(toRead-n) < thisRead {
+			thisRead = int64(toRead - n)
+		}
+		count := copy(blk[blkOff:blkOff+thisRead], b[n:])
+		n += count
+		off += int64(count)
+	}
+	if toRead != n {
+		panic("Read more than n bytes?")
+	}
+	return n, err
+}
+
+func (f *file) Close() error {
+	if f == nil {
+		return agro.ErrInvalid
+	}
+	return f.Sync()
+}
+
+func (f *file) Sync() error {
+	if !f.writeOpen {
+		return nil
+	}
+	blkdata, err := blockset.MarshalToProto(f.blocks)
+	if err != nil {
+		return err
+	}
+	f.inode.Blocks = blkdata
+	err = f.srv.inodes.WriteINode(f.inodeRef, f.inode)
+	if err != nil {
+		return err
+	}
+
+	err = f.srv.mds.SetFileINode(f.path, f.inodeRef)
+	if err != nil {
+		return err
+	}
+	return nil
 }

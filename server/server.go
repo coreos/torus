@@ -8,6 +8,8 @@ import (
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
 	"github.com/barakmich/agro/storage"
+
+	_ "github.com/barakmich/agro/metadata/temp"
 )
 
 type server struct {
@@ -25,10 +27,16 @@ func NewMemoryServer() agro.Server {
 	}
 }
 
-func (s *server) Create(path agro.Path, md models.Metadata) (agro.File, error) {
+func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err error) {
 	// Truncate the file if it already exists. This is equivalent to creating
 	// a new (empty) inode with the path that we're going to overwrite later.
 	n := models.NewEmptyInode()
+	n.Filename = path.Path
+	volid, err := s.mds.GetVolumeID(path.Volume)
+	n.Volume = uint64(volid)
+	if err != nil {
+		return nil, err
+	}
 	n.Permissions = &md
 	globals, err := s.mds.GlobalMetadata()
 	if err != nil {
