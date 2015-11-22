@@ -11,7 +11,7 @@ type makeTestBlockset func(s agro.BlockStore) blockset
 
 func TestBaseReadWrite(t *testing.T) {
 	s := storage.OpenTempBlockStore()
-	b := newBasicBlockset(s)
+	b := newBaseBlockset(s)
 	readWriteTest(t, b)
 }
 
@@ -39,33 +39,25 @@ func readWriteTest(t *testing.T, b blockset) {
 
 func TestBaseMarshal(t *testing.T) {
 	s := storage.OpenTempBlockStore()
-	marshalTest(t, s, func(s agro.BlockStore) blockset {
-		return newBasicBlockset(s)
-	})
+	marshalTest(t, s, BlockLayerSpec{Base})
 }
 
-func marshalTest(t *testing.T, s agro.BlockStore, f makeTestBlockset) {
-	b := f(s)
+func marshalTest(t *testing.T, s agro.BlockStore, spec BlockLayerSpec) {
+	b, err := CreateBlocksetFromSpec(spec, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 	inode := agro.INodeRef{1, 1}
 	b.PutBlock(inode, 0, []byte("Some data"))
-	var layerserial [][]byte
-	var layer agro.Blockset
-	for layer = b; layer != nil; layer = layer.GetSubBlockset() {
-		m, err := layer.Marshal()
-		if err != nil {
-			t.Fatal(err)
-		}
-		layerserial = append(layerserial, m)
+	marshal, err := MarshalToProto(b)
+	if err != nil {
+		t.Fatal(err)
 	}
+
 	b = nil
-	newb := f(s)
-	i := 0
-	for layer = newb; layer != nil; layer = layer.GetSubBlockset() {
-		err := layer.Unmarshal(layerserial[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-		i++
+	newb, err := UnmarshalFromProto(marshal, s)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	data, err := newb.GetBlock(0)

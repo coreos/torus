@@ -4,6 +4,7 @@ package agro
 // with a set of blocks.
 type Blockset interface {
 	Length() int
+	Kind() uint32
 	GetBlock(i int) ([]byte, error)
 	PutBlock(inode INodeRef, i int, b []byte) error
 
