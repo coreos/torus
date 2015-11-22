@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
@@ -10,6 +11,7 @@ import (
 )
 
 type file struct {
+	mut       sync.RWMutex
 	path      agro.Path
 	inode     *models.INode
 	srv       *server
@@ -41,7 +43,9 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 }
 
 func (f *file) Write(b []byte) (n int, err error) {
-	return f.WriteAt(b, f.offset)
+	n, err = f.WriteAt(b, f.offset)
+	f.offset += int64(n)
+	return
 }
 
 func (f *file) openWrite() error {
@@ -69,13 +73,8 @@ func (f *file) openWrite() error {
 }
 
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
-	f.offset = off
-	defer func() {
-		f.offset += int64(n)
-		if f.offset > int64(f.inode.Filesize) {
-			f.inode.Filesize = uint64(f.offset)
-		}
-	}()
+	f.mut.Lock()
+	defer f.mut.Unlock()
 	toWrite := len(b)
 	err = f.openWrite()
 	if err != nil {
@@ -171,16 +170,21 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	b = b[wrote:]
 	n += wrote
 	off += int64(wrote)
+	if off > int64(f.inode.Filesize) {
+		f.inode.Filesize = uint64(off)
+	}
 	return n, nil
 }
 
 func (f *file) Read(b []byte) (n int, err error) {
-	return f.ReadAt(b, f.offset)
+	n, err = f.ReadAt(b, f.offset)
+	f.offset += int64(n)
+	return
 }
 
 func (f *file) ReadAt(b []byte, off int64) (n int, err error) {
-	f.offset = off
-	defer func() { f.offset += int64(n) }()
+	f.mut.RLock()
+	defer f.mut.RUnlock()
 	toRead := len(b)
 	n = 0
 	if int64(toRead)+off > int64(f.inode.Filesize) {
