@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/barakmich/agro"
+	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
 	"github.com/hashicorp/go-immutable-radix"
 )
@@ -24,29 +25,40 @@ type temp struct {
 	tree     *iradix.Tree
 	volIndex map[string]agro.VolumeID
 	vol      agro.VolumeID
+	global   agro.GlobalMetadata
 }
 
 func newTempMetadata(address string) agro.MetadataService {
 	return &temp{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
+		global: agro.GlobalMetadata{
+			BlockSize:        8 * 1024,
+			DefaultBlockSpec: agro.BlockLayerSpec{blockset.CRC, blockset.Base},
+		},
 	}
 }
 
-func (t *temp) Mkfs() error { return nil }
+func (t *temp) GlobalMetadata() (agro.GlobalMetadata, error) {
+	return t.global, nil
+}
+
+func (t *temp) Mkfs(md agro.GlobalMetadata) error {
+	t.global = md
+	return nil
+}
 
 func (t *temp) CreateVolume(volume string) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
-
 	tx := t.tree.Txn()
 
 	k := []byte(agro.Path{Volume: volume, Path: "/"}.Key())
 	if _, ok := tx.Get(k); !ok {
 		tx.Insert(k, (*models.Directory)(nil))
 		t.tree = tx.Commit()
-		t.volIndex[volume] = t.vol
 		t.vol++
+		t.volIndex[volume] = t.vol
 	}
 
 	// TODO(jzelinskie): maybe raise volume already exists
@@ -96,6 +108,52 @@ func (t *temp) Mkdir(p agro.Path, dir *models.Directory) error {
 		}
 	}
 
+	t.tree = tx.Commit()
+	return nil
+}
+
+func (t *temp) debugPrintTree() {
+	it := t.tree.Root().Iterator()
+	for {
+		k, v, ok := it.Next()
+		if !ok {
+			break
+		}
+		fmt.Println(string(k), v)
+	}
+}
+
+func (t *temp) SetFileINode(p agro.Path, ref agro.INodeRef) error {
+	vid, err := t.GetVolumeID(p.Volume)
+	if err != nil {
+		return err
+	}
+	if vid != ref.Volume {
+		return errors.New("temp: inodeRef volume not for given path volume")
+	}
+	t.mut.Lock()
+	defer t.mut.Unlock()
+	var (
+		tx = t.tree.Txn()
+		k  = []byte(p.Key())
+	)
+	v, ok := tx.Get(k)
+	if !ok {
+		return &os.PathError{
+			Op:   "stat",
+			Path: p.Path,
+			Err:  os.ErrNotExist,
+		}
+	}
+	dir := v.(*models.Directory)
+	if dir == nil {
+		dir = &models.Directory{}
+	}
+	if dir.Files == nil {
+		dir.Files = make(map[string]uint64)
+	}
+	dir.Files[p.Filename()] = uint64(ref.INode)
+	tx.Insert(k, dir)
 	t.tree = tx.Commit()
 	return nil
 }

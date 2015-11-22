@@ -16,7 +16,7 @@ func TestCRCReadWrite(t *testing.T) {
 
 func TestCRCMarshal(t *testing.T) {
 	s := storage.OpenTempBlockStore()
-	marshalTest(t, s, BlockLayerSpec{CRC, Base})
+	marshalTest(t, s, agro.BlockLayerSpec{CRC, Base})
 }
 
 func TestCRCCorruption(t *testing.T) {

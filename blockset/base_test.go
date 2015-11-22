@@ -39,10 +39,10 @@ func readWriteTest(t *testing.T, b blockset) {
 
 func TestBaseMarshal(t *testing.T) {
 	s := storage.OpenTempBlockStore()
-	marshalTest(t, s, BlockLayerSpec{Base})
+	marshalTest(t, s, agro.BlockLayerSpec{Base})
 }
 
-func marshalTest(t *testing.T, s agro.BlockStore, spec BlockLayerSpec) {
+func marshalTest(t *testing.T, s agro.BlockStore, spec agro.BlockLayerSpec) {
 	b, err := CreateBlocksetFromSpec(spec, s)
 	if err != nil {
 		t.Fatal(err)

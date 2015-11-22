@@ -13,15 +13,9 @@ type blockset interface {
 	setStore(store agro.BlockStore)
 }
 
-type BlockLayer int
-
-// TODO(barakmich): Add KV options and pipe through, eg
-//		type BlockLayerSpec []struct{BlockLayer, map[string]string}
-type BlockLayerSpec []BlockLayer
-
 // Constants for each type of layer, for serializing/deserializing
 const (
-	Base BlockLayer = iota
+	Base agro.BlockLayer = iota
 	CRC
 )
 
@@ -29,14 +23,14 @@ const (
 // a BlockLayer.
 type CreateBlocksetFunc func(store agro.BlockStore, subLayer blockset) (blockset, error)
 
-var blocklayerRegistry map[BlockLayer]CreateBlocksetFunc
+var blocklayerRegistry map[agro.BlockLayer]CreateBlocksetFunc
 
 // RegisterBlockset is the hook used for implementions of
 // blocksets to register themselves to the system. This is usually
 // called in the init() of the package that implements the blockset.
-func RegisterBlockset(b BlockLayer, newFunc CreateBlocksetFunc) {
+func RegisterBlockset(b agro.BlockLayer, newFunc CreateBlocksetFunc) {
 	if blocklayerRegistry == nil {
-		blocklayerRegistry = make(map[BlockLayer]CreateBlocksetFunc)
+		blocklayerRegistry = make(map[agro.BlockLayer]CreateBlocksetFunc)
 	}
 
 	if _, ok := blocklayerRegistry[b]; ok {
@@ -48,10 +42,10 @@ func RegisterBlockset(b BlockLayer, newFunc CreateBlocksetFunc) {
 
 // CreateBlockset creates a Blockset of type b, with serialized data, backing store, and subLayer, if any)
 // with the provided address.
-func CreateBlockset(b BlockLayer, store agro.BlockStore, subLayer blockset) (agro.Blockset, error) {
+func CreateBlockset(b agro.BlockLayer, store agro.BlockStore, subLayer blockset) (agro.Blockset, error) {
 	return createBlockset(b, store, subLayer)
 }
-func createBlockset(b BlockLayer, store agro.BlockStore, subLayer blockset) (blockset, error) {
+func createBlockset(b agro.BlockLayer, store agro.BlockStore, subLayer blockset) (blockset, error) {
 	return blocklayerRegistry[b](store, subLayer)
 }
 
@@ -79,7 +73,7 @@ func UnmarshalFromProto(layers []*models.BlockLayer, store agro.BlockStore) (agr
 	}
 	for i := l - 1; i >= 0; i-- {
 		m := layers[i]
-		newl, err := createBlockset(BlockLayer(m.Type), store, layer)
+		newl, err := createBlockset(agro.BlockLayer(m.Type), store, layer)
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +86,7 @@ func UnmarshalFromProto(layers []*models.BlockLayer, store agro.BlockStore) (agr
 	return layer, nil
 }
 
-func CreateBlocksetFromSpec(spec BlockLayerSpec, store agro.BlockStore) (agro.Blockset, error) {
+func CreateBlocksetFromSpec(spec agro.BlockLayerSpec, store agro.BlockStore) (agro.Blockset, error) {
 	l := len(spec)
 	var layer blockset
 	if l == 0 {

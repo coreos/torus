@@ -2,6 +2,7 @@ package agro
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/barakmich/agro/models"
@@ -26,24 +27,32 @@ func (p Path) IsDir() (b bool) {
 // GetDepth returns the distance of the current path from the root of the
 // filesystem.
 func (p Path) GetDepth() int {
-	if p.Path == "/" {
+	dir, _ := path.Split(p.Path)
+	if dir == "/" {
 		return 0
 	}
-	return strings.Count(strings.TrimSuffix(p.Path, "/"), "/")
+	return strings.Count(strings.TrimSuffix(dir, "/"), "/")
 }
 
 func (p Path) Key() string {
-	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth(), p.Path)
+	dir, _ := path.Split(p.Path)
+	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth(), dir)
 }
 
 func (p Path) SubdirsPrefix() string {
-	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth()+1, p.Path)
+	dir, _ := path.Split(p.Path)
+	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth()+1, dir)
+}
+
+func (p Path) Filename() string {
+	_, f := path.Split(p.Path)
+	return f
 }
 
 // MetadataService is the interface representing the basic ways to manipulate
 // consistently stored fileystem metadata.
 type MetadataService interface {
-	Mkfs() error
+	Mkfs(GlobalMetadata) error
 	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
 	GetVolumes() ([]string, error)
 	GetVolumeID(volume string) (VolumeID, error)
@@ -52,8 +61,16 @@ type MetadataService interface {
 
 	Mkdir(path Path, dir *models.Directory) error
 	Getdir(path Path) (*models.Directory, []Path, error)
+	SetFileINode(path Path, ref INodeRef) error
+
+	GlobalMetadata() (GlobalMetadata, error)
 	// TODO(barakmich): Get ring, get other nodes, look up nodes for keys, etc.
 	// TODO(barakmich): Extend with GC interaction, et al
+}
+
+type GlobalMetadata struct {
+	BlockSize        uint64
+	DefaultBlockSpec BlockLayerSpec
 }
 
 // CreateMetadataServiceFunc is the signature of a constructor used to create

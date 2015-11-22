@@ -6,4 +6,7 @@ import "io"
 // with a file in the filesystem.
 type File interface {
 	io.ReadWriter
+	io.ReaderAt
+	io.WriterAt
+	io.Closer
 }

@@ -12,13 +12,14 @@ message Metadata {
 }
 
 message INode {
-  string filename = 1;
-  uint64 replaces = 2;
-  uint64 filesize = 3;
-  Metadata permissions = 4;
-  map<string, string> attrs = 5;
-  repeated string hard_links = 6;
-  repeated BlockLayer blocks = 7;
+  uint64 volume = 1;
+  uint64 inode = 2;
+  uint64 replaces = 3;
+  uint64 filesize = 4;
+  repeated string filenames = 5; // Should always be length at least 1, includes hard links
+  Metadata permissions = 6;
+  map<string, string> attrs = 7;
+  repeated BlockLayer blocks = 8;
 }
 
 message BlockLayer {
