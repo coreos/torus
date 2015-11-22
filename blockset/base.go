@@ -8,34 +8,44 @@ import (
 	"github.com/barakmich/agro"
 )
 
-type basicBlockset struct {
+type baseBlockset struct {
 	ids    uint64
 	blocks []agro.BlockID
 	store  agro.BlockStore
 }
 
-var _ blockset = &basicBlockset{}
+var _ blockset = &baseBlockset{}
 
-func newBasicBlockset(store agro.BlockStore) *basicBlockset {
-	b := &basicBlockset{
+func init() {
+	RegisterBlockset(Base, func(store agro.BlockStore, _ blockset) (blockset, error) {
+		return newBaseBlockset(store), nil
+	})
+}
+
+func newBaseBlockset(store agro.BlockStore) *baseBlockset {
+	b := &baseBlockset{
 		blocks: make([]agro.BlockID, 0),
 		store:  store,
 	}
 	return b
 }
 
-func (b *basicBlockset) Length() int {
+func (b *baseBlockset) Length() int {
 	return len(b.blocks)
 }
 
-func (b *basicBlockset) GetBlock(i int) ([]byte, error) {
+func (b *baseBlockset) Kind() uint32 {
+	return uint32(Base)
+}
+
+func (b *baseBlockset) GetBlock(i int) ([]byte, error) {
 	if i >= len(b.blocks) {
 		return nil, agro.ErrBlockNotExist
 	}
 	return b.store.GetBlock(b.blocks[i])
 }
 
-func (b *basicBlockset) PutBlock(inode agro.INodeRef, i int, data []byte) error {
+func (b *baseBlockset) PutBlock(inode agro.INodeRef, i int, data []byte) error {
 	if i > len(b.blocks) {
 		return agro.ErrBlockNotExist
 	}
@@ -52,7 +62,7 @@ func (b *basicBlockset) PutBlock(inode agro.INodeRef, i int, data []byte) error 
 	return nil
 }
 
-func (b *basicBlockset) makeID(i agro.INodeRef) agro.BlockID {
+func (b *baseBlockset) makeID(i agro.INodeRef) agro.BlockID {
 	id := atomic.AddUint64(&b.ids, 2)
 	return agro.BlockID{
 		INodeRef: i,
@@ -60,7 +70,7 @@ func (b *basicBlockset) makeID(i agro.INodeRef) agro.BlockID {
 	}
 }
 
-func (b *basicBlockset) Marshal() ([]byte, error) {
+func (b *baseBlockset) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, int32(len(b.blocks)))
 	if err != nil {
@@ -75,11 +85,11 @@ func (b *basicBlockset) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (b *basicBlockset) setStore(s agro.BlockStore) {
+func (b *baseBlockset) setStore(s agro.BlockStore) {
 	b.store = s
 }
 
-func (b *basicBlockset) Unmarshal(data []byte) error {
+func (b *baseBlockset) Unmarshal(data []byte) error {
 	r := bytes.NewReader(data)
 	var l int32
 	err := binary.Read(r, binary.LittleEndian, &l)
@@ -95,4 +105,4 @@ func (b *basicBlockset) Unmarshal(data []byte) error {
 	return nil
 }
 
-func (b *basicBlockset) GetSubBlockset() agro.Blockset { return nil }
+func (b *baseBlockset) GetSubBlockset() agro.Blockset { return nil }

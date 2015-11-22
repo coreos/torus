@@ -15,6 +15,12 @@ type crcBlockset struct {
 
 var _ blockset = &crcBlockset{}
 
+func init() {
+	RegisterBlockset(CRC, func(_ agro.BlockStore, sub blockset) (blockset, error) {
+		return newCRCBlockset(sub), nil
+	})
+}
+
 func newCRCBlockset(sub blockset) *crcBlockset {
 	b := &crcBlockset{
 		crcs: nil,
@@ -28,6 +34,10 @@ func (b *crcBlockset) Length() int {
 		panic("crcs should always be as long as the sub blockset")
 	}
 	return len(b.crcs)
+}
+
+func (b *crcBlockset) Kind() uint32 {
+	return uint32(CRC)
 }
 
 func (b *crcBlockset) GetBlock(i int) ([]byte, error) {

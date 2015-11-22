@@ -9,22 +9,19 @@ import (
 
 func TestCRCReadWrite(t *testing.T) {
 	s := storage.OpenTempBlockStore()
-	b := newBasicBlockset(s)
+	b := newBaseBlockset(s)
 	crc := newCRCBlockset(b)
 	readWriteTest(t, crc)
 }
 
 func TestCRCMarshal(t *testing.T) {
 	s := storage.OpenTempBlockStore()
-	marshalTest(t, s, func(s agro.BlockStore) blockset {
-		b := newBasicBlockset(s)
-		return newCRCBlockset(b)
-	})
+	marshalTest(t, s, BlockLayerSpec{CRC, Base})
 }
 
 func TestCRCCorruption(t *testing.T) {
 	s := storage.OpenTempBlockStore()
-	b := newBasicBlockset(s)
+	b := newBaseBlockset(s)
 	crc := newCRCBlockset(b)
 	inode := agro.INodeRef{1, 1}
 	crc.PutBlock(inode, 0, []byte("Some data"))
