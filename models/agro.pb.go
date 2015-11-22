@@ -43,13 +43,15 @@ func (m *Metadata) String() string { return proto.CompactTextString(m) }
 func (*Metadata) ProtoMessage()    {}
 
 type INode struct {
-	Filename    string            `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
-	Replaces    uint64            `protobuf:"varint,2,opt,name=replaces,proto3" json:"replaces,omitempty"`
-	Filesize    uint64            `protobuf:"varint,3,opt,name=filesize,proto3" json:"filesize,omitempty"`
-	Permissions *Metadata         `protobuf:"bytes,4,opt,name=permissions" json:"permissions,omitempty"`
-	Attrs       map[string]string `protobuf:"bytes,5,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	HardLinks   []string          `protobuf:"bytes,6,rep,name=hard_links" json:"hard_links,omitempty"`
-	Blocks      []*BlockLayer     `protobuf:"bytes,7,rep,name=blocks" json:"blocks,omitempty"`
+	Volume      uint64            `protobuf:"varint,1,opt,name=volume,proto3" json:"volume,omitempty"`
+	Inode       uint64            `protobuf:"varint,2,opt,name=inode,proto3" json:"inode,omitempty"`
+	Filename    string            `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`
+	Replaces    uint64            `protobuf:"varint,4,opt,name=replaces,proto3" json:"replaces,omitempty"`
+	Filesize    uint64            `protobuf:"varint,5,opt,name=filesize,proto3" json:"filesize,omitempty"`
+	Permissions *Metadata         `protobuf:"bytes,6,opt,name=permissions" json:"permissions,omitempty"`
+	Attrs       map[string]string `protobuf:"bytes,7,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	HardLinks   []string          `protobuf:"bytes,8,rep,name=hard_links" json:"hard_links,omitempty"`
+	Blocks      []*BlockLayer     `protobuf:"bytes,9,rep,name=blocks" json:"blocks,omitempty"`
 }
 
 func (m *INode) Reset()         { *m = INode{} }
@@ -87,8 +89,9 @@ func (m *BlockLayer) String() string { return proto.CompactTextString(m) }
 func (*BlockLayer) ProtoMessage()    {}
 
 type Directory struct {
-	Metadata *Metadata         `protobuf:"bytes,1,opt,name=metadata" json:"metadata,omitempty"`
-	Files    map[string]uint64 `protobuf:"bytes,2,rep,name=files" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	Metadata *Metadata `protobuf:"bytes,1,opt,name=metadata" json:"metadata,omitempty"`
+	// key is the filename without the path
+	Files map[string]uint64 `protobuf:"bytes,2,rep,name=files" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 }
 
 func (m *Directory) Reset()         { *m = Directory{} }
@@ -172,24 +175,34 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.Volume != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Volume))
+	}
+	if m.Inode != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Inode))
+	}
 	if len(m.Filename) > 0 {
-		data[i] = 0xa
+		data[i] = 0x1a
 		i++
 		i = encodeVarintAgro(data, i, uint64(len(m.Filename)))
 		i += copy(data[i:], m.Filename)
 	}
 	if m.Replaces != 0 {
-		data[i] = 0x10
+		data[i] = 0x20
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Replaces))
 	}
 	if m.Filesize != 0 {
-		data[i] = 0x18
+		data[i] = 0x28
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Filesize))
 	}
 	if m.Permissions != nil {
-		data[i] = 0x22
+		data[i] = 0x32
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Permissions.Size()))
 		n1, err := m.Permissions.MarshalTo(data[i:])
@@ -205,7 +218,7 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 		}
 		github_com_gogo_protobuf_sortkeys.Strings(keysForAttrs)
 		for _, k := range keysForAttrs {
-			data[i] = 0x2a
+			data[i] = 0x3a
 			i++
 			v := m.Attrs[k]
 			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + len(v) + sovAgro(uint64(len(v)))
@@ -222,7 +235,7 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.HardLinks) > 0 {
 		for _, s := range m.HardLinks {
-			data[i] = 0x32
+			data[i] = 0x42
 			i++
 			l = len(s)
 			for l >= 1<<7 {
@@ -237,7 +250,7 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Blocks) > 0 {
 		for _, msg := range m.Blocks {
-			data[i] = 0x3a
+			data[i] = 0x4a
 			i++
 			i = encodeVarintAgro(data, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(data[i:])
@@ -384,6 +397,12 @@ func (m *Metadata) Size() (n int) {
 func (m *INode) Size() (n int) {
 	var l int
 	_ = l
+	if m.Volume != 0 {
+		n += 1 + sovAgro(uint64(m.Volume))
+	}
+	if m.Inode != 0 {
+		n += 1 + sovAgro(uint64(m.Inode))
+	}
 	l = len(m.Filename)
 	if l > 0 {
 		n += 1 + l + sovAgro(uint64(l))
@@ -661,6 +680,44 @@ func (m *INode) Unmarshal(data []byte) error {
 		}
 		switch fieldNum {
 		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Volume", wireType)
+			}
+			m.Volume = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Volume |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Inode", wireType)
+			}
+			m.Inode = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Inode |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Filename", wireType)
 			}
@@ -689,7 +746,7 @@ func (m *INode) Unmarshal(data []byte) error {
 			}
 			m.Filename = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 2:
+		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Replaces", wireType)
 			}
@@ -708,7 +765,7 @@ func (m *INode) Unmarshal(data []byte) error {
 					break
 				}
 			}
-		case 3:
+		case 5:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Filesize", wireType)
 			}
@@ -727,7 +784,7 @@ func (m *INode) Unmarshal(data []byte) error {
 					break
 				}
 			}
-		case 4:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Permissions", wireType)
 			}
@@ -760,7 +817,7 @@ func (m *INode) Unmarshal(data []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 5:
+		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Attrs", wireType)
 			}
@@ -871,7 +928,7 @@ func (m *INode) Unmarshal(data []byte) error {
 			}
 			m.Attrs[mapkey] = mapvalue
 			iNdEx = postIndex
-		case 6:
+		case 8:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field HardLinks", wireType)
 			}
@@ -900,7 +957,7 @@ func (m *INode) Unmarshal(data []byte) error {
 			}
 			m.HardLinks = append(m.HardLinks, string(data[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 7:
+		case 9:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Blocks", wireType)
 			}

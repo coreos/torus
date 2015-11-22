@@ -5,6 +5,7 @@ import (
 	"path"
 
 	"github.com/barakmich/agro"
+	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
 	"github.com/barakmich/agro/storage"
 )
@@ -29,10 +30,20 @@ func (s *server) Create(path agro.Path, md models.Metadata) (agro.File, error) {
 	// a new (empty) inode with the path that we're going to overwrite later.
 	n := models.NewEmptyInode()
 	n.Permissions = &md
+	globals, err := s.mds.GlobalMetadata()
+	if err != nil {
+		return nil, err
+	}
+	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, s.cold)
+	if err != nil {
+		return nil, err
+	}
 	return &file{
-		path:  path,
-		inode: n,
-		srv:   s,
+		path:    path,
+		inode:   n,
+		srv:     s,
+		blocks:  bs,
+		blkSize: int64(globals.BlockSize),
 	}, nil
 }
 
@@ -49,7 +60,7 @@ func (s *server) Open(p agro.Path) (agro.File, error) {
 
 	// TODO(jzelinskie): check metadata for permission
 
-	return s.newFile(p, inode), nil
+	return s.newFile(p, inode)
 }
 
 func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {

@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/barakmich/agro"
+	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
 	"github.com/hashicorp/go-immutable-radix"
 )
@@ -24,16 +25,28 @@ type temp struct {
 	tree     *iradix.Tree
 	volIndex map[string]agro.VolumeID
 	vol      agro.VolumeID
+	global   agro.GlobalMetadata
 }
 
 func newTempMetadata(address string) agro.MetadataService {
 	return &temp{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
+		global: agro.GlobalMetadata{
+			BlockSize:        8 * 1024,
+			DefaultBlockSpec: agro.BlockLayerSpec{blockset.CRC, blockset.Base},
+		},
 	}
 }
 
-func (t *temp) Mkfs() error { return nil }
+func (t *temp) GlobalMetadata() (agro.GlobalMetadata, error) {
+	return t.global, nil
+}
+
+func (t *temp) Mkfs(md agro.GlobalMetadata) error {
+	t.global = md
+	return nil
+}
 
 func (t *temp) CreateVolume(volume string) error {
 	t.mut.Lock()

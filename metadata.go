@@ -43,7 +43,7 @@ func (p Path) SubdirsPrefix() string {
 // MetadataService is the interface representing the basic ways to manipulate
 // consistently stored fileystem metadata.
 type MetadataService interface {
-	Mkfs() error
+	Mkfs(GlobalMetadata) error
 	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
 	GetVolumes() ([]string, error)
 	GetVolumeID(volume string) (VolumeID, error)
@@ -52,8 +52,15 @@ type MetadataService interface {
 
 	Mkdir(path Path, dir *models.Directory) error
 	Getdir(path Path) (*models.Directory, []Path, error)
+
+	GlobalMetadata() (GlobalMetadata, error)
 	// TODO(barakmich): Get ring, get other nodes, look up nodes for keys, etc.
 	// TODO(barakmich): Extend with GC interaction, et al
+}
+
+type GlobalMetadata struct {
+	BlockSize        uint64
+	DefaultBlockSpec BlockLayerSpec
 }
 
 // CreateMetadataServiceFunc is the signature of a constructor used to create

@@ -12,3 +12,9 @@ type Blockset interface {
 	Unmarshal(data []byte) error
 	GetSubBlockset() Blockset
 }
+
+type BlockLayer int
+
+// TODO(barakmich): Add KV options and pipe through, eg
+//		type BlockLayerSpec []struct{BlockLayer, map[string]string}
+type BlockLayerSpec []BlockLayer
