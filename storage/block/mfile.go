@@ -56,6 +56,7 @@ func (m *mfileBlock) Flush() error {
 func (m *mfileBlock) Close() error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
+	m.Flush()
 	err := m.data.Close()
 	if err != nil {
 		return err

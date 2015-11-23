@@ -20,4 +20,7 @@ var (
 
 	// ErrOutOfSpace is returned when the block storage is out of space.
 	ErrOutOfSpace = errors.New("agro: out of space on block store")
+
+	// ErrExists is returned if the entity already exists
+	ErrExists = errors.New("agro: already exists")
 )

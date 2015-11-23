@@ -23,7 +23,6 @@ func main() {
 		os.Exit(1)
 	}
 	signalChan := make(chan os.Signal, 1)
-	fmt.Println(signalChan)
 	signal.Notify(signalChan, os.Interrupt)
 
 	go func() {

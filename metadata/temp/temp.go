@@ -64,6 +64,10 @@ func (t *temp) Mkfs(md agro.GlobalMetadata) error {
 func (t *temp) CreateVolume(volume string) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
+	if _, ok := t.volIndex[volume]; ok {
+		return agro.ErrExists
+	}
+
 	tx := t.tree.Txn()
 
 	k := []byte(agro.Path{Volume: volume, Path: "/"}.Key())
@@ -233,8 +237,9 @@ func (t *temp) GetVolumeID(volume string) (agro.VolumeID, error) {
 	return 0, errors.New("temp: no such volume exists")
 }
 
-func (t *temp) Close() error {
+func (t *temp) write() error {
 	outfile := filepath.Join(t.cfg.DataDir, "metadata", "temp.txt")
+	fmt.Println("writing metadata to file:", outfile)
 	f, err := os.Create(outfile)
 	if err != nil {
 		return err
@@ -270,6 +275,10 @@ func (t *temp) Close() error {
 		buf.WriteRune('\n')
 	}
 	return buf.Flush()
+}
+
+func (t *temp) Close() error {
+	return t.write()
 }
 
 func parseFromFile(cfg agro.Config) (agro.MetadataService, error) {
@@ -318,6 +327,7 @@ func parseFromFile(cfg agro.Config) (agro.MetadataService, error) {
 			}
 			return nil, err
 		}
+		k = k[:len(k)-1]
 		vbytes, err := buf.ReadBytes('\n')
 		if err != nil {
 			return nil, err
