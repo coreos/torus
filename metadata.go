@@ -66,6 +66,7 @@ type MetadataService interface {
 	GlobalMetadata() (GlobalMetadata, error)
 	// TODO(barakmich): Get ring, get other nodes, look up nodes for keys, etc.
 	// TODO(barakmich): Extend with GC interaction, et al
+	Close() error
 }
 
 type GlobalMetadata struct {
@@ -75,7 +76,7 @@ type GlobalMetadata struct {
 
 // CreateMetadataServiceFunc is the signature of a constructor used to create
 // a registered MetadataService.
-type CreateMetadataServiceFunc func(address string) MetadataService
+type CreateMetadataServiceFunc func(cfg Config) MetadataService
 
 var metadataServices map[string]CreateMetadataServiceFunc
 
@@ -97,6 +98,6 @@ func RegisterMetadataService(name string, newFunc CreateMetadataServiceFunc) {
 
 // CreateMetadataService calls the constructor of the specified MetadataService
 // with the provided address.
-func CreateMetadataService(name, address string) MetadataService {
-	return metadataServices[name](address)
+func CreateMetadataService(name string, cfg Config) MetadataService {
+	return metadataServices[name](cfg)
 }

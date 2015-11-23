@@ -19,11 +19,15 @@ type server struct {
 }
 
 func NewMemoryServer() agro.Server {
-	mds := agro.CreateMetadataService("temp", "")
+	cfg := agro.Config{
+		DataDir: "/tmp/agro",
+	}
+	mds := agro.CreateMetadataService("temp", cfg)
+	inodes, _ := storage.OpenTempINodeStore()
 	return &server{
 		cold:   storage.OpenTempBlockStore(),
 		mds:    mds,
-		inodes: storage.OpenTempINodeStore(),
+		inodes: inodes,
 	}
 }
 
@@ -97,4 +101,8 @@ func (s *server) CreateVolume(vol string) error {
 
 func (s *server) GetVolumes() ([]string, error) {
 	return s.mds.GetVolumes()
+}
+
+func (s *server) Close() error {
+	return s.mds.Close()
 }
