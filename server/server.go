@@ -7,7 +7,8 @@ import (
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
-	"github.com/barakmich/agro/storage"
+	"github.com/barakmich/agro/storage/block"
+	"github.com/barakmich/agro/storage/inode"
 
 	_ "github.com/barakmich/agro/metadata/temp"
 )
@@ -23,9 +24,9 @@ func NewMemoryServer() agro.Server {
 		DataDir: "/tmp/agro",
 	}
 	mds := agro.CreateMetadataService("temp", cfg)
-	inodes, _ := storage.OpenTempINodeStore()
+	inodes, _ := inode.OpenTempINodeStore()
 	return &server{
-		cold:   storage.OpenTempBlockStore(),
+		cold:   block.OpenTempBlockStore(),
 		mds:    mds,
 		inodes: inodes,
 	}
