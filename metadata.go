@@ -76,7 +76,7 @@ type GlobalMetadata struct {
 
 // CreateMetadataServiceFunc is the signature of a constructor used to create
 // a registered MetadataService.
-type CreateMetadataServiceFunc func(cfg Config) MetadataService
+type CreateMetadataServiceFunc func(cfg Config) (MetadataService, error)
 
 var metadataServices map[string]CreateMetadataServiceFunc
 
@@ -98,6 +98,6 @@ func RegisterMetadataService(name string, newFunc CreateMetadataServiceFunc) {
 
 // CreateMetadataService calls the constructor of the specified MetadataService
 // with the provided address.
-func CreateMetadataService(name string, cfg Config) MetadataService {
+func CreateMetadataService(name string, cfg Config) (MetadataService, error) {
 	return metadataServices[name](cfg)
 }

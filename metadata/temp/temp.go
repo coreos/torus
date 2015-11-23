@@ -35,10 +35,10 @@ type temp struct {
 	cfg      agro.Config
 }
 
-func newTempMetadata(cfg agro.Config) agro.MetadataService {
+func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	t, err := parseFromFile(cfg)
 	if err == nil {
-		return t
+		return t, nil
 	}
 	fmt.Println("temp: couldn't parse metadata: ", err)
 	return &temp{
@@ -49,7 +49,7 @@ func newTempMetadata(cfg agro.Config) agro.MetadataService {
 			DefaultBlockSpec: agro.BlockLayerSpec{blockset.CRC, blockset.Base},
 		},
 		cfg: cfg,
-	}
+	}, nil
 }
 
 func (t *temp) GlobalMetadata() (agro.GlobalMetadata, error) {

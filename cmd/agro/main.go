@@ -5,22 +5,29 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/internal/http"
 	"github.com/barakmich/agro/server"
-
-	_ "github.com/barakmich/agro/metadata/temp"
 )
 
 func main() {
-	srv := server.NewMemoryServer()
+	cfg := agro.Config{
+		DataDir:     "/tmp/agro",
+		StorageSize: 200 * 1024 * 1024,
+	}
+	srv, err := server.NewPersistentServer(cfg)
+	if err != nil {
+		fmt.Printf("Couldn't start: %s\n", err)
+		os.Exit(1)
+	}
 	signalChan := make(chan os.Signal, 1)
+	fmt.Println(signalChan)
 	signal.Notify(signalChan, os.Interrupt)
 
 	go func() {
 		for _ = range signalChan {
 			fmt.Println("\nReceived an interrupt, stopping services...")
 			srv.Close()
-			signal.Reset(os.Interrupt)
 			os.Exit(0)
 		}
 	}()
