@@ -1,6 +1,10 @@
 package agro
 
-import "github.com/barakmich/agro/models"
+import (
+	"encoding/binary"
+
+	"github.com/barakmich/agro/models"
+)
 
 type (
 	// VolumeID represents a unique identifier for a Volume.
@@ -30,6 +34,34 @@ type INodeRef struct {
 type BlockID struct {
 	INodeRef
 	Index IndexID
+}
+
+const BlockIDByteSize = 8 * 3
+
+func (b BlockID) ToBytes() []byte {
+	out := make([]byte, BlockIDByteSize)
+	n := binary.PutUvarint(out, uint64(b.INodeRef.Volume))
+	out = out[n:]
+	n = binary.PutUvarint(out, uint64(b.INodeRef.INode))
+	out = out[n:]
+	n = binary.PutUvarint(out, uint64(b.Index))
+	return out
+}
+
+func BlockIDFromBytes(b []byte) BlockID {
+	var n int
+	v, n := binary.Uvarint(b)
+	b = b[n:]
+	o, n := binary.Uvarint(b)
+	b = b[n:]
+	i, n := binary.Uvarint(b)
+	return BlockID{
+		INodeRef: INodeRef{
+			Volume: VolumeID(v),
+			INode:  INodeID(o),
+		},
+		Index: IndexID(i),
+	}
 }
 
 // BlockStore is the interface representing the standardized methods to

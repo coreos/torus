@@ -13,13 +13,23 @@ type MFile struct {
 	size    uint64
 }
 
-func CreateMFile(path string, size int64) error {
+func CreateOrOpenMFile(path string, size uint64, blkSize uint64) (*MFile, error) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		err := CreateMFile(path, size)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return OpenMFile(path, blkSize)
+}
+
+func CreateMFile(path string, size uint64) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	f.Truncate(size)
+	f.Truncate(int64(size))
 	return nil
 }
 
