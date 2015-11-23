@@ -113,7 +113,11 @@ func (m *mfileBlock) WriteBlock(s agro.BlockID, data []byte) error {
 	if index == -1 {
 		return agro.ErrOutOfSpace
 	}
-	return m.data.WriteBlock(uint64(index), data)
+	err := m.data.WriteBlock(uint64(index), data)
+	if err != nil {
+		return err
+	}
+	return m.blockMap.WriteBlock(uint64(index), s.ToBytes())
 }
 
 func (m *mfileBlock) DeleteBlock(s agro.BlockID) error {

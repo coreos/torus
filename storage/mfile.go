@@ -84,9 +84,7 @@ func (m *MFile) WriteBlock(n uint64, data []byte) error {
 	if offset >= m.size {
 		return errors.New("Offset too large")
 	}
-	for i, b := range data {
-		m.mmap[offset+uint64(i)] = b
-	}
+	copy(m.mmap[offset:], data)
 	// Fill the rest of the block with zeros.
 	for i := uint64(len(data)); i < m.blkSize; i++ {
 		m.mmap[offset+uint64(i)] = byte(0)

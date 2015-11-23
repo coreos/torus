@@ -62,7 +62,10 @@ func (b *boltInodeStore) WriteINode(i agro.INodeRef, inode *models.INode) error 
 	}
 	key, vol := formatKeyVol(i)
 	err = b.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(vol))
+		b, err := tx.CreateBucketIfNotExists([]byte(vol))
+		if err != nil {
+			return err
+		}
 		return b.Put([]byte(key), inodeBytes)
 	})
 	return err

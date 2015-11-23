@@ -11,11 +11,13 @@ import (
 )
 
 func main() {
+	var err error
 	cfg := agro.Config{
 		DataDir:     "/tmp/agro",
 		StorageSize: 200 * 1024 * 1024,
 	}
 	srv, err := server.NewPersistentServer(cfg)
+	//	srv := server.NewMemoryServer()
 	if err != nil {
 		fmt.Printf("Couldn't start: %s\n", err)
 		os.Exit(1)

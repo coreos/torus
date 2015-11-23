@@ -32,14 +32,16 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 	if err != nil {
 		return nil, err
 	}
-	return &file{
+
+	f := &file{
 		path:    path,
 		inode:   inode,
 		srv:     s,
 		offset:  0,
 		blocks:  bs,
 		blkSize: int64(md.BlockSize),
-	}, nil
+	}
+	return f, nil
 }
 
 func (f *file) Write(b []byte) (n int, err error) {
@@ -104,7 +106,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 				return n, err
 			}
 		}
-		wrote := copy(b[:frontlen], blk[int(blkOff):int(blkOff)+frontlen])
+		wrote := copy(blk[int(blkOff):int(blkOff)+frontlen], b[:frontlen])
 		err = f.blocks.PutBlock(f.inodeRef, blkIndex, blk)
 		if err != nil {
 			return n, err
@@ -159,7 +161,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 			return n, err
 		}
 	}
-	wrote := copy(b[:], blk[:toWrite])
+	wrote := copy(blk[:toWrite], b)
 	err = f.blocks.PutBlock(f.inodeRef, blkIndex, blk)
 	if err != nil {
 		return n, err
@@ -182,13 +184,14 @@ func (f *file) Read(b []byte) (n int, err error) {
 	return
 }
 
-func (f *file) ReadAt(b []byte, off int64) (n int, err error) {
+func (f *file) ReadAt(b []byte, off int64) (n int, ferr error) {
 	f.mut.RLock()
 	defer f.mut.RUnlock()
 	toRead := len(b)
 	n = 0
 	if int64(toRead)+off > int64(f.inode.Filesize) {
 		toRead = int(int64(f.inode.Filesize) - off)
+		ferr = io.EOF
 	}
 	for toRead > n {
 		blkIndex := int(off / f.blkSize)
@@ -205,14 +208,14 @@ func (f *file) ReadAt(b []byte, off int64) (n int, err error) {
 		if int64(toRead-n) < thisRead {
 			thisRead = int64(toRead - n)
 		}
-		count := copy(blk[blkOff:blkOff+thisRead], b[n:])
+		count := copy(b[n:], blk[blkOff:blkOff+thisRead])
 		n += count
 		off += int64(count)
 	}
 	if toRead != n {
 		panic("Read more than n bytes?")
 	}
-	return n, err
+	return n, ferr
 }
 
 func (f *file) Close() error {
