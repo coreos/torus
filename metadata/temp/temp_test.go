@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetVolumes(t *testing.T) {
-	m := newTempMetadata(agro.Config{})
+	m, _ := newTempMetadata(agro.Config{})
 
 	for _, volume := range []string{"foo", "bar", "zoop", "foot"} {
 		if err := m.CreateVolume(volume); err != nil {
@@ -30,7 +30,7 @@ func TestGetVolumes(t *testing.T) {
 }
 
 func TestGetdir(t *testing.T) {
-	m := newTempMetadata(agro.Config{})
+	m, _ := newTempMetadata(agro.Config{})
 
 	for _, volume := range []string{"foo", "bar", "zoop", "foot"} {
 		if err := m.CreateVolume(volume); err != nil {
