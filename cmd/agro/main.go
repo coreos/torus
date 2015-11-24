@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -12,10 +13,16 @@ import (
 	"github.com/barakmich/agro/server"
 )
 
+var debug = flag.Bool("debug", false, "Turn on debug output")
+
 func main() {
 	var err error
+	flag.Parse()
 	capnslog.SetGlobalLogLevel(capnslog.INFO)
-	//	capnslog.MustRepoLogger("github.com/barakmich/agro").SetLogLevel(map[string]capnslog.LogLevel{"block": capnslog.DEBUG})
+	if *debug {
+		capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+		//	capnslog.MustRepoLogger("github.com/barakmich/agro").SetLogLevel(map[string]capnslog.LogLevel{"block": capnslog.DEBUG})
+	}
 	cfg := agro.Config{
 		DataDir:     "/tmp/agro",
 		StorageSize: 200 * 1024 * 1024,

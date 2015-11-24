@@ -2,22 +2,54 @@ package block
 
 import (
 	"bytes"
+	"errors"
 	"path/filepath"
+	"runtime"
 	"sync"
 
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/storage"
+	"github.com/coreos/pkg/capnslog"
+	"github.com/hashicorp/go-immutable-radix"
 )
 
 type mfileBlock struct {
-	mut      sync.RWMutex
-	data     *storage.MFile
-	blockMap *storage.MFile
-	nBlocks  int
-	closed   bool
-	// NB: This implementation is *super* naive to begin with.
-	// There's no indexing, no smart allocation, no shortening of the block map, nothing cool.
-	// Does the stupidest thing that works. Please improve.
+	mut       sync.RWMutex
+	data      *storage.MFile
+	blockMap  *storage.MFile
+	blockTrie *iradix.Tree
+	nBlocks   int
+	closed    bool
+	lastFree  int
+	// NB: Still room for improvement. Free lists, smart allocation, etc.
+}
+
+func loadTrie(m *storage.MFile) (*iradix.Tree, error) {
+	t := iradix.New()
+	tx := t.Txn()
+	clog.Infof("loading trie...")
+	var membefore uint64
+	if clog.LevelAt(capnslog.DEBUG) {
+		var mem runtime.MemStats
+		runtime.ReadMemStats(&mem)
+		membefore = mem.Alloc
+	}
+
+	blank := make([]byte, agro.BlockIDByteSize)
+	for i := uint64(0); i < m.NumBlocks(); i++ {
+		b := m.GetBlock(i)
+		if bytes.Equal(blank, b) {
+			continue
+		}
+		tx.Insert(b, int(i))
+	}
+	if clog.LevelAt(capnslog.DEBUG) {
+		var mem runtime.MemStats
+		runtime.ReadMemStats(&mem)
+		clog.Debugf("trie memory usage: %dK", ((mem.Alloc - membefore) / 1024))
+	}
+	clog.Infof("done loading trie")
+	return tx.Commit(), nil
 }
 
 func NewMFileBlockStorage(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
@@ -32,10 +64,15 @@ func NewMFileBlockStorage(cfg agro.Config, meta agro.GlobalMetadata) (agro.Block
 	if err != nil {
 		return nil, err
 	}
+	trie, err := loadTrie(m)
+	if err != nil {
+		return nil, err
+	}
 	return &mfileBlock{
-		data:     d,
-		blockMap: m,
-		nBlocks:  int(nBlocks),
+		data:      d,
+		blockMap:  m,
+		blockTrie: trie,
+		nBlocks:   int(nBlocks),
 	}, nil
 }
 
@@ -69,13 +106,9 @@ func (m *mfileBlock) Close() error {
 
 func (m *mfileBlock) findIndex(s agro.BlockID) int {
 	id := s.ToBytes()
-	clog.Debugf("finding blockid %s, bytes %v", s, id)
-	for i := 0; i < m.nBlocks; i++ {
-		b := m.blockMap.GetBlock(uint64(i))
-		clog.Tracef("trying blockid index %d, %v", i, b)
-		if bytes.Equal(b, id) {
-			return i
-		}
+	clog.Tracef("finding blockid %s, bytes %v", s, id)
+	if v, ok := m.blockTrie.Get(id); ok {
+		return v.(int)
 	}
 	return -1
 }
@@ -83,9 +116,10 @@ func (m *mfileBlock) findIndex(s agro.BlockID) int {
 func (m *mfileBlock) findEmpty() int {
 	emptyBlock := make([]byte, agro.BlockIDByteSize)
 	for i := 0; i < m.nBlocks; i++ {
-		b := m.blockMap.GetBlock(uint64(i))
+		b := m.blockMap.GetBlock(uint64((i + m.lastFree + 1) % m.nBlocks))
 		if bytes.Equal(b, emptyBlock) {
-			return i
+			m.lastFree = (i + m.lastFree + 1) % m.nBlocks
+			return m.lastFree
 		}
 	}
 	return -1
@@ -101,7 +135,7 @@ func (m *mfileBlock) GetBlock(s agro.BlockID) ([]byte, error) {
 	if index == -1 {
 		return nil, agro.ErrBlockNotExist
 	}
-	clog.Debugf("mfile: getting block at index %d", index)
+	clog.Tracef("mfile: getting block at index %d", index)
 	return m.data.GetBlock(uint64(index)), nil
 }
 
@@ -116,12 +150,23 @@ func (m *mfileBlock) WriteBlock(s agro.BlockID, data []byte) error {
 		clog.Error("mfile: out of space")
 		return agro.ErrOutOfSpace
 	}
-	clog.Debugf("mfile: writing block at index %d", index)
+	clog.Tracef("mfile: writing block at index %d", index)
 	err := m.data.WriteBlock(uint64(index), data)
 	if err != nil {
 		return err
 	}
-	return m.blockMap.WriteBlock(uint64(index), s.ToBytes())
+	err = m.blockMap.WriteBlock(uint64(index), s.ToBytes())
+	if err != nil {
+		return err
+	}
+
+	tx := m.blockTrie.Txn()
+	_, exists := tx.Insert(s.ToBytes(), index)
+	if exists {
+		return errors.New("mfile: block already existed?")
+	}
+	m.blockTrie = tx.Commit()
+	return nil
 }
 
 func (m *mfileBlock) DeleteBlock(s agro.BlockID) error {
@@ -134,5 +179,15 @@ func (m *mfileBlock) DeleteBlock(s agro.BlockID) error {
 	if index == -1 {
 		return agro.ErrBlockNotExist
 	}
-	return m.blockMap.WriteBlock(uint64(index), make([]byte, agro.BlockIDByteSize))
+	err := m.blockMap.WriteBlock(uint64(index), make([]byte, agro.BlockIDByteSize))
+	if err != nil {
+		return err
+	}
+	tx := m.blockTrie.Txn()
+	_, exists := tx.Delete(s.ToBytes())
+	if !exists {
+		return errors.New("mfile: deleting non-existent thing?")
+	}
+	m.blockTrie = tx.Commit()
+	return nil
 }
