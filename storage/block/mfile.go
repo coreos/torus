@@ -20,8 +20,6 @@ type mfileBlock struct {
 	// Does the stupidest thing that works. Please improve.
 }
 
-const metaBytesPerBlock = 8 * 3 // int64 * 3 == agro.BlockID
-
 func NewMFileBlockStorage(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
 	nBlocks := cfg.StorageSize / meta.BlockSize
 	dpath := filepath.Join(cfg.DataDir, "block", "data.blk")
@@ -30,7 +28,7 @@ func NewMFileBlockStorage(cfg agro.Config, meta agro.GlobalMetadata) (agro.Block
 	if err != nil {
 		return nil, err
 	}
-	m, err := storage.CreateOrOpenMFile(mpath, nBlocks*metaBytesPerBlock, metaBytesPerBlock)
+	m, err := storage.CreateOrOpenMFile(mpath, nBlocks*agro.BlockIDByteSize, agro.BlockIDByteSize)
 	if err != nil {
 		return nil, err
 	}
@@ -71,9 +69,11 @@ func (m *mfileBlock) Close() error {
 
 func (m *mfileBlock) findIndex(s agro.BlockID) int {
 	id := s.ToBytes()
+	clog.Debugf("finding blockid %s, bytes %v", s, id)
 	for i := 0; i < m.nBlocks; i++ {
 		b := m.blockMap.GetBlock(uint64(i))
-		if bytes.HasPrefix(b, id) {
+		clog.Tracef("trying blockid index %d, %v", i, b)
+		if bytes.Equal(b, id) {
 			return i
 		}
 	}
@@ -81,7 +81,7 @@ func (m *mfileBlock) findIndex(s agro.BlockID) int {
 }
 
 func (m *mfileBlock) findEmpty() int {
-	emptyBlock := make([]byte, metaBytesPerBlock)
+	emptyBlock := make([]byte, agro.BlockIDByteSize)
 	for i := 0; i < m.nBlocks; i++ {
 		b := m.blockMap.GetBlock(uint64(i))
 		if bytes.Equal(b, emptyBlock) {
@@ -101,6 +101,7 @@ func (m *mfileBlock) GetBlock(s agro.BlockID) ([]byte, error) {
 	if index == -1 {
 		return nil, agro.ErrBlockNotExist
 	}
+	clog.Debugf("mfile: getting block at index %d", index)
 	return m.data.GetBlock(uint64(index)), nil
 }
 
@@ -112,8 +113,10 @@ func (m *mfileBlock) WriteBlock(s agro.BlockID, data []byte) error {
 	}
 	index := m.findEmpty()
 	if index == -1 {
+		clog.Error("mfile: out of space")
 		return agro.ErrOutOfSpace
 	}
+	clog.Debugf("mfile: writing block at index %d", index)
 	err := m.data.WriteBlock(uint64(index), data)
 	if err != nil {
 		return err
@@ -131,5 +134,5 @@ func (m *mfileBlock) DeleteBlock(s agro.BlockID) error {
 	if index == -1 {
 		return agro.ErrBlockNotExist
 	}
-	return m.blockMap.WriteBlock(uint64(index), make([]byte, metaBytesPerBlock))
+	return m.blockMap.WriteBlock(uint64(index), make([]byte, agro.BlockIDByteSize))
 }

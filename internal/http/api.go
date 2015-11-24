@@ -91,6 +91,7 @@ func (s *Server) getFile(c *gin.Context) {
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))
+		return
 	}
 	c.Writer.WriteHeader(http.StatusOK)
 }

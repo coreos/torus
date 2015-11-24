@@ -5,7 +5,10 @@ import (
 
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/models"
+	"github.com/coreos/pkg/capnslog"
 )
+
+var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "blockset")
 
 type blockset interface {
 	agro.Blockset

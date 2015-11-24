@@ -14,7 +14,8 @@ import (
 
 func main() {
 	var err error
-	capnslog.SetGlobalLogLevel(capnslog.TRACE)
+	capnslog.SetGlobalLogLevel(capnslog.INFO)
+	//	capnslog.MustRepoLogger("github.com/barakmich/agro").SetLogLevel(map[string]capnslog.LogLevel{"block": capnslog.DEBUG})
 	cfg := agro.Config{
 		DataDir:     "/tmp/agro",
 		StorageSize: 200 * 1024 * 1024,

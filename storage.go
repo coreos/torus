@@ -1,7 +1,9 @@
 package agro
 
 import (
+	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/barakmich/agro/models"
 )
@@ -30,6 +32,10 @@ type INodeRef struct {
 	INode  INodeID
 }
 
+func (i INodeRef) String() string {
+	return fmt.Sprintf("vol: %d, inode: %d", i.Volume, i.INode)
+}
+
 // BlockID is the identifier for a unique block in the filesystem.
 type BlockID struct {
 	INodeRef
@@ -39,29 +45,25 @@ type BlockID struct {
 const BlockIDByteSize = 8 * 3
 
 func (b BlockID) ToBytes() []byte {
-	out := make([]byte, BlockIDByteSize)
-	n := binary.PutUvarint(out, uint64(b.INodeRef.Volume))
-	out = out[n:]
-	n = binary.PutUvarint(out, uint64(b.INodeRef.INode))
-	out = out[n:]
-	n = binary.PutUvarint(out, uint64(b.Index))
+	buf := bytes.NewBuffer(make([]byte, 0, BlockIDByteSize))
+	binary.Write(buf, binary.LittleEndian, b)
+	out := buf.Bytes()
+	if len(out) != BlockIDByteSize {
+		panic("breaking contract -- must make size appropriate")
+	}
 	return out
 }
 
 func BlockIDFromBytes(b []byte) BlockID {
-	var n int
-	v, n := binary.Uvarint(b)
-	b = b[n:]
-	o, n := binary.Uvarint(b)
-	b = b[n:]
-	i, n := binary.Uvarint(b)
-	return BlockID{
-		INodeRef: INodeRef{
-			Volume: VolumeID(v),
-			INode:  INodeID(o),
-		},
-		Index: IndexID(i),
-	}
+	buf := bytes.NewBuffer(b)
+	out := BlockID{}
+	binary.Read(buf, binary.LittleEndian, &out)
+	return out
+}
+
+func (b BlockID) String() string {
+	i := b.INodeRef
+	return fmt.Sprintf("vol: %d, inode: %d, block: %d", i.Volume, i.INode, b.Index)
 }
 
 // BlockStore is the interface representing the standardized methods to

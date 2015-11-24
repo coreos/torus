@@ -81,7 +81,7 @@ func (f *file) openWrite() error {
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
-	clog.Trace("begin write", b[:10], off)
+	clog.Trace("begin write: offset ", off, " size ", len(b))
 	toWrite := len(b)
 	err = f.openWrite()
 	if err != nil {
@@ -112,6 +112,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 			}
 		}
 		wrote := copy(blk[int(blkOff):int(blkOff)+frontlen], b[:frontlen])
+		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
 		err = f.blocks.PutBlock(f.inodeRef, blkIndex, blk)
 		if err != nil {
 			return n, err
@@ -135,8 +136,9 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		panic("Offset not equal to a block boundary")
 	}
 
-	for toWrite > int(f.blkSize) {
+	for toWrite >= int(f.blkSize) {
 		blkIndex := int(off / f.blkSize)
+		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
 		err = f.blocks.PutBlock(f.inodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
 			return n, err
@@ -167,6 +169,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		}
 	}
 	wrote := copy(blk[:toWrite], b)
+	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
 	err = f.blocks.PutBlock(f.inodeRef, blkIndex, blk)
 	if err != nil {
 		return n, err
@@ -193,10 +196,12 @@ func (f *file) ReadAt(b []byte, off int64) (n int, ferr error) {
 	f.mut.RLock()
 	defer f.mut.RUnlock()
 	toRead := len(b)
+	clog.Tracef("begin read of size %d", toRead)
 	n = 0
 	if int64(toRead)+off > int64(f.inode.Filesize) {
 		toRead = int(int64(f.inode.Filesize) - off)
 		ferr = io.EOF
+		clog.Tracef("read is longer than file")
 	}
 	for toRead > n {
 		blkIndex := int(off / f.blkSize)
@@ -205,6 +210,7 @@ func (f *file) ReadAt(b []byte, off int64) (n int, ferr error) {
 			return n, io.EOF
 		}
 		blkOff := off - int64(int(f.blkSize)*blkIndex)
+		clog.Tracef("getting block index %d", blkIndex)
 		blk, err := f.blocks.GetBlock(blkIndex)
 		if err != nil {
 			return n, err
