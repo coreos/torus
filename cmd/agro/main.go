@@ -15,6 +15,7 @@ import (
 
 var debug = flag.Bool("debug", false, "Turn on debug output")
 var trace = flag.Bool("trace", false, "Turn on debug output")
+var etcd = flag.String("etcd", "", "Address for talking to etcd")
 
 func main() {
 	var err error
