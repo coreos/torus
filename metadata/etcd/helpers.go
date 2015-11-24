@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"path"
 
+	"github.com/barakmich/agro/models"
 	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
 )
 
@@ -88,6 +89,33 @@ func keyEquals(key []byte, value []byte) *pb.Compare {
 	}
 }
 
+func keyExists(key []byte) *pb.Compare {
+	return &pb.Compare{
+		Target:  pb.Compare_VERSION,
+		Result:  pb.Compare_GREATER,
+		Key:     key,
+		Version: 0,
+	}
+}
+
+func keyNotExists(key []byte) *pb.Compare {
+	return &pb.Compare{
+		Target:  pb.Compare_VERSION,
+		Result:  pb.Compare_LESS,
+		Key:     key,
+		Version: 1,
+	}
+}
+
+func keyIsVersion(key []byte, version int64) *pb.Compare {
+	return &pb.Compare{
+		Target:  pb.Compare_VERSION,
+		Result:  pb.Compare_EQUAL,
+		Key:     key,
+		Version: version,
+	}
+}
+
 func setKey(key []byte, value []byte) *pb.PutRequest {
 	return &pb.PutRequest{
 		Key:   key,
@@ -109,4 +137,18 @@ func getPrefix(key []byte) *pb.RangeRequest {
 		Key:      key,
 		RangeEnd: end,
 	}
+}
+
+// *********8
+
+func newDirProto(md *models.Metadata) []byte {
+	a := models.Directory{
+		Metadata: md,
+		Files:    make(map[string]uint64),
+	}
+	b, err := a.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return b
 }

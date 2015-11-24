@@ -8,6 +8,7 @@ import (
 	"github.com/barakmich/agro/storage/block"
 	"github.com/barakmich/agro/storage/inode"
 
+	_ "github.com/barakmich/agro/metadata/etcd"
 	_ "github.com/barakmich/agro/metadata/temp"
 )
 
@@ -59,7 +60,7 @@ func NewPersistentServer(cfg agro.Config) (agro.Server, error) {
 	}, nil
 }
 
-func NewPersistentEtcdServer(cfg agro.Config) (agro.Server, error) {
+func NewEtcdServer(cfg agro.Config) (agro.Server, error) {
 	err := mkdirsFor(cfg.DataDir)
 	if err != nil {
 		return nil, err

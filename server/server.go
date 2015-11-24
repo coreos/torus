@@ -105,6 +105,10 @@ func (s *server) GetVolumes() ([]string, error) {
 	return s.mds.GetVolumes()
 }
 
+func (s *server) Mkfs(gmd agro.GlobalMetadata) error {
+	return s.mds.Mkfs(gmd)
+}
+
 func (s *server) Close() error {
 	err := s.mds.Close()
 	if err != nil {
