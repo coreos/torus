@@ -14,6 +14,7 @@ import (
 )
 
 var debug = flag.Bool("debug", false, "Turn on debug output")
+var trace = flag.Bool("trace", false, "Turn on debug output")
 
 func main() {
 	var err error
@@ -21,11 +22,13 @@ func main() {
 	capnslog.SetGlobalLogLevel(capnslog.INFO)
 	if *debug {
 		capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-		//	capnslog.MustRepoLogger("github.com/barakmich/agro").SetLogLevel(map[string]capnslog.LogLevel{"block": capnslog.DEBUG})
+	}
+	if *trace {
+		capnslog.SetGlobalLogLevel(capnslog.TRACE)
 	}
 	cfg := agro.Config{
 		DataDir:     "/tmp/agro",
-		StorageSize: 200 * 1024 * 1024,
+		StorageSize: 3 * 1024 * 1024 * 1024,
 	}
 	srv, err := server.NewPersistentServer(cfg)
 	//	srv := server.NewMemoryServer()

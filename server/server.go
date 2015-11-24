@@ -51,6 +51,7 @@ func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err er
 	if err != nil {
 		return nil, err
 	}
+	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.Inode, bs.Length())
 	return &file{
 		path:    path,
 		inode:   n,

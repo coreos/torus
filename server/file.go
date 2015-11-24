@@ -37,6 +37,7 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 		return nil, err
 	}
 
+	clog.Tracef("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.Inode, bs.Length(), inode.Filesize)
 	f := &file{
 		path:    path,
 		inode:   inode,
@@ -87,6 +88,12 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
+
+	defer func() {
+		if off > int64(f.inode.Filesize) {
+			f.inode.Filesize = uint64(off)
+		}
+	}()
 
 	// Write the front matter, which may dangle from a byte offset
 	blkIndex := int(off / f.blkSize)
@@ -180,9 +187,6 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	b = b[wrote:]
 	n += wrote
 	off += int64(wrote)
-	if off > int64(f.inode.Filesize) {
-		f.inode.Filesize = uint64(off)
-	}
 	return n, nil
 }
 
