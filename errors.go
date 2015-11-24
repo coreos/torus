@@ -23,4 +23,8 @@ var (
 
 	// ErrExists is returned if the entity already exists
 	ErrExists = errors.New("agro: already exists")
+
+	// ErrAgain is returned if the operation was interrupted. The call was valid, and
+	// may be tried again.
+	ErrAgain = errors.New("agro: interrupted, try again")
 )

@@ -1,8 +1,11 @@
 package etcd
 
 import (
+	"path"
+
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
+	"golang.org/x/net/context"
 
 	// TODO(barakmich): And this is why vendoring sucks. I shouldn't need to
 	//import this, but I do, because I'm using etcdserverpb from head, and *it*
@@ -20,8 +23,10 @@ func init() {
 }
 
 type etcd struct {
-	cfg    agro.Config
-	global agro.GlobalMetadata
+	cfg           agro.Config
+	global        agro.GlobalMetadata
+	volumeprinter uint64
+	volumesCache  map[string]agro.VolumeID
 
 	conn *grpc.ClientConn
 	kv   pb.KVClient
@@ -56,5 +61,44 @@ func (e *etcd) Close() error {
 }
 
 func (e *etcd) CreateVolume(volume string) error {
-	tx := pb.TxnRequest{}
+	tx := tx().If(
+		keyEquals(mkKey("meta", "volumeprinter"), uint64ToBytes(e.volumeprinter)),
+	).Then(
+		setKey(mkKey("meta", "volumeprinter"), uint64ToBytes(e.volumeprinter+1)),
+		setKey(mkKey("volumes", volume), uint64ToBytes(e.volumeprinter)),
+	).Tx()
+	resp, err := e.kv.Txn(context.Background(), tx)
+	if err != nil {
+		return err
+	}
+	if !resp.Succeeded {
+		return agro.ErrAgain
+	}
+	e.volumeprinter++
+	return nil
+}
+
+func (e *etcd) GetVolumes() ([]string, error) {
+	req := getPrefix(mkKey("volumes"))
+	resp, err := e.kv.Range(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, x := range resp.GetKvs() {
+		p := string(x.Key)
+		out = append(out, path.Base(p))
+	}
+	return out, nil
+}
+
+func (e *etcd) GetVolumeID(volume string) (agro.VolumeID, error) {
+	if v, ok := e.volumesCache[volume]; ok {
+		return v, nil
+	}
+	req := getKey(mkKey("volumes", volume))
+	resp, err := e.kv.Range(context.Background(), req)
+	if err != nil {
+		return 0, err
+	}
 }

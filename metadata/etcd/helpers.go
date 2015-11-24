@@ -32,15 +32,18 @@ func uint64FromBytes(b []byte) uint64 {
 	return out
 }
 
-type transact pb.TxnRequest
+type transact struct {
+	tx *pb.TxnRequest
+}
 
 func tx() *transact {
-	t := transact(pb.TxnRequest{})
+	t := transact{&pb.TxnRequest{}}
 	return &t
 }
 
-func (t *transact) If(comps ...*pb.Compare) {
-	t.Compare = comps
+func (t *transact) If(comps ...*pb.Compare) *transact {
+	t.tx.Compare = comps
+	return t
 }
 
 func requestUnion(comps ...interface{}) []*pb.RequestUnion {
@@ -60,16 +63,20 @@ func requestUnion(comps ...interface{}) []*pb.RequestUnion {
 	return out
 }
 
-func (t *transact) txThen(comps ...interface{}) *transact {
+func (t *transact) Then(comps ...interface{}) *transact {
 	ru := requestUnion(comps...)
-	t.Success = ru
+	t.tx.Success = ru
 	return t
 }
 
 func (t *transact) Else(comps ...interface{}) *transact {
 	ru := requestUnion(comps...)
-	t.Failure = ru
+	t.tx.Failure = ru
 	return t
+}
+
+func (t *transact) Tx() *pb.TxnRequest {
+	return t.tx
 }
 
 func keyEquals(key []byte, value []byte) *pb.Compare {
