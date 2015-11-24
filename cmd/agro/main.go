@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/coreos/pkg/capnslog"
+
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/internal/http"
 	"github.com/barakmich/agro/server"
@@ -12,6 +14,7 @@ import (
 
 func main() {
 	var err error
+	capnslog.SetGlobalLogLevel(capnslog.TRACE)
 	cfg := agro.Config{
 		DataDir:     "/tmp/agro",
 		StorageSize: 200 * 1024 * 1024,

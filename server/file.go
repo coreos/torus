@@ -5,10 +5,14 @@ import (
 	"io"
 	"sync"
 
+	"github.com/coreos/pkg/capnslog"
+
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
 )
+
+var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "server")
 
 type file struct {
 	mut       sync.RWMutex
@@ -77,6 +81,7 @@ func (f *file) openWrite() error {
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
+	clog.Trace("begin write", b[:10], off)
 	toWrite := len(b)
 	err = f.openWrite()
 	if err != nil {
