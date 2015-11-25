@@ -12,4 +12,6 @@ type Server interface {
 	// Some server metacalls.
 	CreateVolume(string) error
 	GetVolumes() ([]string, error)
+
+	Close() error
 }

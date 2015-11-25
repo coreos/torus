@@ -7,7 +7,8 @@ import (
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
-	"github.com/barakmich/agro/storage"
+	"github.com/barakmich/agro/storage/block"
+	"github.com/barakmich/agro/storage/inode"
 
 	_ "github.com/barakmich/agro/metadata/temp"
 )
@@ -19,11 +20,15 @@ type server struct {
 }
 
 func NewMemoryServer() agro.Server {
-	mds := agro.CreateMetadataService("temp", "")
+	cfg := agro.Config{
+		DataDir: "/no-such-path",
+	}
+	mds, _ := agro.CreateMetadataService("temp", cfg)
+	inodes, _ := inode.OpenTempINodeStore()
 	return &server{
-		cold:   storage.OpenTempBlockStore(),
+		cold:   block.OpenTempBlockStore(),
 		mds:    mds,
-		inodes: storage.OpenTempINodeStore(),
+		inodes: inodes,
 	}
 }
 
@@ -46,6 +51,7 @@ func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err er
 	if err != nil {
 		return nil, err
 	}
+	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.Inode, bs.Length())
 	return &file{
 		path:    path,
 		inode:   n,
@@ -97,4 +103,20 @@ func (s *server) CreateVolume(vol string) error {
 
 func (s *server) GetVolumes() ([]string, error) {
 	return s.mds.GetVolumes()
+}
+
+func (s *server) Close() error {
+	err := s.mds.Close()
+	if err != nil {
+		return err
+	}
+	err = s.inodes.Close()
+	if err != nil {
+		return err
+	}
+	err = s.cold.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }

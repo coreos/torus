@@ -42,6 +42,7 @@ func (b *baseBlockset) GetBlock(i int) ([]byte, error) {
 	if i >= len(b.blocks) {
 		return nil, agro.ErrBlockNotExist
 	}
+	clog.Tracef("base: getting block at BlockID %s", b.blocks[i])
 	return b.store.GetBlock(b.blocks[i])
 }
 

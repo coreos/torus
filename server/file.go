@@ -5,10 +5,14 @@ import (
 	"io"
 	"sync"
 
+	"github.com/coreos/pkg/capnslog"
+
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
 )
+
+var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "server")
 
 type file struct {
 	mut       sync.RWMutex
@@ -32,14 +36,17 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 	if err != nil {
 		return nil, err
 	}
-	return &file{
+
+	clog.Tracef("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.Inode, bs.Length(), inode.Filesize)
+	f := &file{
 		path:    path,
 		inode:   inode,
 		srv:     s,
 		offset:  0,
 		blocks:  bs,
 		blkSize: int64(md.BlockSize),
-	}, nil
+	}
+	return f, nil
 }
 
 func (f *file) Write(b []byte) (n int, err error) {
@@ -75,11 +82,18 @@ func (f *file) openWrite() error {
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
+	clog.Trace("begin write: offset ", off, " size ", len(b))
 	toWrite := len(b)
 	err = f.openWrite()
 	if err != nil {
 		return 0, err
 	}
+
+	defer func() {
+		if off > int64(f.inode.Filesize) {
+			f.inode.Filesize = uint64(off)
+		}
+	}()
 
 	// Write the front matter, which may dangle from a byte offset
 	blkIndex := int(off / f.blkSize)
@@ -104,7 +118,8 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 				return n, err
 			}
 		}
-		wrote := copy(b[:frontlen], blk[int(blkOff):int(blkOff)+frontlen])
+		wrote := copy(blk[int(blkOff):int(blkOff)+frontlen], b[:frontlen])
+		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
 		err = f.blocks.PutBlock(f.inodeRef, blkIndex, blk)
 		if err != nil {
 			return n, err
@@ -128,8 +143,9 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		panic("Offset not equal to a block boundary")
 	}
 
-	for toWrite > int(f.blkSize) {
+	for toWrite >= int(f.blkSize) {
 		blkIndex := int(off / f.blkSize)
+		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
 		err = f.blocks.PutBlock(f.inodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
 			return n, err
@@ -159,7 +175,8 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 			return n, err
 		}
 	}
-	wrote := copy(b[:], blk[:toWrite])
+	wrote := copy(blk[:toWrite], b)
+	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
 	err = f.blocks.PutBlock(f.inodeRef, blkIndex, blk)
 	if err != nil {
 		return n, err
@@ -170,9 +187,6 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	b = b[wrote:]
 	n += wrote
 	off += int64(wrote)
-	if off > int64(f.inode.Filesize) {
-		f.inode.Filesize = uint64(off)
-	}
 	return n, nil
 }
 
@@ -182,13 +196,16 @@ func (f *file) Read(b []byte) (n int, err error) {
 	return
 }
 
-func (f *file) ReadAt(b []byte, off int64) (n int, err error) {
+func (f *file) ReadAt(b []byte, off int64) (n int, ferr error) {
 	f.mut.RLock()
 	defer f.mut.RUnlock()
 	toRead := len(b)
+	clog.Tracef("begin read of size %d", toRead)
 	n = 0
 	if int64(toRead)+off > int64(f.inode.Filesize) {
 		toRead = int(int64(f.inode.Filesize) - off)
+		ferr = io.EOF
+		clog.Tracef("read is longer than file")
 	}
 	for toRead > n {
 		blkIndex := int(off / f.blkSize)
@@ -197,6 +214,7 @@ func (f *file) ReadAt(b []byte, off int64) (n int, err error) {
 			return n, io.EOF
 		}
 		blkOff := off - int64(int(f.blkSize)*blkIndex)
+		clog.Tracef("getting block index %d", blkIndex)
 		blk, err := f.blocks.GetBlock(blkIndex)
 		if err != nil {
 			return n, err
@@ -205,14 +223,14 @@ func (f *file) ReadAt(b []byte, off int64) (n int, err error) {
 		if int64(toRead-n) < thisRead {
 			thisRead = int64(toRead - n)
 		}
-		count := copy(blk[blkOff:blkOff+thisRead], b[n:])
+		count := copy(b[n:], blk[blkOff:blkOff+thisRead])
 		n += count
 		off += int64(count)
 	}
 	if toRead != n {
 		panic("Read more than n bytes?")
 	}
-	return n, err
+	return n, ferr
 }
 
 func (f *file) Close() error {

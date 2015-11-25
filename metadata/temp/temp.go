@@ -1,11 +1,15 @@
 package temp
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -20,15 +24,23 @@ func init() {
 }
 
 type temp struct {
-	mut      sync.Mutex
-	inode    agro.INodeID
+	mut sync.Mutex
+
+	inode agro.INodeID
+	vol   agro.VolumeID
+
 	tree     *iradix.Tree
 	volIndex map[string]agro.VolumeID
-	vol      agro.VolumeID
 	global   agro.GlobalMetadata
+	cfg      agro.Config
 }
 
-func newTempMetadata(address string) agro.MetadataService {
+func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
+	t, err := parseFromFile(cfg)
+	if err == nil {
+		return t, nil
+	}
+	fmt.Println("temp: couldn't parse metadata: ", err)
 	return &temp{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
@@ -36,7 +48,8 @@ func newTempMetadata(address string) agro.MetadataService {
 			BlockSize:        8 * 1024,
 			DefaultBlockSpec: agro.BlockLayerSpec{blockset.CRC, blockset.Base},
 		},
-	}
+		cfg: cfg,
+	}, nil
 }
 
 func (t *temp) GlobalMetadata() (agro.GlobalMetadata, error) {
@@ -51,6 +64,10 @@ func (t *temp) Mkfs(md agro.GlobalMetadata) error {
 func (t *temp) CreateVolume(volume string) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
+	if _, ok := t.volIndex[volume]; ok {
+		return agro.ErrExists
+	}
+
 	tx := t.tree.Txn()
 
 	k := []byte(agro.Path{Volume: volume, Path: "/"}.Key())
@@ -218,4 +235,112 @@ func (t *temp) GetVolumeID(volume string) (agro.VolumeID, error) {
 		return vol, nil
 	}
 	return 0, errors.New("temp: no such volume exists")
+}
+
+func (t *temp) write() error {
+	outfile := filepath.Join(t.cfg.DataDir, "metadata", "temp.txt")
+	fmt.Println("writing metadata to file:", outfile)
+	f, err := os.Create(outfile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	buf := bufio.NewWriter(f)
+	buf.WriteString(fmt.Sprintf("%d %d\n", t.inode, t.vol))
+	b, err := json.Marshal(t.volIndex)
+	if err != nil {
+		return err
+	}
+	buf.WriteString(string(b))
+	buf.WriteRune('\n')
+	b, err = json.Marshal(t.global)
+	if err != nil {
+		return err
+	}
+	buf.WriteString(string(b))
+	buf.WriteRune('\n')
+	it := t.tree.Root().Iterator()
+	for {
+		k, v, ok := it.Next()
+		if !ok {
+			break
+		}
+		buf.WriteString(string(k))
+		buf.WriteRune('\n')
+		b, err := json.Marshal(v.(*models.Directory))
+		if err != nil {
+			return err
+		}
+		buf.WriteString(string(b))
+		buf.WriteRune('\n')
+	}
+	return buf.Flush()
+}
+
+func (t *temp) Close() error {
+	return t.write()
+}
+
+func parseFromFile(cfg agro.Config) (agro.MetadataService, error) {
+	t := temp{}
+	outfile := filepath.Join(cfg.DataDir, "metadata", "temp.txt")
+	if _, err := os.Stat(outfile); err == os.ErrNotExist {
+		return nil, os.ErrNotExist
+	}
+	f, err := os.Open(outfile)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	buf := bufio.NewReader(f)
+	line, err := buf.ReadString('\n')
+	if err != nil {
+		return nil, err
+	}
+	_, err = fmt.Sscanf(line, "%d %d", &t.inode, &t.vol)
+	if err != nil {
+		return nil, err
+	}
+	b, err := buf.ReadBytes('\n')
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(b, &t.volIndex)
+	if err != nil {
+		return nil, err
+	}
+	b, err = buf.ReadBytes('\n')
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(b, &t.global)
+	if err != nil {
+		return nil, err
+	}
+	t.tree = iradix.New()
+	tx := t.tree.Txn()
+	for {
+		k, err := buf.ReadBytes('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		k = k[:len(k)-1]
+		vbytes, err := buf.ReadBytes('\n')
+		if err != nil {
+			return nil, err
+		}
+		v := models.Directory{}
+		err = json.Unmarshal(vbytes, &v)
+		if err != nil {
+			return nil, err
+		}
+		tx.Insert(k, &v)
+	}
+
+	t.tree = tx.Commit()
+	t.cfg = cfg
+	return &t, nil
 }

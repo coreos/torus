@@ -1,6 +1,12 @@
 package agro
 
-import "github.com/barakmich/agro/models"
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+
+	"github.com/barakmich/agro/models"
+)
 
 type (
 	// VolumeID represents a unique identifier for a Volume.
@@ -26,10 +32,38 @@ type INodeRef struct {
 	INode  INodeID
 }
 
+func (i INodeRef) String() string {
+	return fmt.Sprintf("vol: %d, inode: %d", i.Volume, i.INode)
+}
+
 // BlockID is the identifier for a unique block in the filesystem.
 type BlockID struct {
 	INodeRef
 	Index IndexID
+}
+
+const BlockIDByteSize = 8 * 3
+
+func (b BlockID) ToBytes() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, BlockIDByteSize))
+	binary.Write(buf, binary.LittleEndian, b)
+	out := buf.Bytes()
+	if len(out) != BlockIDByteSize {
+		panic("breaking contract -- must make size appropriate")
+	}
+	return out
+}
+
+func BlockIDFromBytes(b []byte) BlockID {
+	buf := bytes.NewBuffer(b)
+	out := BlockID{}
+	binary.Read(buf, binary.LittleEndian, &out)
+	return out
+}
+
+func (b BlockID) String() string {
+	i := b.INodeRef
+	return fmt.Sprintf("vol: %d, inode: %d, block: %d", i.Volume, i.INode, b.Index)
 }
 
 // BlockStore is the interface representing the standardized methods to

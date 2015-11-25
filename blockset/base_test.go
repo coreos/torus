@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/storage"
+	"github.com/barakmich/agro/storage/block"
 )
 
 type makeTestBlockset func(s agro.BlockStore) blockset
 
 func TestBaseReadWrite(t *testing.T) {
-	s := storage.OpenTempBlockStore()
+	s := block.OpenTempBlockStore()
 	b := newBaseBlockset(s)
 	readWriteTest(t, b)
 }
@@ -38,7 +38,7 @@ func readWriteTest(t *testing.T, b blockset) {
 }
 
 func TestBaseMarshal(t *testing.T) {
-	s := storage.OpenTempBlockStore()
+	s := block.OpenTempBlockStore()
 	marshalTest(t, s, agro.BlockLayerSpec{Base})
 }
 

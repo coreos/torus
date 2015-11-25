@@ -1,4 +1,4 @@
-package storage
+package inode
 
 import (
 	"sync"
@@ -12,12 +12,10 @@ type tempINodeStore struct {
 	store map[agro.INodeRef]*models.INode
 }
 
-func CreateTempINodeStore() {}
-
-func OpenTempINodeStore() agro.INodeStore {
+func OpenTempINodeStore() (agro.INodeStore, error) {
 	return &tempINodeStore{
 		store: make(map[agro.INodeRef]*models.INode),
-	}
+	}, nil
 }
 
 func (t *tempINodeStore) Flush() error { return nil }

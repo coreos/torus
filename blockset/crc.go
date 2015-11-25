@@ -42,14 +42,17 @@ func (b *crcBlockset) Kind() uint32 {
 
 func (b *crcBlockset) GetBlock(i int) ([]byte, error) {
 	if i >= len(b.crcs) {
+		clog.Trace("crc: requesting block off the edge of known blocks")
 		return nil, agro.ErrBlockNotExist
 	}
 	data, err := b.sub.GetBlock(i)
 	if err != nil {
+		clog.Trace("crc: error requesting subblock")
 		return nil, err
 	}
 	crc := crc32.ChecksumIEEE(data)
 	if crc != b.crcs[i] {
+		clog.Debug("crc: block did not pass crc")
 		return nil, agro.ErrBlockUnavailable
 	}
 	return data, nil
