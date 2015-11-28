@@ -7,10 +7,11 @@ import (
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
-	"github.com/barakmich/agro/storage/block"
-	"github.com/barakmich/agro/storage/inode"
 
+	// Register drivers
 	_ "github.com/barakmich/agro/metadata/temp"
+	_ "github.com/barakmich/agro/storage/block"
+	_ "github.com/barakmich/agro/storage/inode"
 )
 
 type server struct {
@@ -20,13 +21,13 @@ type server struct {
 }
 
 func NewMemoryServer() agro.Server {
-	cfg := agro.Config{
-		DataDir: "/no-such-path",
-	}
+	cfg := agro.Config{DataDir: "/no-such-path"}
 	mds, _ := agro.CreateMetadataService("temp", cfg)
-	inodes, _ := inode.OpenTempINodeStore()
+	inodes, _ := agro.CreateINodeStore("temp", cfg)
+	gmd, _ := mds.GlobalMetadata()
+	cold, _ := agro.CreateBlockStore("temp", cfg, gmd)
 	return &server{
-		cold:   block.OpenTempBlockStore(),
+		cold:   cold,
 		mds:    mds,
 		inodes: inodes,
 	}

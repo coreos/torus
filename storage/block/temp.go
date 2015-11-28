@@ -6,17 +6,21 @@ import (
 	"github.com/barakmich/agro"
 )
 
+var _ agro.BlockStore = &tempBlockStore{}
+
+func init() {
+	agro.RegisterBlockStore("temp", openTempBlockStore)
+}
+
 type tempBlockStore struct {
 	mut   sync.RWMutex
 	store map[agro.BlockID][]byte
 }
 
-func CreateTempBlockStore() {}
-
-func OpenTempBlockStore() agro.BlockStore {
+func openTempBlockStore(cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
 	return &tempBlockStore{
 		store: make(map[agro.BlockID][]byte),
-	}
+	}, nil
 }
 
 func (t *tempBlockStore) Flush() error { return nil }

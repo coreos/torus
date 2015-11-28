@@ -13,6 +13,12 @@ import (
 	"github.com/hashicorp/go-immutable-radix"
 )
 
+var _ agro.BlockStore = &mfileBlock{}
+
+func init() {
+	agro.RegisterBlockStore("mfile", newMFileBlockStore)
+}
+
 type mfileBlock struct {
 	mut       sync.RWMutex
 	data      *storage.MFile
@@ -52,7 +58,7 @@ func loadTrie(m *storage.MFile) (*iradix.Tree, error) {
 	return tx.Commit(), nil
 }
 
-func NewMFileBlockStorage(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
+func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
 	nBlocks := cfg.StorageSize / meta.BlockSize
 	dpath := filepath.Join(cfg.DataDir, "block", "data.blk")
 	mpath := filepath.Join(cfg.DataDir, "block", "map.blk")

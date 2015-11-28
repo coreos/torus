@@ -4,23 +4,25 @@ import (
 	"testing"
 
 	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/storage/block"
+
+	// Register storage drivers.
+	_ "github.com/barakmich/agro/storage/block"
 )
 
 func TestCRCReadWrite(t *testing.T) {
-	s := block.OpenTempBlockStore()
+	s, _ := agro.CreateBlockStore("temp", agro.Config{}, agro.GlobalMetadata{})
 	b := newBaseBlockset(s)
 	crc := newCRCBlockset(b)
 	readWriteTest(t, crc)
 }
 
 func TestCRCMarshal(t *testing.T) {
-	s := block.OpenTempBlockStore()
+	s, _ := agro.CreateBlockStore("temp", agro.Config{}, agro.GlobalMetadata{})
 	marshalTest(t, s, agro.BlockLayerSpec{CRC, Base})
 }
 
 func TestCRCCorruption(t *testing.T) {
-	s := block.OpenTempBlockStore()
+	s, _ := agro.CreateBlockStore("temp", agro.Config{}, agro.GlobalMetadata{})
 	b := newBaseBlockset(s)
 	crc := newCRCBlockset(b)
 	inode := agro.INodeRef{1, 1}

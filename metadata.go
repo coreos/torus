@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/barakmich/agro/models"
+	"github.com/coreos/pkg/capnslog"
 )
+
+var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "agro")
 
 // Path represents the location of a File including the Volume and the
 // unix-style path string.
@@ -111,5 +114,6 @@ func RegisterMetadataService(name string, newFunc CreateMetadataServiceFunc) {
 // CreateMetadataService calls the constructor of the specified MetadataService
 // with the provided address.
 func CreateMetadataService(name string, cfg Config) (MetadataService, error) {
+	clog.Infof("creating metadata service: %s", name)
 	return metadataServices[name](cfg)
 }

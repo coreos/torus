@@ -5,11 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/storage/block"
-	"github.com/barakmich/agro/storage/inode"
-
-	_ "github.com/barakmich/agro/metadata/etcd"
-	_ "github.com/barakmich/agro/metadata/temp"
 )
 
 func mkdirsFor(dir string) error {
@@ -32,55 +27,32 @@ func mkdirsFor(dir string) error {
 	return nil
 }
 
-func NewPersistentServer(cfg agro.Config) (agro.Server, error) {
+func NewServer(cfg agro.Config, metadataServiceName, inodeStoreName, blockStoreName string) (agro.Server, error) {
 	err := mkdirsFor(cfg.DataDir)
 	if err != nil {
 		return nil, err
 	}
-	mds, err := agro.CreateMetadataService("temp", cfg)
-	if err != nil {
-		return nil, err
-	}
-	global, err := mds.GlobalMetadata()
-	if err != nil {
-		return nil, err
-	}
-	inodes, err := inode.OpenBoltInodeStore(cfg)
-	if err != nil {
-		return nil, err
-	}
-	blocks, err := block.NewMFileBlockStorage(cfg, global)
-	if err != nil {
-		return nil, err
-	}
-	return &server{
-		cold:   blocks,
-		mds:    mds,
-		inodes: inodes,
-	}, nil
-}
 
-func NewEtcdServer(cfg agro.Config) (agro.Server, error) {
-	err := mkdirsFor(cfg.DataDir)
+	mds, err := agro.CreateMetadataService(metadataServiceName, cfg)
 	if err != nil {
 		return nil, err
 	}
-	mds, err := agro.CreateMetadataService("etcd", cfg)
-	if err != nil {
-		return nil, err
-	}
+
 	global, err := mds.GlobalMetadata()
 	if err != nil {
 		return nil, err
 	}
-	inodes, err := inode.OpenBoltInodeStore(cfg)
+
+	inodes, err := agro.CreateINodeStore(inodeStoreName, cfg)
 	if err != nil {
 		return nil, err
 	}
-	blocks, err := block.NewMFileBlockStorage(cfg, global)
+
+	blocks, err := agro.CreateBlockStore(blockStoreName, cfg, global)
 	if err != nil {
 		return nil, err
 	}
+
 	return &server{
 		cold:   blocks,
 		mds:    mds,

@@ -7,12 +7,18 @@ import (
 	"github.com/barakmich/agro/models"
 )
 
+var _ agro.INodeStore = &tempINodeStore{}
+
+func init() {
+	agro.RegisterINodeStore("temp", openTempINodeStore)
+}
+
 type tempINodeStore struct {
 	mut   sync.RWMutex
 	store map[agro.INodeRef]*models.INode
 }
 
-func OpenTempINodeStore() (agro.INodeStore, error) {
+func openTempINodeStore(cfg agro.Config) (agro.INodeStore, error) {
 	return &tempINodeStore{
 		store: make(map[agro.INodeRef]*models.INode),
 	}, nil

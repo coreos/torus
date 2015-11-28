@@ -75,6 +75,27 @@ type BlockStore interface {
 	DeleteBlock(b BlockID) error
 }
 
+type NewBlockStoreFunc func(Config, GlobalMetadata) (BlockStore, error)
+
+var blockStores map[string]NewBlockStoreFunc
+
+func RegisterBlockStore(name string, newFunc NewBlockStoreFunc) {
+	if blockStores == nil {
+		blockStores = make(map[string]NewBlockStoreFunc)
+	}
+
+	if _, ok := blockStores[name]; ok {
+		panic("agro: attempted to register BlockStore " + name + " twice")
+	}
+
+	blockStores[name] = newFunc
+}
+
+func CreateBlockStore(name string, cfg Config, gmd GlobalMetadata) (BlockStore, error) {
+	clog.Infof("creating blockstore: %s", name)
+	return blockStores[name](cfg, gmd)
+}
+
 // INodeStore is the interface representing the standardized methods to
 // interact with something storing INodes.
 type INodeStore interface {
@@ -82,4 +103,25 @@ type INodeStore interface {
 	GetINode(i INodeRef) (*models.INode, error)
 	WriteINode(i INodeRef, inode *models.INode) error
 	DeleteINode(i INodeRef) error
+}
+
+type NewINodeStoreFunc func(Config) (INodeStore, error)
+
+var inodeStores map[string]NewINodeStoreFunc
+
+func RegisterINodeStore(name string, newFunc NewINodeStoreFunc) {
+	if inodeStores == nil {
+		inodeStores = make(map[string]NewINodeStoreFunc)
+	}
+
+	if _, ok := inodeStores[name]; ok {
+		panic("agro: attempted to register INodeStore " + name + " twice")
+	}
+
+	inodeStores[name] = newFunc
+}
+
+func CreateINodeStore(name string, cfg Config) (INodeStore, error) {
+	clog.Infof("creating inode store: %s", name)
+	return inodeStores[name](cfg)
 }

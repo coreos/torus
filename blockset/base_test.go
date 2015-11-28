@@ -4,13 +4,15 @@ import (
 	"testing"
 
 	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/storage/block"
+
+	// Register storage drivers.
+	_ "github.com/barakmich/agro/storage/block"
 )
 
 type makeTestBlockset func(s agro.BlockStore) blockset
 
 func TestBaseReadWrite(t *testing.T) {
-	s := block.OpenTempBlockStore()
+	s, _ := agro.CreateBlockStore("temp", agro.Config{}, agro.GlobalMetadata{})
 	b := newBaseBlockset(s)
 	readWriteTest(t, b)
 }
@@ -38,7 +40,7 @@ func readWriteTest(t *testing.T, b blockset) {
 }
 
 func TestBaseMarshal(t *testing.T) {
-	s := block.OpenTempBlockStore()
+	s, _ := agro.CreateBlockStore("temp", agro.Config{}, agro.GlobalMetadata{})
 	marshalTest(t, s, agro.BlockLayerSpec{Base})
 }
 

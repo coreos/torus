@@ -11,6 +11,10 @@ import (
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/internal/http"
 	"github.com/barakmich/agro/server"
+
+	// Register all the possible drivers.
+	_ "github.com/barakmich/agro/storage/block"
+	_ "github.com/barakmich/agro/storage/inode"
 )
 
 var debug = flag.Bool("debug", false, "Turn on debug output")
@@ -20,6 +24,7 @@ var etcd = flag.String("etcd", "", "Address for talking to etcd")
 func main() {
 	var err error
 	flag.Parse()
+
 	capnslog.SetGlobalLogLevel(capnslog.INFO)
 	if *debug {
 		capnslog.SetGlobalLogLevel(capnslog.DEBUG)
@@ -27,16 +32,18 @@ func main() {
 	if *trace {
 		capnslog.SetGlobalLogLevel(capnslog.TRACE)
 	}
+
 	cfg := agro.Config{
 		DataDir:         "/tmp/agro",
 		StorageSize:     3 * 1024 * 1024 * 1024,
 		MetadataAddress: *etcd,
 	}
+
 	var srv agro.Server
 	if *etcd == "" {
-		srv, err = server.NewPersistentServer(cfg)
+		srv, err = server.NewServer(cfg, "temp", "bolt", "mfile")
 	} else {
-		srv, err = server.NewEtcdServer(cfg)
+		srv, err = server.NewServer(cfg, "etcd", "bolt", "mfile")
 		if err != nil {
 			fmt.Printf("Couldn't start: %s\n", err)
 			os.Exit(1)
