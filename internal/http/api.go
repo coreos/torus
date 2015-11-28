@@ -29,8 +29,8 @@ func (s *Server) setupRoutes() {
 	{
 		v0.PUT("/volume/:volume", s.createVolume)
 		v0.GET("/volume", s.getVolumes)
-		v0.PUT("/file/:volume/:filename", s.putFile)
-		v0.GET("/file/:volume/:filename", s.getFile)
+		v0.PUT("/volume/:volume/file/:filename", s.putFile)
+		v0.GET("/volume/:volume/file/:filename", s.getFile)
 	}
 }
 
