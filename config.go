@@ -1,6 +1,7 @@
 package agro
 
 type Config struct {
-	DataDir     string
-	StorageSize uint64
+	DataDir         string
+	StorageSize     uint64
+	MetadataAddress string
 }

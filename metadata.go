@@ -24,6 +24,17 @@ func (p Path) IsDir() (b bool) {
 	return p.Path[len(p.Path)-1] == byte('/')
 }
 
+func (p Path) Super() (Path, bool) {
+	if !p.IsDir() {
+		return p, false
+	}
+	super, _ := path.Split(strings.TrimSuffix(p.Path, "/"))
+	return Path{
+		Volume: p.Volume,
+		Path:   super,
+	}, true
+}
+
 // GetDepth returns the distance of the current path from the root of the
 // filesystem.
 func (p Path) GetDepth() int {
@@ -57,6 +68,7 @@ type MetadataService interface {
 	GetVolumes() ([]string, error)
 	GetVolumeID(volume string) (VolumeID, error)
 
+	//TODO(barakmich): Relieve contention by making this per-volume
 	CommitInodeIndex() (INodeID, error)
 
 	Mkdir(path Path, dir *models.Directory) error

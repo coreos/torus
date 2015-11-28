@@ -15,6 +15,7 @@ import (
 
 var debug = flag.Bool("debug", false, "Turn on debug output")
 var trace = flag.Bool("trace", false, "Turn on debug output")
+var etcd = flag.String("etcd", "", "Address for talking to etcd")
 
 func main() {
 	var err error
@@ -27,10 +28,21 @@ func main() {
 		capnslog.SetGlobalLogLevel(capnslog.TRACE)
 	}
 	cfg := agro.Config{
-		DataDir:     "/tmp/agro",
-		StorageSize: 3 * 1024 * 1024 * 1024,
+		DataDir:         "/tmp/agro",
+		StorageSize:     3 * 1024 * 1024 * 1024,
+		MetadataAddress: *etcd,
 	}
-	srv, err := server.NewPersistentServer(cfg)
+	var srv agro.Server
+	if *etcd == "" {
+		srv, err = server.NewPersistentServer(cfg)
+	} else {
+		srv, err = server.NewEtcdServer(cfg)
+		if err != nil {
+			fmt.Printf("Couldn't start: %s\n", err)
+			os.Exit(1)
+		}
+		err = srv.Mkfs(agro.GlobalMetadata{})
+	}
 	//	srv := server.NewMemoryServer()
 	if err != nil {
 		fmt.Printf("Couldn't start: %s\n", err)

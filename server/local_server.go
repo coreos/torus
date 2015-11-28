@@ -8,6 +8,7 @@ import (
 	"github.com/barakmich/agro/storage/block"
 	"github.com/barakmich/agro/storage/inode"
 
+	_ "github.com/barakmich/agro/metadata/etcd"
 	_ "github.com/barakmich/agro/metadata/temp"
 )
 
@@ -37,6 +38,34 @@ func NewPersistentServer(cfg agro.Config) (agro.Server, error) {
 		return nil, err
 	}
 	mds, err := agro.CreateMetadataService("temp", cfg)
+	if err != nil {
+		return nil, err
+	}
+	global, err := mds.GlobalMetadata()
+	if err != nil {
+		return nil, err
+	}
+	inodes, err := inode.OpenBoltInodeStore(cfg)
+	if err != nil {
+		return nil, err
+	}
+	blocks, err := block.NewMFileBlockStorage(cfg, global)
+	if err != nil {
+		return nil, err
+	}
+	return &server{
+		cold:   blocks,
+		mds:    mds,
+		inodes: inodes,
+	}, nil
+}
+
+func NewEtcdServer(cfg agro.Config) (agro.Server, error) {
+	err := mkdirsFor(cfg.DataDir)
+	if err != nil {
+		return nil, err
+	}
+	mds, err := agro.CreateMetadataService("etcd", cfg)
 	if err != nil {
 		return nil, err
 	}

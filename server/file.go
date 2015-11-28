@@ -65,6 +65,9 @@ func (f *file) openWrite() error {
 	}
 	newInode, err := f.srv.mds.CommitInodeIndex()
 	if err != nil {
+		if err == agro.ErrAgain {
+			return f.openWrite()
+		}
 		return err
 	}
 	f.inodeRef = agro.INodeRef{
