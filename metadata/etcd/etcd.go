@@ -74,12 +74,15 @@ func (e *etcd) CreateVolume(volume string) error {
 		setKey(mkKey("meta", "volumeprinter"), uint64ToBytes(uint64(e.volumeprinter+1))),
 		setKey(mkKey("volumes", volume), uint64ToBytes(uint64(e.volumeprinter+1))),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
+	).Else(
+		getKey(mkKey("meta", "volumeprinter")),
 	).Tx()
 	resp, err := e.kv.Txn(context.Background(), tx)
 	if err != nil {
 		return err
 	}
 	if !resp.Succeeded {
+		e.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].ResponseRange.Kvs[0].Value))
 		return agro.ErrAgain
 	}
 	e.volumeprinter++
@@ -116,7 +119,7 @@ func (e *etcd) GetVolumeID(volume string) (agro.VolumeID, error) {
 	if len(resp.Kvs) == 0 {
 		return 0, errors.New("etcd: no such volume exists")
 	}
-	vid := agro.VolumeID(uint64FromBytes(resp.Kvs[0].Value))
+	vid := agro.VolumeID(bytesToUint64(resp.Kvs[0].Value))
 	e.volumesCache[volume] = vid
 	return vid, nil
 
@@ -127,12 +130,15 @@ func (e *etcd) CommitInodeIndex() (agro.INodeID, error) {
 		keyEquals(mkKey("meta", "inodeprinter"), uint64ToBytes(uint64(e.inodeprinter))),
 	).Then(
 		setKey(mkKey("meta", "inodeprinter"), uint64ToBytes(uint64(e.inodeprinter+1))),
+	).Else(
+		getKey(mkKey("meta", "inodeprinter")),
 	).Tx()
 	resp, err := e.kv.Txn(context.Background(), tx)
 	if err != nil {
 		return 0, err
 	}
 	if !resp.Succeeded {
+		e.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[0].ResponseRange.Kvs[0].Value))
 		return 0, agro.ErrAgain
 	}
 	i := e.inodeprinter
@@ -250,8 +256,8 @@ func (e *etcd) Mkfs(gmd agro.GlobalMetadata) error {
 		return err
 	}
 	if !resp.Succeeded {
-		e.volumeprinter = agro.VolumeID(uint64FromBytes(resp.Responses[0].ResponseRange.Kvs[0].Value))
-		e.inodeprinter = agro.INodeID(uint64FromBytes(resp.Responses[1].ResponseRange.Kvs[0].Value))
+		e.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].ResponseRange.Kvs[0].Value))
+		e.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[1].ResponseRange.Kvs[0].Value))
 		return nil
 	}
 	e.volumeprinter = 1

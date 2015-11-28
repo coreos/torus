@@ -98,7 +98,11 @@ func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
 }
 
 func (s *server) CreateVolume(vol string) error {
-	return s.mds.CreateVolume(vol)
+	err := s.mds.CreateVolume(vol)
+	if err == agro.ErrAgain {
+		return s.CreateVolume(vol)
+	}
+	return err
 }
 
 func (s *server) GetVolumes() ([]string, error) {

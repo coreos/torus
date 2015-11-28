@@ -23,7 +23,7 @@ func uint64ToBytes(x uint64) []byte {
 	return buf.Bytes()
 }
 
-func uint64FromBytes(b []byte) uint64 {
+func bytesToUint64(b []byte) uint64 {
 	r := bytes.NewReader(b)
 	var out uint64
 	err := binary.Read(r, binary.LittleEndian, &out)
@@ -139,7 +139,7 @@ func getPrefix(key []byte) *pb.RangeRequest {
 	}
 }
 
-// *********8
+// *********
 
 func newDirProto(md *models.Metadata) []byte {
 	a := models.Directory{
