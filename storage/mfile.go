@@ -80,15 +80,14 @@ func (m *MFile) WriteBlock(n uint64, data []byte) error {
 	if uint64(len(data)) > m.blkSize {
 		return errors.New("Data block too large")
 	}
-	offset := n * m.blkSize
-	if offset >= m.size {
+
+	blk := m.GetBlock(n)
+	if blk == nil {
 		return errors.New("Offset too large")
 	}
-	copy(m.mmap[offset:], data)
-	// Fill the rest of the block with zeros.
-	for i := uint64(len(data)); i < m.blkSize; i++ {
-		m.mmap[offset+uint64(i)] = byte(0)
-	}
+
+	// Copy the data and fill the rest of the block with zeros.
+	zero(blk[copy(blk, data):])
 	return nil
 }
 
@@ -101,4 +100,11 @@ func (m *MFile) Close() error {
 		return err
 	}
 	return m.mmap.Unmap()
+}
+
+func zero(b []byte) {
+	zeros := make([]byte, 8*1024)
+	for len(b) > 0 {
+		b = b[copy(b, zeros):]
+	}
 }
