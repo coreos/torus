@@ -5,9 +5,11 @@ import (
 	"errors"
 	"os"
 	"path"
+	"time"
 
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
+	"github.com/barakmich/agro/metadata"
 	"github.com/barakmich/agro/models"
 	"golang.org/x/net/context"
 
@@ -16,11 +18,17 @@ import (
 	//expects its own vendored version. Admittedly, this should get better with
 	//GO15VENDORING, but etcd doesn't support that yet.
 	"github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc"
+	"github.com/coreos/pkg/capnslog"
 
 	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
 )
 
-const keyPrefix = "/github.com/barakmich/agro/"
+var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "etcd")
+
+const (
+	keyPrefix      = "/github.com/barakmich/agro/"
+	peerTimeoutMax = 5 * time.Second
+)
 
 func init() {
 	agro.RegisterMetadataService("etcd", newEtcdMetadata)
@@ -35,9 +43,15 @@ type etcd struct {
 
 	conn *grpc.ClientConn
 	kv   pb.KVClient
+	uuid string
 }
 
 func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
+	uuid, err := metadata.MakeOrGetUUID(cfg.DataDir)
+	if err != nil {
+		return nil, err
+	}
+
 	conn, err := grpc.Dial(cfg.MetadataAddress)
 	if err != nil {
 		return nil, err
@@ -55,11 +69,51 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		conn:         conn,
 		kv:           client,
 		volumesCache: make(map[string]agro.VolumeID),
+		uuid:         uuid,
 	}, nil
 }
 
 func (e *etcd) GlobalMetadata() (agro.GlobalMetadata, error) {
 	return e.global, nil
+}
+
+func (e *etcd) UUID() string {
+	return e.uuid
+}
+
+func (e *etcd) RegisterPeer(p *models.PeerInfo) error {
+	p.LastSeen = time.Now().UnixNano()
+	data, err := p.Marshal()
+	if err != nil {
+		return err
+	}
+	_, err = e.kv.Put(context.Background(),
+		setKey(mkKey("nodes", p.UUID), data),
+	)
+	return err
+}
+
+func (e *etcd) GetPeers() ([]*models.PeerInfo, error) {
+	resp, err := e.kv.Range(context.Background(), getPrefix(mkKey("nodes")))
+	if err != nil {
+		return nil, err
+	}
+	var out []*models.PeerInfo
+	for _, x := range resp.Kvs {
+		var p models.PeerInfo
+		err := p.Unmarshal(x.Value)
+		if err != nil {
+			// Intentionally ignore a peer that doesn't unmarshal properly.
+			clog.Errorf("peer at key %s didn't unmarshal correctly", string(x.Key))
+			continue
+		}
+		if time.Since(time.Unix(0, p.LastSeen)) > peerTimeoutMax {
+			clog.Debugf("peer at key %s didn't unregister; fixed with leases in etcdv3", string(x.Key))
+			continue
+		}
+		out = append(out, &p)
+	}
+	return out, nil
 }
 
 func (e *etcd) Close() error {
