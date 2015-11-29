@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "gogoproto/gogo.proto";
+
 package models;
 
 message Metadata {
@@ -32,4 +34,18 @@ message Directory {
   // key is the filename without the path
   map<string, uint64> files = 2;
   // TODO(barakmich) Soft Link
+}
+
+message PeerInfo {
+  string uuid = 1 [(gogoproto.customname) = "UUID"];
+  string address = 2;
+
+  int64 last_seen = 3; // In Unix nanoseconds.
+  uint64 advertised_size = 4;
+}
+
+message Ring {
+  uint32 type = 1;
+  repeated string uuids = 2 [(gogoproto.customname) = "UUIDs"];
+  map<string, bytes> attrs = 3;
 }

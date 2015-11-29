@@ -21,7 +21,7 @@ type server struct {
 }
 
 func NewMemoryServer() agro.Server {
-	cfg := agro.Config{DataDir: "/no-such-path"}
+	cfg := agro.Config{}
 	mds, _ := agro.CreateMetadataService("temp", cfg)
 	inodes, _ := agro.CreateINodeStore("temp", cfg)
 	gmd, _ := mds.GlobalMetadata()

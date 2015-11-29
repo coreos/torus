@@ -79,7 +79,13 @@ type MetadataService interface {
 	SetFileINode(path Path, ref INodeRef) error
 
 	GlobalMetadata() (GlobalMetadata, error)
-	// TODO(barakmich): Get ring, get other nodes, look up nodes for keys, etc.
+
+	// Returns a UUID based on the underlying datadir. Should be
+	// unique for every created datadir.
+	UUID() string
+
+	RegisterPeer(*models.PeerInfo) error
+	GetPeers() ([]*models.PeerInfo, error)
 	// TODO(barakmich): Extend with GC interaction, et al
 	Close() error
 }

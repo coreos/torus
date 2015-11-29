@@ -13,12 +13,16 @@
 		INode
 		BlockLayer
 		Directory
+		PeerInfo
+		Ring
 */
 package models
 
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
+
+// discarding unused import gogoproto "gogoproto"
 
 import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 
@@ -107,6 +111,34 @@ func (m *Directory) GetMetadata() *Metadata {
 func (m *Directory) GetFiles() map[string]uint64 {
 	if m != nil {
 		return m.Files
+	}
+	return nil
+}
+
+type PeerInfo struct {
+	UUID           string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	Address        string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	LastSeen       int64  `protobuf:"varint,3,opt,name=last_seen,proto3" json:"last_seen,omitempty"`
+	AdvertisedSize uint64 `protobuf:"varint,4,opt,name=advertised_size,proto3" json:"advertised_size,omitempty"`
+}
+
+func (m *PeerInfo) Reset()         { *m = PeerInfo{} }
+func (m *PeerInfo) String() string { return proto.CompactTextString(m) }
+func (*PeerInfo) ProtoMessage()    {}
+
+type Ring struct {
+	Type  uint32            `protobuf:"varint,1,opt,name=type,proto3" json:"type,omitempty"`
+	UUIDs []string          `protobuf:"bytes,2,rep,name=uuids" json:"uuids,omitempty"`
+	Attrs map[string][]byte `protobuf:"bytes,3,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+}
+
+func (m *Ring) Reset()         { *m = Ring{} }
+func (m *Ring) String() string { return proto.CompactTextString(m) }
+func (*Ring) ProtoMessage()    {}
+
+func (m *Ring) GetAttrs() map[string][]byte {
+	if m != nil {
+		return m.Attrs
 	}
 	return nil
 }
@@ -336,6 +368,106 @@ func (m *Directory) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
+func (m *PeerInfo) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *PeerInfo) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.UUID) > 0 {
+		data[i] = 0xa
+		i++
+		i = encodeVarintAgro(data, i, uint64(len(m.UUID)))
+		i += copy(data[i:], m.UUID)
+	}
+	if len(m.Address) > 0 {
+		data[i] = 0x12
+		i++
+		i = encodeVarintAgro(data, i, uint64(len(m.Address)))
+		i += copy(data[i:], m.Address)
+	}
+	if m.LastSeen != 0 {
+		data[i] = 0x18
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.LastSeen))
+	}
+	if m.AdvertisedSize != 0 {
+		data[i] = 0x20
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.AdvertisedSize))
+	}
+	return i, nil
+}
+
+func (m *Ring) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *Ring) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Type != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Type))
+	}
+	if len(m.UUIDs) > 0 {
+		for _, s := range m.UUIDs {
+			data[i] = 0x12
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if len(m.Attrs) > 0 {
+		keysForAttrs := make([]string, 0, len(m.Attrs))
+		for k, _ := range m.Attrs {
+			keysForAttrs = append(keysForAttrs, k)
+		}
+		github_com_gogo_protobuf_sortkeys.Strings(keysForAttrs)
+		for _, k := range keysForAttrs {
+			data[i] = 0x1a
+			i++
+			v := m.Attrs[k]
+			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + len(v) + sovAgro(uint64(len(v)))
+			i = encodeVarintAgro(data, i, uint64(mapSize))
+			data[i] = 0xa
+			i++
+			i = encodeVarintAgro(data, i, uint64(len(k)))
+			i += copy(data[i:], k)
+			data[i] = 0x12
+			i++
+			i = encodeVarintAgro(data, i, uint64(len(v)))
+			i += copy(data[i:], v)
+		}
+	}
+	return i, nil
+}
+
 func encodeFixed64Agro(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -456,6 +588,49 @@ func (m *Directory) Size() (n int) {
 			_ = k
 			_ = v
 			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + sovAgro(uint64(v))
+			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
+		}
+	}
+	return n
+}
+
+func (m *PeerInfo) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.UUID)
+	if l > 0 {
+		n += 1 + l + sovAgro(uint64(l))
+	}
+	l = len(m.Address)
+	if l > 0 {
+		n += 1 + l + sovAgro(uint64(l))
+	}
+	if m.LastSeen != 0 {
+		n += 1 + sovAgro(uint64(m.LastSeen))
+	}
+	if m.AdvertisedSize != 0 {
+		n += 1 + sovAgro(uint64(m.AdvertisedSize))
+	}
+	return n
+}
+
+func (m *Ring) Size() (n int) {
+	var l int
+	_ = l
+	if m.Type != 0 {
+		n += 1 + sovAgro(uint64(m.Type))
+	}
+	if len(m.UUIDs) > 0 {
+		for _, s := range m.UUIDs {
+			l = len(s)
+			n += 1 + l + sovAgro(uint64(l))
+		}
+	}
+	if len(m.Attrs) > 0 {
+		for k, v := range m.Attrs {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + len(v) + sovAgro(uint64(len(v)))
 			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
 		}
 	}
@@ -1228,6 +1403,362 @@ func (m *Directory) Unmarshal(data []byte) error {
 				m.Files = make(map[string]uint64)
 			}
 			m.Files[mapkey] = mapvalue
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PeerInfo) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PeerInfo: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PeerInfo: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UUID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.UUID = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Address", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Address = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastSeen", wireType)
+			}
+			m.LastSeen = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.LastSeen |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AdvertisedSize", wireType)
+			}
+			m.AdvertisedSize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.AdvertisedSize |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Ring) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Ring: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Ring: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
+			}
+			m.Type = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Type |= (uint32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UUIDs", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.UUIDs = append(m.UUIDs, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Attrs", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var keykey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				keykey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var stringLenmapkey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLenmapkey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLenmapkey := int(stringLenmapkey)
+			if intStringLenmapkey < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postStringIndexmapkey := iNdEx + intStringLenmapkey
+			if postStringIndexmapkey > l {
+				return io.ErrUnexpectedEOF
+			}
+			mapkey := string(data[iNdEx:postStringIndexmapkey])
+			iNdEx = postStringIndexmapkey
+			var valuekey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				valuekey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var mapbyteLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				mapbyteLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intMapbyteLen := int(mapbyteLen)
+			if intMapbyteLen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postbytesIndex := iNdEx + intMapbyteLen
+			if postbytesIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			mapvalue := make([]byte, mapbyteLen)
+			copy(mapvalue, data[iNdEx:postbytesIndex])
+			iNdEx = postbytesIndex
+			if m.Attrs == nil {
+				m.Attrs = make(map[string][]byte)
+			}
+			m.Attrs[mapkey] = mapvalue
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

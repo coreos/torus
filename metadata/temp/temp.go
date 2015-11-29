@@ -12,9 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
+	"github.com/barakmich/agro/metadata"
 	"github.com/barakmich/agro/models"
 	"github.com/hashicorp/go-immutable-radix"
 )
@@ -33,11 +35,17 @@ type temp struct {
 	volIndex map[string]agro.VolumeID
 	global   agro.GlobalMetadata
 	cfg      agro.Config
+	uuid     string
 }
 
 func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
+	uuid, err := metadata.MakeOrGetUUID(cfg.DataDir)
+	if err != nil {
+		return nil, err
+	}
 	t, err := parseFromFile(cfg)
 	if err == nil {
+		t.uuid = uuid
 		return t, nil
 	}
 	fmt.Println("temp: couldn't parse metadata: ", err)
@@ -48,13 +56,30 @@ func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
 			BlockSize:        8 * 1024,
 			DefaultBlockSpec: agro.BlockLayerSpec{blockset.CRC, blockset.Base},
 		},
-		cfg: cfg,
+		cfg:  cfg,
+		uuid: uuid,
 	}, nil
 }
 
 func (t *temp) GlobalMetadata() (agro.GlobalMetadata, error) {
 	return t.global, nil
 }
+
+func (t *temp) UUID() string {
+	return t.uuid
+}
+
+func (t *temp) GetPeers() ([]*models.PeerInfo, error) {
+	return []*models.PeerInfo{
+		&models.PeerInfo{
+			UUID:           t.uuid,
+			LastSeen:       time.Now().UnixNano(),
+			AdvertisedSize: t.cfg.StorageSize,
+		},
+	}, nil
+}
+
+func (t *temp) RegisterPeer(_ *models.PeerInfo) error { return nil }
 
 func (t *temp) Mkfs(md agro.GlobalMetadata) error {
 	t.global = md
@@ -238,6 +263,9 @@ func (t *temp) GetVolumeID(volume string) (agro.VolumeID, error) {
 }
 
 func (t *temp) write() error {
+	if t.cfg.DataDir == "" {
+		return nil
+	}
 	outfile := filepath.Join(t.cfg.DataDir, "metadata", "temp.txt")
 	fmt.Println("writing metadata to file:", outfile)
 	f, err := os.Create(outfile)
@@ -281,8 +309,11 @@ func (t *temp) Close() error {
 	return t.write()
 }
 
-func parseFromFile(cfg agro.Config) (agro.MetadataService, error) {
+func parseFromFile(cfg agro.Config) (*temp, error) {
 	t := temp{}
+	if cfg.DataDir == "" {
+		return nil, os.ErrNotExist
+	}
 	outfile := filepath.Join(cfg.DataDir, "metadata", "temp.txt")
 	if _, err := os.Stat(outfile); err == os.ErrNotExist {
 		return nil, os.ErrNotExist
