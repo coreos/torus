@@ -14,4 +14,7 @@ type Server interface {
 	GetVolumes() ([]string, error)
 
 	Close() error
+
+	// BeginHeartbeat spawns a goroutine for heartbeats. Non-blocking.
+	BeginHeartbeat() error
 }

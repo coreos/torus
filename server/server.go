@@ -17,9 +17,11 @@ import (
 )
 
 type server struct {
-	cold   agro.BlockStore
-	mds    agro.MetadataService
-	inodes agro.INodeStore
+	cold         agro.BlockStore
+	mds          agro.MetadataService
+	inodes       agro.INodeStore
+	closeChans   []chan interface{}
+	internalAddr string
 }
 
 func NewMemoryServer() agro.Server {
@@ -113,6 +115,9 @@ func (s *server) GetVolumes() ([]string, error) {
 }
 
 func (s *server) Close() error {
+	for _, c := range s.closeChans {
+		close(c)
+	}
 	err := s.mds.Close()
 	if err != nil {
 		return err

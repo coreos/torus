@@ -6,6 +6,7 @@ run:
 
 clean:
 	rm -rf /tmp/agro
+	rm -rf /tmp/agro2
 	rm -rf /tmp/etcd
 
 etcdrun:

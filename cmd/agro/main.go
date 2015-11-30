@@ -24,6 +24,8 @@ var debug = flag.Bool("debug", false, "Turn on debug output")
 var mkfs = flag.Bool("debug-mkfs", false, "Run mkfs for the given ")
 var trace = flag.Bool("trace", false, "Turn on debug output")
 var etcd = flag.String("etcd", "", "Address for talking to etcd")
+var port = flag.String("port", "4321", "Port to listen on for HTTP")
+var datadir = flag.String("datadir", "/tmp/agro", "Path to the data directory")
 
 func main() {
 	var err error
@@ -38,8 +40,8 @@ func main() {
 	}
 
 	cfg := agro.Config{
-		DataDir:         "/tmp/agro",
-		StorageSize:     3 * 1024 * 1024 * 1024,
+		DataDir:         *datadir,
+		StorageSize:     1 * 1024 * 1024 * 1024,
 		MetadataAddress: *etcd,
 	}
 
@@ -75,6 +77,8 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 
+	srv.BeginHeartbeat()
+
 	go func() {
 		for _ = range signalChan {
 			fmt.Println("\nReceived an interrupt, stopping services...")
@@ -83,5 +87,5 @@ func main() {
 		}
 	}()
 
-	http.ServeHTTP("127.0.0.1:4321", srv)
+	http.ServeHTTP("127.0.0.1:"+*port, srv)
 }
