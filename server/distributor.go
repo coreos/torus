@@ -2,6 +2,7 @@ package server
 
 import (
 	"net"
+	"sync"
 
 	"google.golang.org/grpc"
 
@@ -10,6 +11,7 @@ import (
 )
 
 type distributor struct {
+	mut    sync.Mutex
 	blocks agro.BlockStore
 	inodes agro.INodeStore
 	srv    *server
@@ -17,6 +19,7 @@ type distributor struct {
 	lis     net.Listener
 	grpcSrv *grpc.Server
 
+	ring   agro.Ring
 	closed bool
 }
 
@@ -38,6 +41,8 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 		models.RegisterAgroStorageServer(d.grpcSrv, d)
 		go d.grpcSrv.Serve(d.lis)
 	}
+	// Set up the rebalancer
+	go d.rebalancer()
 	return d, nil
 }
 
