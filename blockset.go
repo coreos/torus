@@ -1,6 +1,6 @@
 package agro
 
-import "github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+import "golang.org/x/net/context"
 
 // Blockset is the interface representing the standardized methods to interact
 // with a set of blocks.
