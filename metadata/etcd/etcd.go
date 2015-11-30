@@ -43,12 +43,12 @@ type etcdCtx struct {
 
 type etcd struct {
 	etcdCtx
-	mut           sync.RWMutex
-	cfg           agro.Config
-	global        agro.GlobalMetadata
-	volumeprinter agro.VolumeID
-	inodeprinter  agro.INodeID
-	volumesCache  map[string]agro.VolumeID
+	mut          sync.RWMutex
+	cfg          agro.Config
+	global       agro.GlobalMetadata
+	volumeminter agro.VolumeID
+	inodeminter  agro.INodeID
+	volumesCache map[string]agro.VolumeID
 
 	conn *grpc.ClientConn
 	kv   pb.KVClient
@@ -90,8 +90,8 @@ func (e *etcd) getGlobalMetadata() error {
 	tx := tx().If(
 		keyExists(mkKey("meta", "globalmetadata")),
 	).Then(
-		getKey(mkKey("meta", "volumeprinter")),
-		getKey(mkKey("meta", "inodeprinter")),
+		getKey(mkKey("meta", "volumeminter")),
+		getKey(mkKey("meta", "inodeminter")),
 		getKey(mkKey("meta", "globalmetadata")),
 	).Tx()
 	resp, err := e.kv.Txn(context.Background(), tx)
@@ -102,8 +102,9 @@ func (e *etcd) getGlobalMetadata() error {
 		return agro.ErrNoGlobalMetadata
 	}
 
-	e.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
-	e.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[1].GetResponseRange().Kvs[0].Value))
+	e.volumeminter = agro.VolumeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
+	e.inodeminter = agro.INodeID(bytesToUint64(resp.Responses[1].GetResponseRange().Kvs[0].Value))
+
 	var gmd agro.GlobalMetadata
 	err = json.Unmarshal(resp.Responses[2].GetResponseRange().Kvs[0].Value, &gmd)
 	if err != nil {
@@ -185,23 +186,23 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 	defer c.etcd.mut.Unlock()
 	key := agro.Path{Volume: volume, Path: "/"}
 	tx := tx().If(
-		keyEquals(mkKey("meta", "volumeprinter"), uint64ToBytes(uint64(c.etcd.volumeprinter))),
+		keyEquals(mkKey("meta", "volumeminter"), uint64ToBytes(uint64(c.etcd.volumeminter))),
 	).Then(
-		setKey(mkKey("meta", "volumeprinter"), uint64ToBytes(uint64(c.etcd.volumeprinter+1))),
-		setKey(mkKey("volumes", volume), uint64ToBytes(uint64(c.etcd.volumeprinter+1))),
+		setKey(mkKey("meta", "volumeminter"), uint64ToBytes(uint64(c.etcd.volumeminter+1))),
+		setKey(mkKey("volumes", volume), uint64ToBytes(uint64(c.etcd.volumeminter+1))),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
 	).Else(
-		getKey(mkKey("meta", "volumeprinter")),
+		getKey(mkKey("meta", "volumeminter")),
 	).Tx()
 	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if err != nil {
 		return err
 	}
 	if !resp.Succeeded {
-		c.etcd.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
+		c.etcd.volumeminter = agro.VolumeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
 		return agro.ErrAgain
 	}
-	c.etcd.volumeprinter++
+	c.etcd.volumeminter++
 	return nil
 }
 
@@ -246,22 +247,22 @@ func (c *etcdCtx) CommitInodeIndex() (agro.INodeID, error) {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
 	tx := tx().If(
-		keyEquals(mkKey("meta", "inodeprinter"), uint64ToBytes(uint64(c.etcd.inodeprinter))),
+		keyEquals(mkKey("meta", "inodeminter"), uint64ToBytes(uint64(c.etcd.inodeminter))),
 	).Then(
-		setKey(mkKey("meta", "inodeprinter"), uint64ToBytes(uint64(c.etcd.inodeprinter+1))),
+		setKey(mkKey("meta", "inodeminter"), uint64ToBytes(uint64(c.etcd.inodeminter+1))),
 	).Else(
-		getKey(mkKey("meta", "inodeprinter")),
+		getKey(mkKey("meta", "inodeminter")),
 	).Tx()
 	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if err != nil {
 		return 0, err
 	}
 	if !resp.Succeeded {
-		c.etcd.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
+		c.etcd.inodeminter = agro.INodeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
 		return 0, agro.ErrAgain
 	}
-	i := c.etcd.inodeprinter
-	c.etcd.inodeprinter++
+	i := c.etcd.inodeminter
+	c.etcd.inodeminter++
 	return i, nil
 }
 
@@ -368,8 +369,8 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {
 	tx := tx().If(
 		keyNotExists(mkKey("meta", "globalmetadata")),
 	).Then(
-		setKey(mkKey("meta", "volumeprinter"), uint64ToBytes(1)),
-		setKey(mkKey("meta", "inodeprinter"), uint64ToBytes(1)),
+		setKey(mkKey("meta", "volumeminter"), uint64ToBytes(1)),
+		setKey(mkKey("meta", "inodeminter"), uint64ToBytes(1)),
 		setKey(mkKey("meta", "globalmetadata"), gmdbytes),
 	).Tx()
 	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())
