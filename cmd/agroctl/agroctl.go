@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var etcdAddress string
+
 var rootCommand = &cobra.Command{
 	Use:   "agroctl",
 	Short: "Administer the agro filesystem",
@@ -17,8 +19,6 @@ var rootCommand = &cobra.Command{
 		os.Exit(1)
 	},
 }
-
-var etcdAddress string
 
 func init() {
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2378", "hostname:port to the etcd instance storing the metadata")
