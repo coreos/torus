@@ -42,7 +42,7 @@ func loadTrie(m *storage.MFile) (*iradix.Tree, error) {
 		membefore = mem.Alloc
 	}
 
-	blank := make([]byte, agro.BlockIDByteSize)
+	blank := make([]byte, agro.BlockRefByteSize)
 	for i := uint64(0); i < m.NumBlocks(); i++ {
 		b := m.GetBlock(i)
 		if bytes.Equal(blank, b) {
@@ -67,7 +67,7 @@ func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockSt
 	if err != nil {
 		return nil, err
 	}
-	m, err := storage.CreateOrOpenMFile(mpath, nBlocks*agro.BlockIDByteSize, agro.BlockIDByteSize)
+	m, err := storage.CreateOrOpenMFile(mpath, nBlocks*agro.BlockRefByteSize, agro.BlockRefByteSize)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (m *mfileBlock) Close() error {
 	return nil
 }
 
-func (m *mfileBlock) findIndex(s agro.BlockID) int {
+func (m *mfileBlock) findIndex(s agro.BlockRef) int {
 	id := s.ToBytes()
 	clog.Tracef("finding blockid %s, bytes %v", s, id)
 	if v, ok := m.blockTrie.Get(id); ok {
@@ -127,7 +127,7 @@ func (m *mfileBlock) findIndex(s agro.BlockID) int {
 }
 
 func (m *mfileBlock) findEmpty() int {
-	emptyBlock := make([]byte, agro.BlockIDByteSize)
+	emptyBlock := make([]byte, agro.BlockRefByteSize)
 	for i := uint64(0); i < m.NumBlocks(); i++ {
 		b := m.blockMap.GetBlock((i + uint64(m.lastFree) + 1) % m.NumBlocks())
 		if bytes.Equal(b, emptyBlock) {
@@ -138,7 +138,7 @@ func (m *mfileBlock) findEmpty() int {
 	return -1
 }
 
-func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockID) ([]byte, error) {
+func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error) {
 	m.mut.RLock()
 	defer m.mut.RUnlock()
 	if m.closed {
@@ -152,7 +152,7 @@ func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockID) ([]byte, error)
 	return m.data.GetBlock(uint64(index)), nil
 }
 
-func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockID, data []byte) error {
+func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte) error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {
@@ -182,7 +182,7 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockID, data []byte) 
 	return nil
 }
 
-func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockID) error {
+func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {
@@ -192,7 +192,7 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockID) error {
 	if index == -1 {
 		return agro.ErrBlockNotExist
 	}
-	err := m.blockMap.WriteBlock(uint64(index), make([]byte, agro.BlockIDByteSize))
+	err := m.blockMap.WriteBlock(uint64(index), make([]byte, agro.BlockRefByteSize))
 	if err != nil {
 		return err
 	}

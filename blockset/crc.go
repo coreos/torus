@@ -77,7 +77,7 @@ func (b *crcBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, 
 	return nil
 }
 
-func (b *crcBlockset) makeID(i agro.INodeRef) agro.BlockID {
+func (b *crcBlockset) makeID(i agro.INodeRef) agro.BlockRef {
 	return b.sub.makeID(i)
 }
 

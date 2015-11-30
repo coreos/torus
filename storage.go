@@ -38,32 +38,32 @@ func (i INodeRef) String() string {
 	return fmt.Sprintf("vol: %d, inode: %d", i.Volume, i.INode)
 }
 
-// BlockID is the identifier for a unique block in the filesystem.
-type BlockID struct {
+// BlockRef is the identifier for a unique block in the filesystem.
+type BlockRef struct {
 	INodeRef
 	Index IndexID
 }
 
-const BlockIDByteSize = 8 * 3
+const BlockRefByteSize = 8 * 3
 
-func (b BlockID) ToBytes() []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, BlockIDByteSize))
+func (b BlockRef) ToBytes() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, BlockRefByteSize))
 	binary.Write(buf, binary.LittleEndian, b)
 	out := buf.Bytes()
-	if len(out) != BlockIDByteSize {
+	if len(out) != BlockRefByteSize {
 		panic("breaking contract -- must make size appropriate")
 	}
 	return out
 }
 
-func BlockIDFromBytes(b []byte) BlockID {
+func BlockRefFromBytes(b []byte) BlockRef {
 	buf := bytes.NewBuffer(b)
-	out := BlockID{}
+	out := BlockRef{}
 	binary.Read(buf, binary.LittleEndian, &out)
 	return out
 }
 
-func (b BlockID) String() string {
+func (b BlockRef) String() string {
 	i := b.INodeRef
 	return fmt.Sprintf("vol: %d, inode: %d, block: %d", i.Volume, i.INode, b.Index)
 }
@@ -72,9 +72,9 @@ func (b BlockID) String() string {
 // interact with something storing blocks.
 type BlockStore interface {
 	Store
-	GetBlock(ctx context.Context, b BlockID) ([]byte, error)
-	WriteBlock(ctx context.Context, b BlockID, data []byte) error
-	DeleteBlock(ctx context.Context, b BlockID) error
+	GetBlock(ctx context.Context, b BlockRef) ([]byte, error)
+	WriteBlock(ctx context.Context, b BlockRef, data []byte) error
+	DeleteBlock(ctx context.Context, b BlockRef) error
 	NumBlocks() uint64
 	// TODO(barakmich) FreeBlocks()
 }
