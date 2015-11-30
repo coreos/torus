@@ -3,6 +3,7 @@ package server
 import (
 	"os"
 	"path"
+	"sync"
 
 	"golang.org/x/net/context"
 
@@ -17,6 +18,7 @@ import (
 )
 
 type server struct {
+	mut        sync.RWMutex
 	blocks     agro.BlockStore
 	mds        agro.MetadataService
 	inodes     agro.INodeStore
