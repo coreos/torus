@@ -49,8 +49,6 @@ func init() {
 }
 
 func main() {
-	// capnslog.SetGlobalLogLevel(capnslog.WARNING)
-
 	if err := rootCommand.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
