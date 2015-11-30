@@ -129,7 +129,11 @@ func ParseBlockLayerSpec(s string) (agro.BlockLayerSpec, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, agro.BlockLayer{k, opts[1]})
+		var opt string
+		if len(opts) > 1 {
+			opt = opts[1]
+		}
+		out = append(out, agro.BlockLayer{k, opt})
 	}
 	return out, nil
 }

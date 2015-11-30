@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
 	"github.com/codegangsta/cli"
+
+	_ "github.com/barakmich/agro/metadata/etcd"
 )
 
 var mkfsCommand = cli.Command{
@@ -29,7 +32,7 @@ var mkfsCommand = cli.Command{
 
 func mkfsAction(c *cli.Context) {
 	cfg := agro.Config{
-		MetadataAddress: c.String("etcd"),
+		MetadataAddress: c.GlobalString("etcd"),
 	}
 	md := parseGlobalMetadataFromContext(c)
 	err := agro.Mkfs("etcd", cfg, md)
@@ -43,11 +46,14 @@ func parseGlobalMetadataFromContext(c *cli.Context) agro.GlobalMetadata {
 	out := agro.GlobalMetadata{}
 	out.BlockSize = uint64(c.Int("block-size"))
 	var err error
-	out.DefaultBlockSpec, err = blockset.ParseBlockLayerSpec(c.String("block-spec"))
+	bs := c.String("block-spec")
+	if !strings.HasSuffix(bs, ",base") {
+		bs += ",base"
+	}
+	out.DefaultBlockSpec, err = blockset.ParseBlockLayerSpec(bs)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error parsing block-spec: %s", err)
 		os.Exit(1)
 	}
-	fmt.Println(out.DefaultBlockSpec)
 	return out
 }

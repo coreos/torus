@@ -9,15 +9,19 @@ import (
 	"github.com/coreos/pkg/capnslog"
 
 	"github.com/barakmich/agro"
+	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/internal/http"
 	"github.com/barakmich/agro/server"
 
 	// Register all the possible drivers.
+	_ "github.com/barakmich/agro/metadata/etcd"
+	_ "github.com/barakmich/agro/metadata/temp"
 	_ "github.com/barakmich/agro/storage/block"
 	_ "github.com/barakmich/agro/storage/inode"
 )
 
 var debug = flag.Bool("debug", false, "Turn on debug output")
+var mkfs = flag.Bool("debug-mkfs", false, "Run mkfs for the given ")
 var trace = flag.Bool("trace", false, "Turn on debug output")
 var etcd = flag.String("etcd", "", "Address for talking to etcd")
 
@@ -43,6 +47,24 @@ func main() {
 	if *etcd == "" {
 		srv, err = server.NewServer(cfg, "temp", "bolt", "mfile")
 	} else {
+		if *mkfs {
+			bl, err := blockset.ParseBlockLayerSpec("crc,base")
+			if err != nil {
+				panic(err)
+			}
+			err = agro.Mkfs("etcd", cfg, agro.GlobalMetadata{
+				BlockSize:        8 * 1024,
+				DefaultBlockSpec: bl,
+			})
+			if err != nil {
+				if err == agro.ErrExists {
+					fmt.Println("debug-mkfs: Already exists")
+				} else {
+					fmt.Printf("Couldn't debug-mkfs: %s\n", err)
+					os.Exit(1)
+				}
+			}
+		}
 		srv, err = server.NewServer(cfg, "etcd", "bolt", "mfile")
 		if err != nil {
 			fmt.Printf("Couldn't start: %s\n", err)
