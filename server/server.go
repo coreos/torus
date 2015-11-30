@@ -25,6 +25,7 @@ type server struct {
 	blocks     agro.BlockStore
 	mds        agro.MetadataService
 	inodes     agro.INodeStore
+	peersMap   map[string]*models.PeerInfo
 	closeChans []chan interface{}
 
 	internalAddr string
@@ -40,9 +41,10 @@ func NewMemoryServer() agro.Server {
 	gmd, _ := mds.GlobalMetadata()
 	cold, _ := agro.CreateBlockStore("temp", cfg, gmd)
 	return &server{
-		blocks: cold,
-		mds:    mds,
-		inodes: inodes,
+		blocks:   cold,
+		mds:      mds,
+		inodes:   inodes,
+		peersMap: make(map[string]*models.PeerInfo),
 	}
 }
 
