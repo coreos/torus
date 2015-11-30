@@ -7,6 +7,7 @@
 
 	It is generated from these files:
 		agro.proto
+		rpc.proto
 
 	It has these top-level messages:
 		Metadata
@@ -15,6 +16,16 @@
 		Directory
 		PeerInfo
 		Ring
+		BlockRef
+		INodeRef
+		Block
+		BlockRequest
+		BlockResponse
+		INodeRequest
+		INodeResponse
+		PutBlockRequest
+		PutINodeRequest
+		PutResponse
 */
 package models
 
