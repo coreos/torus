@@ -4,6 +4,8 @@ import (
 	"os"
 	"path"
 
+	"golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
@@ -68,7 +70,7 @@ func (s *server) Open(p agro.Path) (agro.File, error) {
 		return nil, err
 	}
 
-	inode, err := s.inodes.GetINode(nil, ref)
+	inode, err := s.inodes.GetINode(context.TODO(), ref)
 	if err != nil {
 		return nil, err
 	}

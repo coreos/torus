@@ -3,6 +3,8 @@ package blockset
 import (
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 
 	// Register storage drivers.
@@ -19,18 +21,18 @@ func TestBaseReadWrite(t *testing.T) {
 
 func readWriteTest(t *testing.T, b blockset) {
 	inode := agro.INodeRef{1, 1}
-	b.PutBlock(nil, inode, 0, []byte("Some data"))
+	b.PutBlock(context.TODO(), inode, 0, []byte("Some data"))
 	inode = agro.INodeRef{1, 2}
-	b.PutBlock(nil, inode, 1, []byte("Some more data"))
-	data, err := b.GetBlock(nil, 0)
+	b.PutBlock(context.TODO(), inode, 1, []byte("Some more data"))
+	data, err := b.GetBlock(context.TODO(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(data) != "Some data" {
 		t.Error("data not retrieved")
 	}
-	b.PutBlock(nil, inode, 0, []byte("Some different data"))
-	data, err = b.GetBlock(nil, 0)
+	b.PutBlock(context.TODO(), inode, 0, []byte("Some different data"))
+	data, err = b.GetBlock(context.TODO(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +52,7 @@ func marshalTest(t *testing.T, s agro.BlockStore, spec agro.BlockLayerSpec) {
 		t.Fatal(err)
 	}
 	inode := agro.INodeRef{1, 1}
-	b.PutBlock(nil, inode, 0, []byte("Some data"))
+	b.PutBlock(context.TODO(), inode, 0, []byte("Some data"))
 	marshal, err := MarshalToProto(b)
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +64,7 @@ func marshalTest(t *testing.T, s agro.BlockStore, spec agro.BlockLayerSpec) {
 		t.Fatal(err)
 	}
 
-	data, err := newb.GetBlock(nil, 0)
+	data, err := newb.GetBlock(context.TODO(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -13,15 +13,15 @@ import (
 	"github.com/barakmich/agro/metadata"
 	"github.com/barakmich/agro/models"
 
-	// TODO(barakmich): And this is why vendoring sucks. I shouldn't need to
-	//import this, but I do, because I'm using etcdserverpb from head, and *it*
-	//expects its own vendored version. Admittedly, this should get better with
-	//GO15VENDORING, but etcd doesn't support that yet.
-	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
-	"github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc"
 	"github.com/coreos/pkg/capnslog"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 
-	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
+	// TODO(barakmich): And this is why vendoring sucks. I shouldn't need to
+	// do this, but we're vendoring the etcd proto definitions by hand. The alternative
+	// is to use *etcds vendored* version of grpc and net/context everywhere, which is
+	// horrifying. This might be helped by GO15VENDORING but we'll see.
+	pb "github.com/barakmich/agro/internal/etcdproto/etcdserverpb"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "etcd")
@@ -61,7 +61,7 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		return nil, err
 	}
 
-	conn, err := grpc.Dial(cfg.MetadataAddress)
+	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -101,10 +101,11 @@ func (e *etcd) getGlobalMetadata() error {
 	if !resp.Succeeded {
 		return agro.ErrNoGlobalMetadata
 	}
-	e.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].ResponseRange.Kvs[0].Value))
-	e.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[1].ResponseRange.Kvs[0].Value))
+
+	e.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
+	e.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[1].GetResponseRange().Kvs[0].Value))
 	var gmd agro.GlobalMetadata
-	err = json.Unmarshal(resp.Responses[2].ResponseRange.Kvs[0].Value, &gmd)
+	err = json.Unmarshal(resp.Responses[2].GetResponseRange().Kvs[0].Value, &gmd)
 	if err != nil {
 		return err
 	}
@@ -197,7 +198,7 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 		return err
 	}
 	if !resp.Succeeded {
-		c.etcd.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].ResponseRange.Kvs[0].Value))
+		c.etcd.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
 		return agro.ErrAgain
 	}
 	c.etcd.volumeprinter++
@@ -256,7 +257,7 @@ func (c *etcdCtx) CommitInodeIndex() (agro.INodeID, error) {
 		return 0, err
 	}
 	if !resp.Succeeded {
-		c.etcd.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[0].ResponseRange.Kvs[0].Value))
+		c.etcd.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
 		return 0, agro.ErrAgain
 	}
 	i := c.etcd.inodeprinter
@@ -302,14 +303,14 @@ func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	if !resp.Succeeded {
 		return nil, nil, os.ErrNotExist
 	}
-	dirkv := resp.Responses[0].ResponseRange.Kvs[0]
+	dirkv := resp.Responses[0].GetResponseRange().Kvs[0]
 	outdir := &models.Directory{}
 	err = outdir.Unmarshal(dirkv.Value)
 	if err != nil {
 		return nil, nil, err
 	}
 	var outpaths []agro.Path
-	for _, kv := range resp.Responses[1].ResponseRange.Kvs {
+	for _, kv := range resp.Responses[1].GetResponseRange().Kvs {
 		s := bytes.SplitN(kv.Key, []byte{':'}, 2)
 		outpaths = append(outpaths, agro.Path{
 			Volume: p.Volume,
@@ -331,7 +332,7 @@ func (c *etcdCtx) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 }
 
 func (c *etcdCtx) trySetFileINode(p agro.Path, ref agro.INodeRef, resp *pb.TxnResponse) error {
-	dirkv := resp.Responses[0].ResponseRange.Kvs[0]
+	dirkv := resp.Responses[0].GetResponseRange().Kvs[0]
 	dir := &models.Directory{}
 	err := dir.Unmarshal(dirkv.Value)
 	if err != nil {
@@ -371,7 +372,7 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {
 		setKey(mkKey("meta", "inodeprinter"), uint64ToBytes(1)),
 		setKey(mkKey("meta", "globalmetadata"), gmdbytes),
 	).Tx()
-	conn, err := grpc.Dial(cfg.MetadataAddress)
+	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
