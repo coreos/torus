@@ -12,6 +12,7 @@ func main() {
 	app.Usage = "Administer the agro filesystem"
 	app.Commands = []cli.Command{
 		mkfsCommand,
+		listPeersCommand,
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
