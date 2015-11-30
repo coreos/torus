@@ -5,6 +5,8 @@ import (
 	"path"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/barakmich/agro/models"
 	"github.com/coreos/pkg/capnslog"
 )
@@ -85,6 +87,9 @@ type MetadataService interface {
 
 	RegisterPeer(*models.PeerInfo) error
 	GetPeers() ([]*models.PeerInfo, error)
+
+	WithContext(ctx context.Context) MetadataService
+
 	// TODO(barakmich): Extend with GC interaction, et al
 	Close() error
 }

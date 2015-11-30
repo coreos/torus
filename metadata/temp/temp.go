@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/metadata"
@@ -303,6 +305,10 @@ func (t *temp) write() error {
 
 func (t *temp) Close() error {
 	return t.write()
+}
+
+func (t *temp) WithContext(_ context.Context) agro.MetadataService {
+	return t
 }
 
 func parseFromFile(cfg agro.Config) (*temp, error) {
