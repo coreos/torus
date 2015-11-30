@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"sync/atomic"
 
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 )
 
@@ -38,20 +40,20 @@ func (b *baseBlockset) Kind() uint32 {
 	return uint32(Base)
 }
 
-func (b *baseBlockset) GetBlock(i int) ([]byte, error) {
+func (b *baseBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	if i >= len(b.blocks) {
 		return nil, agro.ErrBlockNotExist
 	}
 	clog.Tracef("base: getting block at BlockID %s", b.blocks[i])
-	return b.store.GetBlock(b.blocks[i])
+	return b.store.GetBlock(ctx, b.blocks[i])
 }
 
-func (b *baseBlockset) PutBlock(inode agro.INodeRef, i int, data []byte) error {
+func (b *baseBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, data []byte) error {
 	if i > len(b.blocks) {
 		return agro.ErrBlockNotExist
 	}
 	newBlockID := b.makeID(inode)
-	err := b.store.WriteBlock(newBlockID, data)
+	err := b.store.WriteBlock(ctx, newBlockID, data)
 	if err != nil {
 		return err
 	}

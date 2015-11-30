@@ -3,6 +3,8 @@ package inode
 import (
 	"sync"
 
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/models"
 )
@@ -32,7 +34,7 @@ func (t *tempINodeStore) Close() error {
 	return nil
 }
 
-func (t *tempINodeStore) GetINode(i agro.INodeRef) (*models.INode, error) {
+func (t *tempINodeStore) GetINode(_ context.Context, i agro.INodeRef) (*models.INode, error) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 
@@ -47,7 +49,7 @@ func (t *tempINodeStore) GetINode(i agro.INodeRef) (*models.INode, error) {
 	return x, nil
 }
 
-func (t *tempINodeStore) WriteINode(i agro.INodeRef, inode *models.INode) error {
+func (t *tempINodeStore) WriteINode(_ context.Context, i agro.INodeRef, inode *models.INode) error {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 
@@ -59,7 +61,7 @@ func (t *tempINodeStore) WriteINode(i agro.INodeRef, inode *models.INode) error 
 	return nil
 }
 
-func (t *tempINodeStore) DeleteINode(i agro.INodeRef) error {
+func (t *tempINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 

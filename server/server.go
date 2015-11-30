@@ -68,7 +68,7 @@ func (s *server) Open(p agro.Path) (agro.File, error) {
 		return nil, err
 	}
 
-	inode, err := s.inodes.GetINode(ref)
+	inode, err := s.inodes.GetINode(nil, ref)
 	if err != nil {
 		return nil, err
 	}

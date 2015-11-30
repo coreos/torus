@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/models"
 	"github.com/boltdb/bolt"
@@ -37,7 +39,7 @@ func (b *boltINodeStore) Close() error {
 	return b.db.Close()
 }
 
-func (b *boltINodeStore) GetINode(i agro.INodeRef) (*models.INode, error) {
+func (b *boltINodeStore) GetINode(_ context.Context, i agro.INodeRef) (*models.INode, error) {
 	var inodeBytes []byte
 	key, vol := formatKeyVol(i)
 	err := b.db.View(func(tx *bolt.Tx) error {
@@ -59,7 +61,7 @@ func formatKeyVol(i agro.INodeRef) (string, string) {
 	return key, vol
 }
 
-func (b *boltINodeStore) WriteINode(i agro.INodeRef, inode *models.INode) error {
+func (b *boltINodeStore) WriteINode(_ context.Context, i agro.INodeRef, inode *models.INode) error {
 	inodeBytes, err := inode.Marshal()
 	if err != nil {
 		return err
@@ -75,7 +77,7 @@ func (b *boltINodeStore) WriteINode(i agro.INodeRef, inode *models.INode) error 
 	return err
 }
 
-func (b *boltINodeStore) DeleteINode(i agro.INodeRef) error {
+func (b *boltINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
 	key, vol := formatKeyVol(i)
 	err := b.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(vol))

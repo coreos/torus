@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/storage"
 	"github.com/coreos/pkg/capnslog"
@@ -131,7 +133,7 @@ func (m *mfileBlock) findEmpty() int {
 	return -1
 }
 
-func (m *mfileBlock) GetBlock(s agro.BlockID) ([]byte, error) {
+func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockID) ([]byte, error) {
 	m.mut.RLock()
 	defer m.mut.RUnlock()
 	if m.closed {
@@ -145,7 +147,7 @@ func (m *mfileBlock) GetBlock(s agro.BlockID) ([]byte, error) {
 	return m.data.GetBlock(uint64(index)), nil
 }
 
-func (m *mfileBlock) WriteBlock(s agro.BlockID, data []byte) error {
+func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockID, data []byte) error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {
@@ -175,7 +177,7 @@ func (m *mfileBlock) WriteBlock(s agro.BlockID, data []byte) error {
 	return nil
 }
 
-func (m *mfileBlock) DeleteBlock(s agro.BlockID) error {
+func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockID) error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {

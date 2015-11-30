@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"hash/crc32"
 
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 )
 
@@ -40,12 +42,12 @@ func (b *crcBlockset) Kind() uint32 {
 	return uint32(CRC)
 }
 
-func (b *crcBlockset) GetBlock(i int) ([]byte, error) {
+func (b *crcBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	if i >= len(b.crcs) {
 		clog.Trace("crc: requesting block off the edge of known blocks")
 		return nil, agro.ErrBlockNotExist
 	}
-	data, err := b.sub.GetBlock(i)
+	data, err := b.sub.GetBlock(ctx, i)
 	if err != nil {
 		clog.Trace("crc: error requesting subblock")
 		return nil, err
@@ -58,11 +60,11 @@ func (b *crcBlockset) GetBlock(i int) ([]byte, error) {
 	return data, nil
 }
 
-func (b *crcBlockset) PutBlock(inode agro.INodeRef, i int, data []byte) error {
+func (b *crcBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, data []byte) error {
 	if i > len(b.crcs) {
 		return agro.ErrBlockNotExist
 	}
-	err := b.sub.PutBlock(inode, i, data)
+	err := b.sub.PutBlock(ctx, inode, i, data)
 	if err != nil {
 		return err
 	}
