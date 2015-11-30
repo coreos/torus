@@ -15,22 +15,31 @@ func init() {
 }
 
 type tempBlockStore struct {
-	mut   sync.RWMutex
-	store map[agro.BlockID][]byte
+	mut     sync.RWMutex
+	store   map[agro.BlockID][]byte
+	nBlocks uint64
 }
 
 func openTempBlockStore(cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
 	return &tempBlockStore{
 		store: make(map[agro.BlockID][]byte),
+		// TODO(barakmich): Currently we lie about the number of blocks.
+		// If we want to guess at a size, or make the map be a max size, or something, PRs accepted.
+		nBlocks: cfg.StorageSize / 1024,
 	}, nil
 }
 
 func (t *tempBlockStore) Flush() error { return nil }
+
 func (t *tempBlockStore) Close() error {
 	t.mut.Lock()
 	t.store = nil
 	t.mut.Unlock()
 	return nil
+}
+
+func (t *tempBlockStore) NumBlocks() uint64 {
+	return t.nBlocks
 }
 
 func (t *tempBlockStore) GetBlock(_ context.Context, s agro.BlockID) ([]byte, error) {

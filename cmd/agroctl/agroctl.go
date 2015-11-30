@@ -4,14 +4,17 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	"github.com/coreos/pkg/capnslog"
 )
 
 func main() {
 	app := cli.NewApp()
+	capnslog.SetGlobalLogLevel(capnslog.WARNING)
 	app.Name = "agroctl"
 	app.Usage = "Administer the agro filesystem"
 	app.Commands = []cli.Command{
 		mkfsCommand,
+		listPeersCommand,
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{

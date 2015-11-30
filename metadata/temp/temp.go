@@ -75,9 +75,9 @@ func (t *temp) UUID() string {
 func (t *temp) GetPeers() ([]*models.PeerInfo, error) {
 	return []*models.PeerInfo{
 		&models.PeerInfo{
-			UUID:           t.uuid,
-			LastSeen:       time.Now().UnixNano(),
-			AdvertisedSize: t.cfg.StorageSize,
+			UUID:        t.uuid,
+			LastSeen:    time.Now().UnixNano(),
+			TotalBlocks: t.cfg.StorageSize / t.global.BlockSize,
 		},
 	}, nil
 }

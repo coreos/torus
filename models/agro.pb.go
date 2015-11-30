@@ -116,10 +116,11 @@ func (m *Directory) GetFiles() map[string]uint64 {
 }
 
 type PeerInfo struct {
-	UUID           string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	Address        string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	LastSeen       int64  `protobuf:"varint,3,opt,name=last_seen,proto3" json:"last_seen,omitempty"`
-	AdvertisedSize uint64 `protobuf:"varint,4,opt,name=advertised_size,proto3" json:"advertised_size,omitempty"`
+	UUID        string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	Address     string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	LastSeen    int64  `protobuf:"varint,3,opt,name=last_seen,proto3" json:"last_seen,omitempty"`
+	TotalBlocks uint64 `protobuf:"varint,4,opt,name=total_blocks,proto3" json:"total_blocks,omitempty"`
+	UsedBlocks  uint64 `protobuf:"varint,5,opt,name=used_blocks,proto3" json:"used_blocks,omitempty"`
 }
 
 func (m *PeerInfo) Reset()         { *m = PeerInfo{} }
@@ -400,10 +401,15 @@ func (m *PeerInfo) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.LastSeen))
 	}
-	if m.AdvertisedSize != 0 {
+	if m.TotalBlocks != 0 {
 		data[i] = 0x20
 		i++
-		i = encodeVarintAgro(data, i, uint64(m.AdvertisedSize))
+		i = encodeVarintAgro(data, i, uint64(m.TotalBlocks))
+	}
+	if m.UsedBlocks != 0 {
+		data[i] = 0x28
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.UsedBlocks))
 	}
 	return i, nil
 }
@@ -608,8 +614,11 @@ func (m *PeerInfo) Size() (n int) {
 	if m.LastSeen != 0 {
 		n += 1 + sovAgro(uint64(m.LastSeen))
 	}
-	if m.AdvertisedSize != 0 {
-		n += 1 + sovAgro(uint64(m.AdvertisedSize))
+	if m.TotalBlocks != 0 {
+		n += 1 + sovAgro(uint64(m.TotalBlocks))
+	}
+	if m.UsedBlocks != 0 {
+		n += 1 + sovAgro(uint64(m.UsedBlocks))
 	}
 	return n
 }
@@ -1533,9 +1542,9 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 			}
 		case 4:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AdvertisedSize", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field TotalBlocks", wireType)
 			}
-			m.AdvertisedSize = 0
+			m.TotalBlocks = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowAgro
@@ -1545,7 +1554,26 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				m.AdvertisedSize |= (uint64(b) & 0x7F) << shift
+				m.TotalBlocks |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UsedBlocks", wireType)
+			}
+			m.UsedBlocks = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.UsedBlocks |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}

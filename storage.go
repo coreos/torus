@@ -75,6 +75,8 @@ type BlockStore interface {
 	GetBlock(ctx context.Context, b BlockID) ([]byte, error)
 	WriteBlock(ctx context.Context, b BlockID, data []byte) error
 	DeleteBlock(ctx context.Context, b BlockID) error
+	NumBlocks() uint64
+	// TODO(barakmich) FreeBlocks()
 }
 
 type NewBlockStoreFunc func(Config, GlobalMetadata) (BlockStore, error)

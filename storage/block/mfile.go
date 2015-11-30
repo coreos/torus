@@ -26,7 +26,6 @@ type mfileBlock struct {
 	data      *storage.MFile
 	blockMap  *storage.MFile
 	blockTrie *iradix.Tree
-	nBlocks   int
 	closed    bool
 	lastFree  int
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
@@ -76,12 +75,18 @@ func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockSt
 	if err != nil {
 		return nil, err
 	}
+	if m.NumBlocks() != d.NumBlocks() {
+		panic("non-equal number of blocks between data and metadata")
+	}
 	return &mfileBlock{
 		data:      d,
 		blockMap:  m,
 		blockTrie: trie,
-		nBlocks:   int(nBlocks),
 	}, nil
+}
+
+func (m *mfileBlock) NumBlocks() uint64 {
+	return m.data.NumBlocks()
 }
 
 func (m *mfileBlock) Flush() error {
@@ -123,10 +128,10 @@ func (m *mfileBlock) findIndex(s agro.BlockID) int {
 
 func (m *mfileBlock) findEmpty() int {
 	emptyBlock := make([]byte, agro.BlockIDByteSize)
-	for i := 0; i < m.nBlocks; i++ {
-		b := m.blockMap.GetBlock(uint64((i + m.lastFree + 1) % m.nBlocks))
+	for i := uint64(0); i < m.NumBlocks(); i++ {
+		b := m.blockMap.GetBlock((i + uint64(m.lastFree) + 1) % m.NumBlocks())
 		if bytes.Equal(b, emptyBlock) {
-			m.lastFree = (i + m.lastFree + 1) % m.nBlocks
+			m.lastFree = int((i + uint64(m.lastFree) + 1) % m.NumBlocks())
 			return m.lastFree
 		}
 	}

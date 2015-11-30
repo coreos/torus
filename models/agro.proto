@@ -41,7 +41,8 @@ message PeerInfo {
   string address = 2;
 
   int64 last_seen = 3; // In Unix nanoseconds.
-  uint64 advertised_size = 4;
+  uint64 total_blocks = 4;
+  uint64 used_blocks = 5;
 }
 
 message Ring {
