@@ -5,6 +5,8 @@ import (
 	"io"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/coreos/pkg/capnslog"
 
 	"github.com/barakmich/agro"
@@ -116,14 +118,14 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		if f.blocks.Length() == blkIndex {
 			blk = make([]byte, f.blkSize)
 		} else {
-			blk, err = f.blocks.GetBlock(nil, blkIndex)
+			blk, err = f.blocks.GetBlock(context.TODO(), blkIndex)
 			if err != nil {
 				return n, err
 			}
 		}
 		wrote := copy(blk[int(blkOff):int(blkOff)+frontlen], b[:frontlen])
 		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
-		err = f.blocks.PutBlock(nil, f.inodeRef, blkIndex, blk)
+		err = f.blocks.PutBlock(context.TODO(), f.inodeRef, blkIndex, blk)
 		if err != nil {
 			return n, err
 		}
@@ -149,7 +151,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	for toWrite >= int(f.blkSize) {
 		blkIndex := int(off / f.blkSize)
 		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
-		err = f.blocks.PutBlock(nil, f.inodeRef, blkIndex, b[:f.blkSize])
+		err = f.blocks.PutBlock(context.TODO(), f.inodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
 			return n, err
 		}
@@ -173,14 +175,14 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	if f.blocks.Length() == blkIndex {
 		blk = make([]byte, f.blkSize)
 	} else {
-		blk, err = f.blocks.GetBlock(nil, blkIndex)
+		blk, err = f.blocks.GetBlock(context.TODO(), blkIndex)
 		if err != nil {
 			return n, err
 		}
 	}
 	wrote := copy(blk[:toWrite], b)
 	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
-	err = f.blocks.PutBlock(nil, f.inodeRef, blkIndex, blk)
+	err = f.blocks.PutBlock(context.TODO(), f.inodeRef, blkIndex, blk)
 	if err != nil {
 		return n, err
 	}
@@ -218,7 +220,7 @@ func (f *file) ReadAt(b []byte, off int64) (n int, ferr error) {
 		}
 		blkOff := off - int64(int(f.blkSize)*blkIndex)
 		clog.Tracef("getting block index %d", blkIndex)
-		blk, err := f.blocks.GetBlock(nil, blkIndex)
+		blk, err := f.blocks.GetBlock(context.TODO(), blkIndex)
 		if err != nil {
 			return n, err
 		}

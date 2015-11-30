@@ -3,6 +3,8 @@ package blockset
 import (
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 
 	// Register storage drivers.
@@ -26,9 +28,9 @@ func TestCRCCorruption(t *testing.T) {
 	b := newBaseBlockset(s)
 	crc := newCRCBlockset(b)
 	inode := agro.INodeRef{1, 1}
-	crc.PutBlock(nil, inode, 0, []byte("Some data"))
-	s.WriteBlock(nil, b.blocks[0], []byte("Evil Corruption!!"))
-	_, err := crc.GetBlock(nil, 0)
+	crc.PutBlock(context.TODO(), inode, 0, []byte("Some data"))
+	s.WriteBlock(context.TODO(), b.blocks[0], []byte("Evil Corruption!!"))
+	_, err := crc.GetBlock(context.TODO(), 0)
 	if err != agro.ErrBlockUnavailable {
 		t.Fatal("No corruption detection")
 	}
