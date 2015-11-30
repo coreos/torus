@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"path"
 
+	pb "github.com/barakmich/agro/internal/etcdproto/etcdserverpb"
 	"github.com/barakmich/agro/models"
-	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
 )
 
 func mkKey(s ...string) []byte {
@@ -52,11 +52,11 @@ func requestUnion(comps ...interface{}) []*pb.RequestUnion {
 	for _, v := range comps {
 		switch m := v.(type) {
 		case *pb.RangeRequest:
-			out = append(out, &pb.RequestUnion{RequestRange: m})
+			out = append(out, &pb.RequestUnion{&pb.RequestUnion_RequestRange{RequestRange: m}})
 		case *pb.PutRequest:
-			out = append(out, &pb.RequestUnion{RequestPut: m})
+			out = append(out, &pb.RequestUnion{&pb.RequestUnion_RequestPut{RequestPut: m}})
 		case *pb.DeleteRangeRequest:
-			out = append(out, &pb.RequestUnion{RequestDeleteRange: m})
+			out = append(out, &pb.RequestUnion{&pb.RequestUnion_RequestDeleteRange{RequestDeleteRange: m}})
 		default:
 			panic("cannot create this request option within a requestUnion")
 		}
@@ -84,35 +84,43 @@ func keyEquals(key []byte, value []byte) *pb.Compare {
 	return &pb.Compare{
 		Target: pb.Compare_VALUE,
 		Key:    key,
-		Value:  value,
 		Result: pb.Compare_EQUAL,
+		TargetUnion: &pb.Compare_Value{
+			Value: value,
+		},
 	}
 }
 
 func keyExists(key []byte) *pb.Compare {
 	return &pb.Compare{
-		Target:  pb.Compare_VERSION,
-		Result:  pb.Compare_GREATER,
-		Key:     key,
-		Version: 0,
+		Target: pb.Compare_VERSION,
+		Result: pb.Compare_GREATER,
+		Key:    key,
+		TargetUnion: &pb.Compare_Version{
+			Version: 0,
+		},
 	}
 }
 
 func keyNotExists(key []byte) *pb.Compare {
 	return &pb.Compare{
-		Target:  pb.Compare_VERSION,
-		Result:  pb.Compare_LESS,
-		Key:     key,
-		Version: 1,
+		Target: pb.Compare_VERSION,
+		Result: pb.Compare_LESS,
+		Key:    key,
+		TargetUnion: &pb.Compare_Version{
+			Version: 1,
+		},
 	}
 }
 
 func keyIsVersion(key []byte, version int64) *pb.Compare {
 	return &pb.Compare{
-		Target:  pb.Compare_VERSION,
-		Result:  pb.Compare_EQUAL,
-		Key:     key,
-		Version: version,
+		Target: pb.Compare_VERSION,
+		Result: pb.Compare_EQUAL,
+		Key:    key,
+		TargetUnion: &pb.Compare_Version{
+			Version: 1,
+		},
 	}
 }
 
