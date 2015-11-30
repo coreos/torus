@@ -263,8 +263,9 @@ func (t *temp) GetVolumeID(volume string) (agro.VolumeID, error) {
 
 func (t *temp) GetRing() (agro.Ring, error) {
 	return ring.CreateRing(&models.Ring{
-		Type:    uint32(ring.Empty),
+		Type:    uint32(ring.Single),
 		Version: 1,
+		UUIDs:   []string{t.uuid},
 	})
 }
 

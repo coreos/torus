@@ -13,9 +13,13 @@ const (
 )
 
 func (s *server) BeginHeartbeat() error {
+	if s.heartbeating {
+		return nil
+	}
 	ch := make(chan interface{})
 	s.closeChans = append(s.closeChans, ch)
 	go s.heartbeat(ch)
+	s.heartbeating = true
 	return nil
 }
 
@@ -37,7 +41,7 @@ func (s *server) oneHeartbeat() {
 	defer cancel()
 	p := &models.PeerInfo{}
 	p.Address = s.internalAddr
-	p.TotalBlocks = s.cold.NumBlocks()
+	p.TotalBlocks = s.blocks.NumBlocks()
 	p.UUID = s.mds.UUID()
 	err := s.mds.WithContext(ctx).RegisterPeer(p)
 	if err != nil {
