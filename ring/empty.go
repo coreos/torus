@@ -27,8 +27,18 @@ func (e *empty) GetINodePeers(key agro.INodeRef, n int) ([]string, error) {
 	return []string{}, nil
 }
 
+func (e *empty) Members() []string { return []string{} }
+
 func (e *empty) Describe() string {
 	return "Ring: Empty"
 }
 func (e *empty) Type() agro.RingType { return Empty }
 func (e *empty) Version() int        { return e.version }
+
+func (e *empty) Marshal() ([]byte, error) {
+	var out models.Ring
+
+	out.Version = uint32(e.version)
+	out.Type = uint32(e.Type())
+	return out.Marshal()
+}

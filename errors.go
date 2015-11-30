@@ -30,4 +30,7 @@ var (
 
 	// ErrNoGlobalMetadata is returned if the metadata service hasn't been formatted.
 	ErrNoGlobalMetadata = errors.New("agro: no global metadata available at mds")
+
+	// ErrNonSequentialRing is returned if the ring's internal version number appears to jump.
+	ErrNonSequentialRing = errors.New("agro: non-sequential ring")
 )

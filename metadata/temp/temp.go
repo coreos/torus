@@ -20,6 +20,7 @@ import (
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/metadata"
 	"github.com/barakmich/agro/models"
+	"github.com/barakmich/agro/ring"
 	"github.com/hashicorp/go-immutable-radix"
 )
 
@@ -258,6 +259,17 @@ func (t *temp) GetVolumeID(volume string) (agro.VolumeID, error) {
 		return vol, nil
 	}
 	return 0, errors.New("temp: no such volume exists")
+}
+
+func (t *temp) GetRing() (agro.Ring, error) {
+	return ring.CreateRing(&models.Ring{
+		Type:    uint32(ring.Empty),
+		Version: 1,
+	})
+}
+
+func (t *temp) SubscribeNewRings(ch chan agro.Ring) {
+	close(ch)
 }
 
 func (t *temp) write() error {
