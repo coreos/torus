@@ -1,27 +1,36 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/codegangsta/cli"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/spf13/cobra"
 )
 
+var rootCommand = &cobra.Command{
+	Use:   "agroctl",
+	Short: "Administer the agro filesystem",
+	Long:  `Admin utility for the agro distributed filesystem.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Usage()
+		os.Exit(1)
+	},
+}
+
+var etcdAddress string
+
+func init() {
+	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2378", "hostname:port to the etcd instance storing the metadata")
+	rootCommand.AddCommand(mkfsCommand)
+	rootCommand.AddCommand(listPeersCommand)
+}
+
 func main() {
-	app := cli.NewApp()
 	capnslog.SetGlobalLogLevel(capnslog.WARNING)
-	app.Name = "agroctl"
-	app.Usage = "Administer the agro filesystem"
-	app.Commands = []cli.Command{
-		mkfsCommand,
-		listPeersCommand,
+
+	if err := rootCommand.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "etcd, C",
-			Value: "127.0.0.1:2378",
-			Usage: "hostname:port to the etcd instance storing the metadata",
-		},
-	}
-	app.Run(os.Args)
 }

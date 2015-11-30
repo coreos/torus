@@ -7,53 +7,51 @@ import (
 
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/blockset"
-	"github.com/codegangsta/cli"
+	"github.com/spf13/cobra"
 
 	_ "github.com/barakmich/agro/metadata/etcd"
 )
 
-var mkfsCommand = cli.Command{
-	Name:   "mkfs",
-	Usage:  "prepare a new filesystem by creating the metadata",
-	Action: mkfsAction,
-	Flags: []cli.Flag{
-		cli.IntFlag{
-			Name:  "block-size",
-			Value: 8196,
-			Usage: "size of all data blocks in this filesystem",
-		},
-		cli.StringFlag{
-			Name:  "block-spec",
-			Value: "crc",
-			Usage: "default replication/error correction applied to blocks in this filesystem",
-		},
-	},
+var (
+	blockSize int
+	blockSpec string
+)
+
+var mkfsCommand = &cobra.Command{
+	Use:    "mkfs",
+	Short:  "Prepare a new filesystem by creating the metadata",
+	PreRun: mkfsPreRun,
+	Run:    mkfsAction,
 }
 
-func mkfsAction(c *cli.Context) {
-	cfg := agro.Config{
-		MetadataAddress: c.GlobalString("etcd"),
+func init() {
+	mkfsCommand.Flags().IntVarP(&blockSize, "block-size", "", 8196, "size of all data blocks in this filesystem")
+	mkfsCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this filesystem")
+}
+
+func mkfsPreRun(cmd *cobra.Command, args []string) {
+	// We *always* need base.
+	if !strings.HasSuffix(blockSpec, ",base") {
+		blockSpec += ",base"
 	}
-	md := parseGlobalMetadataFromContext(c)
-	err := agro.Mkfs("etcd", cfg, md)
+}
+
+func mkfsAction(cmd *cobra.Command, args []string) {
+	var err error
+	md := agro.GlobalMetadata{}
+	md.BlockSize = uint64(blockSize)
+	md.DefaultBlockSpec, err = blockset.ParseBlockLayerSpec(blockSpec)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing block-spec: %s\n", err)
+		os.Exit(1)
+	}
+
+	cfg := agro.Config{
+		MetadataAddress: etcdAddress,
+	}
+	err = agro.Mkfs("etcd", cfg, md)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error writing metadata: %s\n", err)
 		os.Exit(1)
 	}
-}
-
-func parseGlobalMetadataFromContext(c *cli.Context) agro.GlobalMetadata {
-	out := agro.GlobalMetadata{}
-	out.BlockSize = uint64(c.Int("block-size"))
-	var err error
-	bs := c.String("block-spec")
-	if !strings.HasSuffix(bs, ",base") {
-		bs += ",base"
-	}
-	out.DefaultBlockSpec, err = blockset.ParseBlockLayerSpec(bs)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing block-spec: %s", err)
-		os.Exit(1)
-	}
-	return out
 }
