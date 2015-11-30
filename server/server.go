@@ -20,11 +20,15 @@ import (
 var _ agro.Server = &server{}
 
 type server struct {
-	cold         agro.BlockStore
-	mds          agro.MetadataService
-	inodes       agro.INodeStore
-	closeChans   []chan interface{}
+	blocks     agro.BlockStore
+	mds        agro.MetadataService
+	inodes     agro.INodeStore
+	closeChans []chan interface{}
+
 	internalAddr string
+
+	heartbeating    bool
+	replicationOpen bool
 }
 
 func NewMemoryServer() agro.Server {
@@ -34,7 +38,7 @@ func NewMemoryServer() agro.Server {
 	gmd, _ := mds.GlobalMetadata()
 	cold, _ := agro.CreateBlockStore("temp", cfg, gmd)
 	return &server{
-		cold:   cold,
+		blocks: cold,
 		mds:    mds,
 		inodes: inodes,
 	}
@@ -55,7 +59,7 @@ func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err er
 	if err != nil {
 		return nil, err
 	}
-	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, s.cold)
+	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, s.blocks)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +176,7 @@ func (s *server) Close() error {
 	if err != nil {
 		return err
 	}
-	err = s.cold.Close()
+	err = s.blocks.Close()
 	if err != nil {
 		return err
 	}

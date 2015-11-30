@@ -383,5 +383,5 @@ func (c *etcdCtx) GetRing() (agro.Ring, error) {
 }
 
 func (c *etcdCtx) SubscribeNewRings(ch chan agro.Ring) {
-	return c.etcd.SubscribeNewRings(ch)
+	c.etcd.SubscribeNewRings(ch)
 }

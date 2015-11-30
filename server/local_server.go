@@ -54,7 +54,7 @@ func NewServer(cfg agro.Config, metadataServiceName, inodeStoreName, blockStoreN
 	}
 
 	return &server{
-		cold:   blocks,
+		blocks: blocks,
 		mds:    mds,
 		inodes: inodes,
 	}, nil

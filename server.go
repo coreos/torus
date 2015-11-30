@@ -22,4 +22,9 @@ type Server interface {
 
 	// BeginHeartbeat spawns a goroutine for heartbeats. Non-blocking.
 	BeginHeartbeat() error
+
+	// ListenReplication opens the internal networking port and connects to the cluster
+	ListenReplication(addr string) error
+	// OpenReplication connects to the cluster without opening the internal networking.
+	OpenReplication() error
 }

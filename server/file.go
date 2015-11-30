@@ -30,7 +30,7 @@ type file struct {
 }
 
 func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error) {
-	bs, err := blockset.UnmarshalFromProto(inode.GetBlocks(), s.cold)
+	bs, err := blockset.UnmarshalFromProto(inode.GetBlocks(), s.blocks)
 	if err != nil {
 		return nil, err
 	}
