@@ -6,17 +6,12 @@ import (
 	"testing"
 
 	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/models"
 )
 
 func TestReadWrite(t *testing.T) {
 	srv := NewMemoryServer().(*server)
 	err := srv.CreateVolume("test")
-	srv.mds.Mkfs(agro.GlobalMetadata{
-		BlockSize:        10,
-		DefaultBlockSpec: agro.BlockLayerSpec{blockset.CRC, blockset.Base},
-	})
 	if err != nil {
 		t.Fatal(err)
 	}

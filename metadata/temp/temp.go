@@ -52,9 +52,10 @@ func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	return &temp{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
+		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
 		global: agro.GlobalMetadata{
 			BlockSize:        8 * 1024,
-			DefaultBlockSpec: agro.BlockLayerSpec{blockset.CRC, blockset.Base},
+			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 		},
 		cfg:  cfg,
 		uuid: uuid,
@@ -80,11 +81,6 @@ func (t *temp) GetPeers() ([]*models.PeerInfo, error) {
 }
 
 func (t *temp) RegisterPeer(_ *models.PeerInfo) error { return nil }
-
-func (t *temp) Mkfs(md agro.GlobalMetadata) error {
-	t.global = md
-	return nil
-}
 
 func (t *temp) CreateVolume(volume string) error {
 	t.mut.Lock()

@@ -41,7 +41,7 @@ func readWriteTest(t *testing.T, b blockset) {
 
 func TestBaseMarshal(t *testing.T) {
 	s, _ := agro.CreateBlockStore("temp", agro.Config{}, agro.GlobalMetadata{})
-	marshalTest(t, s, agro.BlockLayerSpec{Base})
+	marshalTest(t, s, MustParseBlockLayerSpec("base"))
 }
 
 func marshalTest(t *testing.T, s agro.BlockStore, spec agro.BlockLayerSpec) {

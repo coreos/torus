@@ -14,15 +14,15 @@ func MakeOrGetUUID(datadir string) (string, error) {
 	}
 
 	filename := filepath.Join(datadir, "metadata", "uuid")
-	if _, err := os.Stat(filename); err == os.ErrNotExist {
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		id := uuid.NewUUID()
-		fnew, err := os.Create(filename)
-		if err != nil {
-			return "", err
+		fnew, ferr := os.Create(filename)
+		if ferr != nil {
+			return "", ferr
 		}
 		defer fnew.Close()
-		_, err = fnew.WriteString(id.String())
-		return id.String(), err
+		_, werr := fnew.WriteString(id.String())
+		return id.String(), werr
 	}
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {

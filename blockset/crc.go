@@ -16,7 +16,7 @@ type crcBlockset struct {
 var _ blockset = &crcBlockset{}
 
 func init() {
-	RegisterBlockset(CRC, func(_ agro.BlockStore, sub blockset) (blockset, error) {
+	RegisterBlockset(CRC, func(_ string, _ agro.BlockStore, sub blockset) (blockset, error) {
 		return newCRCBlockset(sub), nil
 	})
 }

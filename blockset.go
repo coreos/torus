@@ -13,8 +13,11 @@ type Blockset interface {
 	GetSubBlockset() Blockset
 }
 
-type BlockLayer int
+type BlockLayerKind int
 
-// TODO(barakmich): Add KV options and pipe through, eg
-//		type BlockLayerSpec []struct{BlockLayer, map[string]string}
+type BlockLayer struct {
+	Kind    BlockLayerKind
+	Options string
+}
+
 type BlockLayerSpec []BlockLayer
