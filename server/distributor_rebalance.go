@@ -9,14 +9,7 @@ import (
 // the rebalance dance.
 func (d *distributor) rebalancer() {
 	ch := make(chan agro.Ring)
-	d.mut.Lock()
 	d.srv.mds.SubscribeNewRings(ch)
-	var err error
-	d.ring, err = d.srv.mds.GetRing()
-	if err != nil {
-		panic("can't get initial ring")
-	}
-	d.mut.Unlock()
 	for newring := range ch {
 		if newring.Version() == d.ring.Version() {
 			// No problem. We're seeing the same ring.
