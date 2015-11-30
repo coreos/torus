@@ -49,17 +49,13 @@ func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		return t, nil
 	}
 	fmt.Println("temp: couldn't parse metadata: ", err)
-	bl, err := blockset.ParseBlockLayerSpec("crc,base")
-	if err != nil {
-		panic(err)
-	}
 	return &temp{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
 		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
 		global: agro.GlobalMetadata{
 			BlockSize:        8 * 1024,
-			DefaultBlockSpec: bl,
+			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 		},
 		cfg:  cfg,
 		uuid: uuid,

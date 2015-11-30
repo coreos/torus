@@ -48,13 +48,9 @@ func main() {
 		srv, err = server.NewServer(cfg, "temp", "bolt", "mfile")
 	} else {
 		if *mkfs {
-			bl, err := blockset.ParseBlockLayerSpec("crc,base")
-			if err != nil {
-				panic(err)
-			}
 			err = agro.Mkfs("etcd", cfg, agro.GlobalMetadata{
 				BlockSize:        8 * 1024,
-				DefaultBlockSpec: bl,
+				DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 			})
 			if err != nil {
 				if err == agro.ErrExists {

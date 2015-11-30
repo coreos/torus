@@ -18,7 +18,7 @@ func TestCRCReadWrite(t *testing.T) {
 
 func TestCRCMarshal(t *testing.T) {
 	s, _ := agro.CreateBlockStore("temp", agro.Config{}, agro.GlobalMetadata{})
-	marshalTest(t, s, agro.BlockLayerSpec{CRC, Base})
+	marshalTest(t, s, MustParseBlockLayerSpec("crc,base"))
 }
 
 func TestCRCCorruption(t *testing.T) {

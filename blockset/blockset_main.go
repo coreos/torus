@@ -78,6 +78,7 @@ func UnmarshalFromProto(layers []*models.BlockLayer, store agro.BlockStore) (agr
 	}
 	for i := l - 1; i >= 0; i-- {
 		m := layers[i]
+		// Options must be stored by the blockset when serialized
 		newl, err := createBlockset(agro.BlockLayer{agro.BlockLayerKind(m.Type), ""}, store, layer)
 		if err != nil {
 			return nil, err
@@ -133,7 +134,18 @@ func ParseBlockLayerSpec(s string) (agro.BlockLayerSpec, error) {
 		if len(opts) > 1 {
 			opt = opts[1]
 		}
-		out = append(out, agro.BlockLayer{k, opt})
+		out = append(out, agro.BlockLayer{
+			Kind:    k,
+			Options: opt,
+		})
 	}
 	return out, nil
+}
+
+func MustParseBlockLayerSpec(s string) agro.BlockLayerSpec {
+	out, err := ParseBlockLayerSpec(s)
+	if err != nil {
+		panic(err)
+	}
+	return out
 }
