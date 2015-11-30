@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+
 	"github.com/barakmich/agro/models"
 )
 
@@ -70,9 +72,9 @@ func (b BlockID) String() string {
 // interact with something storing blocks.
 type BlockStore interface {
 	Store
-	GetBlock(b BlockID) ([]byte, error)
-	WriteBlock(b BlockID, data []byte) error
-	DeleteBlock(b BlockID) error
+	GetBlock(ctx context.Context, b BlockID) ([]byte, error)
+	WriteBlock(ctx context.Context, b BlockID, data []byte) error
+	DeleteBlock(ctx context.Context, b BlockID) error
 }
 
 type NewBlockStoreFunc func(Config, GlobalMetadata) (BlockStore, error)
@@ -100,9 +102,9 @@ func CreateBlockStore(name string, cfg Config, gmd GlobalMetadata) (BlockStore, 
 // interact with something storing INodes.
 type INodeStore interface {
 	Store
-	GetINode(i INodeRef) (*models.INode, error)
-	WriteINode(i INodeRef, inode *models.INode) error
-	DeleteINode(i INodeRef) error
+	GetINode(ctx context.Context, i INodeRef) (*models.INode, error)
+	WriteINode(ctx context.Context, i INodeRef, inode *models.INode) error
+	DeleteINode(ctx context.Context, i INodeRef) error
 }
 
 type NewINodeStoreFunc func(Config) (INodeStore, error)

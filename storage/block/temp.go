@@ -3,6 +3,8 @@ package block
 import (
 	"sync"
 
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+
 	"github.com/barakmich/agro"
 )
 
@@ -31,7 +33,7 @@ func (t *tempBlockStore) Close() error {
 	return nil
 }
 
-func (t *tempBlockStore) GetBlock(s agro.BlockID) ([]byte, error) {
+func (t *tempBlockStore) GetBlock(_ context.Context, s agro.BlockID) ([]byte, error) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 
@@ -46,7 +48,7 @@ func (t *tempBlockStore) GetBlock(s agro.BlockID) ([]byte, error) {
 	return x, nil
 }
 
-func (t *tempBlockStore) WriteBlock(s agro.BlockID, data []byte) error {
+func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockID, data []byte) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 
@@ -58,7 +60,7 @@ func (t *tempBlockStore) WriteBlock(s agro.BlockID, data []byte) error {
 	return nil
 }
 
-func (t *tempBlockStore) DeleteBlock(s agro.BlockID) error {
+func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockID) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 

@@ -12,12 +12,12 @@ import (
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/metadata"
 	"github.com/barakmich/agro/models"
-	"golang.org/x/net/context"
 
 	// TODO(barakmich): And this is why vendoring sucks. I shouldn't need to
 	//import this, but I do, because I'm using etcdserverpb from head, and *it*
 	//expects its own vendored version. Admittedly, this should get better with
 	//GO15VENDORING, but etcd doesn't support that yet.
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc"
 	"github.com/coreos/pkg/capnslog"
 
