@@ -14,13 +14,13 @@ service AgroStorage {
 
 message BlockRef {
 	uint64 volume = 1;
-	uint64 inode = 2;
+	uint64 inode = 2 [(gogoproto.customname) = "INode"];
 	uint64 block = 3;
 }
 
 message INodeRef {
 	uint64 volume = 1;
-	uint64 inode = 2;
+	uint64 inode = 2 [(gogoproto.customname) = "INode"];
 }
 
 message Block {
@@ -41,17 +41,19 @@ message INodeRequest {
 }
 
 message INodeResponse {
-	repeated INode inodes = 2;
+	repeated INode inodes = 2 [(gogoproto.customname) = "INodes"];
 }
 
 message PutBlockRequest {
-	repeated BlockRef refs = 1;
-	repeated bytes blocks = 2;
+	uint32 replication_factor = 1;
+	repeated BlockRef refs = 2;
+	repeated bytes blocks = 3;
 }
 
 message PutINodeRequest {
-	repeated INodeRef refs = 1;
-	repeated INode inodes = 2;
+	uint32 replication_factor = 1;
+	repeated INodeRef refs = 2;
+	repeated INode inodes = 3 [(gogoproto.customname) = "INodes"];
 }
 
 message PutResponse {

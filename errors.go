@@ -7,6 +7,10 @@ var (
 	// block.
 	ErrBlockUnavailable = errors.New("agro: block cannot be retrieved")
 
+	// ErrINodeUnavailable is returned when a function fails to retrieve a known
+	// INode.
+	ErrINodeUnavailable = errors.New("agro: inode cannot be retrieved")
+
 	// ErrBlockNotExist is returned when a function attempts to manipulate a
 	// non-existant block.
 	ErrBlockNotExist = errors.New("agro: block doesn't exist")

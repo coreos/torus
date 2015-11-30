@@ -59,7 +59,7 @@ func (*Metadata) ProtoMessage()    {}
 
 type INode struct {
 	Volume      uint64            `protobuf:"varint,1,opt,name=volume,proto3" json:"volume,omitempty"`
-	Inode       uint64            `protobuf:"varint,2,opt,name=inode,proto3" json:"inode,omitempty"`
+	INode       uint64            `protobuf:"varint,2,opt,name=inode,proto3" json:"inode,omitempty"`
 	Replaces    uint64            `protobuf:"varint,3,opt,name=replaces,proto3" json:"replaces,omitempty"`
 	Filesize    uint64            `protobuf:"varint,4,opt,name=filesize,proto3" json:"filesize,omitempty"`
 	Filenames   []string          `protobuf:"bytes,5,rep,name=filenames" json:"filenames,omitempty"`
@@ -224,10 +224,10 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Volume))
 	}
-	if m.Inode != 0 {
+	if m.INode != 0 {
 		data[i] = 0x10
 		i++
-		i = encodeVarintAgro(data, i, uint64(m.Inode))
+		i = encodeVarintAgro(data, i, uint64(m.INode))
 	}
 	if m.Replaces != 0 {
 		data[i] = 0x18
@@ -548,8 +548,8 @@ func (m *INode) Size() (n int) {
 	if m.Volume != 0 {
 		n += 1 + sovAgro(uint64(m.Volume))
 	}
-	if m.Inode != 0 {
-		n += 1 + sovAgro(uint64(m.Inode))
+	if m.INode != 0 {
+		n += 1 + sovAgro(uint64(m.INode))
 	}
 	if m.Replaces != 0 {
 		n += 1 + sovAgro(uint64(m.Replaces))
@@ -893,9 +893,9 @@ func (m *INode) Unmarshal(data []byte) error {
 			}
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Inode", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field INode", wireType)
 			}
-			m.Inode = 0
+			m.INode = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowAgro
@@ -905,7 +905,7 @@ func (m *INode) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				m.Inode |= (uint64(b) & 0x7F) << shift
+				m.INode |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}

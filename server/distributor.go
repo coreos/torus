@@ -11,11 +11,11 @@ import (
 )
 
 type distributor struct {
-	mut    sync.Mutex
-	blocks agro.BlockStore
-	inodes agro.INodeStore
-	srv    *server
-
+	mut     sync.RWMutex
+	blocks  agro.BlockStore
+	inodes  agro.INodeStore
+	srv     *server
+	client  *distClient
 	lis     net.Listener
 	grpcSrv *grpc.Server
 
@@ -24,8 +24,6 @@ type distributor struct {
 }
 
 func newDistributor(srv *server, addr string, listen bool) (*distributor, error) {
-	var lis net.Listener
-	var s *grpc.Server
 	var err error
 	d := &distributor{
 		blocks: srv.blocks,
@@ -40,9 +38,15 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 		d.grpcSrv = grpc.NewServer()
 		models.RegisterAgroStorageServer(d.grpcSrv, d)
 		go d.grpcSrv.Serve(d.lis)
+		srv.BeginHeartbeat()
 	}
 	// Set up the rebalancer
+	d.ring, err = d.srv.mds.GetRing()
+	if err != nil {
+		return nil, err
+	}
 	go d.rebalancer()
+	d.client = newDistClient(d)
 	return d, nil
 }
 
