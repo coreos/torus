@@ -5,12 +5,11 @@ import (
 	"os"
 
 	"github.com/barakmich/agro"
-	"github.com/codegangsta/cli"
 )
 
-func mustConnectToMDS(c *cli.Context) agro.MetadataService {
+func mustConnectToMDS() agro.MetadataService {
 	cfg := agro.Config{
-		MetadataAddress: c.GlobalString("etcd"),
+		MetadataAddress: etcdAddress,
 	}
 	mds, err := agro.CreateMetadataService("etcd", cfg)
 	if err != nil {
