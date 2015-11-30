@@ -66,7 +66,6 @@ func (p Path) Filename() string {
 // MetadataService is the interface representing the basic ways to manipulate
 // consistently stored fileystem metadata.
 type MetadataService interface {
-	Mkfs(GlobalMetadata) error
 	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
 	GetVolumes() ([]string, error)
 	GetVolumeID(volume string) (VolumeID, error)
@@ -122,4 +121,29 @@ func RegisterMetadataService(name string, newFunc CreateMetadataServiceFunc) {
 func CreateMetadataService(name string, cfg Config) (MetadataService, error) {
 	clog.Infof("creating metadata service: %s", name)
 	return metadataServices[name](cfg)
+}
+
+// MkfsFunc is the signature of a function which preformats a metadata service.
+type MkfsFunc func(cfg Config, gmd GlobalMetadata) error
+
+var mkfsFuncs map[string]MkfsFunc
+
+// RegisterMkfs is the hook used for implementions of
+// MetadataServices to register their ways of creating base metadata to the system.
+func RegisterMkfs(name string, newFunc MkfsFunc) {
+	if mkfsFuncs == nil {
+		mkfsFuncs = make(map[string]MkfsFunc)
+	}
+
+	if _, ok := mkfsFuncs[name]; ok {
+		panic("agro: attempted to register MkfsFunc " + name + " twice")
+	}
+
+	mkfsFuncs[name] = newFunc
+}
+
+// Mkfs calls the specific Mkfs function provided by a metadata package.
+func Mkfs(name string, cfg Config, gmd GlobalMetadata) error {
+	clog.Debugf("running mkfs for service type: %s", name)
+	return mkfsFuncs[name](cfg, gmd)
 }

@@ -2,13 +2,13 @@ package etcd
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"path"
 	"time"
 
 	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/metadata"
 	"github.com/barakmich/agro/models"
 	"golang.org/x/net/context"
@@ -32,6 +32,7 @@ const (
 
 func init() {
 	agro.RegisterMetadataService("etcd", newEtcdMetadata)
+	agro.RegisterMkfs("etcd", mkfs)
 }
 
 type etcd struct {
@@ -58,19 +59,18 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	}
 	client := pb.NewKVClient(conn)
 
-	//TODO(barakmich): Fetch global metadata. If it doesn't exist, we haven't run mkfs yet. For now, we'll just hardcode it.
-	global := agro.GlobalMetadata{
-		BlockSize:        8 * 1024,
-		DefaultBlockSpec: agro.BlockLayerSpec{blockset.CRC, blockset.Base},
-	}
-	return &etcd{
+	e := &etcd{
 		cfg:          cfg,
-		global:       global,
 		conn:         conn,
 		kv:           client,
 		volumesCache: make(map[string]agro.VolumeID),
 		uuid:         uuid,
-	}, nil
+	}
+	err = e.getGlobalMetadata()
+	if err != nil {
+		return nil, err
+	}
+	return e, nil
 }
 
 func (e *etcd) GlobalMetadata() (agro.GlobalMetadata, error) {
@@ -295,26 +295,56 @@ func (e *etcd) trySetFileINode(p agro.Path, ref agro.INodeRef, resp *pb.TxnRespo
 	return e.trySetFileINode(p, ref, resp)
 }
 
-func (e *etcd) Mkfs(gmd agro.GlobalMetadata) error {
+func (e *etcd) getGlobalMetadata() error {
 	tx := tx().If(
-		keyNotExists(mkKey("meta", "volumeprinter")),
+		keyExists(mkKey("meta", "globalmetadata")),
 	).Then(
-		setKey(mkKey("meta", "volumeprinter"), uint64ToBytes(1)),
-		setKey(mkKey("meta", "inodeprinter"), uint64ToBytes(1)),
-	).Else(
 		getKey(mkKey("meta", "volumeprinter")),
 		getKey(mkKey("meta", "inodeprinter")),
+		getKey(mkKey("meta", "globalmetadata")),
 	).Tx()
 	resp, err := e.kv.Txn(context.Background(), tx)
 	if err != nil {
 		return err
 	}
 	if !resp.Succeeded {
-		e.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].ResponseRange.Kvs[0].Value))
-		e.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[1].ResponseRange.Kvs[0].Value))
-		return nil
+		return agro.ErrNoGlobalMetadata
 	}
-	e.volumeprinter = 1
-	e.inodeprinter = 1
+	e.volumeprinter = agro.VolumeID(bytesToUint64(resp.Responses[0].ResponseRange.Kvs[0].Value))
+	e.inodeprinter = agro.INodeID(bytesToUint64(resp.Responses[1].ResponseRange.Kvs[0].Value))
+	var gmd agro.GlobalMetadata
+	err = json.Unmarshal(resp.Responses[2].ResponseRange.Kvs[0].Value, &gmd)
+	if err != nil {
+		return err
+	}
+	e.global = gmd
+	return nil
+}
+
+func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {
+	gmdbytes, err := json.Marshal(gmd)
+	if err != nil {
+		return err
+	}
+	tx := tx().If(
+		keyNotExists(mkKey("meta", "globalmetadata")),
+	).Then(
+		setKey(mkKey("meta", "volumeprinter"), uint64ToBytes(1)),
+		setKey(mkKey("meta", "inodeprinter"), uint64ToBytes(1)),
+		setKey(mkKey("meta", "globalmetadata"), gmdbytes),
+	).Tx()
+	conn, err := grpc.Dial(cfg.MetadataAddress)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := pb.NewKVClient(conn)
+	resp, err := client.Txn(context.Background(), tx)
+	if err != nil {
+		return err
+	}
+	if !resp.Succeeded {
+		return agro.ErrExists
+	}
 	return nil
 }

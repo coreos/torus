@@ -12,7 +12,6 @@ type Server interface {
 	// Some server metacalls.
 	CreateVolume(string) error
 	GetVolumes() ([]string, error)
-	Mkfs(GlobalMetadata) error
 
 	Close() error
 }

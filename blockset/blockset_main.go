@@ -2,6 +2,8 @@ package blockset
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/models"
@@ -18,22 +20,22 @@ type blockset interface {
 
 // Constants for each type of layer, for serializing/deserializing
 const (
-	Base agro.BlockLayer = iota
+	Base agro.BlockLayerKind = iota
 	CRC
 )
 
 // CreateBlocksetFunc is the signature of a constructor used to create
 // a BlockLayer.
-type CreateBlocksetFunc func(store agro.BlockStore, subLayer blockset) (blockset, error)
+type CreateBlocksetFunc func(opts string, store agro.BlockStore, subLayer blockset) (blockset, error)
 
-var blocklayerRegistry map[agro.BlockLayer]CreateBlocksetFunc
+var blocklayerRegistry map[agro.BlockLayerKind]CreateBlocksetFunc
 
 // RegisterBlockset is the hook used for implementions of
 // blocksets to register themselves to the system. This is usually
 // called in the init() of the package that implements the blockset.
-func RegisterBlockset(b agro.BlockLayer, newFunc CreateBlocksetFunc) {
+func RegisterBlockset(b agro.BlockLayerKind, newFunc CreateBlocksetFunc) {
 	if blocklayerRegistry == nil {
-		blocklayerRegistry = make(map[agro.BlockLayer]CreateBlocksetFunc)
+		blocklayerRegistry = make(map[agro.BlockLayerKind]CreateBlocksetFunc)
 	}
 
 	if _, ok := blocklayerRegistry[b]; ok {
@@ -49,7 +51,7 @@ func CreateBlockset(b agro.BlockLayer, store agro.BlockStore, subLayer blockset)
 	return createBlockset(b, store, subLayer)
 }
 func createBlockset(b agro.BlockLayer, store agro.BlockStore, subLayer blockset) (blockset, error) {
-	return blocklayerRegistry[b](store, subLayer)
+	return blocklayerRegistry[b.Kind](b.Options, store, subLayer)
 }
 
 func MarshalToProto(bs agro.Blockset) ([]*models.BlockLayer, error) {
@@ -76,7 +78,7 @@ func UnmarshalFromProto(layers []*models.BlockLayer, store agro.BlockStore) (agr
 	}
 	for i := l - 1; i >= 0; i-- {
 		m := layers[i]
-		newl, err := createBlockset(agro.BlockLayer(m.Type), store, layer)
+		newl, err := createBlockset(agro.BlockLayer{agro.BlockLayerKind(m.Type), ""}, store, layer)
 		if err != nil {
 			return nil, err
 		}
@@ -104,4 +106,30 @@ func CreateBlocksetFromSpec(spec agro.BlockLayerSpec, store agro.BlockStore) (ag
 		layer = newl
 	}
 	return layer, nil
+}
+
+func ParseBlockLayerKind(s string) (agro.BlockLayerKind, error) {
+	smalls := strings.ToLower(s)
+	switch smalls {
+	case "base":
+		return Base, nil
+	case "crc":
+		return CRC, nil
+	default:
+		return agro.BlockLayerKind(-1), fmt.Errorf("no such block layer type: %s", s)
+	}
+}
+
+func ParseBlockLayerSpec(s string) (agro.BlockLayerSpec, error) {
+	var out agro.BlockLayerSpec
+	ss := strings.Split(s, ",")
+	for _, x := range ss {
+		opts := strings.Split(x, "=")
+		k, err := ParseBlockLayerKind(opts[0])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, agro.BlockLayer{k, opts[1]})
+	}
+	return out, nil
 }

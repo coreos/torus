@@ -27,4 +27,7 @@ var (
 	// ErrAgain is returned if the operation was interrupted. The call was valid, and
 	// may be tried again.
 	ErrAgain = errors.New("agro: interrupted, try again")
+
+	// ErrNoGlobalMetadata is returned if the metadata service hasn't been formatted.
+	ErrNoGlobalMetadata = errors.New("agro: no global metadata available at mds")
 )

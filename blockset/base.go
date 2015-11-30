@@ -17,7 +17,7 @@ type baseBlockset struct {
 var _ blockset = &baseBlockset{}
 
 func init() {
-	RegisterBlockset(Base, func(store agro.BlockStore, _ blockset) (blockset, error) {
+	RegisterBlockset(Base, func(_ string, store agro.BlockStore, _ blockset) (blockset, error) {
 		return newBaseBlockset(store), nil
 	})
 }

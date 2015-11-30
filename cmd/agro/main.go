@@ -48,7 +48,6 @@ func main() {
 			fmt.Printf("Couldn't start: %s\n", err)
 			os.Exit(1)
 		}
-		err = srv.Mkfs(agro.GlobalMetadata{})
 	}
 	//	srv := server.NewMemoryServer()
 	if err != nil {
