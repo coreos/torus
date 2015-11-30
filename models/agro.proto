@@ -47,6 +47,7 @@ message PeerInfo {
 
 message Ring {
   uint32 type = 1;
-  repeated string uuids = 2 [(gogoproto.customname) = "UUIDs"];
-  map<string, bytes> attrs = 3;
+	uint32 version = 2;
+  repeated string uuids = 3 [(gogoproto.customname) = "UUIDs"];
+  map<string, bytes> attrs = 4;
 }
