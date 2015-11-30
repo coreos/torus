@@ -37,7 +37,7 @@ func (s *server) oneHeartbeat() {
 	defer cancel()
 	p := &models.PeerInfo{}
 	p.Address = s.internalAddr
-	p.AdvertisedSize = s.cold.NumBlocks()
+	p.TotalBlocks = s.cold.NumBlocks()
 	p.UUID = s.mds.UUID()
 	err := s.mds.WithContext(ctx).RegisterPeer(p)
 	if err != nil {

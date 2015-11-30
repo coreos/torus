@@ -42,7 +42,7 @@ func listPeersAction(c *cli.Context) {
 		table.Append([]string{
 			x.Address,
 			x.UUID,
-			humanize.Bytes(x.AdvertisedSize * gmd.BlockSize),
+			humanize.IBytes(x.TotalBlocks * gmd.BlockSize),
 			humanize.Time(time.Unix(0, x.LastSeen)),
 		})
 	}
