@@ -23,7 +23,8 @@ type tempBlockStore struct {
 func openTempBlockStore(cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
 	return &tempBlockStore{
 		store: make(map[agro.BlockID][]byte),
-		// Lie about the number of blocks.
+		// TODO(barakmich): Currently we lie about the number of blocks.
+		// If we want to guess at a size, or make the map be a max size, or something, PRs accepted.
 		nBlocks: cfg.StorageSize / 1024,
 	}, nil
 }
