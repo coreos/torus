@@ -123,7 +123,7 @@ func (fi fileInfo) Mode() os.FileMode {
 }
 
 func (fi fileInfo) ModTime() time.Time {
-	return time.Unix(int64(fi.inode.Permissions.Mtime), 0)
+	return time.Unix(0, int64(fi.inode.Permissions.Mtime))
 }
 
 func (fi fileInfo) IsDir() bool {
