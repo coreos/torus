@@ -51,9 +51,66 @@ func (d *distributor) INode(ctx context.Context, req *models.INodeRequest) (*mod
 }
 
 func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest) (*models.PutResponse, error) {
-	return nil, nil
+	if len(req.Refs) != len(req.Blocks) {
+		return &models.PutResponse{Err: "malformed request"}, nil
+	}
+	for i, b := range req.Refs {
+		ref := agro.BlockRef{
+			INodeRef: agro.INodeRef{
+				Volume: agro.VolumeID(b.Volume),
+				INode:  agro.INodeID(b.INode),
+			},
+			Index: agro.IndexID(b.Block),
+		}
+		peers, err := d.ring.GetBlockPeers(ref, int(req.ReplicationFactor))
+		if err != nil {
+			return nil, err
+		}
+		ok := false
+		for _, x := range peers {
+			if x == d.srv.mds.UUID() {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			clog.Warningf("trying to write block that doesn't belong to me. aborting.")
+			return &models.PutResponse{Err: "not my block"}, nil
+		}
+		d.blocks.WriteBlock(ctx, ref, req.Blocks[i])
+	}
+	return &models.PutResponse{
+		Ok: true,
+	}, nil
 }
 
 func (d *distributor) PutINode(ctx context.Context, req *models.PutINodeRequest) (*models.PutResponse, error) {
-	return nil, nil
+	if len(req.Refs) != len(req.INodes) {
+		return &models.PutResponse{Err: "malformed request"}, nil
+	}
+	for i, b := range req.Refs {
+		ref := agro.INodeRef{
+			Volume: agro.VolumeID(b.Volume),
+			INode:  agro.INodeID(b.INode),
+		}
+		peers, err := d.ring.GetINodePeers(ref, int(req.ReplicationFactor))
+		if err != nil {
+			return nil, err
+		}
+		ok := false
+		for _, x := range peers {
+			if x == d.srv.mds.UUID() {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			clog.Warningf("trying to write inode that doesn't belong to me. aborting.")
+			return &models.PutResponse{Err: "not my inode"}, nil
+		}
+		d.inodes.WriteINode(ctx, ref, req.INodes[i])
+	}
+	return &models.PutResponse{
+		Ok: true,
+	}, nil
 }

@@ -21,7 +21,7 @@ func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.IN
 		return nil, err
 	}
 	if len(peers) == 0 {
-		return d.inodes.GetINode(ctx, i)
+		return nil, agro.ErrInvalid
 	}
 	// TODO(barakmich): Retry other peers
 	if peers[0] == d.srv.mds.UUID() {
@@ -37,7 +37,7 @@ func (d *distributor) WriteINode(ctx context.Context, i agro.INodeRef, inode *mo
 		return err
 	}
 	if len(peers) == 0 {
-		return d.inodes.WriteINode(ctx, i, inode)
+		return agro.ErrInvalid
 	}
 	for _, p := range peers {
 		var err error
@@ -64,7 +64,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		return nil, err
 	}
 	if len(peers) == 0 {
-		return d.blocks.GetBlock(ctx, i)
+		return nil, agro.ErrInvalid
 	}
 	// TODO(barakmich): Retry other peers
 	if peers[0] == d.srv.mds.UUID() {
@@ -80,7 +80,7 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 		return err
 	}
 	if len(peers) == 0 {
-		return d.blocks.WriteBlock(ctx, i, data)
+		return agro.ErrInvalid
 	}
 	for _, p := range peers {
 		var err error
