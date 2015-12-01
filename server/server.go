@@ -16,6 +16,8 @@ import (
 	_ "github.com/barakmich/agro/storage/inode"
 )
 
+var _ agro.Server = &server{}
+
 type server struct {
 	cold         agro.BlockStore
 	mds          agro.MetadataService
