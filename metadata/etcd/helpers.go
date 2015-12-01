@@ -119,7 +119,7 @@ func keyIsVersion(key []byte, version int64) *pb.Compare {
 		Result: pb.Compare_EQUAL,
 		Key:    key,
 		TargetUnion: &pb.Compare_Version{
-			Version: 1,
+			Version: version,
 		},
 	}
 }
