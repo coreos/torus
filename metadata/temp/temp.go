@@ -273,6 +273,10 @@ func (t *temp) SubscribeNewRings(ch chan agro.Ring) {
 	close(ch)
 }
 
+func (t *temp) UnsubscribeNewRings(ch chan agro.Ring) {
+	// Kay. We unsubscribed you already.
+}
+
 func (t *temp) write() error {
 	if t.cfg.DataDir == "" {
 		return nil

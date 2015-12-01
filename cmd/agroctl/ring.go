@@ -61,7 +61,7 @@ func ringGetAction(cmd *cobra.Command, args []string) {
 
 func ringChangeAction(cmd *cobra.Command, args []string) {
 	mds := mustConnectToMDS()
-	curring, err := mds.GetRing()
+	currentRing, err := mds.GetRing()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't get ring: %s\n", err)
 		os.Exit(1)
@@ -71,13 +71,13 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 	case "empty":
 		newRing, err = ring.CreateRing(&models.Ring{
 			Type:    uint32(ring.Empty),
-			Version: uint32(curring.Version() + 1),
+			Version: uint32(currentRing.Version() + 1),
 		})
 	case "single":
 		newRing, err = ring.CreateRing(&models.Ring{
 			Type:    uint32(ring.Single),
 			UUIDs:   uuids,
-			Version: uint32(curring.Version() + 1),
+			Version: uint32(currentRing.Version() + 1),
 		})
 	case "mod":
 		u := uuids
@@ -97,7 +97,7 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 		newRing, err = ring.CreateRing(&models.Ring{
 			Type:    uint32(ring.Mod),
 			UUIDs:   u,
-			Version: uint32(curring.Version() + 1),
+			Version: uint32(currentRing.Version() + 1),
 		})
 	default:
 		panic("still unknown ring type")

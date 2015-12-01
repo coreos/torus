@@ -90,6 +90,7 @@ type MetadataService interface {
 
 	GetRing() (Ring, error)
 	SubscribeNewRings(chan Ring)
+	UnsubscribeNewRings(chan Ring)
 
 	WithContext(ctx context.Context) MetadataService
 
@@ -160,8 +161,8 @@ type SetRingFunc func(cfg Config, r Ring) error
 
 var setRingFuncs map[string]SetRingFunc
 
-// RegisterSetRing is the hook used for implementions of
-// MetadataServices to register their ways of creating base metadata to the system.
+// RegisterSetRing is the hook used for implementions of MetadataServices to
+// register their ways of creating base metadata to the system.
 func RegisterSetRing(name string, newFunc SetRingFunc) {
 	if setRingFuncs == nil {
 		setRingFuncs = make(map[string]SetRingFunc)

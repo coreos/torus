@@ -138,6 +138,16 @@ func (e *etcd) SubscribeNewRings(ch chan agro.Ring) {
 	e.ringListeners = append(e.ringListeners, ch)
 }
 
+func (e *etcd) UnsubscribeNewRings(ch chan agro.Ring) {
+	e.mut.Lock()
+	defer e.mut.Unlock()
+	for i, c := range e.ringListeners {
+		if ch == c {
+			e.ringListeners = append(e.ringListeners[:i], e.ringListeners[i+1:]...)
+		}
+	}
+}
+
 // Context-sensitive calls
 
 func (c *etcdCtx) getContext() context.Context {
@@ -388,4 +398,8 @@ func (c *etcdCtx) GetRing() (agro.Ring, error) {
 
 func (c *etcdCtx) SubscribeNewRings(ch chan agro.Ring) {
 	c.etcd.SubscribeNewRings(ch)
+}
+
+func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
+	c.etcd.UnsubscribeNewRings(ch)
 }

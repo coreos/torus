@@ -19,8 +19,9 @@ type distributor struct {
 	lis     net.Listener
 	grpcSrv *grpc.Server
 
-	ring   agro.Ring
-	closed bool
+	ring           agro.Ring
+	closed         bool
+	rebalancerChan chan struct{}
 }
 
 func newDistributor(srv *server, addr string, listen bool) (*distributor, error) {
@@ -45,7 +46,8 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 	if err != nil {
 		return nil, err
 	}
-	go d.rebalancer()
+	d.rebalancerChan = make(chan struct{})
+	go d.rebalancer(d.rebalancerChan)
 	d.client = newDistClient(d)
 	return d, nil
 }
@@ -54,6 +56,7 @@ func (d *distributor) Close() error {
 	if d.closed {
 		return nil
 	}
+	close(d.rebalancerChan)
 	if d.lis != nil {
 		d.grpcSrv.Stop()
 		err := d.lis.Close()

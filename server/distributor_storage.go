@@ -14,7 +14,11 @@ func getRepFromContext(ctx context.Context) int {
 	if rep == nil {
 		return 1
 	}
-	return rep.(int)
+	repInt, ok := rep.(int)
+	if !ok {
+		clog.Fatalf("Cannot convert context value of type %#v to int", rep)
+	}
+	return repInt
 }
 
 func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
