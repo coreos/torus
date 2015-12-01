@@ -254,7 +254,7 @@ func (f *file) Sync() error {
 		return err
 	}
 	f.inode.Blocks = blkdata
-	err = f.srv.inodes.WriteINode(nil, f.inodeRef, f.inode)
+	err = f.srv.inodes.WriteINode(context.TODO(), f.inodeRef, f.inode)
 	if err != nil {
 		return err
 	}
