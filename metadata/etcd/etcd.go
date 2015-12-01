@@ -28,8 +28,8 @@ import (
 var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "etcd")
 
 const (
-	keyPrefix      = "/github.com/barakmich/agro/"
-	peerTimeoutMax = 5 * time.Second
+	keyPrefix      = "agro/"
+	peerTimeoutMax = 50 * time.Second
 )
 
 func init() {
@@ -80,6 +80,10 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	}
 	e.etcdCtx.etcd = e
 	err = e.getGlobalMetadata()
+	if err != nil {
+		return nil, err
+	}
+	err = e.watchRingUpdates()
 	if err != nil {
 		return nil, err
 	}

@@ -34,7 +34,6 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {
 		setKey(mkKey("meta", "volumeminter"), uint64ToBytes(1)),
 		setKey(mkKey("meta", "inodeminter"), uint64ToBytes(1)),
 		setKey(mkKey("meta", "globalmetadata"), gmdbytes),
-		setKey(mkKey("meta", "the-one-ring"), ringb),
 	).Tx()
 	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())
 	if err != nil {
@@ -48,6 +47,11 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {
 	}
 	if !resp.Succeeded {
 		return agro.ErrExists
+	}
+	_, err = client.Put(context.Background(),
+		setKey(mkKey("meta", "the-one-ring"), ringb))
+	if err != nil {
+		return err
 	}
 	return nil
 }

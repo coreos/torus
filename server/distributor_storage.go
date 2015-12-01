@@ -7,11 +7,14 @@ import (
 )
 
 func getRepFromContext(ctx context.Context) int {
-	rep, ok := ctx.Value("replication").(int)
-	if !ok {
+	if ctx == nil {
 		return 1
 	}
-	return rep
+	rep := ctx.Value("replication")
+	if rep == nil {
+		return 1
+	}
+	return rep.(int)
 }
 
 func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
@@ -21,7 +24,7 @@ func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.IN
 		return nil, err
 	}
 	if len(peers) == 0 {
-		return nil, agro.ErrInvalid
+		return nil, agro.ErrOutOfSpace
 	}
 	// TODO(barakmich): Retry other peers
 	if peers[0] == d.srv.mds.UUID() {
@@ -37,7 +40,7 @@ func (d *distributor) WriteINode(ctx context.Context, i agro.INodeRef, inode *mo
 		return err
 	}
 	if len(peers) == 0 {
-		return agro.ErrInvalid
+		return agro.ErrOutOfSpace
 	}
 	for _, p := range peers {
 		var err error
@@ -64,7 +67,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		return nil, err
 	}
 	if len(peers) == 0 {
-		return nil, agro.ErrInvalid
+		return nil, agro.ErrOutOfSpace
 	}
 	// TODO(barakmich): Retry other peers
 	if peers[0] == d.srv.mds.UUID() {
@@ -80,7 +83,7 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 		return err
 	}
 	if len(peers) == 0 {
-		return agro.ErrInvalid
+		return agro.ErrOutOfSpace
 	}
 	for _, p := range peers {
 		var err error
