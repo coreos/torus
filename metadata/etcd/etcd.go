@@ -12,6 +12,7 @@ import (
 	"github.com/barakmich/agro"
 	"github.com/barakmich/agro/metadata"
 	"github.com/barakmich/agro/models"
+	"github.com/barakmich/agro/ring"
 
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
@@ -27,13 +28,14 @@ import (
 var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "etcd")
 
 const (
-	keyPrefix      = "/github.com/barakmich/agro/"
-	peerTimeoutMax = 5 * time.Second
+	keyPrefix      = "agro/"
+	peerTimeoutMax = 50 * time.Second
 )
 
 func init() {
 	agro.RegisterMetadataService("etcd", newEtcdMetadata)
 	agro.RegisterMkfs("etcd", mkfs)
+	agro.RegisterSetRing("etcd", setRing)
 }
 
 type etcdCtx struct {
@@ -49,6 +51,8 @@ type etcd struct {
 	volumeminter agro.VolumeID
 	inodeminter  agro.INodeID
 	volumesCache map[string]agro.VolumeID
+
+	ringListeners []chan agro.Ring
 
 	conn *grpc.ClientConn
 	kv   pb.KVClient
@@ -79,10 +83,17 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = e.watchRingUpdates()
+	if err != nil {
+		return nil, err
+	}
 	return e, nil
 }
 
 func (e *etcd) Close() error {
+	for _, l := range e.ringListeners {
+		close(l)
+	}
 	return e.conn.Close()
 }
 
@@ -118,6 +129,22 @@ func (e *etcd) WithContext(ctx context.Context) agro.MetadataService {
 	return &etcdCtx{
 		etcd: e,
 		ctx:  ctx,
+	}
+}
+
+func (e *etcd) SubscribeNewRings(ch chan agro.Ring) {
+	e.mut.Lock()
+	defer e.mut.Unlock()
+	e.ringListeners = append(e.ringListeners, ch)
+}
+
+func (e *etcd) UnsubscribeNewRings(ch chan agro.Ring) {
+	e.mut.Lock()
+	defer e.mut.Unlock()
+	for i, c := range e.ringListeners {
+		if ch == c {
+			e.ringListeners = append(e.ringListeners[:i], e.ringListeners[i+1:]...)
+		}
 	}
 }
 
@@ -361,30 +388,18 @@ func (c *etcdCtx) trySetFileINode(p agro.Path, ref agro.INodeRef, resp *pb.TxnRe
 	return c.trySetFileINode(p, ref, resp)
 }
 
-func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {
-	gmdbytes, err := json.Marshal(gmd)
+func (c *etcdCtx) GetRing() (agro.Ring, error) {
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("meta", "the-one-ring")))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	tx := tx().If(
-		keyNotExists(mkKey("meta", "globalmetadata")),
-	).Then(
-		setKey(mkKey("meta", "volumeminter"), uint64ToBytes(1)),
-		setKey(mkKey("meta", "inodeminter"), uint64ToBytes(1)),
-		setKey(mkKey("meta", "globalmetadata"), gmdbytes),
-	).Tx()
-	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	client := pb.NewKVClient(conn)
-	resp, err := client.Txn(context.Background(), tx)
-	if err != nil {
-		return err
-	}
-	if !resp.Succeeded {
-		return agro.ErrExists
-	}
-	return nil
+	return ring.Unmarshal(resp.Kvs[0].Value)
+}
+
+func (c *etcdCtx) SubscribeNewRings(ch chan agro.Ring) {
+	c.etcd.SubscribeNewRings(ch)
+}
+
+func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
+	c.etcd.UnsubscribeNewRings(ch)
 }

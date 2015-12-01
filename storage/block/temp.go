@@ -16,13 +16,13 @@ func init() {
 
 type tempBlockStore struct {
 	mut     sync.RWMutex
-	store   map[agro.BlockID][]byte
+	store   map[agro.BlockRef][]byte
 	nBlocks uint64
 }
 
 func openTempBlockStore(cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
 	return &tempBlockStore{
-		store: make(map[agro.BlockID][]byte),
+		store: make(map[agro.BlockRef][]byte),
 		// TODO(barakmich): Currently we lie about the number of blocks.
 		// If we want to guess at a size, or make the map be a max size, or something, PRs accepted.
 		nBlocks: cfg.StorageSize / 1024,
@@ -42,7 +42,11 @@ func (t *tempBlockStore) NumBlocks() uint64 {
 	return t.nBlocks
 }
 
-func (t *tempBlockStore) GetBlock(_ context.Context, s agro.BlockID) ([]byte, error) {
+func (t *tempBlockStore) UsedBlocks() uint64 {
+	return uint64(len(t.store))
+}
+
+func (t *tempBlockStore) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 
@@ -57,7 +61,7 @@ func (t *tempBlockStore) GetBlock(_ context.Context, s agro.BlockID) ([]byte, er
 	return x, nil
 }
 
-func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockID, data []byte) error {
+func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockRef, data []byte) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 
@@ -69,7 +73,7 @@ func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockID, data []by
 	return nil
 }
 
-func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockID) error {
+func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 

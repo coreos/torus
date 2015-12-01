@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/barakmich/agro"
+	"github.com/barakmich/agro/models"
 )
 
 func mkdirsFor(dir string) error {
@@ -54,8 +55,9 @@ func NewServer(cfg agro.Config, metadataServiceName, inodeStoreName, blockStoreN
 	}
 
 	return &server{
-		cold:   blocks,
-		mds:    mds,
-		inodes: inodes,
+		blocks:   blocks,
+		mds:      mds,
+		inodes:   inodes,
+		peersMap: make(map[string]*models.PeerInfo),
 	}, nil
 }

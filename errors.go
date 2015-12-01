@@ -7,6 +7,10 @@ var (
 	// block.
 	ErrBlockUnavailable = errors.New("agro: block cannot be retrieved")
 
+	// ErrINodeUnavailable is returned when a function fails to retrieve a known
+	// INode.
+	ErrINodeUnavailable = errors.New("agro: inode cannot be retrieved")
+
 	// ErrBlockNotExist is returned when a function attempts to manipulate a
 	// non-existant block.
 	ErrBlockNotExist = errors.New("agro: block doesn't exist")
@@ -30,4 +34,7 @@ var (
 
 	// ErrNoGlobalMetadata is returned if the metadata service hasn't been formatted.
 	ErrNoGlobalMetadata = errors.New("agro: no global metadata available at mds")
+
+	// ErrNonSequentialRing is returned if the ring's internal version number appears to jump.
+	ErrNonSequentialRing = errors.New("agro: non-sequential ring")
 )

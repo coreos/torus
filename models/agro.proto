@@ -15,7 +15,7 @@ message Metadata {
 
 message INode {
   uint64 volume = 1;
-  uint64 inode = 2;
+  uint64 inode = 2 [(gogoproto.customname) = "INode"];
   uint64 replaces = 3;
   uint64 filesize = 4;
   repeated string filenames = 5; // Should always be length at least 1, includes hard links
@@ -31,7 +31,7 @@ message BlockLayer {
 
 message Directory {
   Metadata metadata = 1;
-  // map<filename (no path), inodeID>
+  // key is the filename without the path
   map<string, uint64> files = 2;
   // TODO(barakmich) Soft Link
 }
@@ -47,6 +47,7 @@ message PeerInfo {
 
 message Ring {
   uint32 type = 1;
-  repeated string uuids = 2 [(gogoproto.customname) = "UUIDs"];
-  map<string, bytes> attrs = 3;
+  uint32 version = 2;
+  repeated string uuids = 3 [(gogoproto.customname) = "UUIDs"];
+  map<string, bytes> attrs = 4;
 }

@@ -12,7 +12,7 @@ import (
 
 type baseBlockset struct {
 	ids    uint64
-	blocks []agro.BlockID
+	blocks []agro.BlockRef
 	store  agro.BlockStore
 }
 
@@ -26,7 +26,7 @@ func init() {
 
 func newBaseBlockset(store agro.BlockStore) *baseBlockset {
 	b := &baseBlockset{
-		blocks: make([]agro.BlockID, 0),
+		blocks: make([]agro.BlockRef, 0),
 		store:  store,
 	}
 	return b
@@ -65,9 +65,9 @@ func (b *baseBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int,
 	return nil
 }
 
-func (b *baseBlockset) makeID(i agro.INodeRef) agro.BlockID {
+func (b *baseBlockset) makeID(i agro.INodeRef) agro.BlockRef {
 	id := atomic.AddUint64(&b.ids, 2)
-	return agro.BlockID{
+	return agro.BlockRef{
 		INodeRef: i,
 		Index:    agro.IndexID(id),
 	}
@@ -99,7 +99,7 @@ func (b *baseBlockset) Unmarshal(data []byte) error {
 	if err != nil {
 		return err
 	}
-	out := make([]agro.BlockID, l)
+	out := make([]agro.BlockRef, l)
 	err = binary.Read(r, binary.LittleEndian, &out)
 	if err != nil {
 		return err

@@ -3,6 +3,7 @@ package server
 import (
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -20,11 +21,17 @@ import (
 var _ agro.Server = &server{}
 
 type server struct {
-	cold         agro.BlockStore
-	mds          agro.MetadataService
-	inodes       agro.INodeStore
-	closeChans   []chan interface{}
+	mut        sync.RWMutex
+	blocks     agro.BlockStore
+	mds        agro.MetadataService
+	inodes     agro.INodeStore
+	peersMap   map[string]*models.PeerInfo
+	closeChans []chan interface{}
+
 	internalAddr string
+
+	heartbeating    bool
+	replicationOpen bool
 }
 
 func NewMemoryServer() agro.Server {
@@ -34,9 +41,10 @@ func NewMemoryServer() agro.Server {
 	gmd, _ := mds.GlobalMetadata()
 	cold, _ := agro.CreateBlockStore("temp", cfg, gmd)
 	return &server{
-		cold:   cold,
-		mds:    mds,
-		inodes: inodes,
+		blocks:   cold,
+		mds:      mds,
+		inodes:   inodes,
+		peersMap: make(map[string]*models.PeerInfo),
 	}
 }
 
@@ -55,11 +63,11 @@ func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err er
 	if err != nil {
 		return nil, err
 	}
-	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, s.cold)
+	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, s.blocks)
 	if err != nil {
 		return nil, err
 	}
-	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.Inode, bs.Length())
+	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.INode, bs.Length())
 	return &file{
 		path:    path,
 		inode:   n,
@@ -172,7 +180,7 @@ func (s *server) Close() error {
 	if err != nil {
 		return err
 	}
-	err = s.cold.Close()
+	err = s.blocks.Close()
 	if err != nil {
 		return err
 	}
