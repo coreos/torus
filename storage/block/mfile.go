@@ -89,6 +89,10 @@ func (m *mfileBlock) NumBlocks() uint64 {
 	return m.data.NumBlocks()
 }
 
+func (m *mfileBlock) UsedBlocks() uint64 {
+	return uint64(m.blockTrie.Len())
+}
+
 func (m *mfileBlock) Flush() error {
 	err := m.data.Flush()
 	if err != nil {

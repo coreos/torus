@@ -107,6 +107,10 @@ func (d *distributor) NumBlocks() uint64 {
 	return d.blocks.NumBlocks()
 }
 
+func (d *distributor) UsedBlocks() uint64 {
+	return d.blocks.UsedBlocks()
+}
+
 func (d *distributor) Flush() error {
 	return d.blocks.Flush()
 }

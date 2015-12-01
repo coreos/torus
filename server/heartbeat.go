@@ -43,6 +43,7 @@ func (s *server) oneHeartbeat() {
 	p := &models.PeerInfo{}
 	p.Address = s.internalAddr
 	p.TotalBlocks = s.blocks.NumBlocks()
+	p.UsedBlocks = s.blocks.UsedBlocks()
 	p.UUID = s.mds.UUID()
 	err := s.mds.WithContext(ctx).RegisterPeer(p)
 	if err != nil {

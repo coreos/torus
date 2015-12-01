@@ -39,13 +39,14 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 		table.SetBorder(false)
 		table.SetColumnSeparator(",")
 	} else {
-		table.SetHeader([]string{"Address", "UUID", "Storage Size", "Last Registered"})
+		table.SetHeader([]string{"Address", "UUID", "Size", "Used", "Last Registered"})
 	}
 	for _, x := range peers {
 		table.Append([]string{
 			x.Address,
 			x.UUID,
 			humanize.IBytes(x.TotalBlocks * gmd.BlockSize),
+			humanize.IBytes(x.UsedBlocks * gmd.BlockSize),
 			humanize.Time(time.Unix(0, x.LastSeen)),
 		})
 	}

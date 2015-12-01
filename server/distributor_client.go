@@ -120,8 +120,9 @@ func (d *distClient) PutINode(ctx context.Context, uuid string, b agro.INodeRef,
 	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
 	resp, err := client.PutINode(newctx, &models.PutINodeRequest{
-		Refs:   []*models.INodeRef{ref},
-		INodes: []*models.INode{inode},
+		Refs:              []*models.INodeRef{ref},
+		INodes:            []*models.INode{inode},
+		ReplicationFactor: uint32(rep),
 	})
 	if err != nil {
 		if err == context.DeadlineExceeded {
@@ -149,8 +150,9 @@ func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef,
 	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
 	resp, err := client.PutBlock(newctx, &models.PutBlockRequest{
-		Refs:   []*models.BlockRef{ref},
-		Blocks: [][]byte{data},
+		Refs:              []*models.BlockRef{ref},
+		Blocks:            [][]byte{data},
+		ReplicationFactor: uint32(rep),
 	})
 	if err != nil {
 		if err == context.DeadlineExceeded {

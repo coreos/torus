@@ -42,6 +42,10 @@ func (t *tempBlockStore) NumBlocks() uint64 {
 	return t.nBlocks
 }
 
+func (t *tempBlockStore) UsedBlocks() uint64 {
+	return uint64(len(t.store))
+}
+
 func (t *tempBlockStore) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()

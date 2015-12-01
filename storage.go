@@ -76,6 +76,7 @@ type BlockStore interface {
 	WriteBlock(ctx context.Context, b BlockRef, data []byte) error
 	DeleteBlock(ctx context.Context, b BlockRef) error
 	NumBlocks() uint64
+	UsedBlocks() uint64
 	// TODO(barakmich) FreeBlocks()
 }
 
