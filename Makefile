@@ -1,5 +1,6 @@
 build:
 	go build ./cmd/agro
+	go build ./cmd/agroctl
 
 run:
 	./agro -debug
