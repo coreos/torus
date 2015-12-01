@@ -31,7 +31,7 @@ message BlockLayer {
 
 message Directory {
   Metadata metadata = 1;
-  // key is the filename without the path
+  // map<filename (no path), inodeID>
   map<string, uint64> files = 2;
   // TODO(barakmich) Soft Link
 }
