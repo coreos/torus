@@ -8,6 +8,7 @@ import (
 const (
 	Empty agro.RingType = iota
 	Single
+	Mod
 )
 
 func Unmarshal(b []byte) (agro.Ring, error) {
