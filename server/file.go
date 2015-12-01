@@ -103,7 +103,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	// Write the front matter, which may dangle from a byte offset
 	blkIndex := int(off / f.blkSize)
 
-	if f.blocks.Length() > blkIndex {
+	if f.blocks.Length() < blkIndex {
 		// TODO(barakmich) Support truncate in the block abstraction, fill/return 0s
 		return n, errors.New("Can't write past the end of a file")
 	}
