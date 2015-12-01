@@ -6,11 +6,16 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
+func getRepFromContext(ctx context.Context) int {
 	rep, ok := ctx.Value("replication").(int)
 	if !ok {
-		rep = 1
+		return 1
 	}
+	return rep
+}
+
+func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
+	rep := getRepFromContext(ctx)
 	peers, err := d.ring.GetINodePeers(i, rep)
 	if err != nil {
 		return nil, err
@@ -22,12 +27,30 @@ func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.IN
 	if peers[0] == d.srv.mds.UUID() {
 		return d.inodes.GetINode(ctx, i)
 	}
-	pi := d.srv.peersMap[peers[0]]
-	return d.client.GetINode(ctx, pi.Address, i)
+	return d.client.GetINode(ctx, peers[0], i)
 }
 
 func (d *distributor) WriteINode(ctx context.Context, i agro.INodeRef, inode *models.INode) error {
-	return d.inodes.WriteINode(ctx, i, inode)
+	rep := getRepFromContext(ctx)
+	peers, err := d.ring.GetINodePeers(i, rep)
+	if err != nil {
+		return err
+	}
+	if len(peers) == 0 {
+		return d.inodes.WriteINode(ctx, i, inode)
+	}
+	for _, p := range peers {
+		var err error
+		if p == d.srv.mds.UUID() {
+			err = d.inodes.WriteINode(ctx, i, inode)
+		} else {
+			err = d.client.PutINode(ctx, p, i, inode, rep)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *distributor) DeleteINode(ctx context.Context, i agro.INodeRef) error {
@@ -35,10 +58,7 @@ func (d *distributor) DeleteINode(ctx context.Context, i agro.INodeRef) error {
 }
 
 func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
-	rep, ok := ctx.Value("replication").(int)
-	if !ok {
-		rep = 1
-	}
+	rep := getRepFromContext(ctx)
 	peers, err := d.ring.GetBlockPeers(i, rep)
 	if err != nil {
 		return nil, err
@@ -50,12 +70,30 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	if peers[0] == d.srv.mds.UUID() {
 		return d.blocks.GetBlock(ctx, i)
 	}
-	pi := d.srv.peersMap[peers[0]]
-	return d.client.GetBlock(ctx, pi.Address, i)
+	return d.client.GetBlock(ctx, peers[0], i)
 }
 
 func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {
-	return d.blocks.WriteBlock(ctx, i, data)
+	rep := getRepFromContext(ctx)
+	peers, err := d.ring.GetBlockPeers(i, rep)
+	if err != nil {
+		return err
+	}
+	if len(peers) == 0 {
+		return d.blocks.WriteBlock(ctx, i, data)
+	}
+	for _, p := range peers {
+		var err error
+		if p == d.srv.mds.UUID() {
+			err = d.blocks.WriteBlock(ctx, i, data)
+		} else {
+			err = d.client.PutBlock(ctx, p, i, data, rep)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *distributor) DeleteBlock(ctx context.Context, i agro.BlockRef) error {
