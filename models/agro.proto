@@ -5,48 +5,49 @@ import "gogoproto/gogo.proto";
 package models;
 
 message Metadata {
-  uint32 uid = 1;
-  uint32 gid = 2;
-  uint32 mode = 3;
-  uint32 flags = 4;
-  uint64 ctime = 5;
-  uint64 mtime = 6;
+	uint32 uid = 1;
+	uint32 gid = 2;
+	uint32 mode = 3;
+	uint32 flags = 4;
+	uint64 ctime = 5;
+	uint64 mtime = 6;
 }
 
 message INode {
-  uint64 volume = 1;
-  uint64 inode = 2;
-  uint64 replaces = 3;
-  uint64 filesize = 4;
-  repeated string filenames = 5; // Should always be length at least 1, includes hard links
-  Metadata permissions = 6;
-  map<string, string> attrs = 7;
-  repeated BlockLayer blocks = 8;
+	uint64 volume = 1;
+	uint64 inode = 2 [(gogoproto.customname) = "INode"];
+	uint64 replaces = 3;
+	uint64 filesize = 4;
+	repeated string filenames = 5; // Should always be length at least 1, includes hard links
+	Metadata permissions = 6;
+	map<string, string> attrs = 7;
+	repeated BlockLayer blocks = 8;
 }
 
 message BlockLayer {
-  uint32 type = 1;
-  bytes content = 2;
+	uint32 type = 1;
+	bytes content = 2;
 }
 
 message Directory {
-  Metadata metadata = 1;
-  // key is the filename without the path
-  map<string, uint64> files = 2;
-  // TODO(barakmich) Soft Link
+	Metadata metadata = 1;
+	// key is the filename without the path
+	map<string, uint64> files = 2;
+	// TODO(barakmich) Soft Link
 }
 
 message PeerInfo {
-  string uuid = 1 [(gogoproto.customname) = "UUID"];
-  string address = 2;
+	string uuid = 1 [(gogoproto.customname) = "UUID"];
+	string address = 2;
 
-  int64 last_seen = 3; // In Unix nanoseconds.
-  uint64 total_blocks = 4;
-  uint64 used_blocks = 5;
+	int64 last_seen = 3; // In Unix nanoseconds.
+	uint64 total_blocks = 4;
+	uint64 used_blocks = 5;
 }
 
 message Ring {
-  uint32 type = 1;
-  repeated string uuids = 2 [(gogoproto.customname) = "UUIDs"];
-  map<string, bytes> attrs = 3;
+	uint32 type = 1;
+	uint32 version = 2;
+	repeated string uuids = 3 [(gogoproto.customname) = "UUIDs"];
+	map<string, bytes> attrs = 4;
 }

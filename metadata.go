@@ -88,6 +88,9 @@ type MetadataService interface {
 	RegisterPeer(*models.PeerInfo) error
 	GetPeers() ([]*models.PeerInfo, error)
 
+	GetRing() (Ring, error)
+	SubscribeNewRings(chan Ring)
+
 	WithContext(ctx context.Context) MetadataService
 
 	// TODO(barakmich): Extend with GC interaction, et al
@@ -151,4 +154,28 @@ func RegisterMkfs(name string, newFunc MkfsFunc) {
 func Mkfs(name string, cfg Config, gmd GlobalMetadata) error {
 	clog.Debugf("running mkfs for service type: %s", name)
 	return mkfsFuncs[name](cfg, gmd)
+}
+
+type SetRingFunc func(cfg Config, r Ring) error
+
+var setRingFuncs map[string]SetRingFunc
+
+// RegisterSetRing is the hook used for implementions of
+// MetadataServices to register their ways of creating base metadata to the system.
+func RegisterSetRing(name string, newFunc SetRingFunc) {
+	if setRingFuncs == nil {
+		setRingFuncs = make(map[string]SetRingFunc)
+	}
+
+	if _, ok := setRingFuncs[name]; ok {
+		panic("agro: attempted to register SetRingFunc " + name + " twice")
+	}
+
+	setRingFuncs[name] = newFunc
+}
+
+// SetRing calls the specific SetRing function provided by a metadata package.
+func SetRing(name string, cfg Config, r Ring) error {
+	clog.Debugf("running setRing for service type: %s", name)
+	return setRingFuncs[name](cfg, r)
 }

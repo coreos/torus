@@ -14,7 +14,7 @@ var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "blockset")
 
 type blockset interface {
 	agro.Blockset
-	makeID(agro.INodeRef) agro.BlockID
+	makeID(agro.INodeRef) agro.BlockRef
 	setStore(store agro.BlockStore)
 }
 

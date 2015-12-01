@@ -30,7 +30,7 @@ type file struct {
 }
 
 func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error) {
-	bs, err := blockset.UnmarshalFromProto(inode.GetBlocks(), s.cold)
+	bs, err := blockset.UnmarshalFromProto(inode.GetBlocks(), s.blocks)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 		return nil, err
 	}
 
-	clog.Tracef("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.Inode, bs.Length(), inode.Filesize)
+	clog.Tracef("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
 	f := &file{
 		path:    path,
 		inode:   inode,
@@ -77,8 +77,8 @@ func (f *file) openWrite() error {
 		INode:  newInode,
 	}
 	if f.inode != nil {
-		f.inode.Replaces = f.inode.Inode
-		f.inode.Inode = uint64(newInode)
+		f.inode.Replaces = f.inode.INode
+		f.inode.INode = uint64(newInode)
 	}
 	f.writeOpen = true
 	return nil
@@ -254,7 +254,7 @@ func (f *file) Sync() error {
 		return err
 	}
 	f.inode.Blocks = blkdata
-	err = f.srv.inodes.WriteINode(nil, f.inodeRef, f.inode)
+	err = f.srv.inodes.WriteINode(context.TODO(), f.inodeRef, f.inode)
 	if err != nil {
 		return err
 	}
