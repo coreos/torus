@@ -3,6 +3,7 @@ package server
 import (
 	"os"
 	"path"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -102,6 +103,49 @@ func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
 	}
 
 	return agro.INodeRef{volID, agro.INodeID(inodeID)}, nil
+}
+
+type fileInfo struct {
+	inode *models.INode
+	path  agro.Path
+}
+
+func (fi fileInfo) Name() string {
+	return fi.inode.Filenames[0]
+}
+
+func (fi fileInfo) Size() int64 {
+	return int64(fi.inode.Filesize)
+}
+
+func (fi fileInfo) Mode() os.FileMode {
+	return os.FileMode(fi.inode.Permissions.Mode)
+}
+
+func (fi fileInfo) ModTime() time.Time {
+	return time.Unix(int64(fi.inode.Permissions.Mtime), 0)
+}
+
+func (fi fileInfo) IsDir() bool {
+	return fi.path.IsDir()
+}
+
+func (fi fileInfo) Sys() interface{} {
+	return fi
+}
+
+func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
+	ref, err := s.inodeRefForPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	inode, err := s.inodes.GetINode(context.TODO(), ref)
+	if err != nil {
+		return nil, err
+	}
+
+	return fileInfo{inode, path}, nil
 }
 
 func (s *server) CreateVolume(vol string) error {
