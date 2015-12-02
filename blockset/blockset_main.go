@@ -22,6 +22,7 @@ type blockset interface {
 const (
 	Base agro.BlockLayerKind = iota
 	CRC
+	Replication
 )
 
 // CreateBlocksetFunc is the signature of a constructor used to create
@@ -116,6 +117,8 @@ func ParseBlockLayerKind(s string) (agro.BlockLayerKind, error) {
 		return Base, nil
 	case "crc":
 		return CRC, nil
+	case "rep", "r":
+		return Replication, nil
 	default:
 		return agro.BlockLayerKind(-1), fmt.Errorf("no such block layer type: %s", s)
 	}
