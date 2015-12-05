@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"os"
 	"path"
 	"sync"
@@ -154,6 +155,31 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 	}
 
 	return fileInfo{inode, path}, nil
+}
+
+func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
+	if !path.IsDir() {
+		return nil, errors.New("ENOTDIR")
+	}
+
+	dir, subdirs, err := s.mds.Getdir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var entries []agro.Path
+	entries = append(entries, subdirs...)
+
+	for filename := range dir.Files {
+		childPath, ok := path.Child(filename)
+		if !ok {
+			return nil, errors.New("server: entry path is not a directory")
+		}
+
+		entries = append(entries, childPath)
+	}
+
+	return entries, nil
 }
 
 func (s *server) CreateVolume(vol string) error {
