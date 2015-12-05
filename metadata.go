@@ -29,10 +29,13 @@ func (p Path) IsDir() (b bool) {
 	return p.Path[len(p.Path)-1] == byte('/')
 }
 
-func (p Path) Super() (Path, bool) {
+// Parent returns the parent directory of the directory provided. False is
+// returned if the path provided is not a directory.
+func (p Path) Parent() (Path, bool) {
 	if !p.IsDir() {
 		return p, false
 	}
+
 	super, _ := path.Split(strings.TrimSuffix(p.Path, "/"))
 	return Path{
 		Volume: p.Volume,
