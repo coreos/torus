@@ -80,6 +80,13 @@ func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 		return nil, errors.New("fuse: path is not a directory")
 	}
 
+	_, err := d.dfs.Lstat(newPath)
+	if err == os.ErrNotExist {
+		return nil, fuse.ENOENT
+	} else if err != nil {
+		return nil, err
+	}
+
 	if newPath.IsDir() {
 		return Dir{dfs: d.dfs, path: newPath}, nil
 	}
