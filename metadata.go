@@ -40,6 +40,19 @@ func (p Path) Super() (Path, bool) {
 	}, true
 }
 
+// Child appends the filename to the path provided and returns the resulting
+// path. False is returned if the path provided is not a directory.
+func (p Path) Child(filename string) (Path, bool) {
+	if !p.IsDir() {
+		return p, false
+	}
+
+	return Path{
+		Volume: p.Volume,
+		Path:   p.Path + filename,
+	}, true
+}
+
 // GetDepth returns the distance of the current path from the root of the
 // filesystem.
 func (p Path) GetDepth() int {
