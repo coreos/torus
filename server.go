@@ -13,6 +13,7 @@ type Server interface {
 	Create(Path, models.Metadata) (File, error)
 	Open(Path) (File, error)
 	Lstat(Path) (os.FileInfo, error)
+	Readdir(Path) ([]Path, error)
 
 	// Some server metacalls.
 	CreateVolume(string) error

@@ -12,6 +12,7 @@ import (
 	"github.com/barakmich/agro/blockset"
 	"github.com/barakmich/agro/internal/http"
 	"github.com/barakmich/agro/server"
+	agrofuse "github.com/barakmich/agro/server/fuse"
 
 	// Register all the possible drivers.
 	_ "github.com/barakmich/agro/metadata/etcd"
@@ -21,12 +22,14 @@ import (
 )
 
 var (
-	dataDir     string
-	etcdAddress string
-	httpAddress string
-	peerAddress string
-	port        int
-	mkfs        bool
+	dataDir        string
+	etcdAddress    string
+	httpAddress    string
+	peerAddress    string
+	fuseMountpoint string
+	fuseVolume     string
+	port           int
+	mkfs           bool
 
 	debug bool
 	trace bool
@@ -48,6 +51,8 @@ func init() {
 	rootCommand.PersistentFlags().IntVarP(&port, "port", "", 4321, "Port to listen on for HTTP")
 	rootCommand.PersistentFlags().BoolVarP(&trace, "trace", "", false, "Turn on trace output")
 	rootCommand.PersistentFlags().StringVarP(&peerAddress, "peer-address", "", "", "Address to listen on for intra-cluster data")
+	rootCommand.PersistentFlags().StringVarP(&fuseMountpoint, "fuse-mountpoint", "", "", "Location to mount a FUSE filesystem")
+	rootCommand.PersistentFlags().StringVarP(&fuseVolume, "fuse-volume", "", "", "Volume to be mounted as a FUSE filesystem")
 }
 
 func main() {
@@ -123,5 +128,9 @@ func runServer(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	http.ServeHTTP(httpAddress, srv)
+	if fuseMountpoint != "" && fuseVolume != "" {
+		agrofuse.MustMount(fuseMountpoint, fuseVolume, srv)
+	} else {
+		http.ServeHTTP(httpAddress, srv)
+	}
 }

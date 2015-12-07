@@ -294,12 +294,12 @@ func (c *etcdCtx) CommitInodeIndex() (agro.INodeID, error) {
 }
 
 func (c *etcdCtx) Mkdir(path agro.Path, dir *models.Directory) error {
-	super, ok := path.Super()
+	parent, ok := path.Parent()
 	if !ok {
 		return errors.New("etcd: not a directory")
 	}
 	tx := tx().If(
-		keyExists(mkKey("dirs", super.Key())),
+		keyExists(mkKey("dirs", parent.Key())),
 	).Then(
 		setKey(mkKey("dirs", path.Key()), newDirProto(&models.Metadata{})),
 	).Tx()
