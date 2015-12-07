@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrNoPeersBlock = errors.New("distributor: no peers available for a block")
-	ErrNoPeersINode = errors.New("distributor: no peers available for a block")
+	ErrNoPeersINode = errors.New("distributor: no peers available for an inode")
 )
 
 func getRepFromContext(ctx context.Context) int {
