@@ -14,6 +14,7 @@ var (
 	ringType string
 	uuids    []string
 	allUUIDs bool
+	mds      agro.MetadataService
 )
 
 var ringCommand = &cobra.Command{
@@ -60,7 +61,9 @@ func ringGetAction(cmd *cobra.Command, args []string) {
 }
 
 func ringChangeAction(cmd *cobra.Command, args []string) {
-	mds := mustConnectToMDS()
+	if mds == nil {
+		mds = mustConnectToMDS()
+	}
 	currentRing, err := mds.GetRing()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't get ring: %s\n", err)
@@ -80,23 +83,9 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 			Version: uint32(currentRing.Version() + 1),
 		})
 	case "mod":
-		u := uuids
-		if allUUIDs {
-			u = nil
-			peers, err := mds.GetPeers()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "couldn't get peer list: %s\n", err)
-				os.Exit(1)
-			}
-			for _, p := range peers {
-				if p.Address != "" {
-					u = append(u, p.UUID)
-				}
-			}
-		}
 		newRing, err = ring.CreateRing(&models.Ring{
 			Type:    uint32(ring.Mod),
-			UUIDs:   u,
+			UUIDs:   uuids,
 			Version: uint32(currentRing.Version() + 1),
 		})
 	default:
@@ -117,8 +106,26 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 }
 
 func ringChangePreRun(cmd *cobra.Command, args []string) {
+	if allUUIDs {
+		if allUUIDs && len(uuids) != 0 {
+			fmt.Fprint(os.Stderr, "use only one of --uuids or --all-peers")
+			os.Exit(1)
+		}
+		mds = mustConnectToMDS()
+		peers, err := mds.GetPeers()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "couldn't get peer list: %s\n", err)
+			os.Exit(1)
+		}
+		for _, p := range peers {
+			if p.Address != "" {
+				uuids = append(uuids, p.UUID)
+			}
+		}
+	}
 	switch ringType {
 	case "empty":
+		uuids = nil
 		return
 	case "single":
 		if len(uuids) != 1 {
@@ -127,8 +134,8 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 		}
 		return
 	case "mod":
-		if len(uuids) != 0 && allUUIDs {
-			fmt.Fprint(os.Stderr, "use only one of --uuids or --all-peers")
+		if len(uuids) == 0 {
+			fmt.Fprint(os.Stderr, "need one of --uuids or --all-peers")
 			os.Exit(1)
 		}
 	default:
