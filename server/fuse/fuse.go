@@ -135,18 +135,18 @@ func (f File) ReadAll(ctx context.Context) ([]byte, error) {
 }
 
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
+	fileInfo, err := f.dfs.Lstat(f.path)
+	if err != nil {
+		return err
+	}
 	// TODO(jzelinskie): enable this when metadata is being utilized.
 	/*
-		fileInfo, err := f.dfs.Lstat(f.path)
-		if err != nil {
-			return err
-		}
 
 		a.Mtime = fileInfo.ModTime()
 		a.Mode = fileInfo.Mode()
-		a.Size = uint64(fileInfo.Size())
 	*/
 
+	a.Size = uint64(fileInfo.Size())
 	a.Mode = 0555
 
 	return nil
