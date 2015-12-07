@@ -52,6 +52,14 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 	return d, nil
 }
 
+func (d *distributor) UUID() string {
+	return d.srv.mds.UUID()
+}
+
+func (d *distributor) inodeReplication() int {
+	return d.srv.mds.GlobalMetadata().INodeReplication
+}
+
 func (d *distributor) Close() error {
 	if d.closed {
 		return nil

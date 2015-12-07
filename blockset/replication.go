@@ -20,10 +20,13 @@ var _ blockset = &replicationBlockset{}
 
 func init() {
 	RegisterBlockset(Replication, func(opt string, _ agro.BlockStore, sub blockset) (blockset, error) {
+		if opt == "" {
+			clog.Debugf("using default replication (0) to unmarshal")
+			return newReplicationBlockset(sub, 0), nil
+		}
 		r, err := strconv.Atoi(opt)
 		if err != nil {
 			clog.Errorf("unknown replication amount %s", opt)
-			//TODO(barakmich): Perhaps a default?
 			return nil, errors.New("unknown replication amount: " + opt)
 		}
 		return newReplicationBlockset(sub, r), nil
@@ -46,11 +49,17 @@ func (b *replicationBlockset) Kind() uint32 {
 }
 
 func (b *replicationBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
+	if b.rep == 0 {
+		return nil, agro.ErrBlockUnavailable
+	}
 	newctx := context.WithValue(ctx, "replication", b.rep)
 	return b.sub.GetBlock(newctx, i)
 }
 
 func (b *replicationBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, data []byte) error {
+	if b.rep == 0 {
+		return agro.ErrBlockUnavailable
+	}
 	newctx := context.WithValue(ctx, "replication", b.rep)
 	return b.sub.PutBlock(newctx, inode, i, data)
 }

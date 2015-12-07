@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	blockSize    uint64
-	blockSizeStr string
-	blockSpec    string
+	blockSize        uint64
+	blockSizeStr     string
+	blockSpec        string
+	inodeReplication int
 )
 
 var mkfsCommand = &cobra.Command{
@@ -29,6 +30,7 @@ var mkfsCommand = &cobra.Command{
 func init() {
 	mkfsCommand.Flags().StringVarP(&blockSizeStr, "block-size", "", "8KiB", "size of all data blocks in this filesystem")
 	mkfsCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this filesystem")
+	mkfsCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
 }
 
 func mkfsPreRun(cmd *cobra.Command, args []string) {
@@ -49,6 +51,7 @@ func mkfsAction(cmd *cobra.Command, args []string) {
 	md := agro.GlobalMetadata{}
 	md.BlockSize = blockSize
 	md.DefaultBlockSpec, err = blockset.ParseBlockLayerSpec(blockSpec)
+	md.INodeReplication = inodeReplication
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error parsing block-spec: %s\n", err)
 		os.Exit(1)

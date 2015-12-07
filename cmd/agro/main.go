@@ -93,6 +93,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		err = agro.Mkfs("etcd", cfg, agro.GlobalMetadata{
 			BlockSize:        8 * 1024,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
+			INodeReplication: 3,
 		})
 		if err != nil {
 			if err == agro.ErrExists {

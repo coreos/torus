@@ -200,7 +200,7 @@ func (c *etcdCtx) GetPeers() ([]*models.PeerInfo, error) {
 			continue
 		}
 		if time.Since(time.Unix(0, p.LastSeen)) > peerTimeoutMax {
-			clog.Debugf("peer at key %s didn't unregister; fixed with leases in etcdv3", string(x.Key))
+			clog.Tracef("peer at key %s didn't unregister; fixed with leases in etcdv3", string(x.Key))
 			continue
 		}
 		out = append(out, &p)
