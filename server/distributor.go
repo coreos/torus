@@ -10,6 +10,10 @@ import (
 	"github.com/barakmich/agro/models"
 )
 
+const (
+	defaultInodeReplication = 3
+)
+
 type distributor struct {
 	mut     sync.RWMutex
 	blocks  agro.BlockStore
@@ -57,7 +61,12 @@ func (d *distributor) UUID() string {
 }
 
 func (d *distributor) inodeReplication() int {
-	return d.srv.mds.GlobalMetadata().INodeReplication
+	r, err := d.srv.mds.GlobalMetadata()
+	if err != nil {
+		clog.Error(err)
+		return defaultInodeReplication
+	}
+	return r.INodeReplication
 }
 
 func (d *distributor) Close() error {
