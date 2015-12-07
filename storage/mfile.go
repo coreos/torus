@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/edsrzf/mmap-go"
@@ -50,7 +51,7 @@ func OpenMFile(path string, blkSize uint64) (*MFile, error) {
 	}
 	mf.size = uint64(st.Size())
 	if mf.size%blkSize != 0 {
-		return nil, errors.New("File size is not a multiple of the block size")
+		return nil, fmt.Errorf("File size is not a multiple of the block size: %d size, %d blksize", mf.size, blkSize)
 	}
 	mf.mmap, err = mmap.Map(f, mmap.RDWR, 0)
 	if err != nil {

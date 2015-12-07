@@ -8,9 +8,15 @@ run:
 clean:
 	rm -rf /tmp/agro
 	rm -rf /tmp/agro2
+	rm -rf /tmp/agro3
+
+cleanall: clean
 	rm -rf /tmp/etcd
 
 etcdrun:
+	./local/etcd/etcd --experimental-v3demo --experimental-gRPC-addr 127.0.0.1:2378 --data-dir /tmp/etcd
+
+run3:
 	goreman start
 
 cleanrun: clean run

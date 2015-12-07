@@ -117,6 +117,7 @@ type MetadataService interface {
 type GlobalMetadata struct {
 	BlockSize        uint64
 	DefaultBlockSpec BlockLayerSpec
+	INodeReplication int
 }
 
 // CreateMetadataServiceFunc is the signature of a constructor used to create
