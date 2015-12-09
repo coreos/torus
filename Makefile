@@ -3,7 +3,7 @@ build:
 	go build ./cmd/agroctl
 
 run:
-	./agro -debug
+	./agro --etcd 127.0.0.1:2378 --debug --debug-mkfs --peer-address 127.0.0.1:40000
 
 clean:
 	rm -rf /tmp/agro
