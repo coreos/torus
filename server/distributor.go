@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultInodeReplication = 3
+	defaultINodeReplication = 3
 )
 
 type distributor struct {
@@ -64,7 +64,7 @@ func (d *distributor) inodeReplication() int {
 	r, err := d.srv.mds.GlobalMetadata()
 	if err != nil {
 		clog.Error(err)
-		return defaultInodeReplication
+		return defaultINodeReplication
 	}
 	return r.INodeReplication
 }
