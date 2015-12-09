@@ -127,7 +127,7 @@ var (
 
 func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	if req.Dir {
-		return errors.New("Should be using ReadDirAll right now")
+		return errors.New("ENOTDIR")
 	}
 	file, ok := handleCache[req.Node]
 	if !ok {
