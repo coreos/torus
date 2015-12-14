@@ -112,10 +112,10 @@ func (f *file) openBlock(i int) error {
 
 func (f *file) writeToBlock(from, to int, data []byte) int {
 	if f.openData == nil {
-		panic("Data not open")
+		panic("server: file data not open")
 	}
 	if (to - from) != len(data) {
-		panic("different lengths?")
+		panic("server: different write lengths?")
 	}
 	return copy(f.openData[from:to], data)
 }
@@ -164,7 +164,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		if err != nil {
 			return n, err
 		}
-		wrote := f.writeToBlock(int(blkOff), frontlen, b[:frontlen])
+		wrote := f.writeToBlock(int(blkOff), int(blkOff)+frontlen, b[:frontlen])
 		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
 		if wrote != frontlen {
 			return n, errors.New("Couldn't write all of the first block at the offset")
@@ -270,7 +270,11 @@ func (f *file) Close() error {
 	if f == nil {
 		return agro.ErrInvalid
 	}
-	return f.Sync()
+	err := f.Sync()
+	if err != nil {
+		clog.Error(err)
+	}
+	return err
 }
 
 func (f *file) Sync() error {
