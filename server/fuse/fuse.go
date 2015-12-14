@@ -2,7 +2,7 @@ package fuse
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"os"
 	"syscall"
 
@@ -120,18 +120,43 @@ type File struct {
 }
 
 var (
-	_ fs.Handle          = File{}
-	_ fs.HandleReadAller = File{}
+	_           fs.Handle       = File{}
+	_           fs.HandleReader = File{}
+	handleCache                 = make(map[fuse.NodeID]agro.File)
 )
 
-func (f File) ReadAll(ctx context.Context) ([]byte, error) {
-	file, err := f.dfs.Open(f.path)
-	if err != nil {
-		return nil, err
+func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	if req.Dir {
+		return errors.New("ENOTDIR")
 	}
-	defer file.Close()
+	file, ok := handleCache[req.Node]
+	if !ok {
+		var err error
+		file, err = f.dfs.Open(f.path)
+		if err != nil {
+			clog.Error(err)
+			return err
+		}
+		clog.Debugf("opening %d", req.Node)
+		handleCache[req.Node] = file
+	}
+	data := make([]byte, req.Size)
+	n, err := file.ReadAt(data, req.Offset)
+	if err != nil && err != io.EOF {
+		clog.Println(err)
+		return err
+	}
+	resp.Data = data[:n]
+	return nil
+}
 
-	return ioutil.ReadAll(file)
+func (f File) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	if f, ok := handleCache[req.Node]; ok {
+		clog.Debugf("closing %d nicely", req.Node)
+		f.Close()
+		delete(handleCache, req.Node)
+	}
+	return nil
 }
 
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
