@@ -1,18 +1,13 @@
 package temp
 
 import (
-	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -28,7 +23,7 @@ func init() {
 	agro.RegisterMetadataService("temp", newTempMetadata)
 }
 
-type temp struct {
+type TempServer struct {
 	mut sync.Mutex
 
 	inode agro.INodeID
@@ -37,8 +32,13 @@ type temp struct {
 	tree     *iradix.Tree
 	volIndex map[string]agro.VolumeID
 	global   agro.GlobalMetadata
-	cfg      agro.Config
-	uuid     string
+	peers    []*models.PeerInfo
+}
+
+type TempClient struct {
+	cfg  agro.Config
+	uuid string
+	srv  *TempServer
 }
 
 func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
@@ -46,13 +46,7 @@ func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	if err != nil {
 		return nil, err
 	}
-	t, err := parseFromFile(cfg)
-	if err == nil {
-		t.uuid = uuid
-		return t, nil
-	}
-	fmt.Println("temp: couldn't parse metadata: ", err)
-	return &temp{
+	srv := &TempServer{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
 		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
@@ -60,69 +54,71 @@ func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
 			BlockSize:        8 * 1024,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 		},
+	}
+	return &TempClient{
 		cfg:  cfg,
 		uuid: uuid,
+		srv:  srv,
 	}, nil
 }
 
-func (t *temp) GlobalMetadata() (agro.GlobalMetadata, error) {
-	return t.global, nil
+func (t *TempClient) GlobalMetadata() (agro.GlobalMetadata, error) {
+	return t.srv.global, nil
 }
 
-func (t *temp) UUID() string {
+func (t *TempClient) UUID() string {
 	return t.uuid
 }
 
-func (t *temp) GetPeers() ([]*models.PeerInfo, error) {
-	return []*models.PeerInfo{
-		&models.PeerInfo{
-			UUID:        t.uuid,
-			LastSeen:    time.Now().UnixNano(),
-			TotalBlocks: t.cfg.StorageSize / t.global.BlockSize,
-		},
-	}, nil
+func (t *TempClient) GetPeers() ([]*models.PeerInfo, error) {
+	return t.srv.peers, nil
 }
 
-func (t *temp) RegisterPeer(_ *models.PeerInfo) error { return nil }
+func (t *TempClient) RegisterPeer(pi *models.PeerInfo) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	t.srv.peers = append(t.srv.peers, pi)
+	return nil
+}
 
-func (t *temp) CreateVolume(volume string) error {
-	t.mut.Lock()
-	defer t.mut.Unlock()
-	if _, ok := t.volIndex[volume]; ok {
+func (t *TempClient) CreateVolume(volume string) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	if _, ok := t.srv.volIndex[volume]; ok {
 		return agro.ErrExists
 	}
 
-	tx := t.tree.Txn()
+	tx := t.srv.tree.Txn()
 
 	k := []byte(agro.Path{Volume: volume, Path: "/"}.Key())
 	if _, ok := tx.Get(k); !ok {
 		tx.Insert(k, (*models.Directory)(nil))
-		t.tree = tx.Commit()
-		t.vol++
-		t.volIndex[volume] = t.vol
+		t.srv.tree = tx.Commit()
+		t.srv.vol++
+		t.srv.volIndex[volume] = t.srv.vol
 	}
 
 	// TODO(jzelinskie): maybe raise volume already exists
 	return nil
 }
 
-func (t *temp) CommitInodeIndex() (agro.INodeID, error) {
-	t.mut.Lock()
-	defer t.mut.Unlock()
+func (t *TempClient) CommitInodeIndex() (agro.INodeID, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
 
-	t.inode++
-	return t.inode, nil
+	t.srv.inode++
+	return t.srv.inode, nil
 }
 
-func (t *temp) Mkdir(p agro.Path, dir *models.Directory) error {
+func (t *TempClient) Mkdir(p agro.Path, dir *models.Directory) error {
 	if p.Path == "/" {
 		return errors.New("can't create the root directory")
 	}
 
-	t.mut.Lock()
-	defer t.mut.Unlock()
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
 
-	tx := t.tree.Txn()
+	tx := t.srv.tree.Txn()
 
 	k := []byte(p.Key())
 	if _, ok := tx.Get(k); ok {
@@ -149,12 +145,12 @@ func (t *temp) Mkdir(p agro.Path, dir *models.Directory) error {
 		}
 	}
 
-	t.tree = tx.Commit()
+	t.srv.tree = tx.Commit()
 	return nil
 }
 
-func (t *temp) debugPrintTree() {
-	it := t.tree.Root().Iterator()
+func (t *TempClient) debugPrintTree() {
+	it := t.srv.tree.Root().Iterator()
 	for {
 		k, v, ok := it.Next()
 		if !ok {
@@ -164,7 +160,7 @@ func (t *temp) debugPrintTree() {
 	}
 }
 
-func (t *temp) SetFileINode(p agro.Path, ref agro.INodeRef) error {
+func (t *TempClient) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	vid, err := t.GetVolumeID(p.Volume)
 	if err != nil {
 		return err
@@ -172,10 +168,10 @@ func (t *temp) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	if vid != ref.Volume {
 		return errors.New("temp: inodeRef volume not for given path volume")
 	}
-	t.mut.Lock()
-	defer t.mut.Unlock()
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
 	var (
-		tx = t.tree.Txn()
+		tx = t.srv.tree.Txn()
 		k  = []byte(p.Key())
 	)
 	v, ok := tx.Get(k)
@@ -195,13 +191,13 @@ func (t *temp) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	}
 	dir.Files[p.Filename()] = uint64(ref.INode)
 	tx.Insert(k, dir)
-	t.tree = tx.Commit()
+	t.srv.tree = tx.Commit()
 	return nil
 }
 
-func (t *temp) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
+func (t *TempClient) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	var (
-		tx = t.tree.Txn()
+		tx = t.srv.tree.Txn()
 		k  = []byte(p.Key())
 	)
 	v, ok := tx.Get(k)
@@ -228,9 +224,9 @@ func (t *temp) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	return dir, subdirs, nil
 }
 
-func (t *temp) GetVolumes() ([]string, error) {
+func (t *TempClient) GetVolumes() ([]string, error) {
 	var (
-		iter = t.tree.Root().Iterator()
+		iter = t.srv.tree.Root().Iterator()
 		out  []string
 		last string
 	)
@@ -251,17 +247,17 @@ func (t *temp) GetVolumes() ([]string, error) {
 	return out, nil
 }
 
-func (t *temp) GetVolumeID(volume string) (agro.VolumeID, error) {
-	t.mut.Lock()
-	defer t.mut.Unlock()
+func (t *TempClient) GetVolumeID(volume string) (agro.VolumeID, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
 
-	if vol, ok := t.volIndex[volume]; ok {
+	if vol, ok := t.srv.volIndex[volume]; ok {
 		return vol, nil
 	}
 	return 0, errors.New("temp: no such volume exists")
 }
 
-func (t *temp) GetRing() (agro.Ring, error) {
+func (t *TempClient) GetRing() (agro.Ring, error) {
 	return ring.CreateRing(&models.Ring{
 		Type:    uint32(ring.Single),
 		Version: 1,
@@ -269,128 +265,16 @@ func (t *temp) GetRing() (agro.Ring, error) {
 	})
 }
 
-func (t *temp) SubscribeNewRings(ch chan agro.Ring) {
+func (t *TempClient) SubscribeNewRings(ch chan agro.Ring) {
 	close(ch)
 }
 
-func (t *temp) UnsubscribeNewRings(ch chan agro.Ring) {
+func (t *TempClient) UnsubscribeNewRings(ch chan agro.Ring) {
 	// Kay. We unsubscribed you already.
 }
 
-func (t *temp) write() error {
-	if t.cfg.DataDir == "" {
-		return nil
-	}
-	outfile := filepath.Join(t.cfg.DataDir, "metadata", "temp.txt")
-	fmt.Println("writing metadata to file:", outfile)
-	f, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	buf := bufio.NewWriter(f)
-	buf.WriteString(fmt.Sprintf("%d %d\n", t.inode, t.vol))
-	b, err := json.Marshal(t.volIndex)
-	if err != nil {
-		return err
-	}
-	buf.WriteString(string(b))
-	buf.WriteRune('\n')
-	b, err = json.Marshal(t.global)
-	if err != nil {
-		return err
-	}
-	buf.WriteString(string(b))
-	buf.WriteRune('\n')
-	it := t.tree.Root().Iterator()
-	for {
-		k, v, ok := it.Next()
-		if !ok {
-			break
-		}
-		buf.WriteString(string(k))
-		buf.WriteRune('\n')
-		b, err := json.Marshal(v.(*models.Directory))
-		if err != nil {
-			return err
-		}
-		buf.WriteString(string(b))
-		buf.WriteRune('\n')
-	}
-	return buf.Flush()
-}
+func (t *TempClient) Close() error { return nil }
 
-func (t *temp) Close() error {
-	return t.write()
-}
-
-func (t *temp) WithContext(_ context.Context) agro.MetadataService {
+func (t *TempClient) WithContext(_ context.Context) agro.MetadataService {
 	return t
-}
-
-func parseFromFile(cfg agro.Config) (*temp, error) {
-	t := temp{}
-	if cfg.DataDir == "" {
-		return nil, os.ErrNotExist
-	}
-	outfile := filepath.Join(cfg.DataDir, "metadata", "temp.txt")
-	if _, err := os.Stat(outfile); err == os.ErrNotExist {
-		return nil, os.ErrNotExist
-	}
-	f, err := os.Open(outfile)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	buf := bufio.NewReader(f)
-	line, err := buf.ReadString('\n')
-	if err != nil {
-		return nil, err
-	}
-	_, err = fmt.Sscanf(line, "%d %d", &t.inode, &t.vol)
-	if err != nil {
-		return nil, err
-	}
-	b, err := buf.ReadBytes('\n')
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(b, &t.volIndex)
-	if err != nil {
-		return nil, err
-	}
-	b, err = buf.ReadBytes('\n')
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(b, &t.global)
-	if err != nil {
-		return nil, err
-	}
-	t.tree = iradix.New()
-	tx := t.tree.Txn()
-	for {
-		k, err := buf.ReadBytes('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		k = k[:len(k)-1]
-		vbytes, err := buf.ReadBytes('\n')
-		if err != nil {
-			return nil, err
-		}
-		v := models.Directory{}
-		err = json.Unmarshal(vbytes, &v)
-		if err != nil {
-			return nil, err
-		}
-		tx.Insert(k, &v)
-	}
-
-	t.tree = tx.Commit()
-	t.cfg = cfg
-	return &t, nil
 }

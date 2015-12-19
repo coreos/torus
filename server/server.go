@@ -14,7 +14,7 @@ import (
 	"github.com/barakmich/agro/models"
 
 	// Register drivers
-	_ "github.com/barakmich/agro/metadata/temp"
+	_ "github.com/barakmich/agro/metadata/single"
 	_ "github.com/barakmich/agro/storage/block"
 	_ "github.com/barakmich/agro/storage/inode"
 )
@@ -37,7 +37,7 @@ type server struct {
 
 func NewMemoryServer() agro.Server {
 	cfg := agro.Config{}
-	mds, _ := agro.CreateMetadataService("temp", cfg)
+	mds, _ := agro.CreateMetadataService("single", cfg)
 	inodes, _ := agro.CreateINodeStore("temp", cfg)
 	gmd, _ := mds.GlobalMetadata()
 	cold, _ := agro.CreateBlockStore("temp", cfg, gmd)
