@@ -33,6 +33,9 @@ type Server struct {
 	volIndex map[string]agro.VolumeID
 	global   agro.GlobalMetadata
 	peers    []*models.PeerInfo
+	ring     *models.Ring
+
+	ringListeners []chan agro.Ring
 }
 
 type Client struct {
@@ -49,6 +52,10 @@ func NewServer() *Server {
 		global: agro.GlobalMetadata{
 			BlockSize:        8 * 1024,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
+		},
+		ring: &models.Ring{
+			Type:    uint32(ring.Empty),
+			Version: 1,
 		},
 	}
 }
@@ -84,6 +91,12 @@ func (t *Client) GetPeers() ([]*models.PeerInfo, error) {
 func (t *Client) RegisterPeer(pi *models.PeerInfo) error {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
+	for i, p := range t.srv.peers {
+		if p.UUID == pi.UUID {
+			t.srv.peers[i] = pi
+			return nil
+		}
+	}
 	t.srv.peers = append(t.srv.peers, pi)
 	return nil
 }
@@ -265,22 +278,53 @@ func (t *Client) GetVolumeID(volume string) (agro.VolumeID, error) {
 }
 
 func (t *Client) GetRing() (agro.Ring, error) {
-	return ring.CreateRing(&models.Ring{
-		Type:    uint32(ring.Single),
-		Version: 1,
-		UUIDs:   []string{t.uuid},
-	})
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	return ring.CreateRing(t.srv.ring)
 }
 
 func (t *Client) SubscribeNewRings(ch chan agro.Ring) {
-	close(ch)
+	t.srv.SubscribeNewRings(ch)
 }
 
 func (t *Client) UnsubscribeNewRings(ch chan agro.Ring) {
-	// Kay. We unsubscribed you already.
+	t.srv.UnsubscribeNewRings(ch)
+}
+
+func (s *Server) SubscribeNewRings(ch chan agro.Ring) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	s.ringListeners = append(s.ringListeners, ch)
+}
+
+func (s *Server) UnsubscribeNewRings(ch chan agro.Ring) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	for i, c := range s.ringListeners {
+		if ch == c {
+			s.ringListeners = append(s.ringListeners[:i], s.ringListeners[i+1:]...)
+		}
+	}
+}
+
+func (s *Server) SetRing(r *models.Ring) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	s.ring = r
+	new, err := ring.CreateRing(s.ring)
+	if err != nil {
+		panic(err)
+	}
+	for _, c := range s.ringListeners {
+		c <- new
+	}
 }
 
 func (t *Client) Close() error { return nil }
+
+func (s *Server) Close() error {
+	return nil
+}
 
 func (t *Client) WithContext(_ context.Context) agro.MetadataService {
 	return t
