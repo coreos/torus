@@ -20,10 +20,10 @@ import (
 )
 
 func init() {
-	agro.RegisterMetadataService("temp", newTempMetadata)
+	agro.RegisterMetadataService("temp", NewTemp)
 }
 
-type TempServer struct {
+type Server struct {
 	mut sync.Mutex
 
 	inode agro.INodeID
@@ -35,18 +35,14 @@ type TempServer struct {
 	peers    []*models.PeerInfo
 }
 
-type TempClient struct {
+type Client struct {
 	cfg  agro.Config
 	uuid string
-	srv  *TempServer
+	srv  *Server
 }
 
-func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
-	uuid, err := metadata.MakeOrGetUUID(cfg.DataDir)
-	if err != nil {
-		return nil, err
-	}
-	srv := &TempServer{
+func NewServer() *Server {
+	return &Server{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
 		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
@@ -55,33 +51,44 @@ func newTempMetadata(cfg agro.Config) (agro.MetadataService, error) {
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 		},
 	}
-	return &TempClient{
+}
+
+func NewClient(cfg agro.Config, srv *Server) *Client {
+	uuid, err := metadata.MakeOrGetUUID("")
+	if err != nil {
+		return nil
+	}
+	return &Client{
 		cfg:  cfg,
 		uuid: uuid,
 		srv:  srv,
-	}, nil
+	}
 }
 
-func (t *TempClient) GlobalMetadata() (agro.GlobalMetadata, error) {
+func NewTemp(cfg agro.Config) (agro.MetadataService, error) {
+	return NewClient(cfg, NewServer()), nil
+}
+
+func (t *Client) GlobalMetadata() (agro.GlobalMetadata, error) {
 	return t.srv.global, nil
 }
 
-func (t *TempClient) UUID() string {
+func (t *Client) UUID() string {
 	return t.uuid
 }
 
-func (t *TempClient) GetPeers() ([]*models.PeerInfo, error) {
+func (t *Client) GetPeers() ([]*models.PeerInfo, error) {
 	return t.srv.peers, nil
 }
 
-func (t *TempClient) RegisterPeer(pi *models.PeerInfo) error {
+func (t *Client) RegisterPeer(pi *models.PeerInfo) error {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	t.srv.peers = append(t.srv.peers, pi)
 	return nil
 }
 
-func (t *TempClient) CreateVolume(volume string) error {
+func (t *Client) CreateVolume(volume string) error {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	if _, ok := t.srv.volIndex[volume]; ok {
@@ -102,7 +109,7 @@ func (t *TempClient) CreateVolume(volume string) error {
 	return nil
 }
 
-func (t *TempClient) CommitInodeIndex() (agro.INodeID, error) {
+func (t *Client) CommitInodeIndex() (agro.INodeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 
@@ -110,7 +117,7 @@ func (t *TempClient) CommitInodeIndex() (agro.INodeID, error) {
 	return t.srv.inode, nil
 }
 
-func (t *TempClient) Mkdir(p agro.Path, dir *models.Directory) error {
+func (t *Client) Mkdir(p agro.Path, dir *models.Directory) error {
 	if p.Path == "/" {
 		return errors.New("can't create the root directory")
 	}
@@ -149,7 +156,7 @@ func (t *TempClient) Mkdir(p agro.Path, dir *models.Directory) error {
 	return nil
 }
 
-func (t *TempClient) debugPrintTree() {
+func (t *Client) debugPrintTree() {
 	it := t.srv.tree.Root().Iterator()
 	for {
 		k, v, ok := it.Next()
@@ -160,7 +167,7 @@ func (t *TempClient) debugPrintTree() {
 	}
 }
 
-func (t *TempClient) SetFileINode(p agro.Path, ref agro.INodeRef) error {
+func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	vid, err := t.GetVolumeID(p.Volume)
 	if err != nil {
 		return err
@@ -195,7 +202,7 @@ func (t *TempClient) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	return nil
 }
 
-func (t *TempClient) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
+func (t *Client) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	var (
 		tx = t.srv.tree.Txn()
 		k  = []byte(p.Key())
@@ -224,7 +231,7 @@ func (t *TempClient) Getdir(p agro.Path) (*models.Directory, []agro.Path, error)
 	return dir, subdirs, nil
 }
 
-func (t *TempClient) GetVolumes() ([]string, error) {
+func (t *Client) GetVolumes() ([]string, error) {
 	var (
 		iter = t.srv.tree.Root().Iterator()
 		out  []string
@@ -247,7 +254,7 @@ func (t *TempClient) GetVolumes() ([]string, error) {
 	return out, nil
 }
 
-func (t *TempClient) GetVolumeID(volume string) (agro.VolumeID, error) {
+func (t *Client) GetVolumeID(volume string) (agro.VolumeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 
@@ -257,7 +264,7 @@ func (t *TempClient) GetVolumeID(volume string) (agro.VolumeID, error) {
 	return 0, errors.New("temp: no such volume exists")
 }
 
-func (t *TempClient) GetRing() (agro.Ring, error) {
+func (t *Client) GetRing() (agro.Ring, error) {
 	return ring.CreateRing(&models.Ring{
 		Type:    uint32(ring.Single),
 		Version: 1,
@@ -265,16 +272,16 @@ func (t *TempClient) GetRing() (agro.Ring, error) {
 	})
 }
 
-func (t *TempClient) SubscribeNewRings(ch chan agro.Ring) {
+func (t *Client) SubscribeNewRings(ch chan agro.Ring) {
 	close(ch)
 }
 
-func (t *TempClient) UnsubscribeNewRings(ch chan agro.Ring) {
+func (t *Client) UnsubscribeNewRings(ch chan agro.Ring) {
 	// Kay. We unsubscribed you already.
 }
 
-func (t *TempClient) Close() error { return nil }
+func (t *Client) Close() error { return nil }
 
-func (t *TempClient) WithContext(_ context.Context) agro.MetadataService {
+func (t *Client) WithContext(_ context.Context) agro.MetadataService {
 	return t
 }
