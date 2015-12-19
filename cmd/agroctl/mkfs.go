@@ -28,8 +28,8 @@ var mkfsCommand = &cobra.Command{
 }
 
 func init() {
-	mkfsCommand.Flags().StringVarP(&blockSizeStr, "block-size", "", "8KiB", "size of all data blocks in this filesystem")
-	mkfsCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this filesystem")
+	mkfsCommand.Flags().StringVarP(&blockSizeStr, "block-size", "", "512KiB", "size of all data blocks in this filesystem")
+	mkfsCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "rep=2,crc", "default replication/error correction applied to blocks in this filesystem")
 	mkfsCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
 }
 

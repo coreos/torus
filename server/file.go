@@ -27,6 +27,8 @@ type file struct {
 	inodeRef  agro.INodeRef
 	writeOpen bool
 	flags     int
+	openIdx   int
+	openData  []byte
 }
 
 func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error) {
@@ -84,6 +86,50 @@ func (f *file) openWrite() error {
 	return nil
 }
 
+func (f *file) openBlock(i int) error {
+	if f.openIdx == i && f.openData != nil {
+		return nil
+	}
+	if f.openData != nil {
+		err := f.syncBlock()
+		if err != nil {
+			return err
+		}
+	}
+	if f.blocks.Length() == i {
+		f.openData = make([]byte, f.blkSize)
+		f.openIdx = i
+		return nil
+	}
+	d, err := f.blocks.GetBlock(context.TODO(), i)
+	if err != nil {
+		return err
+	}
+	f.openData = d
+	f.openIdx = i
+	return nil
+}
+
+func (f *file) writeToBlock(from, to int, data []byte) int {
+	if f.openData == nil {
+		panic("server: file data not open")
+	}
+	if (to - from) != len(data) {
+		panic("server: different write lengths?")
+	}
+	return copy(f.openData[from:to], data)
+}
+
+func (f *file) syncBlock() error {
+	if f.openData == nil {
+		return nil
+	}
+	err := f.blocks.PutBlock(context.TODO(), f.inodeRef, f.openIdx, f.openData)
+	f.openIdx = -1
+	f.openData = nil
+	return err
+}
+
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
@@ -114,21 +160,12 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		if frontlen > toWrite {
 			frontlen = toWrite
 		}
-		var blk []byte
-		if f.blocks.Length() == blkIndex {
-			blk = make([]byte, f.blkSize)
-		} else {
-			blk, err = f.blocks.GetBlock(context.TODO(), blkIndex)
-			if err != nil {
-				return n, err
-			}
-		}
-		wrote := copy(blk[int(blkOff):int(blkOff)+frontlen], b[:frontlen])
-		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
-		err = f.blocks.PutBlock(context.TODO(), f.inodeRef, blkIndex, blk)
+		err := f.openBlock(blkIndex)
 		if err != nil {
 			return n, err
 		}
+		wrote := f.writeToBlock(int(blkOff), int(blkOff)+frontlen, b[:frontlen])
+		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
 		if wrote != frontlen {
 			return n, errors.New("Couldn't write all of the first block at the offset")
 		}
@@ -171,21 +208,12 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		panic("Offset not equal to a block boundary after bulk")
 	}
 	blkIndex = int(off / f.blkSize)
-	var blk []byte
-	if f.blocks.Length() == blkIndex {
-		blk = make([]byte, f.blkSize)
-	} else {
-		blk, err = f.blocks.GetBlock(context.TODO(), blkIndex)
-		if err != nil {
-			return n, err
-		}
-	}
-	wrote := copy(blk[:toWrite], b)
-	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
-	err = f.blocks.PutBlock(context.TODO(), f.inodeRef, blkIndex, blk)
+	err = f.openBlock(blkIndex)
 	if err != nil {
 		return n, err
 	}
+	wrote := f.writeToBlock(0, toWrite, b)
+	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
 	if wrote != toWrite {
 		return n, errors.New("Couldn't write all of the last block")
 	}
@@ -242,12 +270,20 @@ func (f *file) Close() error {
 	if f == nil {
 		return agro.ErrInvalid
 	}
-	return f.Sync()
+	err := f.Sync()
+	if err != nil {
+		clog.Error(err)
+	}
+	return err
 }
 
 func (f *file) Sync() error {
 	if !f.writeOpen {
 		return nil
+	}
+	err := f.syncBlock()
+	if err != nil {
+		return err
 	}
 	blkdata, err := blockset.MarshalToProto(f.blocks)
 	if err != nil {
