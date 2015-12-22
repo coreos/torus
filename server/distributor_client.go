@@ -34,8 +34,18 @@ func (d *distClient) getConn(uuid string) *grpc.ClientConn {
 		return conn
 	}
 	pi := d.dist.srv.peersMap[uuid]
+	if pi == nil {
+		// We know this UUID exists, we don't have an address for it, let's refresh now.
+		d.dist.srv.updatePeerMap()
+		pi = d.dist.srv.peersMap[uuid]
+		if pi == nil {
+			// Not much more we can try
+			return nil
+		}
+	}
 	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure())
 	if err != nil {
+		clog.Error(err)
 		return nil
 	}
 	d.openConns[uuid] = conn

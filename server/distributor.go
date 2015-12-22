@@ -76,6 +76,7 @@ func (d *distributor) Close() error {
 	}
 	close(d.rebalancerChan)
 	d.grpcSrv.Stop()
+	d.client.Close()
 	err := d.inodes.Close()
 	if err != nil {
 		return err

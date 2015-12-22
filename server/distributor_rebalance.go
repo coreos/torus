@@ -36,9 +36,9 @@ exit:
 
 func (d *distributor) Rebalance(newring agro.Ring) {
 	// TODO(barakmich): Rebalancing is tricky. But here's the entry point.
-	clog.Infof("rebalancing beginning: new ring version %d", newring.Version())
 	d.mut.Lock()
 	defer d.mut.Unlock()
+	clog.Infof("rebalancing beginning: new ring version %d", newring.Version())
 	// TODO(barakmich): This is indeed a bad way to rebalance. The correct way is
 	// an algorithm which is agnostic to the type of ring, but asks the correct
 	// questions of the ring abstraction to run through a rebalance cycle.

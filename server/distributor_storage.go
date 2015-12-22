@@ -63,7 +63,7 @@ func (d *distributor) WriteINode(ctx context.Context, i agro.INodeRef, inode *mo
 		return err
 	}
 	if len(peers) == 0 {
-		return agro.ErrOutOfSpace
+		return ErrNoPeersINode
 	}
 	for _, p := range peers {
 		var err error

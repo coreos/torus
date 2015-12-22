@@ -50,8 +50,9 @@ func NewServer() *Server {
 		tree:     iradix.New(),
 		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
 		global: agro.GlobalMetadata{
-			BlockSize:        8 * 1024,
+			BlockSize:        256,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
+			INodeReplication: 2,
 		},
 		ring: &models.Ring{
 			Type:    uint32(ring.Empty),

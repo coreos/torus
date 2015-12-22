@@ -283,20 +283,24 @@ func (f *file) Sync() error {
 	}
 	err := f.syncBlock()
 	if err != nil {
+		clog.Error("sync: couldn't sync block")
 		return err
 	}
 	blkdata, err := blockset.MarshalToProto(f.blocks)
 	if err != nil {
+		clog.Error("sync: couldn't marshal proto")
 		return err
 	}
 	f.inode.Blocks = blkdata
 	err = f.srv.inodes.WriteINode(context.TODO(), f.inodeRef, f.inode)
 	if err != nil {
+		clog.Error("sync: couldn't write inode")
 		return err
 	}
 
 	err = f.srv.mds.SetFileINode(f.path, f.inodeRef)
 	if err != nil {
+		clog.Error("sync: couldn't set file inode")
 		return err
 	}
 	return nil
