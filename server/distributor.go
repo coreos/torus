@@ -20,7 +20,6 @@ type distributor struct {
 	inodes  agro.INodeStore
 	srv     *server
 	client  *distClient
-	lis     net.Listener
 	grpcSrv *grpc.Server
 
 	ring           agro.Ring
@@ -36,13 +35,13 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 		srv:    srv,
 	}
 	if listen {
-		d.lis, err = net.Listen("tcp", addr)
+		lis, err := net.Listen("tcp", addr)
 		if err != nil {
 			return nil, err
 		}
 		d.grpcSrv = grpc.NewServer()
 		models.RegisterAgroStorageServer(d.grpcSrv, d)
-		go d.grpcSrv.Serve(d.lis)
+		go d.grpcSrv.Serve(lis)
 		srv.BeginHeartbeat()
 	}
 	// Set up the rebalancer
@@ -70,17 +69,13 @@ func (d *distributor) inodeReplication() int {
 }
 
 func (d *distributor) Close() error {
+	d.mut.Lock()
+	defer d.mut.Unlock()
 	if d.closed {
 		return nil
 	}
 	close(d.rebalancerChan)
-	if d.lis != nil {
-		d.grpcSrv.Stop()
-		err := d.lis.Close()
-		if err != nil {
-			return err
-		}
-	}
+	d.grpcSrv.Stop()
 	err := d.inodes.Close()
 	if err != nil {
 		return err
@@ -89,5 +84,6 @@ func (d *distributor) Close() error {
 	if err != nil {
 		return err
 	}
+	d.closed = true
 	return nil
 }

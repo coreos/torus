@@ -200,14 +200,17 @@ func (s *server) Close() error {
 	}
 	err := s.mds.Close()
 	if err != nil {
+		clog.Errorf("couldn't close mds: %s", err)
 		return err
 	}
 	err = s.inodes.Close()
 	if err != nil {
+		clog.Errorf("couldn't close inodes: %s", err)
 		return err
 	}
 	err = s.blocks.Close()
 	if err != nil {
+		clog.Errorf("couldn't close blocks: %s", err)
 		return err
 	}
 	return nil

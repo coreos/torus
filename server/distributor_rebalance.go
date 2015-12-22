@@ -10,12 +10,13 @@ import (
 func (d *distributor) rebalancer(closer chan struct{}) {
 	ch := make(chan agro.Ring)
 	d.srv.mds.SubscribeNewRings(ch)
+exit:
 	for {
 		select {
 		case <-closer:
 			d.srv.mds.UnsubscribeNewRings(ch)
 			close(ch)
-			break
+			break exit
 		case newring, ok := <-ch:
 			if ok {
 				if newring.Version() == d.ring.Version() {
@@ -27,7 +28,7 @@ func (d *distributor) rebalancer(closer chan struct{}) {
 				}
 				d.Rebalance(newring)
 			} else {
-				break
+				break exit
 			}
 		}
 	}

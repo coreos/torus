@@ -303,8 +303,10 @@ func (s *Server) UnsubscribeNewRings(ch chan agro.Ring) {
 	for i, c := range s.ringListeners {
 		if ch == c {
 			s.ringListeners = append(s.ringListeners[:i], s.ringListeners[i+1:]...)
+			return
 		}
 	}
+	panic("couldn't remove channel")
 }
 
 func (s *Server) SetRing(r *models.Ring) {
