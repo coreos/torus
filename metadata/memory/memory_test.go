@@ -1,4 +1,4 @@
-package single
+package memory
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetVolumes(t *testing.T) {
-	m, _ := newSingleMetadata(agro.Config{})
+	m, _ := newMemoryMetadata(agro.Config{})
 
 	for _, volume := range []string{"foo", "bar", "zoop", "foot"} {
 		if err := m.CreateVolume(volume); err != nil {
@@ -30,7 +30,7 @@ func TestGetVolumes(t *testing.T) {
 }
 
 func TestGetdir(t *testing.T) {
-	m, _ := newSingleMetadata(agro.Config{})
+	m, _ := newMemoryMetadata(agro.Config{})
 
 	for _, volume := range []string{"foo", "bar", "zoop", "foot"} {
 		if err := m.CreateVolume(volume); err != nil {

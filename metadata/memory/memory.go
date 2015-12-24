@@ -1,4 +1,4 @@
-package single
+package memory
 
 import (
 	"bufio"
@@ -25,10 +25,10 @@ import (
 )
 
 func init() {
-	agro.RegisterMetadataService("single", newSingleMetadata)
+	agro.RegisterMetadataService("memory", newMemoryMetadata)
 }
 
-type single struct {
+type memory struct {
 	mut sync.Mutex
 
 	inode agro.INodeID
@@ -41,7 +41,7 @@ type single struct {
 	uuid     string
 }
 
-func newSingleMetadata(cfg agro.Config) (agro.MetadataService, error) {
+func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	uuid, err := metadata.MakeOrGetUUID(cfg.DataDir)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func newSingleMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		return t, nil
 	}
 	fmt.Println("single: couldn't parse metadata: ", err)
-	return &single{
+	return &memory{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
 		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
@@ -65,15 +65,15 @@ func newSingleMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	}, nil
 }
 
-func (s *single) GlobalMetadata() (agro.GlobalMetadata, error) {
+func (s *memory) GlobalMetadata() (agro.GlobalMetadata, error) {
 	return s.global, nil
 }
 
-func (s *single) UUID() string {
+func (s *memory) UUID() string {
 	return s.uuid
 }
 
-func (s *single) GetPeers() ([]*models.PeerInfo, error) {
+func (s *memory) GetPeers() ([]*models.PeerInfo, error) {
 	return []*models.PeerInfo{
 		&models.PeerInfo{
 			UUID:        s.uuid,
@@ -83,9 +83,9 @@ func (s *single) GetPeers() ([]*models.PeerInfo, error) {
 	}, nil
 }
 
-func (s *single) RegisterPeer(_ *models.PeerInfo) error { return nil }
+func (s *memory) RegisterPeer(_ *models.PeerInfo) error { return nil }
 
-func (s *single) CreateVolume(volume string) error {
+func (s *memory) CreateVolume(volume string) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	if _, ok := s.volIndex[volume]; ok {
@@ -106,7 +106,7 @@ func (s *single) CreateVolume(volume string) error {
 	return nil
 }
 
-func (s *single) CommitInodeIndex() (agro.INodeID, error) {
+func (s *memory) CommitInodeIndex() (agro.INodeID, error) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
@@ -114,7 +114,7 @@ func (s *single) CommitInodeIndex() (agro.INodeID, error) {
 	return s.inode, nil
 }
 
-func (s *single) Mkdir(p agro.Path, dir *models.Directory) error {
+func (s *memory) Mkdir(p agro.Path, dir *models.Directory) error {
 	if p.Path == "/" {
 		return errors.New("can't create the root directory")
 	}
@@ -153,7 +153,7 @@ func (s *single) Mkdir(p agro.Path, dir *models.Directory) error {
 	return nil
 }
 
-func (s *single) debugPrintTree() {
+func (s *memory) debugPrintTree() {
 	it := s.tree.Root().Iterator()
 	for {
 		k, v, ok := it.Next()
@@ -164,7 +164,7 @@ func (s *single) debugPrintTree() {
 	}
 }
 
-func (s *single) SetFileINode(p agro.Path, ref agro.INodeRef) error {
+func (s *memory) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	vid, err := s.GetVolumeID(p.Volume)
 	if err != nil {
 		return err
@@ -199,7 +199,7 @@ func (s *single) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	return nil
 }
 
-func (s *single) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
+func (s *memory) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	var (
 		tx = s.tree.Txn()
 		k  = []byte(p.Key())
@@ -228,7 +228,7 @@ func (s *single) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	return dir, subdirs, nil
 }
 
-func (s *single) GetVolumes() ([]string, error) {
+func (s *memory) GetVolumes() ([]string, error) {
 	var (
 		iter = s.tree.Root().Iterator()
 		out  []string
@@ -251,7 +251,7 @@ func (s *single) GetVolumes() ([]string, error) {
 	return out, nil
 }
 
-func (s *single) GetVolumeID(volume string) (agro.VolumeID, error) {
+func (s *memory) GetVolumeID(volume string) (agro.VolumeID, error) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
@@ -261,7 +261,7 @@ func (s *single) GetVolumeID(volume string) (agro.VolumeID, error) {
 	return 0, errors.New("temp: no such volume exists")
 }
 
-func (s *single) GetRing() (agro.Ring, error) {
+func (s *memory) GetRing() (agro.Ring, error) {
 	return ring.CreateRing(&models.Ring{
 		Type:    uint32(ring.Single),
 		Version: 1,
@@ -269,15 +269,15 @@ func (s *single) GetRing() (agro.Ring, error) {
 	})
 }
 
-func (s *single) SubscribeNewRings(ch chan agro.Ring) {
+func (s *memory) SubscribeNewRings(ch chan agro.Ring) {
 	close(ch)
 }
 
-func (s *single) UnsubscribeNewRings(ch chan agro.Ring) {
+func (s *memory) UnsubscribeNewRings(ch chan agro.Ring) {
 	// Kay. We unsubscribed you already.
 }
 
-func (s *single) write() error {
+func (s *memory) write() error {
 	if s.cfg.DataDir == "" {
 		return nil
 	}
@@ -320,16 +320,16 @@ func (s *single) write() error {
 	return buf.Flush()
 }
 
-func (s *single) Close() error {
+func (s *memory) Close() error {
 	return s.write()
 }
 
-func (s *single) WithContext(_ context.Context) agro.MetadataService {
+func (s *memory) WithContext(_ context.Context) agro.MetadataService {
 	return s
 }
 
-func parseFromFile(cfg agro.Config) (*single, error) {
-	s := single{}
+func parseFromFile(cfg agro.Config) (*memory, error) {
+	s := memory{}
 	if cfg.DataDir == "" {
 		return nil, os.ErrNotExist
 	}
