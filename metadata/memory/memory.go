@@ -21,8 +21,11 @@ import (
 	"github.com/barakmich/agro/metadata"
 	"github.com/barakmich/agro/models"
 	"github.com/barakmich/agro/ring"
+	"github.com/coreos/pkg/capnslog"
 	"github.com/hashicorp/go-immutable-radix"
 )
+
+var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "memory")
 
 func init() {
 	agro.RegisterMetadataService("memory", newMemoryMetadata)
@@ -51,7 +54,7 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		t.uuid = uuid
 		return t, nil
 	}
-	fmt.Println("single: couldn't parse metadata: ", err)
+	clog.Info("single: couldn't parse metadata: ", err)
 	return &memory{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
@@ -160,7 +163,7 @@ func (s *memory) debugPrintTree() {
 		if !ok {
 			break
 		}
-		fmt.Println(string(k), v)
+		clog.Debug(string(k), v)
 	}
 }
 
@@ -282,7 +285,7 @@ func (s *memory) write() error {
 		return nil
 	}
 	outfile := filepath.Join(s.cfg.DataDir, "metadata", "temp.txt")
-	fmt.Println("writing metadata to file:", outfile)
+	clog.Info("writing metadata to file:", outfile)
 	f, err := os.Create(outfile)
 	if err != nil {
 		return err
