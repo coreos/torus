@@ -10,12 +10,13 @@ import (
 func (d *distributor) rebalancer(closer chan struct{}) {
 	ch := make(chan agro.Ring)
 	d.srv.mds.SubscribeNewRings(ch)
+exit:
 	for {
 		select {
 		case <-closer:
 			d.srv.mds.UnsubscribeNewRings(ch)
 			close(ch)
-			break
+			break exit
 		case newring, ok := <-ch:
 			if ok {
 				if newring.Version() == d.ring.Version() {
@@ -27,7 +28,7 @@ func (d *distributor) rebalancer(closer chan struct{}) {
 				}
 				d.Rebalance(newring)
 			} else {
-				break
+				break exit
 			}
 		}
 	}
@@ -35,9 +36,9 @@ func (d *distributor) rebalancer(closer chan struct{}) {
 
 func (d *distributor) Rebalance(newring agro.Ring) {
 	// TODO(barakmich): Rebalancing is tricky. But here's the entry point.
-	clog.Infof("rebalancing beginning: new ring version %d", newring.Version())
 	d.mut.Lock()
 	defer d.mut.Unlock()
+	clog.Infof("rebalancing beginning: new ring version %d", newring.Version())
 	// TODO(barakmich): This is indeed a bad way to rebalance. The correct way is
 	// an algorithm which is agnostic to the type of ring, but asks the correct
 	// questions of the ring abstraction to run through a rebalance cycle.

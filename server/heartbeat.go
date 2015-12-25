@@ -49,16 +49,18 @@ func (s *server) oneHeartbeat() {
 	if err != nil {
 		clog.Warningf("couldn't register heartbeat: %s", err)
 	}
+	s.updatePeerMap()
+}
+
+func (s *server) updatePeerMap() {
 	ctxget, cancelget := context.WithTimeout(context.Background(), heartbeatTimeout)
 	defer cancelget()
 	peers, err := s.mds.WithContext(ctxget).GetPeers()
 	if err != nil {
 		clog.Warningf("couldn't update peerlist: %s", err)
 	}
-	s.updatePeerMap(peers)
-}
-
-func (s *server) updatePeerMap(peers []*models.PeerInfo) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
 	for _, p := range peers {
 		s.peersMap[p.UUID] = p
 	}
