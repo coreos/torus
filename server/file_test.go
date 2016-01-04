@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 )
 
 func TestReadWrite(t *testing.T) {

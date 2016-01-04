@@ -3,7 +3,7 @@ package agro
 import (
 	"os"
 
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro/models"
 )
 
 // Server is the interface representing the basic ways to interact with the

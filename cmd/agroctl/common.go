@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/barakmich/agro"
+	"github.com/coreos/agro"
 )
 
 func mustConnectToMDS() agro.MetadataService {

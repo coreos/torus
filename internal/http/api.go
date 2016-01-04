@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 	"github.com/gin-gonic/gin"
 )
 

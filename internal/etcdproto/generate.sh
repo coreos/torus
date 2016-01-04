@@ -10,4 +10,4 @@ GOGOPROTO_PATH="${GOGOPROTO_ROOT}:${GOGOPROTO_ROOT}/protobuf"
 protoc --gogofaster_out=plugins=grpc:. -I=.:"${GOGOPROTO_PATH}" storagepb/kv.proto
 protoc --gogofaster_out=plugins=grpc:. -I=.:"${GOGOPROTO_PATH}" etcdserverpb/rpc.proto
 
-sed -i 's!"storagepb"!"github.com/barakmich/agro/internal/etcdproto/storagepb"!' etcdserverpb/rpc.pb.go
+sed -i 's!"storagepb"!"github.com/coreos/agro/internal/etcdproto/storagepb"!' etcdserverpb/rpc.pb.go

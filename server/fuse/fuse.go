@@ -11,10 +11,10 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 
-	"github.com/barakmich/agro"
+	"github.com/coreos/agro"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "fuse")
+var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "fuse")
 
 func MustMount(mountpoint, volume string, srv agro.Server) {
 	c, err := fuse.Mount(

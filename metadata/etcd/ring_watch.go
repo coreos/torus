@@ -5,8 +5,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	pb "github.com/barakmich/agro/internal/etcdproto/etcdserverpb"
-	"github.com/barakmich/agro/ring"
+	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	"github.com/coreos/agro/ring"
 )
 
 func (e *etcd) watchRingUpdates() error {

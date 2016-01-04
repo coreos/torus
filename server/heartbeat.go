@@ -3,7 +3,7 @@ package server
 import (
 	"time"
 
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro/models"
 
 	"golang.org/x/net/context"
 )

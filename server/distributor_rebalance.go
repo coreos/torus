@@ -1,8 +1,8 @@
 package server
 
 import (
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/ring"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/ring"
 )
 
 // Goroutine which watches for new rings and kicks off

@@ -3,13 +3,13 @@ package etcd
 import (
 	"encoding/json"
 
-	"github.com/barakmich/agro"
+	"github.com/coreos/agro"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	pb "github.com/barakmich/agro/internal/etcdproto/etcdserverpb"
-	"github.com/barakmich/agro/models"
-	"github.com/barakmich/agro/ring"
+	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/ring"
 )
 
 func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {

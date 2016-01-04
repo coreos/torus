@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/metadata"
-	"github.com/barakmich/agro/models"
-	"github.com/barakmich/agro/ring"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/metadata"
+	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/ring"
 
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
@@ -22,10 +22,10 @@ import (
 	// do this, but we're vendoring the etcd proto definitions by hand. The alternative
 	// is to use *etcds vendored* version of grpc and net/context everywhere, which is
 	// horrifying. This might be helped by GO15VENDORING but we'll see.
-	pb "github.com/barakmich/agro/internal/etcdproto/etcdserverpb"
+	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "etcd")
+var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "etcd")
 
 const (
 	keyPrefix      = "agro/"

@@ -3,7 +3,7 @@ package memory
 import (
 	"testing"
 
-	"github.com/barakmich/agro"
+	"github.com/coreos/agro"
 )
 
 func TestGetVolumes(t *testing.T) {

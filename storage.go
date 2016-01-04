@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro/models"
 )
 
 type (

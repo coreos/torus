@@ -33,7 +33,7 @@ import fmt "fmt"
 import math "math"
 
 // discarding unused import gogoproto "gogoproto"
-import storagepb "github.com/barakmich/agro/internal/etcdproto/storagepb"
+import storagepb "github.com/coreos/agro/internal/etcdproto/storagepb"
 
 import (
 	context "golang.org/x/net/context"

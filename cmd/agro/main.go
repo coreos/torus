@@ -8,17 +8,17 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/blockset"
-	"github.com/barakmich/agro/internal/http"
-	"github.com/barakmich/agro/server"
-	agrofuse "github.com/barakmich/agro/server/fuse"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/blockset"
+	"github.com/coreos/agro/internal/http"
+	"github.com/coreos/agro/server"
+	agrofuse "github.com/coreos/agro/server/fuse"
 
 	// Register all the possible drivers.
-	_ "github.com/barakmich/agro/metadata/etcd"
-	_ "github.com/barakmich/agro/metadata/temp"
-	_ "github.com/barakmich/agro/storage/block"
-	_ "github.com/barakmich/agro/storage/inode"
+	_ "github.com/coreos/agro/metadata/etcd"
+	_ "github.com/coreos/agro/metadata/temp"
+	_ "github.com/coreos/agro/storage/block"
+	_ "github.com/coreos/agro/storage/inode"
 )
 
 var (

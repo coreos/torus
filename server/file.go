@@ -9,12 +9,12 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/blockset"
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/blockset"
+	"github.com/coreos/agro/models"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "server")
+var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "server")
 
 type file struct {
 	mut       sync.RWMutex

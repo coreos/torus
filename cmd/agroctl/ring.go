@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/models"
-	"github.com/barakmich/agro/ring"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/ring"
 	"github.com/spf13/cobra"
 )
 

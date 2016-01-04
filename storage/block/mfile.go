@@ -9,8 +9,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/storage"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/storage"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/hashicorp/go-immutable-radix"
 )

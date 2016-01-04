@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/barakmich/agro"
+	"github.com/coreos/agro"
 )
 
 type replicationBlockset struct {

@@ -9,14 +9,14 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/blockset"
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/blockset"
+	"github.com/coreos/agro/models"
 
 	// Register drivers
-	_ "github.com/barakmich/agro/metadata/memory"
-	_ "github.com/barakmich/agro/storage/block"
-	_ "github.com/barakmich/agro/storage/inode"
+	_ "github.com/coreos/agro/metadata/memory"
+	_ "github.com/coreos/agro/storage/block"
+	_ "github.com/coreos/agro/storage/inode"
 )
 
 var _ agro.Server = &server{}

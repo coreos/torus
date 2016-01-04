@@ -1,6 +1,6 @@
 package server
 
-import "github.com/barakmich/agro"
+import "github.com/coreos/agro"
 
 func (s *server) ListenReplication(addr string) error {
 	return s.openReplication(addr, true)

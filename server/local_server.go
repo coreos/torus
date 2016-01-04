@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 )
 
 func mkdirsFor(dir string) error {

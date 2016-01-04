@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"path"
 
-	pb "github.com/barakmich/agro/internal/etcdproto/etcdserverpb"
-	"github.com/barakmich/agro/models"
+	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	"github.com/coreos/agro/models"
 )
 
 func mkKey(s ...string) []byte {

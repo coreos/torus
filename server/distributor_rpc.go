@@ -1,8 +1,8 @@
 package server
 
 import (
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 	"golang.org/x/net/context"
 )
 

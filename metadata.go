@@ -7,11 +7,11 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/barakmich/agro", "agro")
+var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "agro")
 
 // Path represents the location of a File including the Volume and the
 // unix-style path string.

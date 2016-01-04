@@ -5,12 +5,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/blockset"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/blockset"
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
-	_ "github.com/barakmich/agro/metadata/etcd"
+	_ "github.com/coreos/agro/metadata/etcd"
 )
 
 var (

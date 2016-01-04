@@ -11,11 +11,11 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/blockset"
-	"github.com/barakmich/agro/metadata"
-	"github.com/barakmich/agro/models"
-	"github.com/barakmich/agro/ring"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/blockset"
+	"github.com/coreos/agro/metadata"
+	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/ring"
 	"github.com/hashicorp/go-immutable-radix"
 )
 

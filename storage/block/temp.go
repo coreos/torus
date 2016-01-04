@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/barakmich/agro"
+	"github.com/coreos/agro"
 )
 
 var _ agro.BlockStore = &tempBlockStore{}

@@ -1,8 +1,8 @@
 package ring
 
 import (
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/models"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 )
 
 const (

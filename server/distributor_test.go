@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/barakmich/agro"
-	"github.com/barakmich/agro/metadata/temp"
-	"github.com/barakmich/agro/models"
-	"github.com/barakmich/agro/ring"
+	"github.com/coreos/agro"
+	"github.com/coreos/agro/metadata/temp"
+	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/ring"
 )
 
 func newServer(md *temp.Server) *server {

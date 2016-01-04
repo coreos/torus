@@ -5,10 +5,10 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/barakmich/agro"
+	"github.com/coreos/agro"
 
 	// Register storage drivers.
-	_ "github.com/barakmich/agro/storage/block"
+	_ "github.com/coreos/agro/storage/block"
 )
 
 func TestCRCReadWrite(t *testing.T) {
