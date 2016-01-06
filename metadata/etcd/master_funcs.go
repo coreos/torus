@@ -32,7 +32,6 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {
 		keyNotExists(mkKey("meta", "globalmetadata")),
 	).Then(
 		setKey(mkKey("meta", "volumeminter"), uint64ToBytes(1)),
-		setKey(mkKey("meta", "inodeminter"), uint64ToBytes(1)),
 		setKey(mkKey("meta", "globalmetadata"), gmdbytes),
 	).Tx()
 	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())

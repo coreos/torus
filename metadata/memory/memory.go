@@ -34,8 +34,8 @@ func init() {
 type memory struct {
 	mut sync.Mutex
 
-	inode agro.INodeID
-	vol   agro.VolumeID
+	inodes map[string]agro.INodeID
+	vol    agro.VolumeID
 
 	tree     *iradix.Tree
 	volIndex map[string]agro.VolumeID
@@ -58,6 +58,7 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	return &memory{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
+		inodes:   make(map[string]agro.INodeID),
 		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
 		global: agro.GlobalMetadata{
 			BlockSize:        8 * 1024,
@@ -109,12 +110,11 @@ func (s *memory) CreateVolume(volume string) error {
 	return nil
 }
 
-func (s *memory) CommitInodeIndex() (agro.INodeID, error) {
+func (s *memory) CommitInodeIndex(vol string) (agro.INodeID, error) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
-
-	s.inode++
-	return s.inode, nil
+	s.inodes[vol]++
+	return s.inodes[vol], nil
 }
 
 func (s *memory) Mkdir(p agro.Path, dir *models.Directory) error {
@@ -292,8 +292,14 @@ func (s *memory) write() error {
 	}
 	defer f.Close()
 	buf := bufio.NewWriter(f)
-	buf.WriteString(fmt.Sprintf("%d %d\n", s.inode, s.vol))
-	b, err := json.Marshal(s.volIndex)
+	buf.WriteString(fmt.Sprintf("%d\n", s.vol))
+	b, err := json.Marshal(s.inodes)
+	if err != nil {
+		return err
+	}
+	buf.WriteString(string(b))
+	buf.WriteRune('\n')
+	b, err = json.Marshal(s.volIndex)
 	if err != nil {
 		return err
 	}
@@ -350,11 +356,19 @@ func parseFromFile(cfg agro.Config) (*memory, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = fmt.Sscanf(line, "%d %d", &s.inode, &s.vol)
+	_, err = fmt.Sscanf(line, "%d", &s.vol)
 	if err != nil {
 		return nil, err
 	}
 	b, err := buf.ReadBytes('\n')
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(b, &s.inodes)
+	if err != nil {
+		return nil, err
+	}
+	b, err = buf.ReadBytes('\n')
 	if err != nil {
 		return nil, err
 	}
