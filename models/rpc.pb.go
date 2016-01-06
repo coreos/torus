@@ -7,8 +7,7 @@ package models
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
-
-// discarding unused import gogoproto "gogoproto"
+import _ "github.com/gogo/protobuf/gogoproto"
 
 import (
 	context "golang.org/x/net/context"
@@ -21,25 +20,6 @@ import io "io"
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
-
-type BlockRef struct {
-	Volume uint64 `protobuf:"varint,1,opt,name=volume,proto3" json:"volume,omitempty"`
-	INode  uint64 `protobuf:"varint,2,opt,name=inode,proto3" json:"inode,omitempty"`
-	Block  uint64 `protobuf:"varint,3,opt,name=block,proto3" json:"block,omitempty"`
-}
-
-func (m *BlockRef) Reset()         { *m = BlockRef{} }
-func (m *BlockRef) String() string { return proto.CompactTextString(m) }
-func (*BlockRef) ProtoMessage()    {}
-
-type INodeRef struct {
-	Volume uint64 `protobuf:"varint,1,opt,name=volume,proto3" json:"volume,omitempty"`
-	INode  uint64 `protobuf:"varint,2,opt,name=inode,proto3" json:"inode,omitempty"`
-}
-
-func (m *INodeRef) Reset()         { *m = INodeRef{} }
-func (m *INodeRef) String() string { return proto.CompactTextString(m) }
-func (*INodeRef) ProtoMessage()    {}
 
 type Block struct {
 	Ok   bool   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
@@ -159,6 +139,17 @@ type PutResponse struct {
 func (m *PutResponse) Reset()         { *m = PutResponse{} }
 func (m *PutResponse) String() string { return proto.CompactTextString(m) }
 func (*PutResponse) ProtoMessage()    {}
+
+func init() {
+	proto.RegisterType((*Block)(nil), "models.Block")
+	proto.RegisterType((*BlockRequest)(nil), "models.BlockRequest")
+	proto.RegisterType((*BlockResponse)(nil), "models.BlockResponse")
+	proto.RegisterType((*INodeRequest)(nil), "models.INodeRequest")
+	proto.RegisterType((*INodeResponse)(nil), "models.INodeResponse")
+	proto.RegisterType((*PutBlockRequest)(nil), "models.PutBlockRequest")
+	proto.RegisterType((*PutINodeRequest)(nil), "models.PutINodeRequest")
+	proto.RegisterType((*PutResponse)(nil), "models.PutResponse")
+}
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
@@ -300,67 +291,6 @@ var _AgroStorage_serviceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{},
-}
-
-func (m *BlockRef) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *BlockRef) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.Volume != 0 {
-		data[i] = 0x8
-		i++
-		i = encodeVarintRpc(data, i, uint64(m.Volume))
-	}
-	if m.INode != 0 {
-		data[i] = 0x10
-		i++
-		i = encodeVarintRpc(data, i, uint64(m.INode))
-	}
-	if m.Block != 0 {
-		data[i] = 0x18
-		i++
-		i = encodeVarintRpc(data, i, uint64(m.Block))
-	}
-	return i, nil
-}
-
-func (m *INodeRef) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *INodeRef) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.Volume != 0 {
-		data[i] = 0x8
-		i++
-		i = encodeVarintRpc(data, i, uint64(m.Volume))
-	}
-	if m.INode != 0 {
-		data[i] = 0x10
-		i++
-		i = encodeVarintRpc(data, i, uint64(m.INode))
-	}
-	return i, nil
 }
 
 func (m *Block) Marshal() (data []byte, err error) {
@@ -670,33 +600,6 @@ func encodeVarintRpc(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	return offset + 1
 }
-func (m *BlockRef) Size() (n int) {
-	var l int
-	_ = l
-	if m.Volume != 0 {
-		n += 1 + sovRpc(uint64(m.Volume))
-	}
-	if m.INode != 0 {
-		n += 1 + sovRpc(uint64(m.INode))
-	}
-	if m.Block != 0 {
-		n += 1 + sovRpc(uint64(m.Block))
-	}
-	return n
-}
-
-func (m *INodeRef) Size() (n int) {
-	var l int
-	_ = l
-	if m.Volume != 0 {
-		n += 1 + sovRpc(uint64(m.Volume))
-	}
-	if m.INode != 0 {
-		n += 1 + sovRpc(uint64(m.INode))
-	}
-	return n
-}
-
 func (m *Block) Size() (n int) {
 	var l int
 	_ = l
@@ -827,201 +730,6 @@ func sovRpc(x uint64) (n int) {
 }
 func sozRpc(x uint64) (n int) {
 	return sovRpc(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func (m *BlockRef) Unmarshal(data []byte) error {
-	l := len(data)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRpc
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := data[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: BlockRef: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: BlockRef: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Volume", wireType)
-			}
-			m.Volume = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRpc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Volume |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field INode", wireType)
-			}
-			m.INode = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRpc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.INode |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Block", wireType)
-			}
-			m.Block = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRpc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Block |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRpc(data[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthRpc
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *INodeRef) Unmarshal(data []byte) error {
-	l := len(data)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRpc
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := data[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: INodeRef: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: INodeRef: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Volume", wireType)
-			}
-			m.Volume = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRpc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Volume |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field INode", wireType)
-			}
-			m.INode = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRpc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.INode |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRpc(data[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthRpc
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 func (m *Block) Unmarshal(data []byte) error {
 	l := len(data)

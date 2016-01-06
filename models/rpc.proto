@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "gogoproto/gogo.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "agro.proto";
 
 package models;
@@ -10,17 +10,6 @@ service AgroStorage {
 	rpc INode (INodeRequest) returns (INodeResponse);
 	rpc PutBlock (PutBlockRequest) returns (PutResponse);
 	rpc PutINode (PutINodeRequest) returns (PutResponse);
-}
-
-message BlockRef {
-	uint64 volume = 1;
-	uint64 inode = 2 [(gogoproto.customname) = "INode"];
-	uint64 block = 3;
-}
-
-message INodeRef {
-	uint64 volume = 1;
-	uint64 inode = 2 [(gogoproto.customname) = "INode"];
 }
 
 message Block {
