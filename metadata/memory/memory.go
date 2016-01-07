@@ -23,6 +23,7 @@ import (
 	"github.com/coreos/agro/ring"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/hashicorp/go-immutable-radix"
+	"github.com/tgruben/roaring"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "memory")
@@ -37,11 +38,13 @@ type memory struct {
 	inodes map[string]agro.INodeID
 	vol    agro.VolumeID
 
-	tree     *iradix.Tree
-	volIndex map[string]agro.VolumeID
-	global   agro.GlobalMetadata
-	cfg      agro.Config
-	uuid     string
+	tree       *iradix.Tree
+	volIndex   map[string]agro.VolumeID
+	global     agro.GlobalMetadata
+	cfg        agro.Config
+	uuid       string
+	openINodes map[string]*roaring.RoaringBitmap
+	deadMap    map[string]*roaring.RoaringBitmap
 }
 
 func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
@@ -64,8 +67,9 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 			BlockSize:        8 * 1024,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 		},
-		cfg:  cfg,
-		uuid: uuid,
+		cfg:        cfg,
+		uuid:       uuid,
+		openINodes: make(map[string]*roaring.RoaringBitmap),
 	}, nil
 }
 
@@ -280,6 +284,22 @@ func (s *memory) UnsubscribeNewRings(ch chan agro.Ring) {
 	// Kay. We unsubscribed you already.
 }
 
+func (s *memory) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
+	s.openINodes[volume] = inodes
+	return nil
+}
+
+func (s *memory) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error {
+	x, ok := s.deadMap[volume]
+	if !ok {
+		x = roaring.NewRoaringBitmap()
+	}
+	x.Or(dead)
+	x.AndNot(live)
+	s.deadMap[volume] = x
+	return nil
+}
+
 func (s *memory) write() error {
 	if s.cfg.DataDir == "" {
 		return nil
@@ -337,6 +357,7 @@ func (s *memory) WithContext(_ context.Context) agro.MetadataService {
 	return s
 }
 
+// TODO(barakmich): Marshal the deadMap
 func parseFromFile(cfg agro.Config) (*memory, error) {
 	s := memory{}
 	if cfg.DataDir == "" {

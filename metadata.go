@@ -9,6 +9,7 @@ import (
 
 	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/tgruben/roaring"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "agro")
@@ -100,7 +101,6 @@ type MetadataService interface {
 	// unique for every created datadir.
 	UUID() string
 
-	RegisterPeer(*models.PeerInfo) error
 	GetPeers() ([]*models.PeerInfo, error)
 
 	GetRing() (Ring, error)
@@ -108,6 +108,13 @@ type MetadataService interface {
 	UnsubscribeNewRings(chan Ring)
 
 	WithContext(ctx context.Context) MetadataService
+
+	// TODO(barakmich): THESE NEED A LEASE ID
+	RegisterPeer(*models.PeerInfo) error
+	ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error
+	// ^^^^^^^
+
+	ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error
 
 	// TODO(barakmich): Extend with GC interaction, et al
 	Close() error

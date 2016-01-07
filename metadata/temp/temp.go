@@ -17,6 +17,7 @@ import (
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
 	"github.com/hashicorp/go-immutable-radix"
+	"github.com/tgruben/roaring"
 )
 
 func init() {
@@ -29,11 +30,13 @@ type Server struct {
 	inode map[string]agro.INodeID
 	vol   agro.VolumeID
 
-	tree     *iradix.Tree
-	volIndex map[string]agro.VolumeID
-	global   agro.GlobalMetadata
-	peers    []*models.PeerInfo
-	ring     *models.Ring
+	tree       *iradix.Tree
+	volIndex   map[string]agro.VolumeID
+	global     agro.GlobalMetadata
+	peers      []*models.PeerInfo
+	ring       *models.Ring
+	openINodes map[string]map[string]*roaring.RoaringBitmap
+	deadMap    map[string]*roaring.RoaringBitmap
 
 	ringListeners []chan agro.Ring
 }
@@ -58,6 +61,8 @@ func NewServer() *Server {
 			Type:    uint32(ring.Empty),
 			Version: 1,
 		},
+		openINodes: make(map[string]map[string]*roaring.RoaringBitmap),
+		deadMap:    make(map[string]*roaring.RoaringBitmap),
 	}
 }
 
@@ -66,6 +71,7 @@ func NewClient(cfg agro.Config, srv *Server) *Client {
 	if err != nil {
 		return nil
 	}
+	srv.openINodes[uuid] = make(map[string]*roaring.RoaringBitmap)
 	return &Client{
 		cfg:  cfg,
 		uuid: uuid,
@@ -323,7 +329,30 @@ func (s *Server) SetRing(r *models.Ring) {
 	}
 }
 
-func (t *Client) Close() error { return nil }
+func (t *Client) Close() error {
+	delete(t.srv.openINodes, t.uuid)
+	return nil
+}
+
+func (t *Client) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	t.srv.openINodes[t.uuid][volume] = inodes
+	return nil
+}
+
+func (t *Client) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	x, ok := t.srv.deadMap[volume]
+	if !ok {
+		x = roaring.NewRoaringBitmap()
+	}
+	x.Or(dead)
+	x.AndNot(live)
+	t.srv.deadMap[volume] = x
+	return nil
+}
 
 func (s *Server) Close() error {
 	return nil
