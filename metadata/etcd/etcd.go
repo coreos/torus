@@ -13,6 +13,7 @@ import (
 	"github.com/coreos/agro/metadata"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
+	"github.com/tgruben/roaring"
 
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
@@ -249,6 +250,7 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 	do := tx().Do(
 		setKey(mkKey("volumes", volume), uint64ToBytes(newID.(uint64))),
 		setKey(mkKey("volumemeta", volume, "inode"), uint64ToBytes(1)),
+		setKey(mkKey("volumemeta", volume, "deadmap"), roaringToBytes(roaring.NewRoaringBitmap())),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
 	).Tx()
 	_, err = c.etcd.kv.Txn(c.getContext(), do)
@@ -395,4 +397,28 @@ func (c *etcdCtx) SubscribeNewRings(ch chan agro.Ring) {
 
 func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
 	c.etcd.UnsubscribeNewRings(ch)
+}
+
+func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
+	// TODO(barakmich): LEASE
+	key := mkKey("volumemeta", volume, "open", c.UUID())
+	if inodes == nil {
+		_, err := c.etcd.kv.DeleteRange(c.getContext(), deleteKey(key))
+		return err
+	}
+	data := roaringToBytes(inodes)
+	_, err := c.etcd.kv.Put(c.getContext(),
+		setKey(key, data),
+	)
+	return err
+}
+
+func (c *etcdCtx) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error {
+	_, err := c.atomicModifyKey(mkKey("volumemeta", volume, "deadmap"), func(b []byte) ([]byte, interface{}, error) {
+		bm := bytesToRoaring(b)
+		bm.Or(dead)
+		bm.AndNot(live)
+		return roaringToBytes(bm), nil, nil
+	})
+	return err
 }

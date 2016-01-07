@@ -58,12 +58,12 @@ func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err er
 	}
 	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.INode, bs.Length())
 	return &file{
-		path:         path,
-		inode:        n,
-		srv:          s,
-		blocks:       bs,
-		blkSize:      int64(globals.BlockSize),
-		syncedINodes: roaring.NewRoaringBitmap(),
+		path:          path,
+		inode:         n,
+		srv:           s,
+		blocks:        bs,
+		blkSize:       int64(globals.BlockSize),
+		initialINodes: roaring.NewRoaringBitmap(),
 	}, nil
 }
 

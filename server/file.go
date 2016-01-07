@@ -393,5 +393,8 @@ func (f *file) updateHeldINodes(closing bool) {
 		f.srv.incRef(f.path.Volume, f.initialINodes)
 	}
 	bm, _ := f.srv.getBitmap(f.path.Volume)
-	f.srv.mds.ClaimVolumeINodes(f.path.Volume, bm)
+	err := f.srv.mds.ClaimVolumeINodes(f.path.Volume, bm)
+	if err != nil {
+		clog.Error("file: TODO: Can't re-claim")
+	}
 }
