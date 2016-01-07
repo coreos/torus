@@ -28,7 +28,7 @@ import (
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "etcd")
 
 const (
-	keyPrefix      = "agro/"
+	keyPrefix      = "/github.com/coreos/agro/"
 	peerTimeoutMax = 50 * time.Second
 )
 
@@ -48,8 +48,6 @@ type etcd struct {
 	mut          sync.RWMutex
 	cfg          agro.Config
 	global       agro.GlobalMetadata
-	volumeminter agro.VolumeID
-	inodeminter  agro.INodeID
 	volumesCache map[string]agro.VolumeID
 
 	ringListeners []chan agro.Ring
@@ -101,8 +99,6 @@ func (e *etcd) getGlobalMetadata() error {
 	tx := tx().If(
 		keyExists(mkKey("meta", "globalmetadata")),
 	).Then(
-		getKey(mkKey("meta", "volumeminter")),
-		getKey(mkKey("meta", "inodeminter")),
 		getKey(mkKey("meta", "globalmetadata")),
 	).Tx()
 	resp, err := e.kv.Txn(context.Background(), tx)
@@ -113,11 +109,8 @@ func (e *etcd) getGlobalMetadata() error {
 		return agro.ErrNoGlobalMetadata
 	}
 
-	e.volumeminter = agro.VolumeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
-	e.inodeminter = agro.INodeID(bytesToUint64(resp.Responses[1].GetResponseRange().Kvs[0].Value))
-
 	var gmd agro.GlobalMetadata
-	err = json.Unmarshal(resp.Responses[2].GetResponseRange().Kvs[0].Value, &gmd)
+	err = json.Unmarshal(resp.Responses[0].GetResponseRange().Kvs[0].Value, &gmd)
 	if err != nil {
 		return err
 	}
@@ -208,28 +201,59 @@ func (c *etcdCtx) GetPeers() ([]*models.PeerInfo, error) {
 	return out, nil
 }
 
+func (c *etcdCtx) atomicModifyKey(key []byte, f func([]byte) ([]byte, error)) ([]byte, error) {
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(key))
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Kvs) != 1 {
+		return nil, agro.ErrAgain
+	}
+	kv := resp.Kvs[0]
+	for {
+		newBytes, err := f(kv.Value)
+		if err != nil {
+			return nil, err
+		}
+		tx := tx().If(
+			keyIsVersion(key, kv.Version),
+		).Then(
+			setKey(key, newBytes),
+		).Else(
+			getKey(key),
+		).Tx()
+		resp, err := c.etcd.kv.Txn(c.getContext(), tx)
+		if err != nil {
+			return nil, err
+		}
+		if resp.Succeeded {
+			return newBytes, nil
+		}
+		kv = resp.Responses[0].GetResponseRange().Kvs[0]
+	}
+}
+
+func bytesAddOne(in []byte) ([]byte, error) {
+	return uint64ToBytes(bytesToUint64(in) + 1), nil
+}
+
 func (c *etcdCtx) CreateVolume(volume string) error {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
 	key := agro.Path{Volume: volume, Path: "/"}
-	tx := tx().If(
-		keyEquals(mkKey("meta", "volumeminter"), uint64ToBytes(uint64(c.etcd.volumeminter))),
-	).Then(
-		setKey(mkKey("meta", "volumeminter"), uint64ToBytes(uint64(c.etcd.volumeminter+1))),
-		setKey(mkKey("volumes", volume), uint64ToBytes(uint64(c.etcd.volumeminter+1))),
-		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
-	).Else(
-		getKey(mkKey("meta", "volumeminter")),
-	).Tx()
-	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
+	newID, err := c.atomicModifyKey(mkKey("meta", "volumeminter"), bytesAddOne)
 	if err != nil {
 		return err
 	}
-	if !resp.Succeeded {
-		c.etcd.volumeminter = agro.VolumeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
-		return agro.ErrAgain
+	do := tx().Do(
+		setKey(mkKey("volumes", volume), newID),
+		setKey(mkKey("volumemeta", volume, "inode"), uint64ToBytes(1)),
+		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
+	).Tx()
+	_, err = c.etcd.kv.Txn(c.getContext(), do)
+	if err != nil {
+		return err
 	}
-	c.etcd.volumeminter++
 	return nil
 }
 
@@ -270,27 +294,14 @@ func (c *etcdCtx) GetVolumeID(volume string) (agro.VolumeID, error) {
 
 }
 
-func (c *etcdCtx) CommitInodeIndex() (agro.INodeID, error) {
+func (c *etcdCtx) CommitInodeIndex(volume string) (agro.INodeID, error) {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	tx := tx().If(
-		keyEquals(mkKey("meta", "inodeminter"), uint64ToBytes(uint64(c.etcd.inodeminter))),
-	).Then(
-		setKey(mkKey("meta", "inodeminter"), uint64ToBytes(uint64(c.etcd.inodeminter+1))),
-	).Else(
-		getKey(mkKey("meta", "inodeminter")),
-	).Tx()
-	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
+	newID, err := c.atomicModifyKey(mkKey("volumemeta", volume, "inode"), bytesAddOne)
 	if err != nil {
 		return 0, err
 	}
-	if !resp.Succeeded {
-		c.etcd.inodeminter = agro.INodeID(bytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value))
-		return 0, agro.ErrAgain
-	}
-	i := c.etcd.inodeminter
-	c.etcd.inodeminter++
-	return i, nil
+	return agro.INodeID(bytesToUint64(newID)), nil
 }
 
 func (c *etcdCtx) Mkdir(path agro.Path, dir *models.Directory) error {
@@ -313,18 +324,14 @@ func (c *etcdCtx) Mkdir(path agro.Path, dir *models.Directory) error {
 	return nil
 }
 
-func (c *etcdCtx) getDirRaw(p agro.Path) (*pb.TxnResponse, error) {
+func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	tx := tx().If(
 		keyExists(mkKey("dirs", p.Key())),
 	).Then(
 		getKey(mkKey("dirs", p.Key())),
 		getPrefix(mkKey("dirs", p.SubdirsPrefix())),
 	).Tx()
-	return c.etcd.kv.Txn(c.getContext(), tx)
-}
-
-func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
-	resp, err := c.getDirRaw(p)
+	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -349,43 +356,23 @@ func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 }
 
 func (c *etcdCtx) SetFileINode(p agro.Path, ref agro.INodeRef) error {
-	resp, err := c.getDirRaw(p)
-	if err != nil {
-		return err
-	}
-	if !resp.Succeeded {
-		panic("shouldn't be able to SetFileINode a non-existent dir")
-	}
-	return c.trySetFileINode(p, ref, resp)
+	_, err := c.atomicModifyKey(mkKey("dirs", p.Key()), trySetFileINode(p, ref))
+	return err
 }
 
-func (c *etcdCtx) trySetFileINode(p agro.Path, ref agro.INodeRef, resp *pb.TxnResponse) error {
-	dirkv := resp.Responses[0].GetResponseRange().Kvs[0]
-	dir := &models.Directory{}
-	err := dir.Unmarshal(dirkv.Value)
-	if err != nil {
-		return err
+func trySetFileINode(p agro.Path, ref agro.INodeRef) func([]byte) ([]byte, error) {
+	return func(in []byte) ([]byte, error) {
+		dir := &models.Directory{}
+		err := dir.Unmarshal(in)
+		if err != nil {
+			return nil, err
+		}
+		if dir.Files == nil {
+			dir.Files = make(map[string]uint64)
+		}
+		dir.Files[p.Filename()] = uint64(ref.INode)
+		return dir.Marshal()
 	}
-	if dir.Files == nil {
-		dir.Files = make(map[string]uint64)
-	}
-	dir.Files[p.Filename()] = uint64(ref.INode)
-	b, err := dir.Marshal()
-	tx := tx().If(
-		keyIsVersion(dirkv.Key, dirkv.Version),
-	).Then(
-		setKey(dirkv.Key, b),
-	).Else(
-		getKey(dirkv.Key),
-	).Tx()
-	resp, err = c.etcd.kv.Txn(c.getContext(), tx)
-	if err != nil {
-		return err
-	}
-	if resp.Succeeded {
-		return nil
-	}
-	return c.trySetFileINode(p, ref, resp)
 }
 
 func (c *etcdCtx) GetRing() (agro.Ring, error) {

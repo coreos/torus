@@ -38,6 +38,13 @@ func (i INodeRef) String() string {
 	return fmt.Sprintf("vol: %d, inode: %d", i.Volume, i.INode)
 }
 
+func (i INodeRef) ToProto() *models.INodeRef {
+	return &models.INodeRef{
+		Volume: uint64(i.Volume),
+		INode:  uint64(i.INode),
+	}
+}
+
 // BlockRef is the identifier for a unique block in the filesystem.
 type BlockRef struct {
 	INodeRef
@@ -61,6 +68,14 @@ func BlockRefFromBytes(b []byte) BlockRef {
 	out := BlockRef{}
 	binary.Read(buf, binary.LittleEndian, &out)
 	return out
+}
+
+func (b BlockRef) ToProto() *models.BlockRef {
+	return &models.BlockRef{
+		Volume: uint64(b.Volume),
+		INode:  uint64(b.INode),
+		Block:  uint64(b.Index),
+	}
 }
 
 func (b BlockRef) String() string {

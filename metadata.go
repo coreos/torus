@@ -88,8 +88,7 @@ type MetadataService interface {
 	GetVolumes() ([]string, error)
 	GetVolumeID(volume string) (VolumeID, error)
 
-	//TODO(barakmich): Relieve contention by making this per-volume
-	CommitInodeIndex() (INodeID, error)
+	CommitInodeIndex(volume string) (INodeID, error)
 
 	Mkdir(path Path, dir *models.Directory) error
 	Getdir(path Path) (*models.Directory, []Path, error)

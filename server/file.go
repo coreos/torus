@@ -67,7 +67,7 @@ func (f *file) openWrite() error {
 	if err != nil {
 		return err
 	}
-	newInode, err := f.srv.mds.CommitInodeIndex()
+	newInode, err := f.srv.mds.CommitInodeIndex(f.path.Volume)
 	if err != nil {
 		if err == agro.ErrAgain {
 			return f.openWrite()

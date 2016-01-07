@@ -26,7 +26,7 @@ func init() {
 type Server struct {
 	mut sync.Mutex
 
-	inode agro.INodeID
+	inode map[string]agro.INodeID
 	vol   agro.VolumeID
 
 	tree     *iradix.Tree
@@ -123,12 +123,12 @@ func (t *Client) CreateVolume(volume string) error {
 	return nil
 }
 
-func (t *Client) CommitInodeIndex() (agro.INodeID, error) {
+func (t *Client) CommitInodeIndex(vol string) (agro.INodeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 
-	t.srv.inode++
-	return t.srv.inode, nil
+	t.srv.inode[vol]++
+	return t.srv.inode[vol], nil
 }
 
 func (t *Client) Mkdir(p agro.Path, dir *models.Directory) error {

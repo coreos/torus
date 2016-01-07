@@ -32,10 +32,7 @@ package models
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
-
-// discarding unused import gogoproto "gogoproto"
-
-import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
+import _ "github.com/gogo/protobuf/gogoproto"
 
 import io "io"
 
@@ -156,6 +153,35 @@ func (m *Ring) GetAttrs() map[string][]byte {
 	return nil
 }
 
+type BlockRef struct {
+	Volume uint64 `protobuf:"varint,1,opt,name=volume,proto3" json:"volume,omitempty"`
+	INode  uint64 `protobuf:"varint,2,opt,name=inode,proto3" json:"inode,omitempty"`
+	Block  uint64 `protobuf:"varint,3,opt,name=block,proto3" json:"block,omitempty"`
+}
+
+func (m *BlockRef) Reset()         { *m = BlockRef{} }
+func (m *BlockRef) String() string { return proto.CompactTextString(m) }
+func (*BlockRef) ProtoMessage()    {}
+
+type INodeRef struct {
+	Volume uint64 `protobuf:"varint,1,opt,name=volume,proto3" json:"volume,omitempty"`
+	INode  uint64 `protobuf:"varint,2,opt,name=inode,proto3" json:"inode,omitempty"`
+}
+
+func (m *INodeRef) Reset()         { *m = INodeRef{} }
+func (m *INodeRef) String() string { return proto.CompactTextString(m) }
+func (*INodeRef) ProtoMessage()    {}
+
+func init() {
+	proto.RegisterType((*Metadata)(nil), "models.Metadata")
+	proto.RegisterType((*INode)(nil), "models.INode")
+	proto.RegisterType((*BlockLayer)(nil), "models.BlockLayer")
+	proto.RegisterType((*Directory)(nil), "models.Directory")
+	proto.RegisterType((*PeerInfo)(nil), "models.PeerInfo")
+	proto.RegisterType((*Ring)(nil), "models.Ring")
+	proto.RegisterType((*BlockRef)(nil), "models.BlockRef")
+	proto.RegisterType((*INodeRef)(nil), "models.INodeRef")
+}
 func (m *Metadata) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -265,12 +291,7 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 		i += n1
 	}
 	if len(m.Attrs) > 0 {
-		keysForAttrs := make([]string, 0, len(m.Attrs))
 		for k, _ := range m.Attrs {
-			keysForAttrs = append(keysForAttrs, k)
-		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForAttrs)
-		for _, k := range keysForAttrs {
 			data[i] = 0x3a
 			i++
 			v := m.Attrs[k]
@@ -358,12 +379,7 @@ func (m *Directory) MarshalTo(data []byte) (int, error) {
 		i += n2
 	}
 	if len(m.Files) > 0 {
-		keysForFiles := make([]string, 0, len(m.Files))
 		for k, _ := range m.Files {
-			keysForFiles = append(keysForFiles, k)
-		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForFiles)
-		for _, k := range keysForFiles {
 			data[i] = 0x12
 			i++
 			v := m.Files[k]
@@ -467,12 +483,7 @@ func (m *Ring) MarshalTo(data []byte) (int, error) {
 		}
 	}
 	if len(m.Attrs) > 0 {
-		keysForAttrs := make([]string, 0, len(m.Attrs))
 		for k, _ := range m.Attrs {
-			keysForAttrs = append(keysForAttrs, k)
-		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForAttrs)
-		for _, k := range keysForAttrs {
 			data[i] = 0x22
 			i++
 			v := m.Attrs[k]
@@ -487,6 +498,67 @@ func (m *Ring) MarshalTo(data []byte) (int, error) {
 			i = encodeVarintAgro(data, i, uint64(len(v)))
 			i += copy(data[i:], v)
 		}
+	}
+	return i, nil
+}
+
+func (m *BlockRef) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *BlockRef) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Volume != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Volume))
+	}
+	if m.INode != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.INode))
+	}
+	if m.Block != 0 {
+		data[i] = 0x18
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Block))
+	}
+	return i, nil
+}
+
+func (m *INodeRef) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *INodeRef) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Volume != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Volume))
+	}
+	if m.INode != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.INode))
 	}
 	return i, nil
 }
@@ -662,6 +734,33 @@ func (m *Ring) Size() (n int) {
 			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + len(v) + sovAgro(uint64(len(v)))
 			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
 		}
+	}
+	return n
+}
+
+func (m *BlockRef) Size() (n int) {
+	var l int
+	_ = l
+	if m.Volume != 0 {
+		n += 1 + sovAgro(uint64(m.Volume))
+	}
+	if m.INode != 0 {
+		n += 1 + sovAgro(uint64(m.INode))
+	}
+	if m.Block != 0 {
+		n += 1 + sovAgro(uint64(m.Block))
+	}
+	return n
+}
+
+func (m *INodeRef) Size() (n int) {
+	var l int
+	_ = l
+	if m.Volume != 0 {
+		n += 1 + sovAgro(uint64(m.Volume))
+	}
+	if m.INode != 0 {
+		n += 1 + sovAgro(uint64(m.INode))
 	}
 	return n
 }
@@ -1827,6 +1926,201 @@ func (m *Ring) Unmarshal(data []byte) error {
 			}
 			m.Attrs[mapkey] = mapvalue
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *BlockRef) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: BlockRef: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: BlockRef: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Volume", wireType)
+			}
+			m.Volume = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Volume |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field INode", wireType)
+			}
+			m.INode = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.INode |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Block", wireType)
+			}
+			m.Block = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Block |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *INodeRef) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: INodeRef: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: INodeRef: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Volume", wireType)
+			}
+			m.Volume = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Volume |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field INode", wireType)
+			}
+			m.INode = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.INode |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])

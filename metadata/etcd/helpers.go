@@ -64,6 +64,10 @@ func requestUnion(comps ...interface{}) []*pb.RequestUnion {
 	return out
 }
 
+func (t *transact) Do(comps ...interface{}) *transact {
+	return t.Then(comps...)
+}
+
 func (t *transact) Then(comps ...interface{}) *transact {
 	ru := requestUnion(comps...)
 	t.tx.Success = ru

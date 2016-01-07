@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "gogoproto/gogo.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
 package models;
 
@@ -50,4 +50,16 @@ message Ring {
   uint32 version = 2;
   repeated string uuids = 3 [(gogoproto.customname) = "UUIDs"];
   map<string, bytes> attrs = 4;
+}
+
+
+message BlockRef {
+	uint64 volume = 1;
+	uint64 inode = 2 [(gogoproto.customname) = "INode"];
+	uint64 block = 3;
+}
+
+message INodeRef {
+	uint64 volume = 1;
+	uint64 inode = 2 [(gogoproto.customname) = "INode"];
 }
