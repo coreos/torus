@@ -208,6 +208,9 @@ func (s *server) Close() error {
 func (s *server) incRef(vol string, bm *roaring.RoaringBitmap) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
+	if bm.GetCardinality() == 0 {
+		return
+	}
 	if _, ok := s.openINodeRefs[vol]; !ok {
 		s.openINodeRefs[vol] = make(map[agro.INodeID]int)
 	}

@@ -301,7 +301,9 @@ func (f *file) Sync() error {
 }
 
 func (f *file) sync(closing bool) error {
+	// Here there be dragons.
 	if !f.writeOpen {
+		f.updateHeldINodes(closing)
 		return nil
 	}
 	err := f.syncBlock()
@@ -321,10 +323,75 @@ func (f *file) sync(closing bool) error {
 		return err
 	}
 
-	err = f.srv.mds.SetFileINode(f.path, f.writeINodeRef)
+	// TODO(barakmich): Starting with SetFileINode, there's currently a problem in
+	// that, if the following bookkeeping is interrupted (eg, the machine we're on
+	// dies in the middle of the rest of this function) there could be an unknown
+	// garbage state. Ideally, it needs to be "the mother of all transactions",
+	// which is totally possible, but I'm holding off on doing that right now
+	// until I know better how these work together. Once it becomes clear, the
+	// optimization/bugfix can be made.
+
+	replaced, err := f.srv.mds.SetFileINode(f.path, f.writeINodeRef)
 	if err != nil {
 		clog.Error("sync: couldn't set file inode")
 		return err
 	}
+	newLive := f.blocks.GetLiveINodes()
+	switch replaced {
+	case agro.INodeID(0):
+		// Easy. We're creating or replacing a deleted file.
+		// TODO(barakmich): Correct behavior depending on O_CREAT
+		dead := roaring.NewRoaringBitmap()
+		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
+	case agro.INodeID(f.inode.Replaces):
+		// Easy. We're replacing the inode we opened. This is the happy case.
+		newLive := f.blocks.GetLiveINodes()
+		dead := roaring.AndNot(f.initialINodes, newLive)
+		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
+	default:
+		// Dammit. Somebody changed the file underneath us. We can write a smarter
+		// merge function -- O_APPEND for example, doing the right thing, by keeping
+		// some state in the file and actually appending it.
+		//
+		// Today, however, we're going to go with the technically correct but perhaps
+		// suboptimal one: last write wins he good news is, we're that last write.
+		var newINode *models.INode
+		for {
+			newINode, err = f.srv.inodes.GetINode(context.TODO(), agro.INodeRef{
+				Volume: f.writeINodeRef.Volume,
+				INode:  replaced,
+			})
+			if err == nil {
+				break
+			}
+			// We can't go back, and we can't go forward, which is why this is a
+			// critical section of doom. See the above TODO. In a full transaction,
+			// we can safely bail.
+			clog.Error("sync: can't get inode we replaced")
+		}
+		bs, err := blockset.UnmarshalFromProto(newINode.Blocks, nil)
+		if err != nil {
+			// If it's corrupt we're in another world of hurt. But this one we can't fix.
+			// Again, safer in transaction.
+			panic("sync: couldn't unmarshal blockset")
+		}
+		oldLive := bs.GetLiveINodes()
+		dead := roaring.AndNot(oldLive, newLive)
+		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
+	}
+	// Critical section over.
+	f.updateHeldINodes(closing)
+	// SHANTIH.
+	f.writeOpen = false
 	return nil
+}
+
+func (f *file) updateHeldINodes(closing bool) {
+	f.srv.decRef(f.path.Volume, f.initialINodes)
+	if !closing {
+		f.initialINodes = f.blocks.GetLiveINodes()
+		f.srv.incRef(f.path.Volume, f.initialINodes)
+	}
+	bm, _ := f.srv.getBitmap(f.path.Volume)
+	f.srv.mds.ClaimVolumeINodes(f.path.Volume, bm)
 }
