@@ -9,6 +9,9 @@ import (
 )
 
 func mkdirsFor(dir string) error {
+	if dir == "" {
+		return nil
+	}
 	err := os.MkdirAll(dir, 0700)
 	if err != nil {
 		return err
@@ -55,9 +58,19 @@ func NewServer(cfg agro.Config, metadataServiceName, inodeStoreName, blockStoreN
 	}
 
 	return &server{
-		blocks:   blocks,
-		mds:      mds,
-		inodes:   inodes,
-		peersMap: make(map[string]*models.PeerInfo),
+		blocks:        blocks,
+		mds:           mds,
+		inodes:        inodes,
+		peersMap:      make(map[string]*models.PeerInfo),
+		openINodeRefs: make(map[string]map[agro.INodeID]int),
 	}, nil
+}
+
+func NewMemoryServer() agro.Server {
+	cfg := agro.Config{}
+	x, err := NewServer(cfg, "memory", "temp", "temp")
+	if err != nil {
+		panic(err)
+	}
+	return x
 }

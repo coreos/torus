@@ -12,6 +12,7 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
+	"github.com/tgruben/roaring"
 
 	// Register drivers
 	_ "github.com/coreos/agro/metadata/memory"
@@ -22,31 +23,18 @@ import (
 var _ agro.Server = &server{}
 
 type server struct {
-	mut        sync.RWMutex
-	blocks     agro.BlockStore
-	mds        agro.MetadataService
-	inodes     agro.INodeStore
-	peersMap   map[string]*models.PeerInfo
-	closeChans []chan interface{}
+	mut           sync.RWMutex
+	blocks        agro.BlockStore
+	mds           agro.MetadataService
+	inodes        agro.INodeStore
+	peersMap      map[string]*models.PeerInfo
+	closeChans    []chan interface{}
+	openINodeRefs map[string]map[agro.INodeID]int
 
 	internalAddr string
 
 	heartbeating    bool
 	replicationOpen bool
-}
-
-func NewMemoryServer() agro.Server {
-	cfg := agro.Config{}
-	mds, _ := agro.CreateMetadataService("memory", cfg)
-	inodes, _ := agro.CreateINodeStore("temp", cfg)
-	gmd, _ := mds.GlobalMetadata()
-	cold, _ := agro.CreateBlockStore("temp", cfg, gmd)
-	return &server{
-		blocks:   cold,
-		mds:      mds,
-		inodes:   inodes,
-		peersMap: make(map[string]*models.PeerInfo),
-	}
 }
 
 func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err error) {
@@ -70,11 +58,12 @@ func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err er
 	}
 	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.INode, bs.Length())
 	return &file{
-		path:    path,
-		inode:   n,
-		srv:     s,
-		blocks:  bs,
-		blkSize: int64(globals.BlockSize),
+		path:         path,
+		inode:        n,
+		srv:          s,
+		blocks:       bs,
+		blkSize:      int64(globals.BlockSize),
+		syncedINodes: roaring.NewRoaringBitmap(),
 	}, nil
 }
 
@@ -214,4 +203,58 @@ func (s *server) Close() error {
 		return err
 	}
 	return nil
+}
+
+func (s *server) incRef(vol string, bm *roaring.RoaringBitmap) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	if _, ok := s.openINodeRefs[vol]; !ok {
+		s.openINodeRefs[vol] = make(map[agro.INodeID]int)
+	}
+	it := bm.Iterator()
+	for it.HasNext() {
+		id := agro.INodeID(it.Next())
+		v, ok := s.openINodeRefs[vol][id]
+		if !ok {
+			s.openINodeRefs[vol][id] = 1
+		} else {
+			s.openINodeRefs[vol][id] = v + 1
+		}
+	}
+}
+
+func (s *server) decRef(vol string, bm *roaring.RoaringBitmap) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	it := bm.Iterator()
+	for it.HasNext() {
+		id := agro.INodeID(it.Next())
+		v, ok := s.openINodeRefs[vol][id]
+		if !ok {
+			panic("server: double remove of an inode reference")
+		} else {
+			v--
+			if v == 0 {
+				delete(s.openINodeRefs[vol], id)
+			} else {
+				s.openINodeRefs[vol][id] = v
+			}
+		}
+	}
+	if len(s.openINodeRefs[vol]) == 0 {
+		delete(s.openINodeRefs, vol)
+	}
+}
+
+func (s *server) getBitmap(vol string) (*roaring.RoaringBitmap, bool) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	if _, ok := s.openINodeRefs[vol]; !ok {
+		return nil, false
+	}
+	out := roaring.NewRoaringBitmap()
+	for k := range s.openINodeRefs[vol] {
+		out.Add(uint32(k))
+	}
+	return out, true
 }

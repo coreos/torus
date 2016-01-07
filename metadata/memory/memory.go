@@ -171,13 +171,14 @@ func (s *memory) debugPrintTree() {
 	}
 }
 
-func (s *memory) SetFileINode(p agro.Path, ref agro.INodeRef) error {
+func (s *memory) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, error) {
+	old := agro.INodeID(0)
 	vid, err := s.GetVolumeID(p.Volume)
 	if err != nil {
-		return err
+		return old, err
 	}
 	if vid != ref.Volume {
-		return errors.New("temp: inodeRef volume not for given path volume")
+		return old, errors.New("temp: inodeRef volume not for given path volume")
 	}
 	s.mut.Lock()
 	defer s.mut.Unlock()
@@ -187,7 +188,7 @@ func (s *memory) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	)
 	v, ok := tx.Get(k)
 	if !ok {
-		return &os.PathError{
+		return old, &os.PathError{
 			Op:   "stat",
 			Path: p.Path,
 			Err:  os.ErrNotExist,
@@ -200,10 +201,13 @@ func (s *memory) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	if dir.Files == nil {
 		dir.Files = make(map[string]uint64)
 	}
+	if v, ok := dir.Files[p.Filename()]; ok {
+		old = agro.INodeID(v)
+	}
 	dir.Files[p.Filename()] = uint64(ref.INode)
 	tx.Insert(k, dir)
 	s.tree = tx.Commit()
-	return nil
+	return old, nil
 }
 
 func (s *memory) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {

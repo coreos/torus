@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/tgruben/roaring"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
@@ -17,18 +18,26 @@ import (
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "server")
 
 type file struct {
-	mut       sync.RWMutex
-	path      agro.Path
-	inode     *models.INode
-	srv       *server
-	offset    int64
-	blocks    agro.Blockset
-	blkSize   int64
-	inodeRef  agro.INodeRef
-	writeOpen bool
-	flags     int
-	openIdx   int
-	openData  []byte
+	// globals
+	mut     sync.RWMutex
+	srv     *server
+	blkSize int64
+
+	// file metadata
+	path   agro.Path
+	inode  *models.INode
+	flags  int
+	offset int64
+	blocks agro.Blockset
+
+	// during write
+	initialINodes *roaring.RoaringBitmap
+	writeINodeRef agro.INodeRef
+	writeOpen     bool
+
+	// half-finished blocks
+	openIdx  int
+	openData []byte
 }
 
 func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error) {
@@ -41,14 +50,24 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 		return nil, err
 	}
 
-	clog.Tracef("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
+	set := bs.GetLiveINodes()
+	s.incRef(path.Volume, set)
+	bm, _ := s.getBitmap(path.Volume)
+	err = s.mds.ClaimVolumeINodes(path.Volume, bm)
+	if err != nil {
+		s.decRef(path.Volume, set)
+		return nil, err
+	}
+
+	clog.Debugf("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
 	f := &file{
-		path:    path,
-		inode:   inode,
-		srv:     s,
-		offset:  0,
-		blocks:  bs,
-		blkSize: int64(md.BlockSize),
+		path:          path,
+		inode:         inode,
+		srv:           s,
+		offset:        0,
+		blocks:        bs,
+		initialINodes: set,
+		blkSize:       int64(md.BlockSize),
 	}
 	return f, nil
 }
@@ -74,7 +93,7 @@ func (f *file) openWrite() error {
 		}
 		return err
 	}
-	f.inodeRef = agro.INodeRef{
+	f.writeINodeRef = agro.INodeRef{
 		Volume: vid,
 		INode:  newInode,
 	}
@@ -124,7 +143,7 @@ func (f *file) syncBlock() error {
 	if f.openData == nil {
 		return nil
 	}
-	err := f.blocks.PutBlock(context.TODO(), f.inodeRef, f.openIdx, f.openData)
+	err := f.blocks.PutBlock(context.TODO(), f.writeINodeRef, f.openIdx, f.openData)
 	f.openIdx = -1
 	f.openData = nil
 	return err
@@ -165,7 +184,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 			return n, err
 		}
 		wrote := f.writeToBlock(int(blkOff), int(blkOff)+frontlen, b[:frontlen])
-		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
+		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 		if wrote != frontlen {
 			return n, errors.New("Couldn't write all of the first block at the offset")
 		}
@@ -187,8 +206,8 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 
 	for toWrite >= int(f.blkSize) {
 		blkIndex := int(off / f.blkSize)
-		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
-		err = f.blocks.PutBlock(context.TODO(), f.inodeRef, blkIndex, b[:f.blkSize])
+		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
+		err = f.blocks.PutBlock(context.TODO(), f.writeINodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
 			return n, err
 		}
@@ -213,7 +232,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		return n, err
 	}
 	wrote := f.writeToBlock(0, toWrite, b)
-	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
+	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 	if wrote != toWrite {
 		return n, errors.New("Couldn't write all of the last block")
 	}
@@ -270,7 +289,7 @@ func (f *file) Close() error {
 	if f == nil {
 		return agro.ErrInvalid
 	}
-	err := f.Sync()
+	err := f.sync(true)
 	if err != nil {
 		clog.Error(err)
 	}
@@ -278,6 +297,10 @@ func (f *file) Close() error {
 }
 
 func (f *file) Sync() error {
+	return f.sync(false)
+}
+
+func (f *file) sync(closing bool) error {
 	if !f.writeOpen {
 		return nil
 	}
@@ -292,13 +315,13 @@ func (f *file) Sync() error {
 		return err
 	}
 	f.inode.Blocks = blkdata
-	err = f.srv.inodes.WriteINode(context.TODO(), f.inodeRef, f.inode)
+	err = f.srv.inodes.WriteINode(context.TODO(), f.writeINodeRef, f.inode)
 	if err != nil {
 		clog.Error("sync: couldn't write inode")
 		return err
 	}
 
-	err = f.srv.mds.SetFileINode(f.path, f.inodeRef)
+	err = f.srv.mds.SetFileINode(f.path, f.writeINodeRef)
 	if err != nil {
 		clog.Error("sync: couldn't set file inode")
 		return err

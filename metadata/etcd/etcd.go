@@ -201,7 +201,7 @@ func (c *etcdCtx) GetPeers() ([]*models.PeerInfo, error) {
 	return out, nil
 }
 
-func (c *etcdCtx) atomicModifyKey(key []byte, f func([]byte) ([]byte, error)) ([]byte, error) {
+func (c *etcdCtx) atomicModifyKey(key []byte, f func([]byte) ([]byte, interface{}, error)) (interface{}, error) {
 	resp, err := c.etcd.kv.Range(c.getContext(), getKey(key))
 	if err != nil {
 		return nil, err
@@ -211,7 +211,7 @@ func (c *etcdCtx) atomicModifyKey(key []byte, f func([]byte) ([]byte, error)) ([
 	}
 	kv := resp.Kvs[0]
 	for {
-		newBytes, err := f(kv.Value)
+		newBytes, fval, err := f(kv.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -227,14 +227,15 @@ func (c *etcdCtx) atomicModifyKey(key []byte, f func([]byte) ([]byte, error)) ([
 			return nil, err
 		}
 		if resp.Succeeded {
-			return newBytes, nil
+			return fval, nil
 		}
 		kv = resp.Responses[0].GetResponseRange().Kvs[0]
 	}
 }
 
-func bytesAddOne(in []byte) ([]byte, error) {
-	return uint64ToBytes(bytesToUint64(in) + 1), nil
+func bytesAddOne(in []byte) ([]byte, interface{}, error) {
+	newval := bytesToUint64(in) + 1
+	return uint64ToBytes(newval), newval, nil
 }
 
 func (c *etcdCtx) CreateVolume(volume string) error {
@@ -246,7 +247,7 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 		return err
 	}
 	do := tx().Do(
-		setKey(mkKey("volumes", volume), newID),
+		setKey(mkKey("volumes", volume), uint64ToBytes(newID.(uint64))),
 		setKey(mkKey("volumemeta", volume, "inode"), uint64ToBytes(1)),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
 	).Tx()
@@ -301,7 +302,7 @@ func (c *etcdCtx) CommitInodeIndex(volume string) (agro.INodeID, error) {
 	if err != nil {
 		return 0, err
 	}
-	return agro.INodeID(bytesToUint64(newID)), nil
+	return agro.INodeID(newID.(uint64)), nil
 }
 
 func (c *etcdCtx) Mkdir(path agro.Path, dir *models.Directory) error {
@@ -355,23 +356,28 @@ func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	return outdir, outpaths, nil
 }
 
-func (c *etcdCtx) SetFileINode(p agro.Path, ref agro.INodeRef) error {
-	_, err := c.atomicModifyKey(mkKey("dirs", p.Key()), trySetFileINode(p, ref))
-	return err
+func (c *etcdCtx) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, error) {
+	v, err := c.atomicModifyKey(mkKey("dirs", p.Key()), trySetFileINode(p, ref))
+	return v.(agro.INodeID), err
 }
 
-func trySetFileINode(p agro.Path, ref agro.INodeRef) func([]byte) ([]byte, error) {
-	return func(in []byte) ([]byte, error) {
+func trySetFileINode(p agro.Path, ref agro.INodeRef) func([]byte) ([]byte, interface{}, error) {
+	return func(in []byte) ([]byte, interface{}, error) {
 		dir := &models.Directory{}
 		err := dir.Unmarshal(in)
 		if err != nil {
-			return nil, err
+			return nil, agro.INodeID(0), err
 		}
 		if dir.Files == nil {
 			dir.Files = make(map[string]uint64)
 		}
+		old := agro.INodeID(0)
+		if v, ok := dir.Files[p.Filename()]; ok {
+			old = agro.INodeID(v)
+		}
 		dir.Files[p.Filename()] = uint64(ref.INode)
-		return dir.Marshal()
+		bytes, err := dir.Marshal()
+		return bytes, old, err
 	}
 }
 

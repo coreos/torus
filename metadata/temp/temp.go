@@ -187,13 +187,14 @@ func (t *Client) debugPrintTree() {
 	}
 }
 
-func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) error {
+func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, error) {
+	old := agro.INodeID(0)
 	vid, err := t.GetVolumeID(p.Volume)
 	if err != nil {
-		return err
+		return old, err
 	}
 	if vid != ref.Volume {
-		return errors.New("temp: inodeRef volume not for given path volume")
+		return old, errors.New("temp: inodeRef volume not for given path volume")
 	}
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
@@ -203,7 +204,7 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	)
 	v, ok := tx.Get(k)
 	if !ok {
-		return &os.PathError{
+		return old, &os.PathError{
 			Op:   "stat",
 			Path: p.Path,
 			Err:  os.ErrNotExist,
@@ -216,10 +217,13 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	if dir.Files == nil {
 		dir.Files = make(map[string]uint64)
 	}
+	if v, ok := dir.Files[p.Filename()]; ok {
+		old = agro.INodeID(v)
+	}
 	dir.Files[p.Filename()] = uint64(ref.INode)
 	tx.Insert(k, dir)
 	t.srv.tree = tx.Commit()
-	return nil
+	return old, nil
 }
 
 func (t *Client) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {

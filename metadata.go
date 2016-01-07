@@ -93,7 +93,7 @@ type MetadataService interface {
 
 	Mkdir(path Path, dir *models.Directory) error
 	Getdir(path Path) (*models.Directory, []Path, error)
-	SetFileINode(path Path, ref INodeRef) error
+	SetFileINode(path Path, ref INodeRef) (INodeID, error)
 
 	GlobalMetadata() (GlobalMetadata, error)
 
