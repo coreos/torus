@@ -1,6 +1,9 @@
 package agro
 
-import "golang.org/x/net/context"
+import (
+	"github.com/tgruben/roaring"
+	"golang.org/x/net/context"
+)
 
 // Blockset is the interface representing the standardized methods to interact
 // with a set of blocks.
@@ -9,6 +12,7 @@ type Blockset interface {
 	Kind() uint32
 	GetBlock(ctx context.Context, i int) ([]byte, error)
 	PutBlock(ctx context.Context, inode INodeRef, i int, b []byte) error
+	GetLiveINodes() *roaring.RoaringBitmap
 
 	Marshal() ([]byte, error)
 	Unmarshal(data []byte) error

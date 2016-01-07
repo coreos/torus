@@ -9,6 +9,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/agro"
+	"github.com/tgruben/roaring"
 )
 
 type replicationBlockset struct {
@@ -93,3 +94,7 @@ func (b *replicationBlockset) Unmarshal(data []byte) error {
 }
 
 func (b *replicationBlockset) GetSubBlockset() agro.Blockset { return b.sub }
+
+func (b *replicationBlockset) GetLiveINodes() *roaring.RoaringBitmap {
+	return b.sub.GetLiveINodes()
+}
