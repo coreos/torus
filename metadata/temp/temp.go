@@ -61,6 +61,7 @@ func NewServer() *Server {
 			Type:    uint32(ring.Empty),
 			Version: 1,
 		},
+		inode:      make(map[string]agro.INodeID),
 		openINodes: make(map[string]map[string]*roaring.RoaringBitmap),
 		deadMap:    make(map[string]*roaring.RoaringBitmap),
 	}

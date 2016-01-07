@@ -70,6 +70,7 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		cfg:        cfg,
 		uuid:       uuid,
 		openINodes: make(map[string]*roaring.RoaringBitmap),
+		deadMap:    make(map[string]*roaring.RoaringBitmap),
 	}, nil
 }
 
