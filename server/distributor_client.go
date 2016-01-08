@@ -103,7 +103,7 @@ func (d *distClient) GetINode(ctx context.Context, uuid string, b agro.INodeRef)
 	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
 	resp, err := client.INode(newctx, &models.INodeRequest{
-		Inoderefs: []*models.INodeRef{ref},
+		INodeRefs: []*models.INodeRef{ref},
 	})
 	if err != nil {
 		if err == context.DeadlineExceeded {

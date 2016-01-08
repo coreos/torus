@@ -7,6 +7,7 @@ import (
 
 	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 	"github.com/coreos/agro/models"
+	"github.com/tgruben/roaring"
 )
 
 func mkKey(s ...string) []byte {
@@ -21,6 +22,25 @@ func uint64ToBytes(x uint64) []byte {
 		panic(err)
 	}
 	return buf.Bytes()
+}
+
+func roaringToBytes(r *roaring.RoaringBitmap) []byte {
+	buf := new(bytes.Buffer)
+	_, err := r.WriteTo(buf)
+	if err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
+func bytesToRoaring(b []byte) *roaring.RoaringBitmap {
+	r := bytes.NewReader(b)
+	bm := roaring.NewRoaringBitmap()
+	_, err := bm.ReadFrom(r)
+	if err != nil {
+		panic(err)
+	}
+	return bm
 }
 
 func bytesToUint64(b []byte) uint64 {
@@ -132,6 +152,12 @@ func setKey(key []byte, value []byte) *pb.PutRequest {
 	return &pb.PutRequest{
 		Key:   key,
 		Value: value,
+	}
+}
+
+func deleteKey(key []byte) *pb.DeleteRangeRequest {
+	return &pb.DeleteRangeRequest{
+		Key: key,
 	}
 }
 

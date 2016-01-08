@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/tgruben/roaring"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
@@ -17,18 +18,26 @@ import (
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "server")
 
 type file struct {
-	mut       sync.RWMutex
-	path      agro.Path
-	inode     *models.INode
-	srv       *server
-	offset    int64
-	blocks    agro.Blockset
-	blkSize   int64
-	inodeRef  agro.INodeRef
-	writeOpen bool
-	flags     int
-	openIdx   int
-	openData  []byte
+	// globals
+	mut     sync.RWMutex
+	srv     *server
+	blkSize int64
+
+	// file metadata
+	path   agro.Path
+	inode  *models.INode
+	flags  int
+	offset int64
+	blocks agro.Blockset
+
+	// during write
+	initialINodes *roaring.RoaringBitmap
+	writeINodeRef agro.INodeRef
+	writeOpen     bool
+
+	// half-finished blocks
+	openIdx  int
+	openData []byte
 }
 
 func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error) {
@@ -41,14 +50,24 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 		return nil, err
 	}
 
-	clog.Tracef("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
+	set := bs.GetLiveINodes()
+	s.incRef(path.Volume, set)
+	bm, _ := s.getBitmap(path.Volume)
+	err = s.mds.ClaimVolumeINodes(path.Volume, bm)
+	if err != nil {
+		s.decRef(path.Volume, set)
+		return nil, err
+	}
+
+	clog.Debugf("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
 	f := &file{
-		path:    path,
-		inode:   inode,
-		srv:     s,
-		offset:  0,
-		blocks:  bs,
-		blkSize: int64(md.BlockSize),
+		path:          path,
+		inode:         inode,
+		srv:           s,
+		offset:        0,
+		blocks:        bs,
+		initialINodes: set,
+		blkSize:       int64(md.BlockSize),
 	}
 	return f, nil
 }
@@ -67,20 +86,20 @@ func (f *file) openWrite() error {
 	if err != nil {
 		return err
 	}
-	newInode, err := f.srv.mds.CommitInodeIndex(f.path.Volume)
+	newINode, err := f.srv.mds.CommitINodeIndex(f.path.Volume)
 	if err != nil {
 		if err == agro.ErrAgain {
 			return f.openWrite()
 		}
 		return err
 	}
-	f.inodeRef = agro.INodeRef{
+	f.writeINodeRef = agro.INodeRef{
 		Volume: vid,
-		INode:  newInode,
+		INode:  newINode,
 	}
 	if f.inode != nil {
 		f.inode.Replaces = f.inode.INode
-		f.inode.INode = uint64(newInode)
+		f.inode.INode = uint64(newINode)
 	}
 	f.writeOpen = true
 	return nil
@@ -124,7 +143,7 @@ func (f *file) syncBlock() error {
 	if f.openData == nil {
 		return nil
 	}
-	err := f.blocks.PutBlock(context.TODO(), f.inodeRef, f.openIdx, f.openData)
+	err := f.blocks.PutBlock(context.TODO(), f.writeINodeRef, f.openIdx, f.openData)
 	f.openIdx = -1
 	f.openData = nil
 	return err
@@ -165,7 +184,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 			return n, err
 		}
 		wrote := f.writeToBlock(int(blkOff), int(blkOff)+frontlen, b[:frontlen])
-		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
+		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 		if wrote != frontlen {
 			return n, errors.New("Couldn't write all of the first block at the offset")
 		}
@@ -187,8 +206,8 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 
 	for toWrite >= int(f.blkSize) {
 		blkIndex := int(off / f.blkSize)
-		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
-		err = f.blocks.PutBlock(context.TODO(), f.inodeRef, blkIndex, b[:f.blkSize])
+		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
+		err = f.blocks.PutBlock(context.TODO(), f.writeINodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
 			return n, err
 		}
@@ -213,7 +232,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		return n, err
 	}
 	wrote := f.writeToBlock(0, toWrite, b)
-	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.inodeRef)
+	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 	if wrote != toWrite {
 		return n, errors.New("Couldn't write all of the last block")
 	}
@@ -270,7 +289,7 @@ func (f *file) Close() error {
 	if f == nil {
 		return agro.ErrInvalid
 	}
-	err := f.Sync()
+	err := f.sync(true)
 	if err != nil {
 		clog.Error(err)
 	}
@@ -278,7 +297,13 @@ func (f *file) Close() error {
 }
 
 func (f *file) Sync() error {
+	return f.sync(false)
+}
+
+func (f *file) sync(closing bool) error {
+	// Here there be dragons.
 	if !f.writeOpen {
+		f.updateHeldINodes(closing)
 		return nil
 	}
 	err := f.syncBlock()
@@ -292,16 +317,84 @@ func (f *file) Sync() error {
 		return err
 	}
 	f.inode.Blocks = blkdata
-	err = f.srv.inodes.WriteINode(context.TODO(), f.inodeRef, f.inode)
+	err = f.srv.inodes.WriteINode(context.TODO(), f.writeINodeRef, f.inode)
 	if err != nil {
 		clog.Error("sync: couldn't write inode")
 		return err
 	}
 
-	err = f.srv.mds.SetFileINode(f.path, f.inodeRef)
+	// TODO(barakmich): Starting with SetFileINode, there's currently a problem in
+	// that, if the following bookkeeping is interrupted (eg, the machine we're on
+	// dies in the middle of the rest of this function) there could be an unknown
+	// garbage state. Ideally, it needs to be "the mother of all transactions",
+	// which is totally possible, but I'm holding off on doing that right now
+	// until I know better how these work together. Once it becomes clear, the
+	// optimization/bugfix can be made.
+
+	replaced, err := f.srv.mds.SetFileINode(f.path, f.writeINodeRef)
 	if err != nil {
 		clog.Error("sync: couldn't set file inode")
 		return err
 	}
+	newLive := f.blocks.GetLiveINodes()
+	switch replaced {
+	case agro.INodeID(0):
+		// Easy. We're creating or replacing a deleted file.
+		// TODO(barakmich): Correct behavior depending on O_CREAT
+		dead := roaring.NewRoaringBitmap()
+		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
+	case agro.INodeID(f.inode.Replaces):
+		// Easy. We're replacing the inode we opened. This is the happy case.
+		newLive := f.blocks.GetLiveINodes()
+		dead := roaring.AndNot(f.initialINodes, newLive)
+		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
+	default:
+		// Dammit. Somebody changed the file underneath us. We can write a smarter
+		// merge function -- O_APPEND for example, doing the right thing, by keeping
+		// some state in the file and actually appending it.
+		//
+		// Today, however, we're going to go with the technically correct but perhaps
+		// suboptimal one: last write wins the good news is, we're that last write.
+		var newINode *models.INode
+		for {
+			newINode, err = f.srv.inodes.GetINode(context.TODO(), agro.INodeRef{
+				Volume: f.writeINodeRef.Volume,
+				INode:  replaced,
+			})
+			if err == nil {
+				break
+			}
+			// We can't go back, and we can't go forward, which is why this is a
+			// critical section of doom. See the above TODO. In a full transaction,
+			// we can safely bail.
+			clog.Error("sync: can't get inode we replaced")
+		}
+		bs, err := blockset.UnmarshalFromProto(newINode.Blocks, nil)
+		if err != nil {
+			// If it's corrupt we're in another world of hurt. But this one we can't fix.
+			// Again, safer in transaction.
+			panic("sync: couldn't unmarshal blockset")
+		}
+		oldLive := bs.GetLiveINodes()
+		dead := roaring.AndNot(oldLive, newLive)
+		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
+	}
+	// Critical section over.
+	f.updateHeldINodes(closing)
+	// SHANTIH.
+	f.writeOpen = false
 	return nil
+}
+
+func (f *file) updateHeldINodes(closing bool) {
+	f.srv.decRef(f.path.Volume, f.initialINodes)
+	if !closing {
+		f.initialINodes = f.blocks.GetLiveINodes()
+		f.srv.incRef(f.path.Volume, f.initialINodes)
+	}
+	bm, _ := f.srv.getBitmap(f.path.Volume)
+	err := f.srv.mds.ClaimVolumeINodes(f.path.Volume, bm)
+	if err != nil {
+		clog.Error("file: TODO: Can't re-claim")
+	}
 }

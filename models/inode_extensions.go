@@ -1,6 +1,6 @@
 package models
 
-func NewEmptyInode() *INode {
+func NewEmptyINode() *INode {
 	return &INode{
 		Attrs: make(map[string]string),
 	}

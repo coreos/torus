@@ -17,6 +17,7 @@ import (
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
 	"github.com/hashicorp/go-immutable-radix"
+	"github.com/tgruben/roaring"
 )
 
 func init() {
@@ -29,11 +30,13 @@ type Server struct {
 	inode map[string]agro.INodeID
 	vol   agro.VolumeID
 
-	tree     *iradix.Tree
-	volIndex map[string]agro.VolumeID
-	global   agro.GlobalMetadata
-	peers    []*models.PeerInfo
-	ring     *models.Ring
+	tree       *iradix.Tree
+	volIndex   map[string]agro.VolumeID
+	global     agro.GlobalMetadata
+	peers      []*models.PeerInfo
+	ring       *models.Ring
+	openINodes map[string]map[string]*roaring.RoaringBitmap
+	deadMap    map[string]*roaring.RoaringBitmap
 
 	ringListeners []chan agro.Ring
 }
@@ -58,6 +61,9 @@ func NewServer() *Server {
 			Type:    uint32(ring.Empty),
 			Version: 1,
 		},
+		inode:      make(map[string]agro.INodeID),
+		openINodes: make(map[string]map[string]*roaring.RoaringBitmap),
+		deadMap:    make(map[string]*roaring.RoaringBitmap),
 	}
 }
 
@@ -66,6 +72,7 @@ func NewClient(cfg agro.Config, srv *Server) *Client {
 	if err != nil {
 		return nil
 	}
+	srv.openINodes[uuid] = make(map[string]*roaring.RoaringBitmap)
 	return &Client{
 		cfg:  cfg,
 		uuid: uuid,
@@ -123,7 +130,7 @@ func (t *Client) CreateVolume(volume string) error {
 	return nil
 }
 
-func (t *Client) CommitInodeIndex(vol string) (agro.INodeID, error) {
+func (t *Client) CommitINodeIndex(vol string) (agro.INodeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 
@@ -181,13 +188,14 @@ func (t *Client) debugPrintTree() {
 	}
 }
 
-func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) error {
+func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, error) {
+	old := agro.INodeID(0)
 	vid, err := t.GetVolumeID(p.Volume)
 	if err != nil {
-		return err
+		return old, err
 	}
 	if vid != ref.Volume {
-		return errors.New("temp: inodeRef volume not for given path volume")
+		return old, errors.New("temp: inodeRef volume not for given path volume")
 	}
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
@@ -197,7 +205,7 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	)
 	v, ok := tx.Get(k)
 	if !ok {
-		return &os.PathError{
+		return old, &os.PathError{
 			Op:   "stat",
 			Path: p.Path,
 			Err:  os.ErrNotExist,
@@ -210,10 +218,13 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) error {
 	if dir.Files == nil {
 		dir.Files = make(map[string]uint64)
 	}
+	if v, ok := dir.Files[p.Filename()]; ok {
+		old = agro.INodeID(v)
+	}
 	dir.Files[p.Filename()] = uint64(ref.INode)
 	tx.Insert(k, dir)
 	t.srv.tree = tx.Commit()
-	return nil
+	return old, nil
 }
 
 func (t *Client) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
@@ -323,7 +334,30 @@ func (s *Server) SetRing(r *models.Ring) {
 	}
 }
 
-func (t *Client) Close() error { return nil }
+func (t *Client) Close() error {
+	delete(t.srv.openINodes, t.uuid)
+	return nil
+}
+
+func (t *Client) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	t.srv.openINodes[t.uuid][volume] = inodes
+	return nil
+}
+
+func (t *Client) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	x, ok := t.srv.deadMap[volume]
+	if !ok {
+		x = roaring.NewRoaringBitmap()
+	}
+	x.Or(dead)
+	x.AndNot(live)
+	t.srv.deadMap[volume] = x
+	return nil
+}
 
 func (s *Server) Close() error {
 	return nil
