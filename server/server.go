@@ -12,6 +12,7 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/server/gc"
 	"github.com/tgruben/roaring"
 
 	// Register drivers
@@ -35,6 +36,7 @@ type server struct {
 
 	heartbeating    bool
 	replicationOpen bool
+	gc              gc.GC
 }
 
 func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err error) {
@@ -186,6 +188,9 @@ func (s *server) GetVolumes() ([]string, error) {
 func (s *server) Close() error {
 	for _, c := range s.closeChans {
 		close(c)
+	}
+	if s.gc != nil {
+		s.gc.Stop()
 	}
 	err := s.mds.Close()
 	if err != nil {

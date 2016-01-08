@@ -51,7 +51,7 @@ func (i INodeRef) ToBytes() []byte {
 	buf := bytes.NewBuffer(make([]byte, 0, INodeRefByteSize))
 	binary.Write(buf, binary.LittleEndian, i)
 	out := buf.Bytes()
-	if len(out) != BlockRefByteSize {
+	if len(out) != INodeRefByteSize {
 		panic("breaking contract -- must make size appropriate")
 	}
 	return out

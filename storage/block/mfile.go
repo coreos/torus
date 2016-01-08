@@ -28,13 +28,15 @@ type mfileBlock struct {
 	blockTrie *iradix.Tree
 	closed    bool
 	lastFree  int
+	size      uint64
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
-func loadTrie(m *storage.MFile) (*iradix.Tree, error) {
+func loadTrie(m *storage.MFile) (*iradix.Tree, uint64, error) {
 	t := iradix.New()
 	tx := t.Txn()
 	clog.Infof("loading trie...")
+	size := uint64(0)
 	var membefore uint64
 	if clog.LevelAt(capnslog.DEBUG) {
 		var mem runtime.MemStats
@@ -49,6 +51,7 @@ func loadTrie(m *storage.MFile) (*iradix.Tree, error) {
 			continue
 		}
 		tx.Insert(b, int(i))
+		size++
 	}
 	if clog.LevelAt(capnslog.DEBUG) {
 		var mem runtime.MemStats
@@ -56,7 +59,7 @@ func loadTrie(m *storage.MFile) (*iradix.Tree, error) {
 		clog.Debugf("trie memory usage: %dK", ((mem.Alloc - membefore) / 1024))
 	}
 	clog.Infof("done loading trie")
-	return tx.Commit(), nil
+	return tx.Commit(), size, nil
 }
 
 func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
@@ -71,7 +74,7 @@ func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockSt
 	if err != nil {
 		return nil, err
 	}
-	trie, err := loadTrie(m)
+	trie, size, err := loadTrie(m)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +85,7 @@ func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockSt
 		data:      d,
 		blockMap:  m,
 		blockTrie: trie,
+		size:      size,
 	}, nil
 }
 
@@ -90,7 +94,7 @@ func (m *mfileBlock) NumBlocks() uint64 {
 }
 
 func (m *mfileBlock) UsedBlocks() uint64 {
-	return uint64(m.blockTrie.Len())
+	return m.size
 }
 
 func (m *mfileBlock) Flush() error {
@@ -182,6 +186,7 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 	if exists {
 		return errors.New("mfile: block already existed?")
 	}
+	m.size++
 	m.blockTrie = tx.Commit()
 	return nil
 }
@@ -205,6 +210,7 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	if !exists {
 		return errors.New("mfile: deleting non-existent thing?")
 	}
+	m.size--
 	m.blockTrie = tx.Commit()
 	return nil
 }
@@ -218,6 +224,7 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	tx := m.blockTrie.Txn()
 	it := tx.Root().Iterator()
 	it.SeekPrefix(s.ToBytes())
+	var keyList [][]byte
 	var deleteList []int
 	for {
 		key, value, ok := it.Next()
@@ -225,7 +232,7 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 			break
 		}
 		deleteList = append(deleteList, value.(int))
-		tx.Delete(key)
+		keyList = append(keyList, key)
 	}
 	for _, v := range deleteList {
 		err := m.blockMap.WriteBlock(uint64(v), make([]byte, agro.BlockRefByteSize))
@@ -233,6 +240,10 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 			return err
 		}
 	}
+	for _, k := range keyList {
+		tx.Delete(k)
+	}
+	m.size = m.size - uint64(len(deleteList))
 	m.blockTrie = tx.Commit()
 	return nil
 }

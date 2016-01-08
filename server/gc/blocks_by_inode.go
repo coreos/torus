@@ -65,7 +65,10 @@ func (b *blocksByINode) gc(volume string) {
 			Volume: vid,
 			INode:  agro.INodeID(i),
 		}
-		b.blocks.DeleteINodeBlocks(context.TODO(), ref)
+		err := b.blocks.DeleteINodeBlocks(context.TODO(), ref)
+		if err != nil {
+			clog.Errorf("bbi: got error gcing volume %s deleting INode %v: %v", volume, ref, err)
+		}
 	}
 }
 
@@ -98,6 +101,7 @@ all:
 				break all
 			}
 		}
+		b.last = time.Now()
 	}
 	clog.Debug("bbi: ending blocksByInode")
 }
