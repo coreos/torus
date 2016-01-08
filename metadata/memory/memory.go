@@ -115,7 +115,7 @@ func (s *memory) CreateVolume(volume string) error {
 	return nil
 }
 
-func (s *memory) CommitInodeIndex(vol string) (agro.INodeID, error) {
+func (s *memory) CommitINodeIndex(vol string) (agro.INodeID, error) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	s.inodes[vol]++

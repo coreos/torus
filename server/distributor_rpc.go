@@ -34,7 +34,7 @@ func (d *distributor) Block(ctx context.Context, req *models.BlockRequest) (*mod
 
 func (d *distributor) INode(ctx context.Context, req *models.INodeRequest) (*models.INodeResponse, error) {
 	out := &models.INodeResponse{}
-	for _, b := range req.Inoderefs {
+	for _, b := range req.INodeRefs {
 		ref := agro.INodeRef{
 			Volume: agro.VolumeID(b.Volume),
 			INode:  agro.INodeID(b.INode),

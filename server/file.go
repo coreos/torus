@@ -86,7 +86,7 @@ func (f *file) openWrite() error {
 	if err != nil {
 		return err
 	}
-	newInode, err := f.srv.mds.CommitInodeIndex(f.path.Volume)
+	newINode, err := f.srv.mds.CommitINodeIndex(f.path.Volume)
 	if err != nil {
 		if err == agro.ErrAgain {
 			return f.openWrite()
@@ -95,11 +95,11 @@ func (f *file) openWrite() error {
 	}
 	f.writeINodeRef = agro.INodeRef{
 		Volume: vid,
-		INode:  newInode,
+		INode:  newINode,
 	}
 	if f.inode != nil {
 		f.inode.Replaces = f.inode.INode
-		f.inode.INode = uint64(newInode)
+		f.inode.INode = uint64(newINode)
 	}
 	f.writeOpen = true
 	return nil

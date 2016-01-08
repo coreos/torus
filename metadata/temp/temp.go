@@ -130,7 +130,7 @@ func (t *Client) CreateVolume(volume string) error {
 	return nil
 }
 
-func (t *Client) CommitInodeIndex(vol string) (agro.INodeID, error) {
+func (t *Client) CommitINodeIndex(vol string) (agro.INodeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 

@@ -297,7 +297,7 @@ func (c *etcdCtx) GetVolumeID(volume string) (agro.VolumeID, error) {
 
 }
 
-func (c *etcdCtx) CommitInodeIndex(volume string) (agro.INodeID, error) {
+func (c *etcdCtx) CommitINodeIndex(volume string) (agro.INodeID, error) {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
 	newID, err := c.atomicModifyKey(mkKey("volumemeta", volume, "inode"), bytesAddOne)

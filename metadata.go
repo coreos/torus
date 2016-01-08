@@ -89,7 +89,7 @@ type MetadataService interface {
 	GetVolumes() ([]string, error)
 	GetVolumeID(volume string) (VolumeID, error)
 
-	CommitInodeIndex(volume string) (INodeID, error)
+	CommitINodeIndex(volume string) (INodeID, error)
 
 	Mkdir(path Path, dir *models.Directory) error
 	Getdir(path Path) (*models.Directory, []Path, error)

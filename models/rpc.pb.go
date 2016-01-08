@@ -61,16 +61,16 @@ func (m *BlockResponse) GetBlocks() []*Block {
 }
 
 type INodeRequest struct {
-	Inoderefs []*INodeRef `protobuf:"bytes,1,rep,name=inoderefs" json:"inoderefs,omitempty"`
+	INodeRefs []*INodeRef `protobuf:"bytes,1,rep,name=inoderefs" json:"inoderefs,omitempty"`
 }
 
 func (m *INodeRequest) Reset()         { *m = INodeRequest{} }
 func (m *INodeRequest) String() string { return proto.CompactTextString(m) }
 func (*INodeRequest) ProtoMessage()    {}
 
-func (m *INodeRequest) GetInoderefs() []*INodeRef {
+func (m *INodeRequest) GetINodeRefs() []*INodeRef {
 	if m != nil {
-		return m.Inoderefs
+		return m.INodeRefs
 	}
 	return nil
 }
@@ -404,8 +404,8 @@ func (m *INodeRequest) MarshalTo(data []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Inoderefs) > 0 {
-		for _, msg := range m.Inoderefs {
+	if len(m.INodeRefs) > 0 {
+		for _, msg := range m.INodeRefs {
 			data[i] = 0xa
 			i++
 			i = encodeVarintRpc(data, i, uint64(msg.Size()))
@@ -642,8 +642,8 @@ func (m *BlockResponse) Size() (n int) {
 func (m *INodeRequest) Size() (n int) {
 	var l int
 	_ = l
-	if len(m.Inoderefs) > 0 {
-		for _, e := range m.Inoderefs {
+	if len(m.INodeRefs) > 0 {
+		for _, e := range m.INodeRefs {
 			l = e.Size()
 			n += 1 + l + sovRpc(uint64(l))
 		}
@@ -1022,7 +1022,7 @@ func (m *INodeRequest) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Inoderefs", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field INodeRefs", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1046,8 +1046,8 @@ func (m *INodeRequest) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Inoderefs = append(m.Inoderefs, &INodeRef{})
-			if err := m.Inoderefs[len(m.Inoderefs)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			m.INodeRefs = append(m.INodeRefs, &INodeRef{})
+			if err := m.INodeRefs[len(m.INodeRefs)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

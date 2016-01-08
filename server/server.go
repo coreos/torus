@@ -40,7 +40,7 @@ type server struct {
 func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err error) {
 	// Truncate the file if it already exists. This is equivalent to creating
 	// a new (empty) inode with the path that we're going to overwrite later.
-	n := models.NewEmptyInode()
+	n := models.NewEmptyINode()
 	n.Filenames = []string{path.Path}
 	volid, err := s.mds.GetVolumeID(path.Volume)
 	n.Volume = uint64(volid)
