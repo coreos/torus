@@ -208,3 +208,31 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	m.blockTrie = tx.Commit()
 	return nil
 }
+
+func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	if m.closed {
+		return agro.ErrClosed
+	}
+	tx := m.blockTrie.Txn()
+	it := tx.Root().Iterator()
+	it.SeekPrefix(s.ToBytes())
+	var deleteList []int
+	for {
+		key, value, ok := it.Next()
+		if !ok {
+			break
+		}
+		deleteList = append(deleteList, value.(int))
+		tx.Delete(key)
+	}
+	for _, v := range deleteList {
+		err := m.blockMap.WriteBlock(uint64(v), make([]byte, agro.BlockRefByteSize))
+		if err != nil {
+			return err
+		}
+	}
+	m.blockTrie = tx.Commit()
+	return nil
+}

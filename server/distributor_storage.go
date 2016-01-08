@@ -139,6 +139,10 @@ func (d *distributor) DeleteBlock(ctx context.Context, i agro.BlockRef) error {
 	return d.blocks.DeleteBlock(ctx, i)
 }
 
+func (d *distributor) DeleteINodeBlocks(ctx context.Context, i agro.INodeRef) error {
+	return d.blocks.DeleteINodeBlocks(ctx, i)
+}
+
 func (d *distributor) NumBlocks() uint64 {
 	return d.blocks.NumBlocks()
 }
