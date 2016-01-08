@@ -202,7 +202,15 @@ func (c *etcdCtx) GetPeers() ([]*models.PeerInfo, error) {
 	return out, nil
 }
 
-func (c *etcdCtx) atomicModifyKey(key []byte, f func([]byte) ([]byte, interface{}, error)) (interface{}, error) {
+// AtomicModifyFunc is a class of commutative functions that, given the current
+// state of a key's value `in`, returns the new state of the key `out`, and
+// `data` to be returned to the calling function on success, or an `err`.
+//
+// This function may be run mulitple times, if the value has changed in the time
+// between getting the data and setting the new value.
+type AtomicModifyFunc func(in []byte) (out []byte, data interface{}, err error)
+
+func (c *etcdCtx) atomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, error) {
 	resp, err := c.etcd.kv.Range(c.getContext(), getKey(key))
 	if err != nil {
 		return nil, err
@@ -363,7 +371,7 @@ func (c *etcdCtx) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, er
 	return v.(agro.INodeID), err
 }
 
-func trySetFileINode(p agro.Path, ref agro.INodeRef) func([]byte) ([]byte, interface{}, error) {
+func trySetFileINode(p agro.Path, ref agro.INodeRef) AtomicModifyFunc {
 	return func(in []byte) ([]byte, interface{}, error) {
 		dir := &models.Directory{}
 		err := dir.Unmarshal(in)

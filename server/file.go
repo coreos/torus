@@ -354,7 +354,7 @@ func (f *file) sync(closing bool) error {
 		// some state in the file and actually appending it.
 		//
 		// Today, however, we're going to go with the technically correct but perhaps
-		// suboptimal one: last write wins he good news is, we're that last write.
+		// suboptimal one: last write wins the good news is, we're that last write.
 		var newINode *models.INode
 		for {
 			newINode, err = f.srv.inodes.GetINode(context.TODO(), agro.INodeRef{
