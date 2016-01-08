@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/coreos/agro"
 )
 
@@ -45,7 +47,26 @@ func (b *blocksByINode) LastComplete() time.Time {
 }
 
 func (b *blocksByINode) gc(volume string) {
-
+	vid, err := b.mds.GetVolumeID(volume)
+	if err != nil {
+		clog.Errorf("bbi: got error getting volume ID for %s %v", volume, err)
+	}
+	deadmap, held, err := b.mds.GetVolumeLiveness(volume)
+	if err != nil {
+		clog.Errorf("bbi: got error gcing volume %s %v", volume, err)
+	}
+	for _, x := range held {
+		deadmap.AndNot(x)
+	}
+	it := deadmap.Iterator()
+	for it.HasNext() {
+		i := it.Next()
+		ref := agro.INodeRef{
+			Volume: vid,
+			INode:  agro.INodeID(i),
+		}
+		b.blocks.DeleteINodeBlocks(context.TODO(), ref)
+	}
 }
 
 func blocksByINodeMain(b *blocksByINode, stop chan bool, force chan bool) {
