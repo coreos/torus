@@ -24,15 +24,22 @@
 		CompactionRequest
 		CompactionResponse
 		WatchRequest
+		WatchCreateRequest
+		WatchCancelRequest
 		WatchResponse
+		LeaseCreateRequest
+		LeaseCreateResponse
+		LeaseRevokeRequest
+		LeaseRevokeResponse
+		LeaseKeepAliveRequest
+		LeaseKeepAliveResponse
 */
 package etcdserverpb
 
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
-
-// discarding unused import gogoproto "gogoproto"
+import _ "github.com/gogo/protobuf/gogoproto"
 import storagepb "github.com/coreos/agro/internal/etcdproto/storagepb"
 
 import (
@@ -155,6 +162,7 @@ func (m *RangeResponse) GetKvs() []*storagepb.KeyValue {
 type PutRequest struct {
 	Key   []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Value []byte `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Lease int64  `protobuf:"varint,3,opt,name=lease,proto3" json:"lease,omitempty"`
 }
 
 func (m *PutRequest) Reset()         { *m = PutRequest{} }
@@ -699,6 +707,107 @@ func (m *CompactionResponse) GetHeader() *ResponseHeader {
 }
 
 type WatchRequest struct {
+	// Types that are valid to be assigned to RequestUnion:
+	//	*WatchRequest_CreateRequest
+	//	*WatchRequest_CancelRequest
+	RequestUnion isWatchRequest_RequestUnion `protobuf_oneof:"request_union"`
+}
+
+func (m *WatchRequest) Reset()         { *m = WatchRequest{} }
+func (m *WatchRequest) String() string { return proto.CompactTextString(m) }
+func (*WatchRequest) ProtoMessage()    {}
+
+type isWatchRequest_RequestUnion interface {
+	isWatchRequest_RequestUnion()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type WatchRequest_CreateRequest struct {
+	CreateRequest *WatchCreateRequest `protobuf:"bytes,1,opt,name=create_request,oneof"`
+}
+type WatchRequest_CancelRequest struct {
+	CancelRequest *WatchCancelRequest `protobuf:"bytes,2,opt,name=cancel_request,oneof"`
+}
+
+func (*WatchRequest_CreateRequest) isWatchRequest_RequestUnion() {}
+func (*WatchRequest_CancelRequest) isWatchRequest_RequestUnion() {}
+
+func (m *WatchRequest) GetRequestUnion() isWatchRequest_RequestUnion {
+	if m != nil {
+		return m.RequestUnion
+	}
+	return nil
+}
+
+func (m *WatchRequest) GetCreateRequest() *WatchCreateRequest {
+	if x, ok := m.GetRequestUnion().(*WatchRequest_CreateRequest); ok {
+		return x.CreateRequest
+	}
+	return nil
+}
+
+func (m *WatchRequest) GetCancelRequest() *WatchCancelRequest {
+	if x, ok := m.GetRequestUnion().(*WatchRequest_CancelRequest); ok {
+		return x.CancelRequest
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*WatchRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
+	return _WatchRequest_OneofMarshaler, _WatchRequest_OneofUnmarshaler, []interface{}{
+		(*WatchRequest_CreateRequest)(nil),
+		(*WatchRequest_CancelRequest)(nil),
+	}
+}
+
+func _WatchRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*WatchRequest)
+	// request_union
+	switch x := m.RequestUnion.(type) {
+	case *WatchRequest_CreateRequest:
+		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.CreateRequest); err != nil {
+			return err
+		}
+	case *WatchRequest_CancelRequest:
+		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.CancelRequest); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("WatchRequest.RequestUnion has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _WatchRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*WatchRequest)
+	switch tag {
+	case 1: // request_union.create_request
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(WatchCreateRequest)
+		err := b.DecodeMessage(msg)
+		m.RequestUnion = &WatchRequest_CreateRequest{msg}
+		return true, err
+	case 2: // request_union.cancel_request
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(WatchCancelRequest)
+		err := b.DecodeMessage(msg)
+		m.RequestUnion = &WatchRequest_CancelRequest{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+type WatchCreateRequest struct {
 	// the key to be watched
 	Key []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	// the prefix to be watched.
@@ -707,14 +816,39 @@ type WatchRequest struct {
 	StartRevision int64 `protobuf:"varint,3,opt,name=start_revision,proto3" json:"start_revision,omitempty"`
 }
 
-func (m *WatchRequest) Reset()         { *m = WatchRequest{} }
-func (m *WatchRequest) String() string { return proto.CompactTextString(m) }
-func (*WatchRequest) ProtoMessage()    {}
+func (m *WatchCreateRequest) Reset()         { *m = WatchCreateRequest{} }
+func (m *WatchCreateRequest) String() string { return proto.CompactTextString(m) }
+func (*WatchCreateRequest) ProtoMessage()    {}
+
+type WatchCancelRequest struct {
+	WatchId int64 `protobuf:"varint,1,opt,name=watch_id,proto3" json:"watch_id,omitempty"`
+}
+
+func (m *WatchCancelRequest) Reset()         { *m = WatchCancelRequest{} }
+func (m *WatchCancelRequest) String() string { return proto.CompactTextString(m) }
+func (*WatchCancelRequest) ProtoMessage()    {}
 
 type WatchResponse struct {
 	Header *ResponseHeader `protobuf:"bytes,1,opt,name=header" json:"header,omitempty"`
-	// TODO: support batched events response?
-	Event *storagepb.Event `protobuf:"bytes,2,opt,name=event" json:"event,omitempty"`
+	// watch_id is the ID of the watching the response sent to.
+	WatchId int64 `protobuf:"varint,2,opt,name=watch_id,proto3" json:"watch_id,omitempty"`
+	// If the response is for a create watch request, created is set to true.
+	// Client should record the watch_id and prepare for receiving events for
+	// that watching from the same stream.
+	// All events sent to the created watching will attach with the same watch_id.
+	Created bool `protobuf:"varint,3,opt,name=created,proto3" json:"created,omitempty"`
+	// If the response is for a cancel watch request, cancel is set to true.
+	// No further events will be sent to the canceled watching.
+	Canceled bool `protobuf:"varint,4,opt,name=canceled,proto3" json:"canceled,omitempty"`
+	// If a watching tries to watch at a compacted index, compacted will be set to true.
+	//
+	// This happens when creating a watching at a compacted revision or the watching cannot
+	// catch up with the progress of the KV.
+	//
+	// Client should treat the watching as canceled and should not try to create any
+	// watching with same start_revision again.
+	Compacted bool               `protobuf:"varint,5,opt,name=compacted,proto3" json:"compacted,omitempty"`
+	Events    []*storagepb.Event `protobuf:"bytes,11,rep,name=events" json:"events,omitempty"`
 }
 
 func (m *WatchResponse) Reset()         { *m = WatchResponse{} }
@@ -728,14 +862,114 @@ func (m *WatchResponse) GetHeader() *ResponseHeader {
 	return nil
 }
 
-func (m *WatchResponse) GetEvent() *storagepb.Event {
+func (m *WatchResponse) GetEvents() []*storagepb.Event {
 	if m != nil {
-		return m.Event
+		return m.Events
+	}
+	return nil
+}
+
+type LeaseCreateRequest struct {
+	// advisory ttl in seconds
+	TTL int64 `protobuf:"varint,1,opt,name=TTL,proto3" json:"TTL,omitempty"`
+}
+
+func (m *LeaseCreateRequest) Reset()         { *m = LeaseCreateRequest{} }
+func (m *LeaseCreateRequest) String() string { return proto.CompactTextString(m) }
+func (*LeaseCreateRequest) ProtoMessage()    {}
+
+type LeaseCreateResponse struct {
+	Header *ResponseHeader `protobuf:"bytes,1,opt,name=header" json:"header,omitempty"`
+	ID     int64           `protobuf:"varint,2,opt,name=ID,proto3" json:"ID,omitempty"`
+	// server decided ttl in second
+	TTL   int64  `protobuf:"varint,3,opt,name=TTL,proto3" json:"TTL,omitempty"`
+	Error string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+}
+
+func (m *LeaseCreateResponse) Reset()         { *m = LeaseCreateResponse{} }
+func (m *LeaseCreateResponse) String() string { return proto.CompactTextString(m) }
+func (*LeaseCreateResponse) ProtoMessage()    {}
+
+func (m *LeaseCreateResponse) GetHeader() *ResponseHeader {
+	if m != nil {
+		return m.Header
+	}
+	return nil
+}
+
+type LeaseRevokeRequest struct {
+	ID int64 `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
+}
+
+func (m *LeaseRevokeRequest) Reset()         { *m = LeaseRevokeRequest{} }
+func (m *LeaseRevokeRequest) String() string { return proto.CompactTextString(m) }
+func (*LeaseRevokeRequest) ProtoMessage()    {}
+
+type LeaseRevokeResponse struct {
+	Header *ResponseHeader `protobuf:"bytes,1,opt,name=header" json:"header,omitempty"`
+}
+
+func (m *LeaseRevokeResponse) Reset()         { *m = LeaseRevokeResponse{} }
+func (m *LeaseRevokeResponse) String() string { return proto.CompactTextString(m) }
+func (*LeaseRevokeResponse) ProtoMessage()    {}
+
+func (m *LeaseRevokeResponse) GetHeader() *ResponseHeader {
+	if m != nil {
+		return m.Header
+	}
+	return nil
+}
+
+type LeaseKeepAliveRequest struct {
+	ID int64 `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
+}
+
+func (m *LeaseKeepAliveRequest) Reset()         { *m = LeaseKeepAliveRequest{} }
+func (m *LeaseKeepAliveRequest) String() string { return proto.CompactTextString(m) }
+func (*LeaseKeepAliveRequest) ProtoMessage()    {}
+
+type LeaseKeepAliveResponse struct {
+	Header *ResponseHeader `protobuf:"bytes,1,opt,name=header" json:"header,omitempty"`
+	ID     int64           `protobuf:"varint,2,opt,name=ID,proto3" json:"ID,omitempty"`
+	TTL    int64           `protobuf:"varint,3,opt,name=TTL,proto3" json:"TTL,omitempty"`
+}
+
+func (m *LeaseKeepAliveResponse) Reset()         { *m = LeaseKeepAliveResponse{} }
+func (m *LeaseKeepAliveResponse) String() string { return proto.CompactTextString(m) }
+func (*LeaseKeepAliveResponse) ProtoMessage()    {}
+
+func (m *LeaseKeepAliveResponse) GetHeader() *ResponseHeader {
+	if m != nil {
+		return m.Header
 	}
 	return nil
 }
 
 func init() {
+	proto.RegisterType((*ResponseHeader)(nil), "etcdserverpb.ResponseHeader")
+	proto.RegisterType((*RangeRequest)(nil), "etcdserverpb.RangeRequest")
+	proto.RegisterType((*RangeResponse)(nil), "etcdserverpb.RangeResponse")
+	proto.RegisterType((*PutRequest)(nil), "etcdserverpb.PutRequest")
+	proto.RegisterType((*PutResponse)(nil), "etcdserverpb.PutResponse")
+	proto.RegisterType((*DeleteRangeRequest)(nil), "etcdserverpb.DeleteRangeRequest")
+	proto.RegisterType((*DeleteRangeResponse)(nil), "etcdserverpb.DeleteRangeResponse")
+	proto.RegisterType((*RequestUnion)(nil), "etcdserverpb.RequestUnion")
+	proto.RegisterType((*ResponseUnion)(nil), "etcdserverpb.ResponseUnion")
+	proto.RegisterType((*Compare)(nil), "etcdserverpb.Compare")
+	proto.RegisterType((*TxnRequest)(nil), "etcdserverpb.TxnRequest")
+	proto.RegisterType((*TxnResponse)(nil), "etcdserverpb.TxnResponse")
+	proto.RegisterType((*CompactionRequest)(nil), "etcdserverpb.CompactionRequest")
+	proto.RegisterType((*CompactionResponse)(nil), "etcdserverpb.CompactionResponse")
+	proto.RegisterType((*WatchRequest)(nil), "etcdserverpb.WatchRequest")
+	proto.RegisterType((*WatchCreateRequest)(nil), "etcdserverpb.WatchCreateRequest")
+	proto.RegisterType((*WatchCancelRequest)(nil), "etcdserverpb.WatchCancelRequest")
+	proto.RegisterType((*WatchResponse)(nil), "etcdserverpb.WatchResponse")
+	proto.RegisterType((*LeaseCreateRequest)(nil), "etcdserverpb.LeaseCreateRequest")
+	proto.RegisterType((*LeaseCreateResponse)(nil), "etcdserverpb.LeaseCreateResponse")
+	proto.RegisterType((*LeaseRevokeRequest)(nil), "etcdserverpb.LeaseRevokeRequest")
+	proto.RegisterType((*LeaseRevokeResponse)(nil), "etcdserverpb.LeaseRevokeResponse")
+	proto.RegisterType((*LeaseKeepAliveRequest)(nil), "etcdserverpb.LeaseKeepAliveRequest")
+	proto.RegisterType((*LeaseKeepAliveResponse)(nil), "etcdserverpb.LeaseKeepAliveResponse")
 	proto.RegisterEnum("etcdserverpb.Compare_CompareResult", Compare_CompareResult_name, Compare_CompareResult_value)
 	proto.RegisterEnum("etcdserverpb.Compare_CompareTarget", Compare_CompareTarget_name, Compare_CompareTarget_value)
 }
@@ -760,6 +994,7 @@ type KVClient interface {
 	// Txn processes all the requests in one transaction.
 	// A txn request increases the revision of the store,
 	// and generates events with the same revision in the event history.
+	// It is not allowed to modify the same key several times within one txn.
 	Txn(ctx context.Context, in *TxnRequest, opts ...grpc.CallOption) (*TxnResponse, error)
 	// Compact compacts the event history in etcd. User should compact the
 	// event history periodically, or it will grow infinitely.
@@ -835,6 +1070,7 @@ type KVServer interface {
 	// Txn processes all the requests in one transaction.
 	// A txn request increases the revision of the store,
 	// and generates events with the same revision in the event history.
+	// It is not allowed to modify the same key several times within one txn.
 	Txn(context.Context, *TxnRequest) (*TxnResponse, error)
 	// Compact compacts the event history in etcd. User should compact the
 	// event history periodically, or it will grow infinitely.
@@ -952,7 +1188,7 @@ func NewWatchClient(cc *grpc.ClientConn) WatchClient {
 }
 
 func (c *watchClient) Watch(ctx context.Context, opts ...grpc.CallOption) (Watch_WatchClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Watch_serviceDesc.Streams[0], c.cc, "/etcdserverpb.watch/Watch", opts...)
+	stream, err := grpc.NewClientStream(ctx, &_Watch_serviceDesc.Streams[0], c.cc, "/etcdserverpb.Watch/Watch", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1023,13 +1259,175 @@ func (x *watchWatchServer) Recv() (*WatchRequest, error) {
 }
 
 var _Watch_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "etcdserverpb.watch",
+	ServiceName: "etcdserverpb.Watch",
 	HandlerType: (*WatchServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Watch",
 			Handler:       _Watch_Watch_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+}
+
+// Client API for Lease service
+
+type LeaseClient interface {
+	// LeaseCreate creates a lease. A lease has a TTL. The lease will expire if the
+	// server does not receive a keepAlive within TTL from the lease holder.
+	// All keys attached to the lease will be expired and deleted if the lease expires.
+	// The key expiration generates an event in event history.
+	LeaseCreate(ctx context.Context, in *LeaseCreateRequest, opts ...grpc.CallOption) (*LeaseCreateResponse, error)
+	// LeaseRevoke revokes a lease. All the key attached to the lease will be expired and deleted.
+	LeaseRevoke(ctx context.Context, in *LeaseRevokeRequest, opts ...grpc.CallOption) (*LeaseRevokeResponse, error)
+	// KeepAlive keeps the lease alive.
+	LeaseKeepAlive(ctx context.Context, opts ...grpc.CallOption) (Lease_LeaseKeepAliveClient, error)
+}
+
+type leaseClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewLeaseClient(cc *grpc.ClientConn) LeaseClient {
+	return &leaseClient{cc}
+}
+
+func (c *leaseClient) LeaseCreate(ctx context.Context, in *LeaseCreateRequest, opts ...grpc.CallOption) (*LeaseCreateResponse, error) {
+	out := new(LeaseCreateResponse)
+	err := grpc.Invoke(ctx, "/etcdserverpb.Lease/LeaseCreate", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *leaseClient) LeaseRevoke(ctx context.Context, in *LeaseRevokeRequest, opts ...grpc.CallOption) (*LeaseRevokeResponse, error) {
+	out := new(LeaseRevokeResponse)
+	err := grpc.Invoke(ctx, "/etcdserverpb.Lease/LeaseRevoke", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *leaseClient) LeaseKeepAlive(ctx context.Context, opts ...grpc.CallOption) (Lease_LeaseKeepAliveClient, error) {
+	stream, err := grpc.NewClientStream(ctx, &_Lease_serviceDesc.Streams[0], c.cc, "/etcdserverpb.Lease/LeaseKeepAlive", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &leaseLeaseKeepAliveClient{stream}
+	return x, nil
+}
+
+type Lease_LeaseKeepAliveClient interface {
+	Send(*LeaseKeepAliveRequest) error
+	Recv() (*LeaseKeepAliveResponse, error)
+	grpc.ClientStream
+}
+
+type leaseLeaseKeepAliveClient struct {
+	grpc.ClientStream
+}
+
+func (x *leaseLeaseKeepAliveClient) Send(m *LeaseKeepAliveRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *leaseLeaseKeepAliveClient) Recv() (*LeaseKeepAliveResponse, error) {
+	m := new(LeaseKeepAliveResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// Server API for Lease service
+
+type LeaseServer interface {
+	// LeaseCreate creates a lease. A lease has a TTL. The lease will expire if the
+	// server does not receive a keepAlive within TTL from the lease holder.
+	// All keys attached to the lease will be expired and deleted if the lease expires.
+	// The key expiration generates an event in event history.
+	LeaseCreate(context.Context, *LeaseCreateRequest) (*LeaseCreateResponse, error)
+	// LeaseRevoke revokes a lease. All the key attached to the lease will be expired and deleted.
+	LeaseRevoke(context.Context, *LeaseRevokeRequest) (*LeaseRevokeResponse, error)
+	// KeepAlive keeps the lease alive.
+	LeaseKeepAlive(Lease_LeaseKeepAliveServer) error
+}
+
+func RegisterLeaseServer(s *grpc.Server, srv LeaseServer) {
+	s.RegisterService(&_Lease_serviceDesc, srv)
+}
+
+func _Lease_LeaseCreate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+	in := new(LeaseCreateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	out, err := srv.(LeaseServer).LeaseCreate(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func _Lease_LeaseRevoke_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+	in := new(LeaseRevokeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	out, err := srv.(LeaseServer).LeaseRevoke(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func _Lease_LeaseKeepAlive_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(LeaseServer).LeaseKeepAlive(&leaseLeaseKeepAliveServer{stream})
+}
+
+type Lease_LeaseKeepAliveServer interface {
+	Send(*LeaseKeepAliveResponse) error
+	Recv() (*LeaseKeepAliveRequest, error)
+	grpc.ServerStream
+}
+
+type leaseLeaseKeepAliveServer struct {
+	grpc.ServerStream
+}
+
+func (x *leaseLeaseKeepAliveServer) Send(m *LeaseKeepAliveResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *leaseLeaseKeepAliveServer) Recv() (*LeaseKeepAliveRequest, error) {
+	m := new(LeaseKeepAliveRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _Lease_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "etcdserverpb.Lease",
+	HandlerType: (*LeaseServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "LeaseCreate",
+			Handler:    _Lease_LeaseCreate_Handler,
+		},
+		{
+			MethodName: "LeaseRevoke",
+			Handler:    _Lease_LeaseRevoke_Handler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "LeaseKeepAlive",
+			Handler:       _Lease_LeaseKeepAlive_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},
@@ -1198,6 +1596,11 @@ func (m *PutRequest) MarshalTo(data []byte) (int, error) {
 			i = encodeVarintRpc(data, i, uint64(len(m.Value)))
 			i += copy(data[i:], m.Value)
 		}
+	}
+	if m.Lease != 0 {
+		data[i] = 0x18
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.Lease))
 	}
 	return i, nil
 }
@@ -1670,6 +2073,59 @@ func (m *WatchRequest) MarshalTo(data []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.RequestUnion != nil {
+		nn15, err := m.RequestUnion.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += nn15
+	}
+	return i, nil
+}
+
+func (m *WatchRequest_CreateRequest) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.CreateRequest != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.CreateRequest.Size()))
+		n16, err := m.CreateRequest.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n16
+	}
+	return i, nil
+}
+func (m *WatchRequest_CancelRequest) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.CancelRequest != nil {
+		data[i] = 0x12
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.CancelRequest.Size()))
+		n17, err := m.CancelRequest.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n17
+	}
+	return i, nil
+}
+func (m *WatchCreateRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *WatchCreateRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
 	if m.Key != nil {
 		if len(m.Key) > 0 {
 			data[i] = 0xa
@@ -1694,6 +2150,29 @@ func (m *WatchRequest) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
+func (m *WatchCancelRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *WatchCancelRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.WatchId != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.WatchId))
+	}
+	return i, nil
+}
+
 func (m *WatchResponse) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -1713,21 +2192,237 @@ func (m *WatchResponse) MarshalTo(data []byte) (int, error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintRpc(data, i, uint64(m.Header.Size()))
-		n15, err := m.Header.MarshalTo(data[i:])
+		n18, err := m.Header.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n15
+		i += n18
 	}
-	if m.Event != nil {
-		data[i] = 0x12
+	if m.WatchId != 0 {
+		data[i] = 0x10
 		i++
-		i = encodeVarintRpc(data, i, uint64(m.Event.Size()))
-		n16, err := m.Event.MarshalTo(data[i:])
+		i = encodeVarintRpc(data, i, uint64(m.WatchId))
+	}
+	if m.Created {
+		data[i] = 0x18
+		i++
+		if m.Created {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
+	if m.Canceled {
+		data[i] = 0x20
+		i++
+		if m.Canceled {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
+	if m.Compacted {
+		data[i] = 0x28
+		i++
+		if m.Compacted {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
+	if len(m.Events) > 0 {
+		for _, msg := range m.Events {
+			data[i] = 0x5a
+			i++
+			i = encodeVarintRpc(data, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	return i, nil
+}
+
+func (m *LeaseCreateRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *LeaseCreateRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.TTL != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.TTL))
+	}
+	return i, nil
+}
+
+func (m *LeaseCreateResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *LeaseCreateResponse) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Header != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.Header.Size()))
+		n19, err := m.Header.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n16
+		i += n19
+	}
+	if m.ID != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.ID))
+	}
+	if m.TTL != 0 {
+		data[i] = 0x18
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.TTL))
+	}
+	if len(m.Error) > 0 {
+		data[i] = 0x22
+		i++
+		i = encodeVarintRpc(data, i, uint64(len(m.Error)))
+		i += copy(data[i:], m.Error)
+	}
+	return i, nil
+}
+
+func (m *LeaseRevokeRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *LeaseRevokeRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.ID != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.ID))
+	}
+	return i, nil
+}
+
+func (m *LeaseRevokeResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *LeaseRevokeResponse) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Header != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.Header.Size()))
+		n20, err := m.Header.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n20
+	}
+	return i, nil
+}
+
+func (m *LeaseKeepAliveRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *LeaseKeepAliveRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.ID != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.ID))
+	}
+	return i, nil
+}
+
+func (m *LeaseKeepAliveResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *LeaseKeepAliveResponse) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Header != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.Header.Size()))
+		n21, err := m.Header.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n21
+	}
+	if m.ID != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.ID))
+	}
+	if m.TTL != 0 {
+		data[i] = 0x18
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.TTL))
 	}
 	return i, nil
 }
@@ -1834,6 +2529,9 @@ func (m *PutRequest) Size() (n int) {
 		if l > 0 {
 			n += 1 + l + sovRpc(uint64(l))
 		}
+	}
+	if m.Lease != 0 {
+		n += 1 + sovRpc(uint64(m.Lease))
 	}
 	return n
 }
@@ -2061,6 +2759,33 @@ func (m *CompactionResponse) Size() (n int) {
 func (m *WatchRequest) Size() (n int) {
 	var l int
 	_ = l
+	if m.RequestUnion != nil {
+		n += m.RequestUnion.Size()
+	}
+	return n
+}
+
+func (m *WatchRequest_CreateRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.CreateRequest != nil {
+		l = m.CreateRequest.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+func (m *WatchRequest_CancelRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.CancelRequest != nil {
+		l = m.CancelRequest.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+func (m *WatchCreateRequest) Size() (n int) {
+	var l int
+	_ = l
 	if m.Key != nil {
 		l = len(m.Key)
 		if l > 0 {
@@ -2079,6 +2804,15 @@ func (m *WatchRequest) Size() (n int) {
 	return n
 }
 
+func (m *WatchCancelRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.WatchId != 0 {
+		n += 1 + sovRpc(uint64(m.WatchId))
+	}
+	return n
+}
+
 func (m *WatchResponse) Size() (n int) {
 	var l int
 	_ = l
@@ -2086,9 +2820,96 @@ func (m *WatchResponse) Size() (n int) {
 		l = m.Header.Size()
 		n += 1 + l + sovRpc(uint64(l))
 	}
-	if m.Event != nil {
-		l = m.Event.Size()
+	if m.WatchId != 0 {
+		n += 1 + sovRpc(uint64(m.WatchId))
+	}
+	if m.Created {
+		n += 2
+	}
+	if m.Canceled {
+		n += 2
+	}
+	if m.Compacted {
+		n += 2
+	}
+	if len(m.Events) > 0 {
+		for _, e := range m.Events {
+			l = e.Size()
+			n += 1 + l + sovRpc(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *LeaseCreateRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.TTL != 0 {
+		n += 1 + sovRpc(uint64(m.TTL))
+	}
+	return n
+}
+
+func (m *LeaseCreateResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Header != nil {
+		l = m.Header.Size()
 		n += 1 + l + sovRpc(uint64(l))
+	}
+	if m.ID != 0 {
+		n += 1 + sovRpc(uint64(m.ID))
+	}
+	if m.TTL != 0 {
+		n += 1 + sovRpc(uint64(m.TTL))
+	}
+	l = len(m.Error)
+	if l > 0 {
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+
+func (m *LeaseRevokeRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.ID != 0 {
+		n += 1 + sovRpc(uint64(m.ID))
+	}
+	return n
+}
+
+func (m *LeaseRevokeResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Header != nil {
+		l = m.Header.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+
+func (m *LeaseKeepAliveRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.ID != 0 {
+		n += 1 + sovRpc(uint64(m.ID))
+	}
+	return n
+}
+
+func (m *LeaseKeepAliveResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Header != nil {
+		l = m.Header.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	if m.ID != 0 {
+		n += 1 + sovRpc(uint64(m.ID))
+	}
+	if m.TTL != 0 {
+		n += 1 + sovRpc(uint64(m.TTL))
 	}
 	return n
 }
@@ -2595,6 +3416,25 @@ func (m *PutRequest) Unmarshal(data []byte) error {
 			}
 			m.Value = append([]byte{}, data[iNdEx:postIndex]...)
 			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Lease", wireType)
+			}
+			m.Lease = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Lease |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRpc(data[iNdEx:])
@@ -3846,6 +4686,120 @@ func (m *WatchRequest) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CreateRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &WatchCreateRequest{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.RequestUnion = &WatchRequest_CreateRequest{v}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CancelRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &WatchCancelRequest{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.RequestUnion = &WatchRequest_CancelRequest{v}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *WatchCreateRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: WatchCreateRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: WatchCreateRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Key", wireType)
 			}
 			var byteLen int
@@ -3940,6 +4894,75 @@ func (m *WatchRequest) Unmarshal(data []byte) error {
 	}
 	return nil
 }
+func (m *WatchCancelRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: WatchCancelRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: WatchCancelRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WatchId", wireType)
+			}
+			m.WatchId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.WatchId |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *WatchResponse) Unmarshal(data []byte) error {
 	l := len(data)
 	iNdEx := 0
@@ -4003,8 +5026,87 @@ func (m *WatchResponse) Unmarshal(data []byte) error {
 			}
 			iNdEx = postIndex
 		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WatchId", wireType)
+			}
+			m.WatchId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.WatchId |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Created", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Created = bool(v != 0)
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Canceled", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Canceled = bool(v != 0)
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Compacted", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Compacted = bool(v != 0)
+		case 11:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Event", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Events", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -4028,13 +5130,572 @@ func (m *WatchResponse) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Event == nil {
-				m.Event = &storagepb.Event{}
-			}
-			if err := m.Event.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			m.Events = append(m.Events, &storagepb.Event{})
+			if err := m.Events[len(m.Events)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *LeaseCreateRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LeaseCreateRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LeaseCreateRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TTL", wireType)
+			}
+			m.TTL = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.TTL |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *LeaseCreateResponse) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LeaseCreateResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LeaseCreateResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Header == nil {
+				m.Header = &ResponseHeader{}
+			}
+			if err := m.Header.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			m.ID = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.ID |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TTL", wireType)
+			}
+			m.TTL = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.TTL |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Error = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *LeaseRevokeRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LeaseRevokeRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LeaseRevokeRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			m.ID = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.ID |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *LeaseRevokeResponse) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LeaseRevokeResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LeaseRevokeResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Header == nil {
+				m.Header = &ResponseHeader{}
+			}
+			if err := m.Header.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *LeaseKeepAliveRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LeaseKeepAliveRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LeaseKeepAliveRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			m.ID = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.ID |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *LeaseKeepAliveResponse) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LeaseKeepAliveResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LeaseKeepAliveResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Header == nil {
+				m.Header = &ResponseHeader{}
+			}
+			if err := m.Header.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			m.ID = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.ID |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TTL", wireType)
+			}
+			m.TTL = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.TTL |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRpc(data[iNdEx:])

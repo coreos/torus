@@ -1,7 +1,7 @@
 syntax = "proto3";
 package storagepb;
 
-import "gogoproto/gogo.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.sizer_all) = true;
@@ -19,6 +19,9 @@ message KeyValue {
   // increases its version.
   int64 version = 4;
   bytes value = 5;
+  // lease is the ID of the lease that attached to key.
+  // When the attached lease expires, the key will be deleted.
+  int64 lease = 6;
 }
 
 message Event {
@@ -32,6 +35,4 @@ message Event {
   // a delete/expire event contains the previous
   // key-value
   KeyValue kv = 2;
-  // watchID is the ID of watching this event is sent to.
-  int64 watchID = 3;
 }
