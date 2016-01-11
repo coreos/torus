@@ -116,6 +116,7 @@ type MetadataService interface {
 	// ^^^^^^^
 
 	SetRebalanceSnapshot(*models.RebalanceSnapshot) error
+	GetRebalanceSnapshot() (*models.RebalanceSnapshot, error)
 	ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error
 	GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error)
 

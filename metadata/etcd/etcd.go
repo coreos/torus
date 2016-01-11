@@ -26,6 +26,9 @@ import (
 	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 )
 
+// Package rule for etcd keys: always put the static parts first, followed by
+// the variables. This makes range gets a lot easier.
+
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "etcd")
 
 const (
@@ -257,8 +260,8 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 	}
 	do := tx().Do(
 		setKey(mkKey("volumes", volume), uint64ToBytes(newID.(uint64))),
-		setKey(mkKey("volumemeta", volume, "inode"), uint64ToBytes(1)),
-		setKey(mkKey("volumemeta", volume, "deadmap"), roaringToBytes(roaring.NewRoaringBitmap())),
+		setKey(mkKey("volumemeta", "inode", volume), uint64ToBytes(1)),
+		setKey(mkKey("volumemeta", "deadmap", volume), roaringToBytes(roaring.NewRoaringBitmap())),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
 	).Tx()
 	_, err = c.etcd.kv.Txn(c.getContext(), do)
@@ -308,7 +311,7 @@ func (c *etcdCtx) GetVolumeID(volume string) (agro.VolumeID, error) {
 func (c *etcdCtx) CommitINodeIndex(volume string) (agro.INodeID, error) {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	newID, err := c.atomicModifyKey(mkKey("volumemeta", volume, "inode"), bytesAddOne)
+	newID, err := c.atomicModifyKey(mkKey("volumemeta", "inode", volume), bytesAddOne)
 	if err != nil {
 		return 0, err
 	}
@@ -409,8 +412,8 @@ func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
 
 func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
 	tx := tx().Do(
-		getKey(mkKey("volumemeta", volume, "deadmap")),
-		getPrefix(mkKey("volumemeta", volume, "open")),
+		getKey(mkKey("volumemeta", "deadmap", volume)),
+		getPrefix(mkKey("volumemeta", "open", volume)),
 	).Tx()
 	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if err != nil {
@@ -426,7 +429,7 @@ func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*r
 
 func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
 	// TODO(barakmich): LEASE
-	key := mkKey("volumemeta", volume, "open", c.UUID())
+	key := mkKey("volumemeta", "open", volume, c.UUID())
 	if inodes == nil {
 		_, err := c.etcd.kv.DeleteRange(c.getContext(), deleteKey(key))
 		return err
@@ -439,7 +442,7 @@ func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap
 }
 
 func (c *etcdCtx) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error {
-	_, err := c.atomicModifyKey(mkKey("volumemeta", volume, "deadmap"), func(b []byte) ([]byte, interface{}, error) {
+	_, err := c.atomicModifyKey(mkKey("volumemeta", "deadmap", volume), func(b []byte) ([]byte, interface{}, error) {
 		bm := bytesToRoaring(b)
 		bm.Or(dead)
 		bm.AndNot(live)

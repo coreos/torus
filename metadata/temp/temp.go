@@ -38,13 +38,19 @@ type Server struct {
 	openINodes map[string]map[string]*roaring.RoaringBitmap
 	deadMap    map[string]*roaring.RoaringBitmap
 
-	ringListeners []chan agro.Ring
+	ringListeners      []chan agro.Ring
+	rebalanceListeners []chan *models.RebalanceStatus
+	masterListener     chan *models.RebalanceStatus
+	rebalanceSnapshot  *models.RebalanceSnapshot
 }
 
 type Client struct {
-	cfg  agro.Config
-	uuid string
-	srv  *Server
+	cfg    agro.Config
+	uuid   string
+	srv    *Server
+	toC    chan *models.RebalanceStatus
+	fromC  chan *models.RebalanceStatus
+	master bool
 }
 
 func NewServer() *Server {
@@ -373,6 +379,62 @@ func (t *Client) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*ro
 		}
 	}
 	return x, l, nil
+}
+
+func (t *Client) SetRebalanceSnapshot(x *models.RebalanceSnapshot) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	t.srv.rebalanceSnapshot = x
+	return nil
+}
+
+func (t *Client) GetRebalanceSnapshot() (*models.RebalanceSnapshot, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	return t.srv.rebalanceSnapshot, nil
+}
+
+func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, master bool, err error) {
+	t.toC = make(chan *models.RebalanceStatus)
+	t.fromC = make(chan *models.RebalanceStatus)
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	isMaster := false
+	if t.srv.masterListener == nil {
+		isMaster = true
+		t.srv.masterListener = t.toC
+	}
+	t.srv.rebalanceListeners = append(t.srv.rebalanceListeners, t.toC)
+	go func(master bool) {
+		for {
+			d, ok := <-t.fromC
+			if !ok {
+				t.srv.mut.Lock()
+				if master {
+					t.srv.masterListener = nil
+				}
+				for i, c := range t.srv.rebalanceListeners {
+					if t.toC == c {
+						t.srv.ringListeners = append(t.srv.ringListeners[:i], t.srv.ringListeners[i+1:]...)
+						break
+					}
+				}
+				t.srv.mut.Unlock()
+				close(t.toC)
+				return
+			}
+			t.srv.mut.Lock()
+			if master {
+				for _, c := range t.srv.rebalanceListeners {
+					c <- d
+				}
+			} else {
+				t.srv.masterListener <- d
+			}
+			t.srv.mut.Unlock()
+		}
+	}(isMaster)
+	return [2]chan *models.RebalanceStatus{t.toC, t.fromC}, true, nil
 }
 
 func (s *Server) Close() error {

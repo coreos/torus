@@ -38,13 +38,14 @@ type memory struct {
 	inodes map[string]agro.INodeID
 	vol    agro.VolumeID
 
-	tree       *iradix.Tree
-	volIndex   map[string]agro.VolumeID
-	global     agro.GlobalMetadata
-	cfg        agro.Config
-	uuid       string
-	openINodes map[string]*roaring.RoaringBitmap
-	deadMap    map[string]*roaring.RoaringBitmap
+	tree              *iradix.Tree
+	volIndex          map[string]agro.VolumeID
+	global            agro.GlobalMetadata
+	cfg               agro.Config
+	uuid              string
+	openINodes        map[string]*roaring.RoaringBitmap
+	deadMap           map[string]*roaring.RoaringBitmap
+	rebalanceSnapshot *models.RebalanceSnapshot
 }
 
 func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
@@ -304,6 +305,32 @@ func (s *memory) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead 
 	s.deadMap[volume] = x
 	return nil
 }
+
+func (s *memory) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, master bool, err error) {
+	toC := make(chan *models.RebalanceStatus)
+	fromC := make(chan *models.RebalanceStatus)
+	go func() {
+		for {
+			d, ok := <-fromC
+			if !ok {
+				close(toC)
+				break
+			}
+			toC <- d
+		}
+
+	}()
+	return [2]chan *models.RebalanceStatus{toC, fromC}, true, nil
+}
+
+func (s *memory) SetRebalanceSnapshot(x *models.RebalanceSnapshot) error {
+	s.rebalanceSnapshot = x
+	return nil
+}
+func (s *memory) GetRebalanceSnapshot() (*models.RebalanceSnapshot, error) {
+	return s.rebalanceSnapshot, nil
+}
+
 func (s *memory) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
 	x, ok := s.deadMap[volume]
 	if !ok {
