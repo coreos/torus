@@ -407,6 +407,23 @@ func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
 	c.etcd.UnsubscribeNewRings(ch)
 }
 
+func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
+	tx := tx().Do(
+		getKey(mkKey("volumemeta", volume, "deadmap")),
+		getPrefix(mkKey("volumemeta", volume, "open")),
+	).Tx()
+	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
+	if err != nil {
+		return nil, nil, err
+	}
+	deadmap := bytesToRoaring(resp.Responses[0].GetResponseRange().Kvs[0].Value)
+	var l []*roaring.RoaringBitmap
+	for _, x := range resp.Responses[1].GetResponseRange().Kvs {
+		l = append(l, bytesToRoaring(x.Value))
+	}
+	return deadmap, l, nil
+}
+
 func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
 	// TODO(barakmich): LEASE
 	key := mkKey("volumemeta", volume, "open", c.UUID())

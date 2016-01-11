@@ -359,6 +359,22 @@ func (t *Client) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead 
 	return nil
 }
 
+func (t *Client) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	x, ok := t.srv.deadMap[volume]
+	if !ok {
+		x = roaring.NewRoaringBitmap()
+	}
+	var l []*roaring.RoaringBitmap
+	for _, perclient := range t.srv.openINodes {
+		if c, ok := perclient[volume]; ok {
+			l = append(l, c)
+		}
+	}
+	return x, l, nil
+}
+
 func (s *Server) Close() error {
 	return nil
 }

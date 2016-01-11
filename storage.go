@@ -45,6 +45,18 @@ func (i INodeRef) ToProto() *models.INodeRef {
 	}
 }
 
+const INodeRefByteSize = 8 * 2
+
+func (i INodeRef) ToBytes() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, INodeRefByteSize))
+	binary.Write(buf, binary.LittleEndian, i)
+	out := buf.Bytes()
+	if len(out) != INodeRefByteSize {
+		panic("breaking contract -- must make size appropriate")
+	}
+	return out
+}
+
 // BlockRef is the identifier for a unique block in the filesystem.
 type BlockRef struct {
 	INodeRef
@@ -83,6 +95,10 @@ func (b BlockRef) String() string {
 	return fmt.Sprintf("vol: %d, inode: %d, block: %d", i.Volume, i.INode, b.Index)
 }
 
+func (b BlockRef) IsINode(i INodeRef) bool {
+	return b.INode == i.INode && b.Volume == i.Volume
+}
+
 // BlockStore is the interface representing the standardized methods to
 // interact with something storing blocks.
 type BlockStore interface {
@@ -90,6 +106,7 @@ type BlockStore interface {
 	GetBlock(ctx context.Context, b BlockRef) ([]byte, error)
 	WriteBlock(ctx context.Context, b BlockRef, data []byte) error
 	DeleteBlock(ctx context.Context, b BlockRef) error
+	DeleteINodeBlocks(ctx context.Context, b INodeRef) error
 	NumBlocks() uint64
 	UsedBlocks() uint64
 	// TODO(barakmich) FreeBlocks()

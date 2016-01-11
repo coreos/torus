@@ -6,6 +6,7 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/server/gc"
 )
 
 func mkdirsFor(dir string) error {
@@ -57,13 +58,16 @@ func NewServer(cfg agro.Config, metadataServiceName, inodeStoreName, blockStoreN
 		return nil, err
 	}
 
-	return &server{
+	s := &server{
 		blocks:        blocks,
 		mds:           mds,
 		inodes:        inodes,
 		peersMap:      make(map[string]*models.PeerInfo),
 		openINodeRefs: make(map[string]map[agro.INodeID]int),
-	}, nil
+		gc:            gc.NewGCController(mds, blocks),
+	}
+	s.gc.Start()
+	return s, nil
 }
 
 func NewMemoryServer() agro.Server {

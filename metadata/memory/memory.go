@@ -304,6 +304,17 @@ func (s *memory) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead 
 	s.deadMap[volume] = x
 	return nil
 }
+func (s *memory) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
+	x, ok := s.deadMap[volume]
+	if !ok {
+		x = roaring.NewRoaringBitmap()
+	}
+	var l []*roaring.RoaringBitmap
+	if y, ok := s.openINodes[volume]; ok {
+		l = append(l, y)
+	}
+	return x, l, nil
+}
 
 func (s *memory) write() error {
 	if s.cfg.DataDir == "" {

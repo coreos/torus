@@ -84,3 +84,19 @@ func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	delete(t.store, s)
 	return nil
 }
+
+func (t *tempBlockStore) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error {
+	t.mut.Lock()
+	defer t.mut.Unlock()
+
+	if t.store == nil {
+		return agro.ErrClosed
+	}
+
+	for k := range t.store {
+		if k.IsINode(s) {
+			delete(t.store, k)
+		}
+	}
+	return nil
+}

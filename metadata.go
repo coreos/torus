@@ -115,6 +115,7 @@ type MetadataService interface {
 	// ^^^^^^^
 
 	ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error
+	GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error)
 
 	// TODO(barakmich): Extend with GC interaction, et al
 	Close() error
