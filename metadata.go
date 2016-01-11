@@ -112,8 +112,10 @@ type MetadataService interface {
 	// TODO(barakmich): THESE NEED A LEASE ID
 	RegisterPeer(*models.PeerInfo) error
 	ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error
+	OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, master bool, err error)
 	// ^^^^^^^
 
+	SetRebalanceSnapshot(*models.RebalanceSnapshot) error
 	ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error
 	GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error)
 

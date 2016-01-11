@@ -18,6 +18,8 @@
 		Ring
 		BlockRef
 		INodeRef
+		RebalanceSnapshot
+		RebalanceStatus
 		Block
 		BlockRequest
 		BlockResponse
@@ -173,6 +175,31 @@ func (m *INodeRef) Reset()         { *m = INodeRef{} }
 func (m *INodeRef) String() string { return proto.CompactTextString(m) }
 func (*INodeRef) ProtoMessage()    {}
 
+type RebalanceSnapshot struct {
+	VolumeInodes map[string]uint64 `protobuf:"bytes,1,rep,name=volume_inodes" json:"volume_inodes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+}
+
+func (m *RebalanceSnapshot) Reset()         { *m = RebalanceSnapshot{} }
+func (m *RebalanceSnapshot) String() string { return proto.CompactTextString(m) }
+func (*RebalanceSnapshot) ProtoMessage()    {}
+
+func (m *RebalanceSnapshot) GetVolumeInodes() map[string]uint64 {
+	if m != nil {
+		return m.VolumeInodes
+	}
+	return nil
+}
+
+type RebalanceStatus struct {
+	RebalanceType int32  `protobuf:"varint,1,opt,name=rebalance_type,proto3" json:"rebalance_type,omitempty"`
+	Phase         int32  `protobuf:"varint,2,opt,name=phase,proto3" json:"phase,omitempty"`
+	UUID          string `protobuf:"bytes,3,opt,name=uuid,proto3" json:"uuid,omitempty"`
+}
+
+func (m *RebalanceStatus) Reset()         { *m = RebalanceStatus{} }
+func (m *RebalanceStatus) String() string { return proto.CompactTextString(m) }
+func (*RebalanceStatus) ProtoMessage()    {}
+
 func init() {
 	proto.RegisterType((*Metadata)(nil), "models.Metadata")
 	proto.RegisterType((*INode)(nil), "models.INode")
@@ -182,6 +209,8 @@ func init() {
 	proto.RegisterType((*Ring)(nil), "models.Ring")
 	proto.RegisterType((*BlockRef)(nil), "models.BlockRef")
 	proto.RegisterType((*INodeRef)(nil), "models.INodeRef")
+	proto.RegisterType((*RebalanceSnapshot)(nil), "models.RebalanceSnapshot")
+	proto.RegisterType((*RebalanceStatus)(nil), "models.RebalanceStatus")
 }
 func (m *Metadata) Marshal() (data []byte, err error) {
 	size := m.Size()
@@ -569,6 +598,74 @@ func (m *INodeRef) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
+func (m *RebalanceSnapshot) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *RebalanceSnapshot) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.VolumeInodes) > 0 {
+		for k, _ := range m.VolumeInodes {
+			data[i] = 0xa
+			i++
+			v := m.VolumeInodes[k]
+			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + sovAgro(uint64(v))
+			i = encodeVarintAgro(data, i, uint64(mapSize))
+			data[i] = 0xa
+			i++
+			i = encodeVarintAgro(data, i, uint64(len(k)))
+			i += copy(data[i:], k)
+			data[i] = 0x10
+			i++
+			i = encodeVarintAgro(data, i, uint64(v))
+		}
+	}
+	return i, nil
+}
+
+func (m *RebalanceStatus) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *RebalanceStatus) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.RebalanceType != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.RebalanceType))
+	}
+	if m.Phase != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Phase))
+	}
+	if len(m.UUID) > 0 {
+		data[i] = 0x1a
+		i++
+		i = encodeVarintAgro(data, i, uint64(len(m.UUID)))
+		i += copy(data[i:], m.UUID)
+	}
+	return i, nil
+}
+
 func encodeFixed64Agro(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -770,6 +867,36 @@ func (m *INodeRef) Size() (n int) {
 	}
 	if m.INode != 0 {
 		n += 1 + sovAgro(uint64(m.INode))
+	}
+	return n
+}
+
+func (m *RebalanceSnapshot) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.VolumeInodes) > 0 {
+		for k, v := range m.VolumeInodes {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + sovAgro(uint64(v))
+			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
+		}
+	}
+	return n
+}
+
+func (m *RebalanceStatus) Size() (n int) {
+	var l int
+	_ = l
+	if m.RebalanceType != 0 {
+		n += 1 + sovAgro(uint64(m.RebalanceType))
+	}
+	if m.Phase != 0 {
+		n += 1 + sovAgro(uint64(m.Phase))
+	}
+	l = len(m.UUID)
+	if l > 0 {
+		n += 1 + l + sovAgro(uint64(l))
 	}
 	return n
 }
@@ -2149,6 +2276,274 @@ func (m *INodeRef) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RebalanceSnapshot) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RebalanceSnapshot: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RebalanceSnapshot: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VolumeInodes", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var keykey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				keykey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var stringLenmapkey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLenmapkey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLenmapkey := int(stringLenmapkey)
+			if intStringLenmapkey < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postStringIndexmapkey := iNdEx + intStringLenmapkey
+			if postStringIndexmapkey > l {
+				return io.ErrUnexpectedEOF
+			}
+			mapkey := string(data[iNdEx:postStringIndexmapkey])
+			iNdEx = postStringIndexmapkey
+			var valuekey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				valuekey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var mapvalue uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				mapvalue |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if m.VolumeInodes == nil {
+				m.VolumeInodes = make(map[string]uint64)
+			}
+			m.VolumeInodes[mapkey] = mapvalue
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RebalanceStatus) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RebalanceStatus: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RebalanceStatus: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RebalanceType", wireType)
+			}
+			m.RebalanceType = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.RebalanceType |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Phase", wireType)
+			}
+			m.Phase = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Phase |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UUID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.UUID = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])
