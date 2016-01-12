@@ -311,7 +311,7 @@ func (s *memory) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead 
 	return nil
 }
 
-func (s *memory) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, master bool, err error) {
+func (s *memory) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
 	toC := make(chan *models.RebalanceStatus)
 	fromC := make(chan *models.RebalanceStatus)
 	go func() {

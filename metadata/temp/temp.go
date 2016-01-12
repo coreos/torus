@@ -41,7 +41,7 @@ type Server struct {
 
 	ringListeners      []chan agro.Ring
 	rebalanceListeners []chan *models.RebalanceStatus
-	masterListener     chan *models.RebalanceStatus
+	leaderListener     chan *models.RebalanceStatus
 	rebalanceSnapshot  *models.RebalanceSnapshot
 }
 
@@ -51,7 +51,7 @@ type Client struct {
 	srv    *Server
 	toC    chan *models.RebalanceStatus
 	fromC  chan *models.RebalanceStatus
-	master bool
+	leader bool
 }
 
 func NewServer() *Server {
@@ -404,24 +404,24 @@ func (s *Server) SetRing(ring agro.Ring, force bool) error {
 	return nil
 }
 
-func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, master bool, err error) {
+func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
 	t.toC = make(chan *models.RebalanceStatus)
 	t.fromC = make(chan *models.RebalanceStatus)
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	isMaster := false
-	if t.srv.masterListener == nil {
-		isMaster = true
-		t.srv.masterListener = t.toC
+	isLeader := false
+	if t.srv.leaderListener == nil {
+		isLeader = true
+		t.srv.leaderListener = t.toC
 	}
 	t.srv.rebalanceListeners = append(t.srv.rebalanceListeners, t.toC)
-	go func(master bool, t *Client) {
+	go func(leader bool, t *Client) {
 		for {
 			d, ok := <-t.fromC
 			if !ok {
 				t.srv.mut.Lock()
-				if master {
-					t.srv.masterListener = nil
+				if leader {
+					t.srv.leaderListener = nil
 				}
 				for i, c := range t.srv.rebalanceListeners {
 					if t.toC == c {
@@ -434,17 +434,17 @@ func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus,
 				return
 			}
 			t.srv.mut.Lock()
-			if master {
+			if leader {
 				for _, c := range t.srv.rebalanceListeners {
 					c <- d
 				}
 			} else {
-				t.srv.masterListener <- d
+				t.srv.leaderListener <- d
 			}
 			t.srv.mut.Unlock()
 		}
-	}(isMaster, t)
-	return [2]chan *models.RebalanceStatus{t.toC, t.fromC}, isMaster, nil
+	}(isLeader, t)
+	return [2]chan *models.RebalanceStatus{t.toC, t.fromC}, isLeader, nil
 }
 
 func (s *Server) Close() error {
