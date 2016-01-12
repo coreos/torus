@@ -405,7 +405,7 @@ func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus,
 		t.srv.masterListener = t.toC
 	}
 	t.srv.rebalanceListeners = append(t.srv.rebalanceListeners, t.toC)
-	go func(master bool) {
+	go func(master bool, t *Client) {
 		for {
 			d, ok := <-t.fromC
 			if !ok {
@@ -415,7 +415,7 @@ func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus,
 				}
 				for i, c := range t.srv.rebalanceListeners {
 					if t.toC == c {
-						t.srv.ringListeners = append(t.srv.ringListeners[:i], t.srv.ringListeners[i+1:]...)
+						t.srv.rebalanceListeners = append(t.srv.rebalanceListeners[:i], t.srv.rebalanceListeners[i+1:]...)
 						break
 					}
 				}
@@ -433,8 +433,8 @@ func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus,
 			}
 			t.srv.mut.Unlock()
 		}
-	}(isMaster)
-	return [2]chan *models.RebalanceStatus{t.toC, t.fromC}, true, nil
+	}(isMaster, t)
+	return [2]chan *models.RebalanceStatus{t.toC, t.fromC}, isMaster, nil
 }
 
 func (s *Server) Close() error {

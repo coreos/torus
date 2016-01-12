@@ -74,4 +74,5 @@ message RebalanceStatus {
   int32 rebalance_type = 1;
   int32 phase = 2;
   string uuid = 3 [(gogoproto.customname) = "UUID"];
+  bool from_leader = 4;
 }

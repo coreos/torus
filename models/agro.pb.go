@@ -195,6 +195,7 @@ type RebalanceStatus struct {
 	RebalanceType int32  `protobuf:"varint,1,opt,name=rebalance_type,proto3" json:"rebalance_type,omitempty"`
 	Phase         int32  `protobuf:"varint,2,opt,name=phase,proto3" json:"phase,omitempty"`
 	UUID          string `protobuf:"bytes,3,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	FromLeader    bool   `protobuf:"varint,4,opt,name=from_leader,proto3" json:"from_leader,omitempty"`
 }
 
 func (m *RebalanceStatus) Reset()         { *m = RebalanceStatus{} }
@@ -669,6 +670,16 @@ func (m *RebalanceStatus) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintAgro(data, i, uint64(len(m.UUID)))
 		i += copy(data[i:], m.UUID)
 	}
+	if m.FromLeader {
+		data[i] = 0x20
+		i++
+		if m.FromLeader {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
 	return i, nil
 }
 
@@ -906,6 +917,9 @@ func (m *RebalanceStatus) Size() (n int) {
 	l = len(m.UUID)
 	if l > 0 {
 		n += 1 + l + sovAgro(uint64(l))
+	}
+	if m.FromLeader {
+		n += 2
 	}
 	return n
 }
@@ -2572,6 +2586,26 @@ func (m *RebalanceStatus) Unmarshal(data []byte) error {
 			}
 			m.UUID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FromLeader", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.FromLeader = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])
