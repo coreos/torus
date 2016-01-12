@@ -47,7 +47,7 @@ func (m *mod) GetINodePeers(key agro.INodeRef) ([]string, error) {
 	})
 }
 
-func (m *mod) Members() []string { return m.peers }
+func (m *mod) Members() []string { return append([]string(nil), m.peers...) }
 
 func (m *mod) Describe() string {
 	s := fmt.Sprintf("Ring: Mod\nReplication:%d\nPeers:", m.rep)

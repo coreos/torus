@@ -28,16 +28,18 @@ func (c *etcdCtx) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus
 }
 
 func (c *etcdCtx) SetRebalanceSnapshot(x *models.RebalanceSnapshot) error {
+	if x == nil {
+		_, err := c.etcd.kv.DeleteRange(c.getContext(),
+			deleteKey(mkKey("meta", "rebalance-snapshot")))
+		return err
+	}
 	b, err := x.Marshal()
 	if err != nil {
 		return err
 	}
 	_, err = c.etcd.kv.Put(c.getContext(),
 		setKey(mkKey("meta", "rebalance-snapshot"), b))
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (c *etcdCtx) GetRebalanceSnapshot() (*models.RebalanceSnapshot, error) {
@@ -59,8 +61,12 @@ func (c *etcdCtx) openRebalanceLeader() (inOut [2]chan *models.RebalanceStatus, 
 	fromC := make(chan *models.RebalanceStatus)
 	err = c.leaderWatch(toC, fromC)
 	if err != nil {
-		_, derr := c.etcd.kv.DeleteRange(c.getContext(),
-			deleteKey(mkKey("meta", "rebalance-leader")))
+		tx := tx().Do(
+			deleteKey(mkKey("meta", "rebalance-leader")),
+			deleteKey(mkKey("meta", "rebalance-leader-status")),
+			deleteKey(mkKey("meta", "rebalance-status", c.UUID())),
+		).Tx()
+		_, derr := c.etcd.kv.Txn(c.getContext(), tx)
 		if derr != nil {
 			err = derr
 		}
@@ -81,8 +87,12 @@ func (c *etcdCtx) leaderWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 			stat, ok := <-fromC
 			if !ok {
 				wStream.CloseSend()
-				_, derr := c.etcd.kv.DeleteRange(c.getContext(),
-					deleteKey(mkKey("meta", "rebalance-leader")))
+				tx := tx().Do(
+					deleteKey(mkKey("meta", "rebalance-leader")),
+					deleteKey(mkKey("meta", "rebalance-leader-status")),
+					deleteKey(mkKey("meta", "rebalance-status", c.UUID())),
+				).Tx()
+				_, derr := c.etcd.kv.Txn(c.getContext(), tx)
 				if derr != nil {
 					clog.Error(derr)
 				}
@@ -119,7 +129,7 @@ func (c *etcdCtx) openRebalanceFollower() (inOut [2]chan *models.RebalanceStatus
 	err = c.followWatch(toC, fromC)
 	if err != nil {
 		_, derr := c.etcd.kv.DeleteRange(c.getContext(),
-			deleteKey(mkKey("meta", "rebalance-snapshot")))
+			deleteKey(mkKey("meta", "rebalance-status", c.UUID())))
 		if derr != nil {
 			err = derr
 		}
@@ -140,6 +150,11 @@ func (c *etcdCtx) followWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 			stat, ok := <-fromC
 			if !ok {
 				wStream.CloseSend()
+				_, derr := c.etcd.kv.DeleteRange(c.getContext(),
+					deleteKey(mkKey("meta", "rebalance-status", c.UUID())))
+				if derr != nil {
+					err = derr
+				}
 				return
 			}
 			b, err := stat.Marshal()
@@ -185,7 +200,6 @@ func watchStream(wStream pb.Watch_WatchClient, c chan *models.RebalanceStatus) {
 			continue
 		}
 		for _, ev := range resp.Events {
-			clog.Debugf("got new data at %s", ev.Kv.Key)
 			m := &models.RebalanceStatus{}
 			err := m.Unmarshal(ev.Kv.Value)
 			if err != nil {

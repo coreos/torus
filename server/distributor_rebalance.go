@@ -74,13 +74,7 @@ func (d *distributor) Rebalance(newring agro.Ring) {
 		return
 	}
 	// TODO(barakmich): Rebalancing is tricky. But here's the entry point.
-	clog.Infof("rebalancing beginning: new ring version %d", newring.Version())
-	// TODO(barakmich): This is indeed a bad way to rebalance. The correct way is
-	// an algorithm which is agnostic to the type of ring, but asks the correct
-	// questions of the ring abstraction to run through a rebalance cycle.
-	//
-	// However, for prototype purposes, we can do the following:
-	//
+	clog.Infof("rebalancing beginning: new ring version %d for %s", newring.Version(), d.UUID())
 	chans, leader, err := d.srv.mds.OpenRebalanceChannels()
 	if err != nil {
 		clog.Error(err)
