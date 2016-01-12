@@ -67,7 +67,7 @@ message INodeRef {
 
 message RebalanceSnapshot {
   int32 rebalance_type = 1;
-  map<string, uint64> volume_inodes = 2;
+  map<string, uint64> volume_inodes = 2 [(gogoproto.customname) = "VolumeINodes"];
 }
 
 message RebalanceStatus {

@@ -176,16 +176,17 @@ func (m *INodeRef) String() string { return proto.CompactTextString(m) }
 func (*INodeRef) ProtoMessage()    {}
 
 type RebalanceSnapshot struct {
-	VolumeInodes map[string]uint64 `protobuf:"bytes,1,rep,name=volume_inodes" json:"volume_inodes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	RebalanceType int32             `protobuf:"varint,1,opt,name=rebalance_type,proto3" json:"rebalance_type,omitempty"`
+	VolumeINodes  map[string]uint64 `protobuf:"bytes,2,rep,name=volume_inodes" json:"volume_inodes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 }
 
 func (m *RebalanceSnapshot) Reset()         { *m = RebalanceSnapshot{} }
 func (m *RebalanceSnapshot) String() string { return proto.CompactTextString(m) }
 func (*RebalanceSnapshot) ProtoMessage()    {}
 
-func (m *RebalanceSnapshot) GetVolumeInodes() map[string]uint64 {
+func (m *RebalanceSnapshot) GetVolumeINodes() map[string]uint64 {
 	if m != nil {
-		return m.VolumeInodes
+		return m.VolumeINodes
 	}
 	return nil
 }
@@ -613,11 +614,16 @@ func (m *RebalanceSnapshot) MarshalTo(data []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.VolumeInodes) > 0 {
-		for k, _ := range m.VolumeInodes {
-			data[i] = 0xa
+	if m.RebalanceType != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.RebalanceType))
+	}
+	if len(m.VolumeINodes) > 0 {
+		for k, _ := range m.VolumeINodes {
+			data[i] = 0x12
 			i++
-			v := m.VolumeInodes[k]
+			v := m.VolumeINodes[k]
 			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + sovAgro(uint64(v))
 			i = encodeVarintAgro(data, i, uint64(mapSize))
 			data[i] = 0xa
@@ -874,8 +880,11 @@ func (m *INodeRef) Size() (n int) {
 func (m *RebalanceSnapshot) Size() (n int) {
 	var l int
 	_ = l
-	if len(m.VolumeInodes) > 0 {
-		for k, v := range m.VolumeInodes {
+	if m.RebalanceType != 0 {
+		n += 1 + sovAgro(uint64(m.RebalanceType))
+	}
+	if len(m.VolumeINodes) > 0 {
+		for k, v := range m.VolumeINodes {
 			_ = k
 			_ = v
 			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + sovAgro(uint64(v))
@@ -2327,8 +2336,27 @@ func (m *RebalanceSnapshot) Unmarshal(data []byte) error {
 		}
 		switch fieldNum {
 		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RebalanceType", wireType)
+			}
+			m.RebalanceType = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.RebalanceType |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field VolumeInodes", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field VolumeINodes", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -2422,10 +2450,10 @@ func (m *RebalanceSnapshot) Unmarshal(data []byte) error {
 					break
 				}
 			}
-			if m.VolumeInodes == nil {
-				m.VolumeInodes = make(map[string]uint64)
+			if m.VolumeINodes == nil {
+				m.VolumeINodes = make(map[string]uint64)
 			}
-			m.VolumeInodes[mapkey] = mapvalue
+			m.VolumeINodes[mapkey] = mapvalue
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
