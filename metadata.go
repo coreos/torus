@@ -106,6 +106,7 @@ type MetadataService interface {
 	GetRing() (Ring, error)
 	SubscribeNewRings(chan Ring)
 	UnsubscribeNewRings(chan Ring)
+	SetRing(ring Ring, force bool) error
 
 	WithContext(ctx context.Context) MetadataService
 

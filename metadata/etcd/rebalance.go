@@ -60,7 +60,7 @@ func (c *etcdCtx) openRebalanceMaster() (inOut [2]chan *models.RebalanceStatus, 
 	err = c.masterWatch(toC, fromC)
 	if err != nil {
 		_, derr := c.etcd.kv.DeleteRange(c.getContext(),
-			deleteKey(mkKey("meta", "rebalance-snapshot")))
+			deleteKey(mkKey("meta", "rebalance-master")))
 		if derr != nil {
 			err = derr
 		}
@@ -81,6 +81,11 @@ func (c *etcdCtx) masterWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 			stat, ok := <-fromC
 			if !ok {
 				wStream.CloseSend()
+				_, derr := c.etcd.kv.DeleteRange(c.getContext(),
+					deleteKey(mkKey("meta", "rebalance-master")))
+				if derr != nil {
+					clog.Error(derr)
+				}
 				return
 			}
 			b, err := stat.Marshal()

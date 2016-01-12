@@ -66,7 +66,7 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 	}
 	defer conn.Close()
 	client := pb.NewKVClient(conn)
-	resp, err := client.Range(context.Background(), getKey(mkKey("meta", "the-one-ring")))
+	resp, err := client.Range(context.Background(), getKey(mkKey("meta", "the-new-ring")))
 	if err != nil {
 		return err
 	}
@@ -80,6 +80,6 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 	if oldr.Version() != r.Version()-1 {
 		return agro.ErrNonSequentialRing
 	}
-	_, err = client.Put(context.Background(), setKey(mkKey("meta", "the-one-ring"), b))
+	_, err = client.Put(context.Background(), setKey(mkKey("meta", "the-new-ring"), b))
 	return err
 }

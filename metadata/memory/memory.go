@@ -290,6 +290,11 @@ func (s *memory) UnsubscribeNewRings(ch chan agro.Ring) {
 	// Kay. We unsubscribed you already.
 }
 
+func (s *memory) SetRing(ring agro.Ring, force bool) error {
+	// Can't change it.
+	return nil
+}
+
 func (s *memory) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
 	s.openINodes[volume] = inodes
 	return nil

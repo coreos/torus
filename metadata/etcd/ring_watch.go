@@ -20,7 +20,7 @@ func (e *etcd) watchRingUpdates() error {
 	p := &pb.WatchRequest{
 		RequestUnion: &pb.WatchRequest_CreateRequest{
 			CreateRequest: &pb.WatchCreateRequest{
-				Key: mkKey("meta", "the-one-ring"),
+				Key: mkKey("meta", "the-new-ring"),
 			},
 		},
 	}
