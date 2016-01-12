@@ -105,8 +105,7 @@ func (c *etcdCtx) leaderWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 	p := &pb.WatchRequest{
 		RequestUnion: &pb.WatchRequest_CreateRequest{
 			CreateRequest: &pb.WatchCreateRequest{
-				Prefix:        mkKey("meta", "rebalance-status"),
-				StartRevision: 1,
+				Prefix: mkKey("meta", "rebalance-status"),
 			},
 		},
 	}
@@ -180,15 +179,13 @@ func watchStream(wStream pb.Watch_WatchClient, c chan *models.RebalanceStatus) {
 			break
 		}
 		switch {
-		case resp.Created:
-			continue
 		case resp.Canceled:
 			continue
 		case resp.Compacted:
 			continue
 		}
 		for _, ev := range resp.Events {
-			clog.Tracef("got new data at %s", ev.Kv.Key)
+			clog.Debugf("got new data at %s", ev.Kv.Key)
 			m := &models.RebalanceStatus{}
 			err := m.Unmarshal(ev.Kv.Value)
 			if err != nil {

@@ -66,7 +66,7 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 	}
 	defer conn.Close()
 	client := pb.NewKVClient(conn)
-	resp, err := client.Range(context.Background(), getKey(mkKey("meta", "the-new-ring")))
+	resp, err := client.Range(context.Background(), getKey(mkKey("meta", "the-one-ring")))
 	if err != nil {
 		return err
 	}
