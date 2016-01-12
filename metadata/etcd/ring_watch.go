@@ -17,14 +17,15 @@ func (e *etcd) watchRingUpdates() error {
 	}
 	go e.watchRing(wStream)
 
-	err = wStream.Send(&pb.WatchRequest{
-		Key: mkKey("meta", "the-one-ring"),
-	})
-	if err != nil {
-		return err
+	p := &pb.WatchRequest{
+		RequestUnion: &pb.WatchRequest_CreateRequest{
+			CreateRequest: &pb.WatchCreateRequest{
+				Key: mkKey("meta", "the-one-ring"),
+			},
+		},
 	}
-
-	return nil
+	err = wStream.Send(p)
+	return err
 }
 
 func (e *etcd) watchRing(wStream pb.Watch_WatchClient) {
@@ -42,22 +43,32 @@ func (e *etcd) watchRing(wStream pb.Watch_WatchClient) {
 			clog.Errorf("error watching ring: %s", err)
 			break
 		}
-		newRing, err := ring.Unmarshal(resp.Event.Kv.Value)
-		if err != nil {
-			clog.Error("corrupted ring? Continuing with current ring")
+		switch {
+		case resp.Created:
+			continue
+		case resp.Canceled:
+			continue
+		case resp.Compacted:
 			continue
 		}
+		for _, ev := range resp.Events {
+			newRing, err := ring.Unmarshal(ev.Kv.Value)
+			if err != nil {
+				clog.Error("corrupted ring? Continuing with current ring")
+				continue
+			}
 
-		clog.Infof("got new ring")
-		if r.Version() == newRing.Version() {
-			clog.Warningf("Same ring version: %d", r.Version())
+			clog.Infof("got new ring")
+			if r.Version() == newRing.Version() {
+				clog.Warningf("Same ring version: %d", r.Version())
+			}
+			e.mut.RLock()
+			for _, x := range e.ringListeners {
+				x <- newRing
+			}
+			r = newRing
+			e.mut.RUnlock()
 		}
-		e.mut.RLock()
-		for _, x := range e.ringListeners {
-			x <- newRing
-		}
-		r = newRing
-		e.mut.RUnlock()
 	}
 
 }
