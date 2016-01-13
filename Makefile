@@ -9,6 +9,7 @@ clean:
 	rm -rf /tmp/agro
 	rm -rf /tmp/agro2
 	rm -rf /tmp/agro3
+	rm -rf /tmp/agro4
 
 cleanall: clean
 	rm -rf /tmp/etcd

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	clientTimeout = 500 * time.Millisecond
+	clientTimeout = 50 * time.Millisecond
 )
 
 // TODO(barakmich): Clean up errors
@@ -79,10 +79,8 @@ func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef)
 		BlockRefs: []*models.BlockRef{br},
 	})
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return nil, agro.ErrBlockUnavailable
-		}
-		return nil, err
+		clog.Debug(err)
+		return nil, agro.ErrBlockUnavailable
 	}
 	if !resp.Blocks[0].Ok {
 		return nil, agro.ErrBlockUnavailable
@@ -106,10 +104,8 @@ func (d *distClient) GetINode(ctx context.Context, uuid string, b agro.INodeRef)
 		INodeRefs: []*models.INodeRef{ref},
 	})
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return nil, agro.ErrINodeUnavailable
-		}
-		return nil, err
+		clog.Debug(err)
+		return nil, agro.ErrINodeUnavailable
 	}
 	if resp.INodes[0].INode != uint64(b.INode) {
 		return nil, agro.ErrINodeUnavailable

@@ -48,6 +48,7 @@ func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.IN
 			return in, nil
 		}
 		if err == agro.ErrINodeUnavailable {
+			clog.Debug("inode failed, trying next peer")
 			continue
 		}
 		return nil, err
@@ -105,6 +106,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 			return blk, nil
 		}
 		if err == agro.ErrBlockUnavailable {
+			clog.Debug("block failed, trying next peer")
 			continue
 		}
 		return nil, err

@@ -115,7 +115,8 @@ func (c *etcdCtx) leaderWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 	p := &pb.WatchRequest{
 		RequestUnion: &pb.WatchRequest_CreateRequest{
 			CreateRequest: &pb.WatchCreateRequest{
-				Prefix: mkKey("meta", "rebalance-status"),
+				Prefix:        mkKey("meta", "rebalance-status"),
+				StartRevision: 1,
 			},
 		},
 	}
