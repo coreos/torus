@@ -88,8 +88,11 @@ type MetadataService interface {
 	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
 	GetVolumes() ([]string, error)
 	GetVolumeID(volume string) (VolumeID, error)
+	GetVolumeName(vid VolumeID) (string, error)
 
 	CommitINodeIndex(volume string) (INodeID, error)
+	GetINodeIndex(volume string) (INodeID, error)
+	GetINodeIndexes() (map[string]INodeID, error)
 
 	Mkdir(path Path, dir *models.Directory) error
 	Getdir(path Path) (*models.Directory, []Path, error)

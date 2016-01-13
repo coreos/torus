@@ -123,6 +123,22 @@ func (s *memory) CommitINodeIndex(vol string) (agro.INodeID, error) {
 	return s.inodes[vol], nil
 }
 
+func (s *memory) GetINodeIndex(volume string) (agro.INodeID, error) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	return s.inodes[volume], nil
+}
+
+func (s *memory) GetINodeIndexes() (map[string]agro.INodeID, error) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	out := make(map[string]agro.INodeID)
+	for k, v := range s.inodes {
+		out[k] = v
+	}
+	return out, nil
+}
+
 func (s *memory) Mkdir(p agro.Path, dir *models.Directory) error {
 	if p.Path == "/" {
 		return errors.New("can't create the root directory")
@@ -262,6 +278,19 @@ func (s *memory) GetVolumes() ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+func (s *memory) GetVolumeName(vid agro.VolumeID) (string, error) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
+	for k, v := range s.volIndex {
+		if v == vid {
+			return k, nil
+		}
+	}
+	return "", errors.New("memory: no such volume exists")
+
 }
 
 func (s *memory) GetVolumeID(volume string) (agro.VolumeID, error) {

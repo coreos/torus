@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"strconv"
 	"sync"
 	"time"
 
@@ -258,8 +259,10 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 	if err != nil {
 		return err
 	}
+	sID := strconv.FormatUint(newID.(uint64), 10)
 	do := tx().Do(
 		setKey(mkKey("volumes", volume), uint64ToBytes(newID.(uint64))),
+		setKey(mkKey("volumeid", sID), []byte(volume)),
 		setKey(mkKey("volumemeta", "inode", volume), uint64ToBytes(1)),
 		setKey(mkKey("volumemeta", "deadmap", volume), roaringToBytes(roaring.NewRoaringBitmap())),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
@@ -305,7 +308,19 @@ func (c *etcdCtx) GetVolumeID(volume string) (agro.VolumeID, error) {
 	vid := agro.VolumeID(bytesToUint64(resp.Kvs[0].Value))
 	c.etcd.volumesCache[volume] = vid
 	return vid, nil
+}
 
+func (c *etcdCtx) GetVolumeName(vid agro.VolumeID) (string, error) {
+	s := strconv.FormatUint(uint64(vid), 10)
+	req := getKey(mkKey("volumeid", s))
+	resp, err := c.etcd.kv.Range(c.getContext(), req)
+	if err != nil {
+		return "", err
+	}
+	if len(resp.Kvs) == 0 {
+		return "", errors.New("etcd: no such volume exists")
+	}
+	return string(resp.Kvs[0].Value), nil
 }
 
 func (c *etcdCtx) CommitINodeIndex(volume string) (agro.INodeID, error) {
@@ -316,6 +331,32 @@ func (c *etcdCtx) CommitINodeIndex(volume string) (agro.INodeID, error) {
 		return 0, err
 	}
 	return agro.INodeID(newID.(uint64)), nil
+}
+
+func (c *etcdCtx) GetINodeIndex(volume string) (agro.INodeID, error) {
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "inode", volume)))
+	if err != nil {
+		return agro.INodeID(0), err
+	}
+	if len(resp.Kvs) != 1 {
+		return agro.INodeID(0), agro.ErrNotExist
+	}
+	id := bytesToUint64(resp.Kvs[0].Value)
+	return agro.INodeID(id), nil
+}
+
+func (c *etcdCtx) GetINodeIndexes() (map[string]agro.INodeID, error) {
+	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "inode")))
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]agro.INodeID)
+	for _, kv := range resp.Kvs {
+		vol := path.Base(string(kv.Key))
+		id := bytesToUint64(kv.Value)
+		out[vol] = agro.INodeID(id)
+	}
+	return out, nil
 }
 
 func (c *etcdCtx) Mkdir(path agro.Path, dir *models.Directory) error {

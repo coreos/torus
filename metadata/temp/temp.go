@@ -290,6 +290,19 @@ func (t *Client) GetVolumes() ([]string, error) {
 	return out, nil
 }
 
+func (t *Client) GetVolumeName(vid agro.VolumeID) (string, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+
+	for k, v := range t.srv.volIndex {
+		if v == vid {
+			return k, nil
+		}
+	}
+	return "", errors.New("temp: no such volume exists")
+
+}
+
 func (t *Client) GetVolumeID(volume string) (agro.VolumeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
@@ -402,6 +415,22 @@ func (s *Server) SetRing(ring agro.Ring, force bool) error {
 		c <- s.newRing
 	}
 	return nil
+}
+
+func (t *Client) GetINodeIndex(volume string) (agro.INodeID, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	return t.srv.inode[volume], nil
+}
+
+func (t *Client) GetINodeIndexes() (map[string]agro.INodeID, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	out := make(map[string]agro.INodeID)
+	for k, v := range t.srv.inode {
+		out[k] = v
+	}
+	return out, nil
 }
 
 func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
