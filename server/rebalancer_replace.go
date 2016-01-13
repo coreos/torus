@@ -42,3 +42,5 @@ func (r *replace) OnError(err error) *models.RebalanceStatus {
 	clog.Error(err)
 	return nil
 }
+
+func (r *replace) Timeout() { return }

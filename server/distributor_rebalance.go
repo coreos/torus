@@ -14,11 +14,13 @@ type Rebalancer interface {
 	Leader(d *distributor, chans [2]chan *models.RebalanceStatus, ring agro.Ring)
 	AdvanceState(d *distributor, s *models.RebalanceStatus, ring agro.Ring) (*models.RebalanceStatus, bool, error)
 	OnError(error) *models.RebalanceStatus
+	Timeout()
 }
 
 const (
 	Error RebalanceStrategy = iota
 	Replace
+	Full
 )
 
 var (
@@ -96,7 +98,7 @@ func (d *distributor) rebalanceLeader(chans [2]chan *models.RebalanceStatus, new
 		clog.Infof("replacing empty ring")
 		re = rebalancerRegistry[Replace]()
 	default:
-		re = rebalancerRegistry[Error]()
+		re = rebalancerRegistry[Full]()
 	}
 	re.Leader(d, chans, newring)
 	d.srv.mut.Lock()
@@ -141,6 +143,7 @@ func (d *distributor) rebalanceFollower(inOut [2]chan *models.RebalanceStatus, n
 			}
 		case <-time.After(rebalanceTimeout):
 			close(out)
+			rebalancer.Timeout()
 			// Re-elect
 			d.Rebalance(newring)
 		}
