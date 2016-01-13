@@ -100,3 +100,35 @@ func (t *tempBlockStore) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) e
 	}
 	return nil
 }
+
+func (t *tempBlockStore) BlockIterator() agro.BlockIterator {
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+	var blocks []agro.BlockRef
+	for k := range t.store {
+		blocks = append(blocks, k)
+	}
+	return &tempIterator{
+		blocks: blocks,
+		index:  -1,
+	}
+}
+
+type tempIterator struct {
+	blocks []agro.BlockRef
+	index  int
+}
+
+func (i *tempIterator) Err() error { return nil }
+
+func (i *tempIterator) Next() bool {
+	i.index++
+	if i.index >= len(i.blocks) {
+		return false
+	}
+	return true
+}
+
+func (i *tempIterator) BlockRef() agro.BlockRef { return i.blocks[i.index] }
+
+func (i *tempIterator) Close() error { return nil }

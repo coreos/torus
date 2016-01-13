@@ -72,3 +72,35 @@ func (t *tempINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
 	delete(t.store, i)
 	return nil
 }
+
+func (t *tempINodeStore) INodeIterator() agro.INodeIterator {
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+	var inodes []agro.INodeRef
+	for k := range t.store {
+		inodes = append(inodes, k)
+	}
+	return &tempIterator{
+		inodes: inodes,
+		index:  -1,
+	}
+}
+
+type tempIterator struct {
+	inodes []agro.INodeRef
+	index  int
+}
+
+func (i *tempIterator) Err() error { return nil }
+
+func (i *tempIterator) Next() bool {
+	i.index++
+	if i.index >= len(i.inodes) {
+		return false
+	}
+	return true
+}
+
+func (i *tempIterator) INodeRef() agro.INodeRef { return i.inodes[i.index] }
+
+func (i *tempIterator) Close() error { return nil }

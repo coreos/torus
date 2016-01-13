@@ -81,6 +81,11 @@ func (d *distributor) WriteINode(ctx context.Context, i agro.INodeRef, inode *mo
 func (d *distributor) DeleteINode(ctx context.Context, i agro.INodeRef) error {
 	return d.inodes.DeleteINode(ctx, i)
 }
+
+func (d *distributor) INodeIterator() agro.INodeIterator {
+	return d.inodes.INodeIterator()
+}
+
 func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
 	peers, err := d.ring.GetBlockPeers(i)
 	if err != nil {
@@ -144,6 +149,10 @@ func (d *distributor) NumBlocks() uint64 {
 
 func (d *distributor) UsedBlocks() uint64 {
 	return d.blocks.UsedBlocks()
+}
+
+func (d *distributor) BlockIterator() agro.BlockIterator {
+	return d.blocks.BlockIterator()
 }
 
 func (d *distributor) Flush() error {

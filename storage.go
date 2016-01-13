@@ -109,7 +109,15 @@ type BlockStore interface {
 	DeleteINodeBlocks(ctx context.Context, b INodeRef) error
 	NumBlocks() uint64
 	UsedBlocks() uint64
+	BlockIterator() BlockIterator
 	// TODO(barakmich) FreeBlocks()
+}
+
+type BlockIterator interface {
+	Err() error
+	Next() bool
+	BlockRef() BlockRef
+	Close() error
 }
 
 type NewBlockStoreFunc func(Config, GlobalMetadata) (BlockStore, error)
@@ -140,6 +148,14 @@ type INodeStore interface {
 	GetINode(ctx context.Context, i INodeRef) (*models.INode, error)
 	WriteINode(ctx context.Context, i INodeRef, inode *models.INode) error
 	DeleteINode(ctx context.Context, i INodeRef) error
+	INodeIterator() INodeIterator
+}
+
+type INodeIterator interface {
+	Err() error
+	Next() bool
+	INodeRef() INodeRef
+	Close() error
 }
 
 type NewINodeStoreFunc func(Config) (INodeStore, error)

@@ -1,15 +1,14 @@
 package inode
 
 import (
-	"fmt"
 	"path/filepath"
 	"strconv"
 
 	"golang.org/x/net/context"
 
+	"github.com/boltdb/bolt"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
-	"github.com/boltdb/bolt"
 )
 
 var _ agro.INodeStore = &boltINodeStore{}
@@ -56,7 +55,7 @@ func (b *boltINodeStore) GetINode(_ context.Context, i agro.INodeRef) (*models.I
 }
 
 func formatKeyVol(i agro.INodeRef) (string, string) {
-	key := fmt.Sprintf("%016x", i.INode)
+	key := strconv.FormatUint(uint64(i.INode), 10)
 	vol := strconv.FormatUint(uint64(i.Volume), 10)
 	return key, vol
 }
@@ -84,4 +83,71 @@ func (b *boltINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
 		return b.Delete([]byte(key))
 	})
 	return err
+}
+
+func (b *boltINodeStore) INodeIterator() agro.INodeIterator {
+	tx, err := b.db.Begin(false)
+	return &boltINodeIterator{
+		tx:  tx,
+		err: err,
+	}
+}
+
+type boltINodeIterator struct {
+	tx           *bolt.Tx
+	err          error
+	cursor       *bolt.Cursor
+	curBucket    []byte
+	bucketCursor *bolt.Cursor
+	result       []byte
+}
+
+func (b *boltINodeIterator) Err() error {
+	return b.err
+}
+
+func (b *boltINodeIterator) Next() bool {
+	if b.err != nil || b.tx == nil {
+		return false
+	}
+	if b.bucketCursor == nil {
+		b.bucketCursor = b.tx.Cursor()
+		b.curBucket, _ = b.bucketCursor.First()
+	}
+	if b.curBucket == nil {
+		return false
+	}
+	if b.cursor == nil {
+		b.cursor = b.tx.Bucket(b.curBucket).Cursor()
+		b.result, _ = b.cursor.First()
+	} else {
+		b.result, _ = b.cursor.Next()
+	}
+	if b.result == nil {
+		b.curBucket, _ = b.bucketCursor.Next()
+		b.cursor = nil
+		return b.Next()
+	}
+	return true
+}
+
+func (b *boltINodeIterator) INodeRef() agro.INodeRef {
+	vol, err := strconv.ParseUint(string(b.curBucket), 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	inode, err := strconv.ParseUint(string(b.result), 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return agro.INodeRef{
+		Volume: agro.VolumeID(vol),
+		INode:  agro.INodeID(inode),
+	}
+}
+
+func (b *boltINodeIterator) Close() error {
+	tx := b.tx
+	b.tx = nil
+	return tx.Rollback()
 }

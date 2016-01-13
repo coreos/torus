@@ -99,6 +99,7 @@ func (m *mfileBlock) UsedBlocks() uint64 {
 
 func (m *mfileBlock) Flush() error {
 	err := m.data.Flush()
+
 	if err != nil {
 		return err
 	}
@@ -245,5 +246,43 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	}
 	m.size = m.size - uint64(len(deleteList))
 	m.blockTrie = tx.Commit()
+	return nil
+}
+
+func (m *mfileBlock) BlockIterator() agro.BlockIterator {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	return &mfileIterator{
+		tx: m.blockTrie.Txn(),
+	}
+}
+
+type mfileIterator struct {
+	tx     *iradix.Txn
+	err    error
+	it     *iradix.Iterator
+	result []byte
+}
+
+func (i *mfileIterator) Err() error { return i.err }
+
+func (i *mfileIterator) Next() bool {
+	if i.err != nil || i.tx == nil {
+		return false
+	}
+	if i.it == nil {
+		i.it = i.tx.Root().Iterator()
+	}
+	var ok bool
+	i.result, _, ok = i.it.Next()
+	return ok
+}
+
+func (i *mfileIterator) BlockRef() agro.BlockRef {
+	return agro.BlockRefFromBytes(i.result)
+}
+
+func (i *mfileIterator) Close() error {
+	i.tx = nil
 	return nil
 }
