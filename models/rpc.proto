@@ -18,7 +18,7 @@ message Block {
 }
 
 message BlockRequest {
-	repeated BlockRef blockrefs = 1;
+	repeated BlockRef block_refs = 1;
 }
 
 message BlockResponse {
@@ -34,15 +34,13 @@ message INodeResponse {
 }
 
 message PutBlockRequest {
-	uint32 replication_factor = 1;
-	repeated BlockRef refs = 2;
-	repeated bytes blocks = 3;
+	repeated BlockRef refs = 1;
+	repeated bytes blocks = 2;
 }
 
 message PutINodeRequest {
-	uint32 replication_factor = 1;
-	repeated INodeRef refs = 2;
-	repeated INode inodes = 3 [(gogoproto.customname) = "INodes"];
+	repeated INodeRef refs = 1;
+	repeated INode inodes = 2 [(gogoproto.customname) = "INodes"];
 }
 
 message PutResponse {

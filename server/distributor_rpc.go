@@ -8,7 +8,7 @@ import (
 
 func (d *distributor) Block(ctx context.Context, req *models.BlockRequest) (*models.BlockResponse, error) {
 	out := &models.BlockResponse{}
-	for _, b := range req.Blockrefs {
+	for _, b := range req.BlockRefs {
 		ref := agro.BlockRef{
 			INodeRef: agro.INodeRef{
 				Volume: agro.VolumeID(b.Volume),
@@ -62,7 +62,7 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 			},
 			Index: agro.IndexID(b.Block),
 		}
-		peers, err := d.ring.GetBlockPeers(ref, int(req.ReplicationFactor))
+		peers, err := d.ring.GetBlockPeers(ref)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ func (d *distributor) PutINode(ctx context.Context, req *models.PutINodeRequest)
 			Volume: agro.VolumeID(b.Volume),
 			INode:  agro.INodeID(b.INode),
 		}
-		peers, err := d.ring.GetINodePeers(ref, int(req.ReplicationFactor))
+		peers, err := d.ring.GetINodePeers(ref)
 		if err != nil {
 			return nil, err
 		}

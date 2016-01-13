@@ -11,10 +11,11 @@ import (
 )
 
 var (
-	ringType string
-	uuids    []string
-	allUUIDs bool
-	mds      agro.MetadataService
+	ringType  string
+	uuids     []string
+	allUUIDs  bool
+	repFactor int
+	mds       agro.MetadataService
 )
 
 var ringCommand = &cobra.Command{
@@ -42,6 +43,7 @@ func init() {
 	ringChangeCommand.Flags().StringSliceVar(&uuids, "uuids", []string{}, "uuids to incorporate in the ring")
 	ringChangeCommand.Flags().BoolVar(&allUUIDs, "all-peers", false, "use all peers in the ring")
 	ringChangeCommand.Flags().StringVar(&ringType, "type", "single", "type of ring to create")
+	ringChangeCommand.Flags().IntVarP(&repFactor, "replication", "r", 2, "type of ring to create")
 }
 
 func ringAction(cmd *cobra.Command, args []string) {
@@ -84,9 +86,10 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 		})
 	case "mod":
 		newRing, err = ring.CreateRing(&models.Ring{
-			Type:    uint32(ring.Mod),
-			UUIDs:   uuids,
-			Version: uint32(currentRing.Version() + 1),
+			Type:              uint32(ring.Mod),
+			UUIDs:             uuids,
+			ReplicationFactor: uint32(repFactor),
+			Version:           uint32(currentRing.Version() + 1),
 		})
 	default:
 		panic("still unknown ring type")

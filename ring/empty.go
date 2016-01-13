@@ -19,11 +19,11 @@ func makeEmpty(r *models.Ring) (agro.Ring, error) {
 	}, nil
 }
 
-func (e *empty) GetBlockPeers(key agro.BlockRef, n int) ([]string, error) {
+func (e *empty) GetBlockPeers(key agro.BlockRef) ([]string, error) {
 	return []string{}, nil
 }
 
-func (e *empty) GetINodePeers(key agro.INodeRef, n int) ([]string, error) {
+func (e *empty) GetINodePeers(key agro.INodeRef) ([]string, error) {
 	return []string{}, nil
 }
 

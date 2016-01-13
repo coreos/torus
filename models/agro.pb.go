@@ -136,10 +136,11 @@ func (m *PeerInfo) String() string { return proto.CompactTextString(m) }
 func (*PeerInfo) ProtoMessage()    {}
 
 type Ring struct {
-	Type    uint32            `protobuf:"varint,1,opt,name=type,proto3" json:"type,omitempty"`
-	Version uint32            `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	UUIDs   []string          `protobuf:"bytes,3,rep,name=uuids" json:"uuids,omitempty"`
-	Attrs   map[string][]byte `protobuf:"bytes,4,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Type              uint32            `protobuf:"varint,1,opt,name=type,proto3" json:"type,omitempty"`
+	Version           uint32            `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	ReplicationFactor uint32            `protobuf:"varint,3,opt,name=replication_factor,proto3" json:"replication_factor,omitempty"`
+	UUIDs             []string          `protobuf:"bytes,4,rep,name=uuids" json:"uuids,omitempty"`
+	Attrs             map[string][]byte `protobuf:"bytes,5,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
 func (m *Ring) Reset()         { *m = Ring{} }
@@ -467,9 +468,14 @@ func (m *Ring) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Version))
 	}
+	if m.ReplicationFactor != 0 {
+		data[i] = 0x18
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.ReplicationFactor))
+	}
 	if len(m.UUIDs) > 0 {
 		for _, s := range m.UUIDs {
-			data[i] = 0x1a
+			data[i] = 0x22
 			i++
 			l = len(s)
 			for l >= 1<<7 {
@@ -484,7 +490,7 @@ func (m *Ring) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Attrs) > 0 {
 		for k, _ := range m.Attrs {
-			data[i] = 0x22
+			data[i] = 0x2a
 			i++
 			v := m.Attrs[k]
 			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + len(v) + sovAgro(uint64(len(v)))
@@ -720,6 +726,9 @@ func (m *Ring) Size() (n int) {
 	}
 	if m.Version != 0 {
 		n += 1 + sovAgro(uint64(m.Version))
+	}
+	if m.ReplicationFactor != 0 {
+		n += 1 + sovAgro(uint64(m.ReplicationFactor))
 	}
 	if len(m.UUIDs) > 0 {
 		for _, s := range m.UUIDs {
@@ -1786,6 +1795,25 @@ func (m *Ring) Unmarshal(data []byte) error {
 				}
 			}
 		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ReplicationFactor", wireType)
+			}
+			m.ReplicationFactor = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.ReplicationFactor |= (uint32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field UUIDs", wireType)
 			}
@@ -1814,7 +1842,7 @@ func (m *Ring) Unmarshal(data []byte) error {
 			}
 			m.UUIDs = append(m.UUIDs, string(data[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 4:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Attrs", wireType)
 			}

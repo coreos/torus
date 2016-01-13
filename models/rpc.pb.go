@@ -31,16 +31,16 @@ func (m *Block) String() string { return proto.CompactTextString(m) }
 func (*Block) ProtoMessage()    {}
 
 type BlockRequest struct {
-	Blockrefs []*BlockRef `protobuf:"bytes,1,rep,name=blockrefs" json:"blockrefs,omitempty"`
+	BlockRefs []*BlockRef `protobuf:"bytes,1,rep,name=block_refs" json:"block_refs,omitempty"`
 }
 
 func (m *BlockRequest) Reset()         { *m = BlockRequest{} }
 func (m *BlockRequest) String() string { return proto.CompactTextString(m) }
 func (*BlockRequest) ProtoMessage()    {}
 
-func (m *BlockRequest) GetBlockrefs() []*BlockRef {
+func (m *BlockRequest) GetBlockRefs() []*BlockRef {
 	if m != nil {
-		return m.Blockrefs
+		return m.BlockRefs
 	}
 	return nil
 }
@@ -91,9 +91,8 @@ func (m *INodeResponse) GetINodes() []*INode {
 }
 
 type PutBlockRequest struct {
-	ReplicationFactor uint32      `protobuf:"varint,1,opt,name=replication_factor,proto3" json:"replication_factor,omitempty"`
-	Refs              []*BlockRef `protobuf:"bytes,2,rep,name=refs" json:"refs,omitempty"`
-	Blocks            [][]byte    `protobuf:"bytes,3,rep,name=blocks" json:"blocks,omitempty"`
+	Refs   []*BlockRef `protobuf:"bytes,1,rep,name=refs" json:"refs,omitempty"`
+	Blocks [][]byte    `protobuf:"bytes,2,rep,name=blocks" json:"blocks,omitempty"`
 }
 
 func (m *PutBlockRequest) Reset()         { *m = PutBlockRequest{} }
@@ -108,9 +107,8 @@ func (m *PutBlockRequest) GetRefs() []*BlockRef {
 }
 
 type PutINodeRequest struct {
-	ReplicationFactor uint32      `protobuf:"varint,1,opt,name=replication_factor,proto3" json:"replication_factor,omitempty"`
-	Refs              []*INodeRef `protobuf:"bytes,2,rep,name=refs" json:"refs,omitempty"`
-	INodes            []*INode    `protobuf:"bytes,3,rep,name=inodes" json:"inodes,omitempty"`
+	Refs   []*INodeRef `protobuf:"bytes,1,rep,name=refs" json:"refs,omitempty"`
+	INodes []*INode    `protobuf:"bytes,2,rep,name=inodes" json:"inodes,omitempty"`
 }
 
 func (m *PutINodeRequest) Reset()         { *m = PutINodeRequest{} }
@@ -344,8 +342,8 @@ func (m *BlockRequest) MarshalTo(data []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Blockrefs) > 0 {
-		for _, msg := range m.Blockrefs {
+	if len(m.BlockRefs) > 0 {
+		for _, msg := range m.BlockRefs {
 			data[i] = 0xa
 			i++
 			i = encodeVarintRpc(data, i, uint64(msg.Size()))
@@ -464,14 +462,9 @@ func (m *PutBlockRequest) MarshalTo(data []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.ReplicationFactor != 0 {
-		data[i] = 0x8
-		i++
-		i = encodeVarintRpc(data, i, uint64(m.ReplicationFactor))
-	}
 	if len(m.Refs) > 0 {
 		for _, msg := range m.Refs {
-			data[i] = 0x12
+			data[i] = 0xa
 			i++
 			i = encodeVarintRpc(data, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(data[i:])
@@ -483,7 +476,7 @@ func (m *PutBlockRequest) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Blocks) > 0 {
 		for _, b := range m.Blocks {
-			data[i] = 0x1a
+			data[i] = 0x12
 			i++
 			i = encodeVarintRpc(data, i, uint64(len(b)))
 			i += copy(data[i:], b)
@@ -507,14 +500,9 @@ func (m *PutINodeRequest) MarshalTo(data []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.ReplicationFactor != 0 {
-		data[i] = 0x8
-		i++
-		i = encodeVarintRpc(data, i, uint64(m.ReplicationFactor))
-	}
 	if len(m.Refs) > 0 {
 		for _, msg := range m.Refs {
-			data[i] = 0x12
+			data[i] = 0xa
 			i++
 			i = encodeVarintRpc(data, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(data[i:])
@@ -526,7 +514,7 @@ func (m *PutINodeRequest) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.INodes) > 0 {
 		for _, msg := range m.INodes {
-			data[i] = 0x1a
+			data[i] = 0x12
 			i++
 			i = encodeVarintRpc(data, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(data[i:])
@@ -618,8 +606,8 @@ func (m *Block) Size() (n int) {
 func (m *BlockRequest) Size() (n int) {
 	var l int
 	_ = l
-	if len(m.Blockrefs) > 0 {
-		for _, e := range m.Blockrefs {
+	if len(m.BlockRefs) > 0 {
+		for _, e := range m.BlockRefs {
 			l = e.Size()
 			n += 1 + l + sovRpc(uint64(l))
 		}
@@ -666,9 +654,6 @@ func (m *INodeResponse) Size() (n int) {
 func (m *PutBlockRequest) Size() (n int) {
 	var l int
 	_ = l
-	if m.ReplicationFactor != 0 {
-		n += 1 + sovRpc(uint64(m.ReplicationFactor))
-	}
 	if len(m.Refs) > 0 {
 		for _, e := range m.Refs {
 			l = e.Size()
@@ -687,9 +672,6 @@ func (m *PutBlockRequest) Size() (n int) {
 func (m *PutINodeRequest) Size() (n int) {
 	var l int
 	_ = l
-	if m.ReplicationFactor != 0 {
-		n += 1 + sovRpc(uint64(m.ReplicationFactor))
-	}
 	if len(m.Refs) > 0 {
 		for _, e := range m.Refs {
 			l = e.Size()
@@ -860,7 +842,7 @@ func (m *BlockRequest) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Blockrefs", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field BlockRefs", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -884,8 +866,8 @@ func (m *BlockRequest) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Blockrefs = append(m.Blockrefs, &BlockRef{})
-			if err := m.Blockrefs[len(m.Blockrefs)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			m.BlockRefs = append(m.BlockRefs, &BlockRef{})
+			if err := m.BlockRefs[len(m.BlockRefs)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1183,25 +1165,6 @@ func (m *PutBlockRequest) Unmarshal(data []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ReplicationFactor", wireType)
-			}
-			m.ReplicationFactor = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRpc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.ReplicationFactor |= (uint32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Refs", wireType)
 			}
@@ -1232,7 +1195,7 @@ func (m *PutBlockRequest) Unmarshal(data []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 3:
+		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Blocks", wireType)
 			}
@@ -1312,25 +1275,6 @@ func (m *PutINodeRequest) Unmarshal(data []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ReplicationFactor", wireType)
-			}
-			m.ReplicationFactor = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRpc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.ReplicationFactor |= (uint32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Refs", wireType)
 			}
@@ -1361,7 +1305,7 @@ func (m *PutINodeRequest) Unmarshal(data []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 3:
+		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field INodes", wireType)
 			}
