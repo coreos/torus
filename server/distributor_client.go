@@ -76,7 +76,7 @@ func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef)
 	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
 	resp, err := client.Block(newctx, &models.BlockRequest{
-		Blockrefs: []*models.BlockRef{br},
+		BlockRefs: []*models.BlockRef{br},
 	})
 	if err != nil {
 		if err == context.DeadlineExceeded {
@@ -117,7 +117,7 @@ func (d *distClient) GetINode(ctx context.Context, uuid string, b agro.INodeRef)
 	return resp.INodes[0], nil
 }
 
-func (d *distClient) PutINode(ctx context.Context, uuid string, b agro.INodeRef, inode *models.INode, rep int) error {
+func (d *distClient) PutINode(ctx context.Context, uuid string, b agro.INodeRef, inode *models.INode) error {
 	conn := d.getConn(uuid)
 	if conn == nil {
 		return agro.ErrINodeUnavailable
@@ -130,9 +130,8 @@ func (d *distClient) PutINode(ctx context.Context, uuid string, b agro.INodeRef,
 	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
 	resp, err := client.PutINode(newctx, &models.PutINodeRequest{
-		Refs:              []*models.INodeRef{ref},
-		INodes:            []*models.INode{inode},
-		ReplicationFactor: uint32(rep),
+		Refs:   []*models.INodeRef{ref},
+		INodes: []*models.INode{inode},
 	})
 	if err != nil {
 		if err == context.DeadlineExceeded {
@@ -146,7 +145,7 @@ func (d *distClient) PutINode(ctx context.Context, uuid string, b agro.INodeRef,
 	return nil
 }
 
-func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef, data []byte, rep int) error {
+func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef, data []byte) error {
 	conn := d.getConn(uuid)
 	if conn == nil {
 		return agro.ErrBlockUnavailable
@@ -160,9 +159,8 @@ func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef,
 	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
 	resp, err := client.PutBlock(newctx, &models.PutBlockRequest{
-		Refs:              []*models.BlockRef{ref},
-		Blocks:            [][]byte{data},
-		ReplicationFactor: uint32(rep),
+		Refs:   []*models.BlockRef{ref},
+		Blocks: [][]byte{data},
 	})
 	if err != nil {
 		if err == context.DeadlineExceeded {

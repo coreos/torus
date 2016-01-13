@@ -29,8 +29,7 @@ func getRepFromContext(ctx context.Context) int {
 }
 
 func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
-	rep := d.inodeReplication()
-	peers, err := d.ring.GetINodePeers(i, rep)
+	peers, err := d.ring.GetINodePeers(i)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +56,7 @@ func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.IN
 }
 
 func (d *distributor) WriteINode(ctx context.Context, i agro.INodeRef, inode *models.INode) error {
-	rep := d.inodeReplication()
-	peers, err := d.ring.GetINodePeers(i, rep)
+	peers, err := d.ring.GetINodePeers(i)
 	if err != nil {
 		return err
 	}
@@ -70,7 +68,7 @@ func (d *distributor) WriteINode(ctx context.Context, i agro.INodeRef, inode *mo
 		if p == d.srv.mds.UUID() {
 			err = d.inodes.WriteINode(ctx, i, inode)
 		} else {
-			err = d.client.PutINode(ctx, p, i, inode, rep)
+			err = d.client.PutINode(ctx, p, i, inode)
 		}
 		if err != nil {
 			// TODO(barakmich): It's the job of a downed peer to catch up.
@@ -83,10 +81,8 @@ func (d *distributor) WriteINode(ctx context.Context, i agro.INodeRef, inode *mo
 func (d *distributor) DeleteINode(ctx context.Context, i agro.INodeRef) error {
 	return d.inodes.DeleteINode(ctx, i)
 }
-
 func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
-	rep := getRepFromContext(ctx)
-	peers, err := d.ring.GetBlockPeers(i, rep)
+	peers, err := d.ring.GetBlockPeers(i)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +108,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 }
 
 func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {
-	rep := getRepFromContext(ctx)
-	peers, err := d.ring.GetBlockPeers(i, rep)
+	peers, err := d.ring.GetBlockPeers(i)
 	if err != nil {
 		return err
 	}
@@ -125,7 +120,7 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 		if p == d.srv.mds.UUID() {
 			err = d.blocks.WriteBlock(ctx, i, data)
 		} else {
-			err = d.client.PutBlock(ctx, p, i, data, rep)
+			err = d.client.PutBlock(ctx, p, i, data)
 		}
 		if err != nil {
 			// TODO(barakmich): It's the job of a downed peer to catch up.
