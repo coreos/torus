@@ -45,7 +45,8 @@ type memory struct {
 	uuid              string
 	openINodes        map[string]*roaring.RoaringBitmap
 	deadMap           map[string]*roaring.RoaringBitmap
-	rebalanceSnapshot *models.RebalanceSnapshot
+	rebalanceKind     uint64
+	rebalanceSnapshot []byte
 }
 
 func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
@@ -357,12 +358,13 @@ func (s *memory) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus,
 	return [2]chan *models.RebalanceStatus{toC, fromC}, true, nil
 }
 
-func (s *memory) SetRebalanceSnapshot(x *models.RebalanceSnapshot) error {
-	s.rebalanceSnapshot = x
+func (s *memory) SetRebalanceSnapshot(kind uint64, data []byte) error {
+	s.rebalanceKind = kind
+	s.rebalanceSnapshot = data
 	return nil
 }
-func (s *memory) GetRebalanceSnapshot() (*models.RebalanceSnapshot, error) {
-	return s.rebalanceSnapshot, nil
+func (s *memory) GetRebalanceSnapshot() (uint64, []byte, error) {
+	return s.rebalanceKind, s.rebalanceSnapshot, nil
 }
 
 func (s *memory) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {

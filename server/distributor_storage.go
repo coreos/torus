@@ -29,6 +29,8 @@ func getRepFromContext(ctx context.Context) int {
 }
 
 func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
+	d.mut.RLock()
+	defer d.mut.RUnlock()
 	peers, err := d.ring.GetINodePeers(i)
 	if err != nil {
 		return nil, err
@@ -57,6 +59,8 @@ func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.IN
 }
 
 func (d *distributor) WriteINode(ctx context.Context, i agro.INodeRef, inode *models.INode) error {
+	d.mut.RLock()
+	defer d.mut.RUnlock()
 	peers, err := d.ring.GetINodePeers(i)
 	if err != nil {
 		return err
@@ -88,6 +92,8 @@ func (d *distributor) INodeIterator() agro.INodeIterator {
 }
 
 func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
+	d.mut.RLock()
+	defer d.mut.RUnlock()
 	peers, err := d.ring.GetBlockPeers(i)
 	if err != nil {
 		return nil, err
@@ -115,6 +121,8 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 }
 
 func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {
+	d.mut.RLock()
+	defer d.mut.RUnlock()
 	peers, err := d.ring.GetBlockPeers(i)
 	if err != nil {
 		return err
@@ -146,10 +154,14 @@ func (d *distributor) DeleteINodeBlocks(ctx context.Context, i agro.INodeRef) er
 }
 
 func (d *distributor) NumBlocks() uint64 {
+	d.mut.RLock()
+	defer d.mut.RUnlock()
 	return d.blocks.NumBlocks()
 }
 
 func (d *distributor) UsedBlocks() uint64 {
+	d.mut.RLock()
+	defer d.mut.RUnlock()
 	return d.blocks.UsedBlocks()
 }
 

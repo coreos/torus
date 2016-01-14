@@ -42,7 +42,8 @@ type Server struct {
 	ringListeners      []chan agro.Ring
 	rebalanceListeners []chan *models.RebalanceStatus
 	leaderListener     chan *models.RebalanceStatus
-	rebalanceSnapshot  *models.RebalanceSnapshot
+	rebalanceKind      uint64
+	rebalanceSnapshot  []byte
 }
 
 type Client struct {
@@ -386,17 +387,18 @@ func (t *Client) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*ro
 	return x, l, nil
 }
 
-func (t *Client) SetRebalanceSnapshot(x *models.RebalanceSnapshot) error {
+func (t *Client) SetRebalanceSnapshot(kind uint64, data []byte) error {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	t.srv.rebalanceSnapshot = x
+	t.srv.rebalanceKind = kind
+	t.srv.rebalanceSnapshot = data
 	return nil
 }
 
-func (t *Client) GetRebalanceSnapshot() (*models.RebalanceSnapshot, error) {
+func (t *Client) GetRebalanceSnapshot() (uint64, []byte, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	return t.srv.rebalanceSnapshot, nil
+	return t.srv.rebalanceKind, t.srv.rebalanceSnapshot, nil
 }
 
 func (t *Client) SetRing(ring agro.Ring, force bool) error {

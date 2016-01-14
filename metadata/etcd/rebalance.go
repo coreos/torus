@@ -27,33 +27,38 @@ func (c *etcdCtx) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus
 	return c.openRebalanceFollower()
 }
 
-func (c *etcdCtx) SetRebalanceSnapshot(x *models.RebalanceSnapshot) error {
-	if x == nil {
-		_, err := c.etcd.kv.DeleteRange(c.getContext(),
-			deleteKey(mkKey("meta", "rebalance-snapshot")))
+func (c *etcdCtx) SetRebalanceSnapshot(kind uint64, data []byte) error {
+	if data == nil {
+		tx := tx().Do(
+			deleteKey(mkKey("meta", "rebalance-snapshot")),
+			deleteKey(mkKey("meta", "rebalance-kind")),
+		).Tx()
+		_, err := c.etcd.kv.Txn(c.getContext(), tx)
 		return err
 	}
-	b, err := x.Marshal()
-	if err != nil {
-		return err
-	}
-	_, err = c.etcd.kv.Put(c.getContext(),
-		setKey(mkKey("meta", "rebalance-snapshot"), b))
+	tx := tx().Do(
+		setKey(mkKey("meta", "rebalance-kind"), uint64ToBytes(kind)),
+		setKey(mkKey("meta", "rebalance-snapshot"), data),
+	).Tx()
+	_, err := c.etcd.kv.Txn(c.getContext(), tx)
 	return err
 }
 
-func (c *etcdCtx) GetRebalanceSnapshot() (*models.RebalanceSnapshot, error) {
-	resp, err := c.etcd.kv.Range(c.getContext(),
-		getKey(mkKey("meta", "rebalance-snapshot")))
+func (c *etcdCtx) GetRebalanceSnapshot() (uint64, []byte, error) {
+	tx := tx().Do(
+		getKey(mkKey("meta", "rebalance-kind")),
+		getKey(mkKey("meta", "rebalance-snapshot")),
+	).Tx()
+	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
-	if len(resp.Kvs) == 0 {
-		return nil, agro.ErrNotExist
+	resps := resp.GetResponses()
+	if len(resps) != 2 {
+		return 0, nil, agro.ErrNotExist
 	}
-	d := &models.RebalanceSnapshot{}
-	err = d.Unmarshal(resp.Kvs[0].Value)
-	return d, err
+	return bytesToUint64(resps[0].GetResponseRange().Kvs[0].Value),
+		resps[1].GetResponseRange().Kvs[0].Value, err
 }
 
 func (c *etcdCtx) openRebalanceLeader() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {

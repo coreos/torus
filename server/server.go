@@ -25,6 +25,7 @@ var _ agro.Server = &server{}
 
 type server struct {
 	mut           sync.RWMutex
+	writeableLock sync.RWMutex
 	blocks        agro.BlockStore
 	mds           agro.MetadataService
 	inodes        agro.INodeStore

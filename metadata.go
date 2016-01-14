@@ -119,8 +119,8 @@ type MetadataService interface {
 	OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, leader bool, err error)
 	// ^^^^^^^
 
-	SetRebalanceSnapshot(*models.RebalanceSnapshot) error
-	GetRebalanceSnapshot() (*models.RebalanceSnapshot, error)
+	SetRebalanceSnapshot(uint64, []byte) error
+	GetRebalanceSnapshot() (uint64, []byte, error)
 	ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error
 	GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error)
 

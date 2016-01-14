@@ -82,6 +82,8 @@ func (f *file) openWrite() error {
 	if f.writeOpen {
 		return nil
 	}
+	f.srv.writeableLock.RLock()
+	defer f.srv.writeableLock.RUnlock()
 	vid, err := f.srv.mds.GetVolumeID(f.path.Volume)
 	if err != nil {
 		return err

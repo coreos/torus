@@ -6,13 +6,14 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
+	"github.com/coreos/pkg/capnslog"
 )
 
 type RebalanceStrategy int32
 
 type Rebalancer interface {
-	Leader(d *distributor, chans [2]chan *models.RebalanceStatus, ring agro.Ring)
-	AdvanceState(d *distributor, s *models.RebalanceStatus, ring agro.Ring) (*models.RebalanceStatus, bool, error)
+	Leader(chans [2]chan *models.RebalanceStatus)
+	AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStatus, bool, error)
 	OnError(error) *models.RebalanceStatus
 	Timeout()
 }
@@ -23,9 +24,12 @@ const (
 	Full
 )
 
+type makeRebalanceFunc func(d *distributor, newring agro.Ring) Rebalancer
+
 var (
 	rebalanceTimeout   = 30 * time.Second
-	rebalancerRegistry = make(map[RebalanceStrategy]func() Rebalancer)
+	rebalancerRegistry = make(map[RebalanceStrategy]makeRebalanceFunc)
+	rlog               = capnslog.NewPackageLogger("github.com/coreos/agro", "rebalancer")
 )
 
 // Goroutine which watches for new rings and kicks off
@@ -96,11 +100,11 @@ func (d *distributor) rebalanceLeader(chans [2]chan *models.RebalanceStatus, new
 	case ring.Empty:
 		// We can always replace the empty ring.
 		clog.Infof("replacing empty ring")
-		re = rebalancerRegistry[Replace]()
+		re = rebalancerRegistry[Replace](d, newring)
 	default:
-		re = rebalancerRegistry[Full]()
+		re = rebalancerRegistry[Full](d, newring)
 	}
-	re.Leader(d, chans, newring)
+	re.Leader(chans)
 	d.srv.mut.Lock()
 	defer d.srv.mut.Unlock()
 	clog.Info("leader: success, setting new ring")
@@ -119,9 +123,9 @@ func (d *distributor) rebalanceFollower(inOut [2]chan *models.RebalanceStatus, n
 				panic("got a message not from leader")
 			}
 			if rebalancer == nil {
-				rebalancer = rebalancerRegistry[RebalanceStrategy(s.RebalanceType)]()
+				rebalancer = rebalancerRegistry[RebalanceStrategy(s.RebalanceType)](d, newring)
 			}
-			news, done, err := rebalancer.AdvanceState(d, s, newring)
+			news, done, err := rebalancer.AdvanceState(s)
 			news.UUID = d.UUID()
 			if err != nil {
 				clog.Error(err)
