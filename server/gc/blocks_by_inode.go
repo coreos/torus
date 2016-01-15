@@ -28,6 +28,9 @@ func NewBlocksByINodeGC(mds agro.MetadataService, blocks agro.BlockStore) GC {
 }
 
 func (b *blocksByINode) Start() {
+	if b.stopChan != nil {
+		return
+	}
 	sc := make(chan bool)
 	fc := make(chan bool)
 	dc := make(chan bool)
@@ -38,12 +41,21 @@ func (b *blocksByINode) Start() {
 }
 
 func (b *blocksByINode) Stop() {
+	if b.stopChan == nil {
+		return
+	}
 	close(b.stopChan)
+	close(b.forceChan)
 	<-b.doneChan
+	b.stopChan = nil
+	b.doneChan = nil
+	b.forceChan = nil
 }
 
 func (b *blocksByINode) Force() {
-	b.forceChan <- true
+	if b.forceChan != nil {
+		b.forceChan <- true
+	}
 }
 
 func (b *blocksByINode) LastComplete() time.Time {

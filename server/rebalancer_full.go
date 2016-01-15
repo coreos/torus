@@ -174,6 +174,7 @@ func (f *full) doState(phase int32) error {
 		f.d.inodes = inodes
 		f.d.blocks = blocks
 		f.replaced = false
+		f.d.srv.gc.Start()
 	default:
 		panic("incomplete state machine")
 	}
