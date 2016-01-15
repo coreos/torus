@@ -110,6 +110,7 @@ type BlockStore interface {
 	NumBlocks() uint64
 	UsedBlocks() uint64
 	BlockIterator() BlockIterator
+	ReplaceBlockStore(BlockStore) (BlockStore, error)
 	// TODO(barakmich) FreeBlocks()
 }
 
@@ -120,7 +121,7 @@ type BlockIterator interface {
 	Close() error
 }
 
-type NewBlockStoreFunc func(Config, GlobalMetadata) (BlockStore, error)
+type NewBlockStoreFunc func(string, Config, GlobalMetadata) (BlockStore, error)
 
 var blockStores map[string]NewBlockStoreFunc
 
@@ -136,9 +137,9 @@ func RegisterBlockStore(name string, newFunc NewBlockStoreFunc) {
 	blockStores[name] = newFunc
 }
 
-func CreateBlockStore(name string, cfg Config, gmd GlobalMetadata) (BlockStore, error) {
-	clog.Infof("creating blockstore: %s", name)
-	return blockStores[name](cfg, gmd)
+func CreateBlockStore(kind string, name string, cfg Config, gmd GlobalMetadata) (BlockStore, error) {
+	clog.Infof("creating blockstore: %s", kind)
+	return blockStores[kind](name, cfg, gmd)
 }
 
 // INodeStore is the interface representing the standardized methods to
@@ -149,6 +150,7 @@ type INodeStore interface {
 	WriteINode(ctx context.Context, i INodeRef, inode *models.INode) error
 	DeleteINode(ctx context.Context, i INodeRef) error
 	INodeIterator() INodeIterator
+	ReplaceINodeStore(INodeStore) (INodeStore, error)
 }
 
 type INodeIterator interface {
@@ -158,7 +160,7 @@ type INodeIterator interface {
 	Close() error
 }
 
-type NewINodeStoreFunc func(Config) (INodeStore, error)
+type NewINodeStoreFunc func(string, Config) (INodeStore, error)
 
 var inodeStores map[string]NewINodeStoreFunc
 
@@ -174,7 +176,7 @@ func RegisterINodeStore(name string, newFunc NewINodeStoreFunc) {
 	inodeStores[name] = newFunc
 }
 
-func CreateINodeStore(name string, cfg Config) (INodeStore, error) {
-	clog.Infof("creating inode store: %s", name)
-	return inodeStores[name](cfg)
+func CreateINodeStore(kind string, name string, cfg Config) (INodeStore, error) {
+	clog.Infof("creating inode store: %s", kind)
+	return inodeStores[kind](name, cfg)
 }

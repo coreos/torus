@@ -1,6 +1,9 @@
 package inode
 
 import (
+	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 
@@ -17,17 +20,47 @@ func init() {
 	agro.RegisterINodeStore("bolt", openBoltINodeStore)
 }
 
-type boltINodeStore struct{ db *bolt.DB }
+type boltINodeStore struct {
+	db       *bolt.DB
+	filename string
+}
 
-func openBoltINodeStore(cfg agro.Config) (agro.INodeStore, error) {
-	boltdata := filepath.Join(cfg.DataDir, "inode", "inodes.bolt")
+func openBoltINodeStore(name string, cfg agro.Config) (agro.INodeStore, error) {
+	filename := fmt.Sprintf("inodes-%s.bolt", name)
+	boltdata := filepath.Join(cfg.DataDir, "inode", filename)
 	db, err := bolt.Open(boltdata, 0600, nil)
 	if err != nil {
 		return nil, err
 	}
 	return &boltINodeStore{
-		db: db,
+		db:       db,
+		filename: boltdata,
 	}, nil
+}
+
+func (b *boltINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore, error) {
+	new, ok := is.(*boltINodeStore)
+	if !ok {
+		return nil, errors.New("not replacing a bolt inode store")
+	}
+	err := os.Remove(b.filename)
+	if err != nil {
+		return nil, err
+	}
+	err = os.Rename(new.filename, b.filename)
+	if err != nil {
+		return nil, err
+	}
+	err = b.db.Close()
+	if err != nil {
+		return nil, err
+	}
+	out := &boltINodeStore{
+		db:       new.db,
+		filename: b.filename,
+	}
+	new.db = nil
+	return out, nil
 }
 
 func (b *boltINodeStore) Flush() error {

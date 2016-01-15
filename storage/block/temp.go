@@ -1,6 +1,7 @@
 package block
 
 import (
+	"errors"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -20,7 +21,7 @@ type tempBlockStore struct {
 	nBlocks uint64
 }
 
-func openTempBlockStore(cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
+func openTempBlockStore(_ string, cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
 	return &tempBlockStore{
 		store: make(map[agro.BlockRef][]byte),
 		// TODO(barakmich): Currently we lie about the number of blocks.
@@ -36,6 +37,13 @@ func (t *tempBlockStore) Close() error {
 	t.store = nil
 	t.mut.Unlock()
 	return nil
+}
+
+func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+	if v, ok := bs.(*tempBlockStore); ok {
+		return v, nil
+	}
+	return nil, errors.New("not a tempBlockStore")
 }
 
 func (t *tempBlockStore) NumBlocks() uint64 {

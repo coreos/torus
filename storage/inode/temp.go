@@ -1,6 +1,7 @@
 package inode
 
 import (
+	"errors"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -20,7 +21,7 @@ type tempINodeStore struct {
 	store map[agro.INodeRef]*models.INode
 }
 
-func openTempINodeStore(cfg agro.Config) (agro.INodeStore, error) {
+func openTempINodeStore(_ string, cfg agro.Config) (agro.INodeStore, error) {
 	return &tempINodeStore{
 		store: make(map[agro.INodeRef]*models.INode),
 	}, nil
@@ -71,6 +72,13 @@ func (t *tempINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
 
 	delete(t.store, i)
 	return nil
+}
+
+func (t *tempINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore, error) {
+	if v, ok := is.(*tempINodeStore); ok {
+		return v, nil
+	}
+	return nil, errors.New("not a tempINodeStore")
 }
 
 func (t *tempINodeStore) INodeIterator() agro.INodeIterator {

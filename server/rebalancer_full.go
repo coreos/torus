@@ -88,6 +88,7 @@ func (f *full) AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStatus,
 func (f *full) doState(phase int32) bool {
 	switch phase {
 	case 1:
+		f.d.srv.gc.Stop()
 		f.d.srv.writeableLock.Lock()
 		f.locked = true
 	case 2:

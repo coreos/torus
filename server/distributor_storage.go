@@ -172,3 +172,11 @@ func (d *distributor) BlockIterator() agro.BlockIterator {
 func (d *distributor) Flush() error {
 	return d.blocks.Flush()
 }
+
+func (d *distributor) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore, error) {
+	return d.inodes.ReplaceINodeStore(is)
+}
+
+func (d *distributor) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+	return d.blocks.ReplaceBlockStore(bs)
+}

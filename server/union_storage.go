@@ -75,7 +75,7 @@ func (r *unionStorage) UsedBlocks() uint64 {
 }
 
 func (r *unionStorage) BlockIterator() agro.BlockIterator {
-	return r.oldBlock.INodeIterator()
+	return r.oldBlock.BlockIterator()
 }
 
 func (r *unionStorage) Flush() error {

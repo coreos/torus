@@ -3,6 +3,8 @@ package block
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -29,6 +31,8 @@ type mfileBlock struct {
 	closed    bool
 	lastFree  int
 	size      uint64
+	dfilename string
+	mfilename string
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
@@ -62,10 +66,10 @@ func loadTrie(m *storage.MFile) (*iradix.Tree, uint64, error) {
 	return tx.Commit(), size, nil
 }
 
-func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
+func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
 	nBlocks := cfg.StorageSize / meta.BlockSize
-	dpath := filepath.Join(cfg.DataDir, "block", "data.blk")
-	mpath := filepath.Join(cfg.DataDir, "block", "map.blk")
+	dpath := filepath.Join(cfg.DataDir, "block", fmt.Sprintf("data-%s.blk", name))
+	mpath := filepath.Join(cfg.DataDir, "block", fmt.Sprintf("map-%s.blk", name))
 	d, err := storage.CreateOrOpenMFile(dpath, cfg.StorageSize, meta.BlockSize)
 	if err != nil {
 		return nil, err
@@ -86,6 +90,8 @@ func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockSt
 		blockMap:  m,
 		blockTrie: trie,
 		size:      size,
+		dfilename: dpath,
+		mfilename: mpath,
 	}, nil
 }
 
@@ -113,6 +119,10 @@ func (m *mfileBlock) Flush() error {
 func (m *mfileBlock) Close() error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
+	return m.close()
+}
+
+func (m *mfileBlock) close() error {
 	m.Flush()
 	err := m.data.Close()
 	if err != nil {
@@ -247,6 +257,49 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	m.size = m.size - uint64(len(deleteList))
 	m.blockTrie = tx.Commit()
 	return nil
+}
+
+func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+	new, ok := bs.(*mfileBlock)
+	if !ok {
+		return nil, errors.New("not replacing an mfileBlockStore")
+	}
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	new.mut.Lock()
+	defer new.mut.Unlock()
+	err := os.Remove(m.dfilename)
+	if err != nil {
+		return nil, err
+	}
+	err = os.Remove(m.mfilename)
+	if err != nil {
+		return nil, err
+	}
+	err = os.Rename(new.mfilename, m.mfilename)
+	if err != nil {
+		return nil, err
+	}
+	err = os.Rename(new.dfilename, m.dfilename)
+	if err != nil {
+		return nil, err
+	}
+	out := &mfileBlock{
+		data:      new.data,
+		blockMap:  new.blockMap,
+		blockTrie: new.blockTrie,
+		lastFree:  new.lastFree,
+		size:      new.size,
+		dfilename: m.dfilename,
+		mfilename: m.mfilename,
+	}
+	new.data = nil
+	new.blockMap = nil
+	err = m.close()
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (m *mfileBlock) BlockIterator() agro.BlockIterator {
