@@ -30,6 +30,7 @@ func openTempBlockStore(_ string, cfg agro.Config, gmd agro.GlobalMetadata) (agr
 	}, nil
 }
 
+func (t *tempBlockStore) Kind() string { return "temp" }
 func (t *tempBlockStore) Flush() error { return nil }
 
 func (t *tempBlockStore) Close() error {

@@ -78,7 +78,7 @@ func configureServer(cmd *cobra.Command, args []string) {
 func runServer(cmd *cobra.Command, args []string) {
 	cfg := agro.Config{
 		DataDir:         dataDir,
-		StorageSize:     1 * 1024 * 1024 * 1024,
+		StorageSize:     512 * 1024 * 1024,
 		MetadataAddress: etcdAddress,
 	}
 

@@ -27,6 +27,7 @@ func openTempINodeStore(_ string, cfg agro.Config) (agro.INodeStore, error) {
 	}, nil
 }
 
+func (t *tempINodeStore) Kind() string { return "temp" }
 func (t *tempINodeStore) Flush() error { return nil }
 func (t *tempINodeStore) Close() error {
 	t.mut.Lock()

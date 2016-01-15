@@ -22,9 +22,9 @@ type Rebalancer interface {
 }
 
 const (
-	Error RebalanceStrategy = iota
-	Replace
-	Full
+	Error   RebalanceStrategy = iota
+	Replace                   = 1
+	Full                      = 2
 )
 
 type makeRebalanceFunc func(d *distributor, newring agro.Ring) Rebalancer
@@ -37,7 +37,7 @@ var (
 
 // Goroutine which watches for new rings and kicks off
 // the rebalance dance.
-func (d *distributor) rebalancerWatcher(closer chan struct{}) {
+func (d *distributor) rebalanceWatcher(closer chan struct{}) {
 	ch := make(chan agro.Ring)
 	d.srv.mds.SubscribeNewRings(ch)
 exit:
@@ -65,6 +65,7 @@ exit:
 }
 
 func (d *distributor) Rebalance(newring agro.Ring) {
+	d.srv.updatePeerMap()
 	isMember := false
 	for _, x := range d.ring.Members() {
 		if x == d.UUID() {
@@ -92,9 +93,10 @@ func (d *distributor) Rebalance(newring agro.Ring) {
 	if leader {
 		clog.Infof("elected as leader")
 		d.rebalanceLeader(chans, newring)
-		return
+	} else {
+		clog.Infof("elected to follow")
+		d.rebalanceFollower(chans, newring)
 	}
-	d.rebalanceFollower(chans, newring)
 	d.mut.Lock()
 	defer d.mut.Unlock()
 	d.rebalancer = nil
@@ -132,6 +134,7 @@ func (d *distributor) rebalanceFollower(inOut [2]chan *models.RebalanceStatus, n
 			}
 			if d.rebalancer == nil {
 				d.mut.Lock()
+				rlog.Debugf("creating rebalancer %d", s.RebalanceType)
 				d.rebalancer = rebalancerRegistry[RebalanceStrategy(s.RebalanceType)](d, newring)
 				d.mut.Unlock()
 			}

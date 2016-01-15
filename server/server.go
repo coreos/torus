@@ -32,6 +32,7 @@ type server struct {
 	peersMap      map[string]*models.PeerInfo
 	closeChans    []chan interface{}
 	openINodeRefs map[string]map[agro.INodeID]int
+	cfg           agro.Config
 
 	internalAddr string
 

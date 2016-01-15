@@ -173,6 +173,8 @@ func (d *distributor) Flush() error {
 	return d.blocks.Flush()
 }
 
+func (d *distributor) Kind() string { return "distributor" }
+
 func (d *distributor) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore, error) {
 	return d.inodes.ReplaceINodeStore(is)
 }

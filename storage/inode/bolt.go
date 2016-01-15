@@ -71,6 +71,10 @@ func (b *boltINodeStore) Close() error {
 	return b.db.Close()
 }
 
+func (b *boltINodeStore) Kind() string {
+	return "bolt"
+}
+
 func (b *boltINodeStore) GetINode(_ context.Context, i agro.INodeRef) (*models.INode, error) {
 	var inodeBytes []byte
 	key, vol := formatKeyVol(i)

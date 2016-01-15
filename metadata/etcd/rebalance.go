@@ -16,15 +16,19 @@ func (c *etcdCtx) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus
 		keyNotExists(mkKey("meta", "rebalance-leader")),
 	).Then(
 		setKey(mkKey("meta", "rebalance-leader"), []byte(c.UUID())),
+	).Else(
+		getKey(mkKey("meta", "rebalance-leader")),
 	).Tx()
 	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if err != nil {
 		return [2]chan *models.RebalanceStatus{nil, nil}, false, err
 	}
 	if resp.Succeeded {
-		return c.openRebalanceLeader()
+		revision := resp.Responses[0].GetResponsePut().Header.Revision
+		return c.openRebalanceLeader(revision)
 	}
-	return c.openRebalanceFollower()
+	revision := resp.Responses[0].GetResponseRange().Kvs[0].CreateRevision
+	return c.openRebalanceFollower(revision)
 }
 
 func (c *etcdCtx) SetRebalanceSnapshot(kind uint64, data []byte) error {
@@ -61,10 +65,10 @@ func (c *etcdCtx) GetRebalanceSnapshot() (uint64, []byte, error) {
 		resps[1].GetResponseRange().Kvs[0].Value, err
 }
 
-func (c *etcdCtx) openRebalanceLeader() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
+func (c *etcdCtx) openRebalanceLeader(rev int64) (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
 	toC := make(chan *models.RebalanceStatus)
 	fromC := make(chan *models.RebalanceStatus)
-	err = c.leaderWatch(toC, fromC)
+	err = c.leaderWatch(toC, fromC, rev)
 	if err != nil {
 		tx := tx().Do(
 			deleteKey(mkKey("meta", "rebalance-leader")),
@@ -80,7 +84,7 @@ func (c *etcdCtx) openRebalanceLeader() (inOut [2]chan *models.RebalanceStatus, 
 	return [2]chan *models.RebalanceStatus{toC, fromC}, true, nil
 }
 
-func (c *etcdCtx) leaderWatch(toC chan *models.RebalanceStatus, fromC chan *models.RebalanceStatus) error {
+func (c *etcdCtx) leaderWatch(toC chan *models.RebalanceStatus, fromC chan *models.RebalanceStatus, rev int64) error {
 	wAPI := pb.NewWatchClient(c.etcd.conn)
 	wStream, err := wAPI.Watch(c.getContext())
 	if err != nil {
@@ -121,7 +125,7 @@ func (c *etcdCtx) leaderWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 		RequestUnion: &pb.WatchRequest_CreateRequest{
 			CreateRequest: &pb.WatchCreateRequest{
 				Prefix:        mkKey("meta", "rebalance-status"),
-				StartRevision: 1,
+				StartRevision: rev,
 			},
 		},
 	}
@@ -129,10 +133,10 @@ func (c *etcdCtx) leaderWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 	return err
 }
 
-func (c *etcdCtx) openRebalanceFollower() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
+func (c *etcdCtx) openRebalanceFollower(rev int64) (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
 	toC := make(chan *models.RebalanceStatus)
 	fromC := make(chan *models.RebalanceStatus)
-	err = c.followWatch(toC, fromC)
+	err = c.followWatch(toC, fromC, rev)
 	if err != nil {
 		_, derr := c.etcd.kv.DeleteRange(c.getContext(),
 			deleteKey(mkKey("meta", "rebalance-status", c.UUID())))
@@ -144,7 +148,7 @@ func (c *etcdCtx) openRebalanceFollower() (inOut [2]chan *models.RebalanceStatus
 	return [2]chan *models.RebalanceStatus{toC, fromC}, false, nil
 }
 
-func (c *etcdCtx) followWatch(toC chan *models.RebalanceStatus, fromC chan *models.RebalanceStatus) error {
+func (c *etcdCtx) followWatch(toC chan *models.RebalanceStatus, fromC chan *models.RebalanceStatus, rev int64) error {
 	wAPI := pb.NewWatchClient(c.etcd.conn)
 	wStream, err := wAPI.Watch(c.getContext())
 	if err != nil {
@@ -180,7 +184,7 @@ func (c *etcdCtx) followWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 		RequestUnion: &pb.WatchRequest_CreateRequest{
 			CreateRequest: &pb.WatchCreateRequest{
 				Key:           mkKey("meta", "rebalance-leader-status"),
-				StartRevision: 1,
+				StartRevision: rev,
 			},
 		},
 	}

@@ -53,8 +53,8 @@ message RebalanceRequest {
   oneof subrequest {
     BlockRequest block_request = 1;
     PutBlockRequest put_block_request = 2;
-    INodeRequest inode_request = 3 [(gogoproto.customname) = "INodeReqest"];
-    PutINodeRequest put_inode_request = 4 [(gogoproto.customname) = "PutINodeReqest"];
+    INodeRequest inode_request = 3 [(gogoproto.customname) = "INodeRequest"];
+    PutINodeRequest put_inode_request = 4 [(gogoproto.customname) = "PutINodeRequest"];
   }
   int32 phase = 5;
   string uuid = 6 [(gogoproto.customname) = "UUID"];

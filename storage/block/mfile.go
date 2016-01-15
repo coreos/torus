@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
 	"runtime"
 	"sync"
 
@@ -95,6 +96,7 @@ func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) 
 	}, nil
 }
 
+func (m *mfileBlock) Kind() string { return "mfile" }
 func (m *mfileBlock) NumBlocks() uint64 {
 	return m.data.NumBlocks()
 }

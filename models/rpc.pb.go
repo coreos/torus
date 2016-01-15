@@ -142,8 +142,8 @@ type RebalanceRequest struct {
 	// Types that are valid to be assigned to Subrequest:
 	//	*RebalanceRequest_BlockRequest
 	//	*RebalanceRequest_PutBlockRequest
-	//	*RebalanceRequest_INodeReqest
-	//	*RebalanceRequest_PutINodeReqest
+	//	*RebalanceRequest_INodeRequest
+	//	*RebalanceRequest_PutINodeRequest
 	Subrequest    isRebalanceRequest_Subrequest `protobuf_oneof:"subrequest"`
 	Phase         int32                         `protobuf:"varint,5,opt,name=phase,proto3" json:"phase,omitempty"`
 	UUID          string                        `protobuf:"bytes,6,opt,name=uuid,proto3" json:"uuid,omitempty"`
@@ -166,17 +166,17 @@ type RebalanceRequest_BlockRequest struct {
 type RebalanceRequest_PutBlockRequest struct {
 	PutBlockRequest *PutBlockRequest `protobuf:"bytes,2,opt,name=put_block_request,oneof"`
 }
-type RebalanceRequest_INodeReqest struct {
-	INodeReqest *INodeRequest `protobuf:"bytes,3,opt,name=inode_request,oneof"`
+type RebalanceRequest_INodeRequest struct {
+	INodeRequest *INodeRequest `protobuf:"bytes,3,opt,name=inode_request,oneof"`
 }
-type RebalanceRequest_PutINodeReqest struct {
-	PutINodeReqest *PutINodeRequest `protobuf:"bytes,4,opt,name=put_inode_request,oneof"`
+type RebalanceRequest_PutINodeRequest struct {
+	PutINodeRequest *PutINodeRequest `protobuf:"bytes,4,opt,name=put_inode_request,oneof"`
 }
 
 func (*RebalanceRequest_BlockRequest) isRebalanceRequest_Subrequest()    {}
 func (*RebalanceRequest_PutBlockRequest) isRebalanceRequest_Subrequest() {}
-func (*RebalanceRequest_INodeReqest) isRebalanceRequest_Subrequest()     {}
-func (*RebalanceRequest_PutINodeReqest) isRebalanceRequest_Subrequest()  {}
+func (*RebalanceRequest_INodeRequest) isRebalanceRequest_Subrequest()    {}
+func (*RebalanceRequest_PutINodeRequest) isRebalanceRequest_Subrequest() {}
 
 func (m *RebalanceRequest) GetSubrequest() isRebalanceRequest_Subrequest {
 	if m != nil {
@@ -199,16 +199,16 @@ func (m *RebalanceRequest) GetPutBlockRequest() *PutBlockRequest {
 	return nil
 }
 
-func (m *RebalanceRequest) GetINodeReqest() *INodeRequest {
-	if x, ok := m.GetSubrequest().(*RebalanceRequest_INodeReqest); ok {
-		return x.INodeReqest
+func (m *RebalanceRequest) GetINodeRequest() *INodeRequest {
+	if x, ok := m.GetSubrequest().(*RebalanceRequest_INodeRequest); ok {
+		return x.INodeRequest
 	}
 	return nil
 }
 
-func (m *RebalanceRequest) GetPutINodeReqest() *PutINodeRequest {
-	if x, ok := m.GetSubrequest().(*RebalanceRequest_PutINodeReqest); ok {
-		return x.PutINodeReqest
+func (m *RebalanceRequest) GetPutINodeRequest() *PutINodeRequest {
+	if x, ok := m.GetSubrequest().(*RebalanceRequest_PutINodeRequest); ok {
+		return x.PutINodeRequest
 	}
 	return nil
 }
@@ -218,8 +218,8 @@ func (*RebalanceRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buff
 	return _RebalanceRequest_OneofMarshaler, _RebalanceRequest_OneofUnmarshaler, []interface{}{
 		(*RebalanceRequest_BlockRequest)(nil),
 		(*RebalanceRequest_PutBlockRequest)(nil),
-		(*RebalanceRequest_INodeReqest)(nil),
-		(*RebalanceRequest_PutINodeReqest)(nil),
+		(*RebalanceRequest_INodeRequest)(nil),
+		(*RebalanceRequest_PutINodeRequest)(nil),
 	}
 }
 
@@ -237,14 +237,14 @@ func _RebalanceRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error 
 		if err := b.EncodeMessage(x.PutBlockRequest); err != nil {
 			return err
 		}
-	case *RebalanceRequest_INodeReqest:
+	case *RebalanceRequest_INodeRequest:
 		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.INodeReqest); err != nil {
+		if err := b.EncodeMessage(x.INodeRequest); err != nil {
 			return err
 		}
-	case *RebalanceRequest_PutINodeReqest:
+	case *RebalanceRequest_PutINodeRequest:
 		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.PutINodeReqest); err != nil {
+		if err := b.EncodeMessage(x.PutINodeRequest); err != nil {
 			return err
 		}
 	case nil:
@@ -279,7 +279,7 @@ func _RebalanceRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *pro
 		}
 		msg := new(INodeRequest)
 		err := b.DecodeMessage(msg)
-		m.Subrequest = &RebalanceRequest_INodeReqest{msg}
+		m.Subrequest = &RebalanceRequest_INodeRequest{msg}
 		return true, err
 	case 4: // subrequest.put_inode_request
 		if wire != proto.WireBytes {
@@ -287,7 +287,7 @@ func _RebalanceRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *pro
 		}
 		msg := new(PutINodeRequest)
 		err := b.DecodeMessage(msg)
-		m.Subrequest = &RebalanceRequest_PutINodeReqest{msg}
+		m.Subrequest = &RebalanceRequest_PutINodeRequest{msg}
 		return true, err
 	default:
 		return false, nil
@@ -924,13 +924,13 @@ func (m *RebalanceRequest_PutBlockRequest) MarshalTo(data []byte) (int, error) {
 	}
 	return i, nil
 }
-func (m *RebalanceRequest_INodeReqest) MarshalTo(data []byte) (int, error) {
+func (m *RebalanceRequest_INodeRequest) MarshalTo(data []byte) (int, error) {
 	i := 0
-	if m.INodeReqest != nil {
+	if m.INodeRequest != nil {
 		data[i] = 0x1a
 		i++
-		i = encodeVarintRpc(data, i, uint64(m.INodeReqest.Size()))
-		n4, err := m.INodeReqest.MarshalTo(data[i:])
+		i = encodeVarintRpc(data, i, uint64(m.INodeRequest.Size()))
+		n4, err := m.INodeRequest.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -938,13 +938,13 @@ func (m *RebalanceRequest_INodeReqest) MarshalTo(data []byte) (int, error) {
 	}
 	return i, nil
 }
-func (m *RebalanceRequest_PutINodeReqest) MarshalTo(data []byte) (int, error) {
+func (m *RebalanceRequest_PutINodeRequest) MarshalTo(data []byte) (int, error) {
 	i := 0
-	if m.PutINodeReqest != nil {
+	if m.PutINodeRequest != nil {
 		data[i] = 0x22
 		i++
-		i = encodeVarintRpc(data, i, uint64(m.PutINodeReqest.Size()))
-		n5, err := m.PutINodeReqest.MarshalTo(data[i:])
+		i = encodeVarintRpc(data, i, uint64(m.PutINodeRequest.Size()))
+		n5, err := m.PutINodeRequest.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -1219,20 +1219,20 @@ func (m *RebalanceRequest_PutBlockRequest) Size() (n int) {
 	}
 	return n
 }
-func (m *RebalanceRequest_INodeReqest) Size() (n int) {
+func (m *RebalanceRequest_INodeRequest) Size() (n int) {
 	var l int
 	_ = l
-	if m.INodeReqest != nil {
-		l = m.INodeReqest.Size()
+	if m.INodeRequest != nil {
+		l = m.INodeRequest.Size()
 		n += 1 + l + sovRpc(uint64(l))
 	}
 	return n
 }
-func (m *RebalanceRequest_PutINodeReqest) Size() (n int) {
+func (m *RebalanceRequest_PutINodeRequest) Size() (n int) {
 	var l int
 	_ = l
-	if m.PutINodeReqest != nil {
-		l = m.PutINodeReqest.Size()
+	if m.PutINodeRequest != nil {
+		l = m.PutINodeRequest.Size()
 		n += 1 + l + sovRpc(uint64(l))
 	}
 	return n
@@ -2136,7 +2136,7 @@ func (m *RebalanceRequest) Unmarshal(data []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field INodeReqest", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field INodeRequest", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -2164,11 +2164,11 @@ func (m *RebalanceRequest) Unmarshal(data []byte) error {
 			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
-			m.Subrequest = &RebalanceRequest_INodeReqest{v}
+			m.Subrequest = &RebalanceRequest_INodeRequest{v}
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PutINodeReqest", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field PutINodeRequest", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -2196,7 +2196,7 @@ func (m *RebalanceRequest) Unmarshal(data []byte) error {
 			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
-			m.Subrequest = &RebalanceRequest_PutINodeReqest{v}
+			m.Subrequest = &RebalanceRequest_PutINodeRequest{v}
 			iNdEx = postIndex
 		case 5:
 			if wireType != 0 {

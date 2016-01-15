@@ -82,3 +82,18 @@ func (r *unionStorage) Flush() error {
 	r.oldBlock.Flush()
 	return r.newBlock.Flush()
 }
+
+func (r *unionStorage) Close() error {
+	r.oldBlock.Close()
+	return r.newBlock.Close()
+}
+
+func (r *unionStorage) Kind() string { return "union" }
+
+func (r *unionStorage) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore, error) {
+	panic("unimplemented")
+}
+
+func (r *unionStorage) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+	panic("unimplemented")
+}

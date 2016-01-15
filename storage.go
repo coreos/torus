@@ -24,6 +24,7 @@ type (
 // Store is the interface that represents methods that should be common across
 // all types of storage providers.
 type Store interface {
+	Kind() string
 	Flush() error
 	Close() error
 }
@@ -87,6 +88,23 @@ func (b BlockRef) ToProto() *models.BlockRef {
 		Volume: uint64(b.Volume),
 		INode:  uint64(b.INode),
 		Block:  uint64(b.Index),
+	}
+}
+
+func BlockFromProto(p *models.BlockRef) BlockRef {
+	return BlockRef{
+		INodeRef: INodeRef{
+			Volume: VolumeID(p.Volume),
+			INode:  INodeID(p.INode),
+		},
+		Index: IndexID(p.Block),
+	}
+}
+
+func INodeFromProto(p *models.INodeRef) INodeRef {
+	return INodeRef{
+		Volume: VolumeID(p.Volume),
+		INode:  INodeID(p.INode),
 	}
 }
 
