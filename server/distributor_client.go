@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	clientTimeout = 50 * time.Millisecond
+	clientTimeout      = 50 * time.Millisecond
+	writeClientTimeout = 1000 * time.Millisecond
 )
 
 // TODO(barakmich): Clean up errors
@@ -123,7 +124,7 @@ func (d *distClient) PutINode(ctx context.Context, uuid string, b agro.INodeRef,
 		Volume: uint64(b.Volume),
 		INode:  uint64(b.INode),
 	}
-	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
+	newctx, cancel := context.WithTimeout(ctx, writeClientTimeout)
 	defer cancel()
 	resp, err := client.PutINode(newctx, &models.PutINodeRequest{
 		Refs:   []*models.INodeRef{ref},
@@ -152,7 +153,7 @@ func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef,
 		INode:  uint64(b.INode),
 		Block:  uint64(b.Index),
 	}
-	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
+	newctx, cancel := context.WithTimeout(ctx, writeClientTimeout)
 	defer cancel()
 	resp, err := client.PutBlock(newctx, &models.PutBlockRequest{
 		Refs:   []*models.BlockRef{ref},

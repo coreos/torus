@@ -41,10 +41,17 @@ func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.IN
 	// Return it if we have it locally.
 	for _, p := range peers {
 		if p == d.UUID() {
-			return d.inodes.GetINode(ctx, i)
+			in, err := d.inodes.GetINode(ctx, i)
+			if err == nil {
+				return in, nil
+			}
+			break
 		}
 	}
 	for _, p := range peers {
+		if p == d.UUID() {
+			continue
+		}
 		in, err := d.client.GetINode(ctx, p, i)
 		if err == nil {
 			return in, nil
@@ -103,10 +110,17 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	}
 	for _, p := range peers {
 		if p == d.UUID() {
-			return d.blocks.GetBlock(ctx, i)
+			b, err := d.blocks.GetBlock(ctx, i)
+			if err == nil {
+				return b, nil
+			}
+			break
 		}
 	}
 	for _, p := range peers {
+		if p == d.UUID() {
+			continue
+		}
 		blk, err := d.client.GetBlock(ctx, p, i)
 		if err == nil {
 			return blk, nil
