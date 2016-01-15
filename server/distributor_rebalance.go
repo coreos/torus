@@ -3,6 +3,8 @@ package server
 import (
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
@@ -15,6 +17,7 @@ type Rebalancer interface {
 	Leader(chans [2]chan *models.RebalanceStatus)
 	AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStatus, bool, error)
 	OnError(error) *models.RebalanceStatus
+	RebalanceMessage(context.Context, *models.RebalanceRequest) (*models.RebalanceResponse, error)
 	Timeout()
 }
 
@@ -34,7 +37,7 @@ var (
 
 // Goroutine which watches for new rings and kicks off
 // the rebalance dance.
-func (d *distributor) rebalancer(closer chan struct{}) {
+func (d *distributor) rebalancerWatcher(closer chan struct{}) {
 	ch := make(chan agro.Ring)
 	d.srv.mds.SubscribeNewRings(ch)
 exit:
@@ -92,6 +95,9 @@ func (d *distributor) Rebalance(newring agro.Ring) {
 		return
 	}
 	d.rebalanceFollower(chans, newring)
+	d.mut.Lock()
+	defer d.mut.Unlock()
+	d.rebalancer = nil
 }
 
 func (d *distributor) rebalanceLeader(chans [2]chan *models.RebalanceStatus, newring agro.Ring) {
@@ -104,6 +110,9 @@ func (d *distributor) rebalanceLeader(chans [2]chan *models.RebalanceStatus, new
 	default:
 		re = rebalancerRegistry[Full](d, newring)
 	}
+	d.mut.Lock()
+	d.rebalancer = re
+	d.mut.Unlock()
 	re.Leader(chans)
 	d.srv.mut.Lock()
 	defer d.srv.mut.Unlock()
@@ -115,21 +124,22 @@ func (d *distributor) rebalanceLeader(chans [2]chan *models.RebalanceStatus, new
 
 func (d *distributor) rebalanceFollower(inOut [2]chan *models.RebalanceStatus, newring agro.Ring) {
 	in, out := inOut[0], inOut[1]
-	var rebalancer Rebalancer
 	for {
 		select {
 		case s := <-in:
 			if !s.FromLeader {
 				panic("got a message not from leader")
 			}
-			if rebalancer == nil {
-				rebalancer = rebalancerRegistry[RebalanceStrategy(s.RebalanceType)](d, newring)
+			if d.rebalancer == nil {
+				d.mut.Lock()
+				d.rebalancer = rebalancerRegistry[RebalanceStrategy(s.RebalanceType)](d, newring)
+				d.mut.Unlock()
 			}
-			news, done, err := rebalancer.AdvanceState(s)
+			news, done, err := d.rebalancer.AdvanceState(s)
 			news.UUID = d.UUID()
 			if err != nil {
 				clog.Error(err)
-				stat := rebalancer.OnError(err)
+				stat := d.rebalancer.OnError(err)
 				if stat != nil {
 					out <- stat
 				}
@@ -147,7 +157,7 @@ func (d *distributor) rebalanceFollower(inOut [2]chan *models.RebalanceStatus, n
 			}
 		case <-time.After(rebalanceTimeout):
 			close(out)
-			rebalancer.Timeout()
+			d.rebalancer.Timeout()
 			// Re-elect
 			d.Rebalance(newring)
 		}

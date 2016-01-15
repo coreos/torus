@@ -92,6 +92,8 @@ func (f *full) doState(phase int32) bool {
 		f.d.srv.writeableLock.Lock()
 		f.locked = true
 	case 2:
+		f.d.srv.writeableLock.Unlock()
+		f.locked = false
 		_, b, err := f.d.srv.mds.GetRebalanceSnapshot()
 		if err != nil {
 			rlog.Error(err)
@@ -106,9 +108,12 @@ func (f *full) doState(phase int32) bool {
 		}
 		f.d.mut.Lock()
 		defer f.d.mut.Unlock()
+		f.store = &unionStorage{
+			oldBlock: f.d.blocks,
+		newBlock: 
+		}
+		f.d.bl
 
-		f.d.srv.writeableLock.Unlock()
-		f.locked = false
 	default:
 		return false
 	}
@@ -129,4 +134,7 @@ func (f *full) Timeout() {
 		defer f.d.mut.Unlock()
 	}
 	return
+}
+
+func (f *full) RebalanceMessage(context.Context, *models.RebalanceRequest) (*models.RebalanceResponse, error) {
 }

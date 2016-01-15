@@ -3,6 +3,8 @@ package server
 import (
 	"errors"
 
+	"golang.org/x/net/context"
+
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 )
@@ -50,3 +52,7 @@ func (r *replace) OnError(err error) *models.RebalanceStatus {
 }
 
 func (r *replace) Timeout() { return }
+
+func (r *replace) RebalanceMessage(context.Context, *models.RebalanceRequest) (*models.RebalanceResponse, error) {
+	panic("somehow got a message while rebalancing a replace")
+}

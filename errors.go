@@ -40,4 +40,7 @@ var (
 
 	// ErrNonSequentialRing is returned if the ring's internal version number appears to jump.
 	ErrNonSequentialRing = errors.New("agro: non-sequential ring")
+
+	// ErrNoPeer is returned if the peer can't be found.
+	ErrNoPeer = errors.New("agro: no such peer")
 )

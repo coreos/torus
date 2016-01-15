@@ -25,6 +25,7 @@ type distributor struct {
 	ring           agro.Ring
 	closed         bool
 	rebalancerChan chan struct{}
+	rebalancer     Rebalancer
 }
 
 func newDistributor(srv *server, addr string, listen bool) (*distributor, error) {

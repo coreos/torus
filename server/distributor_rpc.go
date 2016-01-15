@@ -1,6 +1,8 @@
 package server
 
 import (
+	"errors"
+
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"golang.org/x/net/context"
@@ -113,4 +115,13 @@ func (d *distributor) PutINode(ctx context.Context, req *models.PutINodeRequest)
 	return &models.PutResponse{
 		Ok: true,
 	}, nil
+}
+
+func (d *distributor) RebalanceMessage(ctx context.Context, req *models.RebalanceRequest) (*models.RebalanceResponse, error) {
+	d.mut.RLock()
+	defer d.mut.RUnlock()
+	if d.rebalancer == nil {
+		return nil, errors.New("not rebalancing")
+	}
+	return d.rebalancer.RebalanceMessage(ctx, req)
 }

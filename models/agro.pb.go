@@ -27,6 +27,8 @@
 		PutBlockRequest
 		PutINodeRequest
 		PutResponse
+		RebalanceRequest
+		RebalanceResponse
 */
 package models
 
