@@ -17,7 +17,7 @@ var (
 		Help: "Gauge of number of blocks available in local storage",
 	}, []string{"storage"})
 	promBlocksRetrieved = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "agro_storage_retrieved_blocks",
+		Name: "agro_storage_read_blocks",
 		Help: "Number of blocks returned from local block storage",
 	}, []string{"storage"})
 	promBlocksFailed = prometheus.NewCounterVec(prometheus.CounterOpts{

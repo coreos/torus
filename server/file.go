@@ -443,7 +443,11 @@ func (f *file) updateHeldINodes(closing bool) {
 		f.srv.incRef(f.path.Volume, f.initialINodes)
 	}
 	bm, _ := f.srv.getBitmap(f.path.Volume)
-	promOpenINodes.WithLabelValues(f.path.Volume).Set(float64(bm.GetCardinality()))
+	card := uint64(0)
+	if bm != nil {
+		card = bm.GetCardinality()
+	}
+	promOpenINodes.WithLabelValues(f.path.Volume).Set(float64(card))
 	err := f.srv.mds.ClaimVolumeINodes(f.path.Volume, bm)
 	if err != nil {
 		clog.Error("file: TODO: Can't re-claim")

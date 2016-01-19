@@ -13,7 +13,7 @@ var (
 		Help: "Gauge of number of inodes in local storage",
 	}, []string{"inodestore"})
 	promINodesRetrieved = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "agro_storage_retrieved_inodes",
+		Name: "agro_storage_read_inodes",
 		Help: "Number of inodes returned",
 	}, []string{"inodestore"})
 	promINodesFailed = prometheus.NewCounterVec(prometheus.CounterOpts{
