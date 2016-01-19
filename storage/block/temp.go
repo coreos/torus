@@ -19,18 +19,20 @@ type tempBlockStore struct {
 	mut     sync.RWMutex
 	store   map[agro.BlockRef][]byte
 	nBlocks uint64
+	name    string
 }
 
-func openTempBlockStore(_ string, cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
+func openTempBlockStore(name string, cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
 	// TODO(barakmich): Currently we lie about the number of blocks.
 	// If we want to guess at a size, or make the map be a max size, or something, PRs accepted.
 	nBlocks := cfg.StorageSize / 1024
-	promBlocksAvail.Set(float64(nBlocks))
-	promBlocks.Set(0)
-	promBytesPerBlock.Set(float64(gmd.BlockSize))
+	promBlocksAvail.WithLabelValues(name).Set(float64(nBlocks))
+	promBlocks.WithLabelValues(name).Set(0)
+	promBytesPerBlock.WithLabelValues(name).Set(float64(gmd.BlockSize))
 	return &tempBlockStore{
 		store:   make(map[agro.BlockRef][]byte),
 		nBlocks: nBlocks,
+		name:    name,
 	}, nil
 }
 
@@ -46,6 +48,9 @@ func (t *tempBlockStore) Close() error {
 
 func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
 	if v, ok := bs.(*tempBlockStore); ok {
+		v.name = t.name
+		promBlocks.WithLabelValues(v.name).Set(len(v.store))
+		promBlocksAvail.WithLabelValues(v.name).Set(v.nBlocks)
 		return v, nil
 	}
 	return nil, errors.New("not a tempBlockStore")
@@ -64,16 +69,16 @@ func (t *tempBlockStore) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, e
 	defer t.mut.RUnlock()
 
 	if t.store == nil {
-		promBlocksFailed.Inc()
+		promBlocksFailed.WithLabelValues(t.name).Inc()
 		return nil, agro.ErrClosed
 	}
 
 	x, ok := t.store[s]
 	if !ok {
-		promBlocksFailed.Inc()
+		promBlocksFailed.WithLabelValues(t.name).Inc()
 		return nil, agro.ErrBlockNotExist
 	}
-	promBlocksRetrieved.Inc()
+	promBlocksRetrieved.WithLabelValues(t.name).Inc()
 	return x, nil
 }
 
@@ -82,12 +87,12 @@ func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockRef, data []b
 	defer t.mut.Unlock()
 
 	if t.store == nil {
-		promBlockWritesFailed.Inc()
+		promBlockWritesFailed.WithLabelValues(t.name).Inc()
 		return agro.ErrClosed
 	}
 
 	t.store[s] = data
-	promBlocks.Set(float64(len(t.store)))
+	promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
 	promBlocksWritten.Inc()
 	return nil
 }
@@ -97,13 +102,13 @@ func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	defer t.mut.Unlock()
 
 	if t.store == nil {
-		promBlockDeletesFailed.Inc()
+		promBlockDeletesFailed.WithLabelValues(t.name).Inc()
 		return agro.ErrClosed
 	}
 
 	delete(t.store, s)
-	promBlocks.Set(float64(len(t.store)))
-	promBlocksDeleted.Inc()
+	promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
+	promBlocksDeleted.WithLabelValues(t.name).Inc()
 	return nil
 }
 
@@ -117,7 +122,7 @@ func (t *tempBlockStore) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) e
 
 	for k := range t.store {
 		if k.IsINode(s) {
-			promBlocksDeleted.Inc()
+			promBlocksDeleted.WithLabelValues(t.name).Inc()
 			delete(t.store, k)
 		}
 	}
