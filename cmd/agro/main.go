@@ -142,6 +142,9 @@ func runServer(cmd *cobra.Command, args []string) {
 	}()
 
 	if fuseMountpoint != "" && fuseVolume != "" {
+		if httpAddress != "" {
+			go http.ServeHTTP(httpAddress, srv)
+		}
 		agrofuse.MustMount(fuseMountpoint, fuseVolume, srv)
 	} else {
 		http.ServeHTTP(httpAddress, srv)

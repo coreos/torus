@@ -8,9 +8,21 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "blockset")
+
+var (
+	promCRCFail = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "agro_blockset_crc_failed_blocks",
+		Help: "Number of blocks that failed due to CRC mismatch",
+	})
+)
+
+func init() {
+	prometheus.MustRegister(promCRCFail)
+}
 
 type blockset interface {
 	agro.Blockset

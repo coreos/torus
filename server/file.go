@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tgruben/roaring"
 
 	"github.com/coreos/agro"
@@ -16,6 +17,37 @@ import (
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "server")
+
+var (
+	promOpenINodes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "agro_server_open_inodes",
+		Help: "Number of open inodes reported on last update to mds",
+	}, []string{"volume"})
+	promOpenFiles = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "agro_server_open_files",
+		Help: "Number of open files",
+	}, []string{"volume"})
+	promFileSyncs = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "agro_server_file_syncs",
+		Help: "Number of times a file has been synced on this server",
+	}, []string{"volume"})
+	promFileChangedSyncs = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "agro_server_file_changed_syncs",
+		Help: "Number of times a file has been synced on this server, and the file has changed underneath it",
+	}, []string{"volume"})
+	promFileWrittenBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "agro_server_file_written_bytes",
+		Help: "Number of bytes written to a file on this server",
+	}, []string{"volume"})
+)
+
+func init() {
+	prometheus.MustRegister(promOpenINodes)
+	prometheus.MustRegister(promOpenFiles)
+	prometheus.MustRegister(promFileSyncs)
+	prometheus.MustRegister(promFileChangedSyncs)
+	prometheus.MustRegister(promFileWrittenBytes)
+}
 
 type file struct {
 	// globals
@@ -58,6 +90,7 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 		s.decRef(path.Volume, set)
 		return nil, err
 	}
+	promOpenINodes.WithLabelValues(path.Volume).Set(float64(bm.GetCardinality()))
 
 	clog.Debugf("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
 	f := &file{
@@ -69,6 +102,7 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 		initialINodes: set,
 		blkSize:       int64(md.BlockSize),
 	}
+	promOpenFiles.WithLabelValues(path.Volume).Inc()
 	return f, nil
 }
 
@@ -174,6 +208,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		// TODO(barakmich) Support truncate in the block abstraction, fill/return 0s
 		clog.Debug("begin write: offset ", off, " size ", len(b))
 		clog.Debug("end of file ", f.blocks.Length(), " blkIndex ", blkIndex)
+		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 		return n, errors.New("Can't write past the end of a file")
 	}
 
@@ -185,11 +220,13 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		}
 		err := f.openBlock(blkIndex)
 		if err != nil {
+			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 			return n, err
 		}
 		wrote := f.writeToBlock(int(blkOff), int(blkOff)+frontlen, b[:frontlen])
 		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 		if wrote != frontlen {
+			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 			return n, errors.New("Couldn't write all of the first block at the offset")
 		}
 		b = b[frontlen:]
@@ -200,6 +237,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	toWrite = len(b)
 	if toWrite == 0 {
 		// We're done
+		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 		return n, nil
 	}
 
@@ -213,6 +251,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 		err = f.blocks.PutBlock(context.TODO(), f.writeINodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
+			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 			return n, err
 		}
 		b = b[f.blkSize:]
@@ -223,6 +262,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 
 	if toWrite == 0 {
 		// We're done
+		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 		return n, nil
 	}
 
@@ -233,16 +273,19 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	blkIndex = int(off / f.blkSize)
 	err = f.openBlock(blkIndex)
 	if err != nil {
+		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 		return n, err
 	}
 	wrote := f.writeToBlock(0, toWrite, b)
 	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 	if wrote != toWrite {
+		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 		return n, errors.New("Couldn't write all of the last block")
 	}
 	b = b[wrote:]
 	n += wrote
 	off += int64(wrote)
+	promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 	return n, nil
 }
 
@@ -297,6 +340,7 @@ func (f *file) Close() error {
 	if err != nil {
 		clog.Error(err)
 	}
+	promOpenFiles.WithLabelValues(f.path.Volume).Dec()
 	return err
 }
 
@@ -310,6 +354,7 @@ func (f *file) sync(closing bool) error {
 		f.updateHeldINodes(closing)
 		return nil
 	}
+	promFileSyncs.WithLabelValues(f.path.Volume).Inc()
 	err := f.syncBlock()
 	if err != nil {
 		clog.Error("sync: couldn't sync block")
@@ -359,6 +404,7 @@ func (f *file) sync(closing bool) error {
 		//
 		// Today, however, we're going to go with the technically correct but perhaps
 		// suboptimal one: last write wins the good news is, we're that last write.
+		promFileChangedSyncs.WithLabelValues(f.path.Volume).Inc()
 		var newINode *models.INode
 		for {
 			newINode, err = f.srv.inodes.GetINode(context.TODO(), agro.INodeRef{
@@ -397,6 +443,7 @@ func (f *file) updateHeldINodes(closing bool) {
 		f.srv.incRef(f.path.Volume, f.initialINodes)
 	}
 	bm, _ := f.srv.getBitmap(f.path.Volume)
+	promOpenINodes.WithLabelValues(f.path.Volume).Set(float64(bm.GetCardinality()))
 	err := f.srv.mds.ClaimVolumeINodes(f.path.Volume, bm)
 	if err != nil {
 		clog.Error("file: TODO: Can't re-claim")
