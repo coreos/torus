@@ -327,8 +327,8 @@ func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, err
 	if err != nil {
 		return nil, err
 	}
-	promBlocksAvail.WithLabelValues(out.name).Set(float64(nBlocks))
-	promBlocks.WithLabelValues(out.name).Set(float64(size))
+	promBlocksAvail.WithLabelValues(out.name).Set(float64(out.NumBlocks()))
+	promBlocks.WithLabelValues(out.name).Set(float64(out.size))
 	return out, nil
 }
 

@@ -9,19 +9,22 @@ import (
 	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "http")
 
 type Server struct {
-	router *gin.Engine
-	dfs    agro.Server
+	router      *gin.Engine
+	dfs         agro.Server
+	promHandler http.Handler
 }
 
 func NewServer(dfs agro.Server) *Server {
 	s := &Server{
-		router: gin.Default(),
-		dfs:    dfs,
+		router:      gin.Default(),
+		dfs:         dfs,
+		promHandler: prometheus.Handler(),
 	}
 	s.setupRoutes()
 	return s
@@ -35,6 +38,7 @@ func (s *Server) setupRoutes() {
 		v0.PUT("/volume/:volume/file/:filename", s.putFile)
 		v0.GET("/volume/:volume/file/:filename", s.getFile)
 	}
+	s.router.GET("/metrics", s.prometheus)
 }
 
 func (s *Server) createVolume(c *gin.Context) {
@@ -45,6 +49,10 @@ func (s *Server) createVolume(c *gin.Context) {
 		c.Writer.Write([]byte(err.Error()))
 	}
 	c.Writer.WriteHeader(http.StatusCreated)
+}
+
+func (s *Server) prometheus(c *gin.Context) {
+	s.promHandler.ServeHTTP(c.Writer, c.Request)
 }
 
 func (s *Server) getVolumes(c *gin.Context) {

@@ -28,7 +28,7 @@ func openTempBlockStore(name string, cfg agro.Config, gmd agro.GlobalMetadata) (
 	nBlocks := cfg.StorageSize / 1024
 	promBlocksAvail.WithLabelValues(name).Set(float64(nBlocks))
 	promBlocks.WithLabelValues(name).Set(0)
-	promBytesPerBlock.WithLabelValues(name).Set(float64(gmd.BlockSize))
+	promBytesPerBlock.Set(float64(gmd.BlockSize))
 	return &tempBlockStore{
 		store:   make(map[agro.BlockRef][]byte),
 		nBlocks: nBlocks,
@@ -49,8 +49,8 @@ func (t *tempBlockStore) Close() error {
 func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
 	if v, ok := bs.(*tempBlockStore); ok {
 		v.name = t.name
-		promBlocks.WithLabelValues(v.name).Set(len(v.store))
-		promBlocksAvail.WithLabelValues(v.name).Set(v.nBlocks)
+		promBlocks.WithLabelValues(v.name).Set(float64(len(v.store)))
+		promBlocksAvail.WithLabelValues(v.name).Set(float64(v.nBlocks))
 		return v, nil
 	}
 	return nil, errors.New("not a tempBlockStore")
@@ -93,7 +93,7 @@ func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockRef, data []b
 
 	t.store[s] = data
 	promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
-	promBlocksWritten.Inc()
+	promBlocksWritten.WithLabelValues(t.name).Inc()
 	return nil
 }
 
