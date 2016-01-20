@@ -17,6 +17,7 @@ import (
 	"github.com/tgruben/roaring"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
@@ -37,10 +38,19 @@ const (
 	peerTimeoutMax = 50 * time.Second
 )
 
+var (
+	promAtomicRetries = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "agro_etcd_atomic_retries",
+		Help: "Number of times an atomic update failed and needed to be retried",
+	}, []string{"key"})
+)
+
 func init() {
 	agro.RegisterMetadataService("etcd", newEtcdMetadata)
 	agro.RegisterMkfs("etcd", mkfs)
 	agro.RegisterSetRing("etcd", setRing)
+
+	prometheus.MustRegister(promAtomicRetries)
 }
 
 type etcdCtx struct {
@@ -242,6 +252,7 @@ func (c *etcdCtx) atomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, 
 		if resp.Succeeded {
 			return fval, nil
 		}
+		promAtomicRetries.WithLabelValues(string(key)).Inc()
 		kv = resp.Responses[0].GetResponseRange().Kvs[0]
 	}
 }

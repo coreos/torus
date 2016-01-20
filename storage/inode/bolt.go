@@ -23,6 +23,7 @@ func init() {
 type boltINodeStore struct {
 	db       *bolt.DB
 	filename string
+	name     string
 }
 
 func openBoltINodeStore(name string, cfg agro.Config) (agro.INodeStore, error) {
@@ -32,10 +33,25 @@ func openBoltINodeStore(name string, cfg agro.Config) (agro.INodeStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &boltINodeStore{
+	b := &boltINodeStore{
 		db:       db,
 		filename: boltdata,
-	}, nil
+		name:     name,
+	}
+	b.updateNumINodes()
+	return b, nil
+}
+
+func (b *boltINodeStore) updateNumINodes() {
+	out := 0
+	b.db.View(func(tx *bolt.Tx) error {
+		tx.ForEach(func(_ []byte, b *bolt.Bucket) error {
+			out += b.Stats().KeyN
+			return nil
+		})
+		return nil
+	})
+	promINodes.WithLabelValues(b.name).Set(float64(out))
 }
 
 func (b *boltINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore, error) {
@@ -58,12 +74,15 @@ func (b *boltINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore,
 	out := &boltINodeStore{
 		db:       newBolt.db,
 		filename: b.filename,
+		name:     b.name,
 	}
 	newBolt.db = nil
+	out.updateNumINodes()
 	return out, nil
 }
 
 func (b *boltINodeStore) Flush() error {
+	promINodeFlushes.WithLabelValues(b.name).Inc()
 	return b.db.Sync()
 }
 
@@ -84,10 +103,12 @@ func (b *boltINodeStore) GetINode(_ context.Context, i agro.INodeRef) (*models.I
 		return nil
 	})
 	if err != nil {
+		promINodesFailed.WithLabelValues(b.name).Inc()
 		return nil, err
 	}
 	out := &models.INode{}
 	err = out.Unmarshal(inodeBytes)
+	promINodesRetrieved.WithLabelValues(b.name).Inc()
 	return out, err
 }
 
@@ -100,17 +121,24 @@ func formatKeyVol(i agro.INodeRef) (string, string) {
 func (b *boltINodeStore) WriteINode(_ context.Context, i agro.INodeRef, inode *models.INode) error {
 	inodeBytes, err := inode.Marshal()
 	if err != nil {
+		promINodeWritesFailed.WithLabelValues(b.name).Inc()
 		return err
 	}
 	key, vol := formatKeyVol(i)
 	err = b.db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(vol))
+		bk, err := tx.CreateBucketIfNotExists([]byte(vol))
 		if err != nil {
 			return err
 		}
-		return b.Put([]byte(key), inodeBytes)
+		return bk.Put([]byte(key), inodeBytes)
 	})
-	return err
+	if err != nil {
+		promINodeWritesFailed.WithLabelValues(b.name).Inc()
+		return err
+	}
+	promINodesWritten.WithLabelValues(b.name).Inc()
+	promINodes.WithLabelValues(b.name).Inc()
+	return nil
 }
 
 func (b *boltINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
@@ -119,7 +147,13 @@ func (b *boltINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
 		b := tx.Bucket([]byte(vol))
 		return b.Delete([]byte(key))
 	})
-	return err
+	if err != nil {
+		promINodeDeletesFailed.WithLabelValues(b.name).Inc()
+		return err
+	}
+	promINodesDeleted.WithLabelValues(b.name).Inc()
+	promINodes.WithLabelValues(b.name).Dec()
+	return nil
 }
 
 func (b *boltINodeStore) INodeIterator() agro.INodeIterator {

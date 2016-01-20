@@ -56,6 +56,7 @@ func (b *crcBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	crc := crc32.ChecksumIEEE(data)
 	if crc != b.crcs[i] {
 		clog.Debug("crc: block did not pass crc")
+		promCRCFail.Inc()
 		return nil, agro.ErrBlockUnavailable
 	}
 	return data, nil

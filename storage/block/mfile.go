@@ -34,6 +34,7 @@ type mfileBlock struct {
 	size      uint64
 	dfilename string
 	mfilename string
+	name      string
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
@@ -69,6 +70,8 @@ func loadTrie(m *storage.MFile) (*iradix.Tree, uint64, error) {
 
 func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
 	nBlocks := cfg.StorageSize / meta.BlockSize
+	promBytesPerBlock.Set(float64(meta.BlockSize))
+	promBlocksAvail.WithLabelValues(name).Set(float64(nBlocks))
 	dpath := filepath.Join(cfg.DataDir, "block", fmt.Sprintf("data-%s.blk", name))
 	mpath := filepath.Join(cfg.DataDir, "block", fmt.Sprintf("map-%s.blk", name))
 	d, err := storage.CreateOrOpenMFile(dpath, cfg.StorageSize, meta.BlockSize)
@@ -86,6 +89,7 @@ func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) 
 	if m.NumBlocks() != d.NumBlocks() {
 		panic("non-equal number of blocks between data and metadata")
 	}
+	promBlocks.WithLabelValues(name).Set(float64(size))
 	return &mfileBlock{
 		data:      d,
 		blockMap:  m,
@@ -93,11 +97,18 @@ func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) 
 		size:      size,
 		dfilename: dpath,
 		mfilename: mpath,
+		name:      name,
 	}, nil
 }
 
 func (m *mfileBlock) Kind() string { return "mfile" }
 func (m *mfileBlock) NumBlocks() uint64 {
+	m.mut.RLock()
+	defer m.mut.RUnlock()
+	return m.numBlocks()
+}
+
+func (m *mfileBlock) numBlocks() uint64 {
 	return m.data.NumBlocks()
 }
 
@@ -115,6 +126,7 @@ func (m *mfileBlock) Flush() error {
 	if err != nil {
 		return err
 	}
+	promStorageFlushes.WithLabelValues(m.name).Inc()
 	return nil
 }
 
@@ -149,10 +161,10 @@ func (m *mfileBlock) findIndex(s agro.BlockRef) int {
 
 func (m *mfileBlock) findEmpty() int {
 	emptyBlock := make([]byte, agro.BlockRefByteSize)
-	for i := uint64(0); i < m.NumBlocks(); i++ {
-		b := m.blockMap.GetBlock((i + uint64(m.lastFree) + 1) % m.NumBlocks())
+	for i := uint64(0); i < m.numBlocks(); i++ {
+		b := m.blockMap.GetBlock((i + uint64(m.lastFree) + 1) % m.numBlocks())
 		if bytes.Equal(b, emptyBlock) {
-			m.lastFree = int((i + uint64(m.lastFree) + 1) % m.NumBlocks())
+			m.lastFree = int((i + uint64(m.lastFree) + 1) % m.numBlocks())
 			return m.lastFree
 		}
 	}
@@ -163,13 +175,16 @@ func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error
 	m.mut.RLock()
 	defer m.mut.RUnlock()
 	if m.closed {
+		promBlocksFailed.WithLabelValues(m.name).Inc()
 		return nil, agro.ErrClosed
 	}
 	index := m.findIndex(s)
 	if index == -1 {
+		promBlocksFailed.WithLabelValues(m.name).Inc()
 		return nil, agro.ErrBlockNotExist
 	}
 	clog.Tracef("mfile: getting block at index %d", index)
+	promBlocksRetrieved.WithLabelValues(m.name).Inc()
 	return m.data.GetBlock(uint64(index)), nil
 }
 
@@ -177,20 +192,24 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return agro.ErrClosed
 	}
 	index := m.findEmpty()
 	if index == -1 {
 		clog.Error("mfile: out of space")
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return agro.ErrOutOfSpace
 	}
 	clog.Tracef("mfile: writing block at index %d", index)
 	err := m.data.WriteBlock(uint64(index), data)
 	if err != nil {
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
 	err = m.blockMap.WriteBlock(uint64(index), s.ToBytes())
 	if err != nil {
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
 
@@ -200,7 +219,9 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 		return errors.New("mfile: block already existed?")
 	}
 	m.size++
+	promBlocks.WithLabelValues(m.name).Inc()
 	m.blockTrie = tx.Commit()
+	promBlocksWritten.WithLabelValues(m.name).Inc()
 	return nil
 }
 
@@ -208,23 +229,29 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {
+		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		return agro.ErrClosed
 	}
 	index := m.findIndex(s)
 	if index == -1 {
+		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		return agro.ErrBlockNotExist
 	}
 	err := m.blockMap.WriteBlock(uint64(index), make([]byte, agro.BlockRefByteSize))
 	if err != nil {
+		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
 	tx := m.blockTrie.Txn()
 	_, exists := tx.Delete(s.ToBytes())
 	if !exists {
+		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		return errors.New("mfile: deleting non-existent thing?")
 	}
 	m.size--
+	promBlocks.WithLabelValues(m.name).Dec()
 	m.blockTrie = tx.Commit()
+	promBlocksDeleted.WithLabelValues(m.name).Inc()
 	return nil
 }
 
@@ -232,6 +259,7 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {
+		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		return agro.ErrClosed
 	}
 	tx := m.blockTrie.Txn()
@@ -249,7 +277,9 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	}
 	for _, v := range deleteList {
 		err := m.blockMap.WriteBlock(uint64(v), make([]byte, agro.BlockRefByteSize))
+		promBlocksDeleted.WithLabelValues(m.name).Inc()
 		if err != nil {
+			promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 			return err
 		}
 	}
@@ -257,6 +287,7 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 		tx.Delete(k)
 	}
 	m.size = m.size - uint64(len(deleteList))
+	promBlocks.WithLabelValues(m.name).Set(float64(m.size))
 	m.blockTrie = tx.Commit()
 	return nil
 }
@@ -294,6 +325,7 @@ func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, err
 		size:      newM.size,
 		dfilename: m.dfilename,
 		mfilename: m.mfilename,
+		name:      m.name,
 	}
 	newM.data = nil
 	newM.blockMap = nil
@@ -301,6 +333,8 @@ func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, err
 	if err != nil {
 		return nil, err
 	}
+	promBlocksAvail.WithLabelValues(out.name).Set(float64(out.numBlocks()))
+	promBlocks.WithLabelValues(out.name).Set(float64(out.size))
 	return out, nil
 }
 

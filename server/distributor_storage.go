@@ -31,11 +31,14 @@ func getRepFromContext(ctx context.Context) int {
 func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
+	promDistINodeRequests.Inc()
 	peers, err := d.ring.GetINodePeers(i)
 	if err != nil {
+		promDistINodeFailures.Inc()
 		return nil, err
 	}
 	if len(peers) == 0 {
+		promDistINodeFailures.Inc()
 		return nil, ErrNoPeersINode
 	}
 	// Return it if we have it locally.
@@ -43,8 +46,10 @@ func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.IN
 		if p == d.UUID() {
 			in, err := d.inodes.GetINode(ctx, i)
 			if err == nil {
+				promDistINodeLocalHits.Inc()
 				return in, nil
 			}
+			promDistINodeLocalFailures.Inc()
 			break
 		}
 	}
@@ -54,14 +59,18 @@ func (d *distributor) GetINode(ctx context.Context, i agro.INodeRef) (*models.IN
 		}
 		in, err := d.client.GetINode(ctx, p, i)
 		if err == nil {
+			promDistINodePeerHits.WithLabelValues(p).Inc()
 			return in, nil
 		}
 		if err == agro.ErrINodeUnavailable {
+			promDistINodePeerFailures.WithLabelValues(p).Inc()
 			clog.Debug("inode failed, trying next peer")
 			continue
 		}
+		promDistINodeFailures.Inc()
 		return nil, err
 	}
+	promDistINodeFailures.Inc()
 	return nil, ErrNoPeersINode
 }
 
@@ -101,25 +110,31 @@ func (d *distributor) INodeIterator() agro.INodeIterator {
 func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
+	promDistBlockRequests.Inc()
 	if d.readCache != nil {
 		bcache, ok := d.readCache.Get(string(i.ToBytes()))
 		if ok {
+			promDistBlockCacheHits.Inc()
 			return bcache.([]byte), nil
 		}
 	}
 	peers, err := d.ring.GetBlockPeers(i)
 	if err != nil {
+		promDistBlockFailures.Inc()
 		return nil, err
 	}
 	if len(peers) == 0 {
+		promDistBlockFailures.Inc()
 		return nil, ErrNoPeersBlock
 	}
 	for _, p := range peers {
 		if p == d.UUID() {
 			b, err := d.blocks.GetBlock(ctx, i)
 			if err == nil {
+				promDistBlockLocalHits.Inc()
 				return b, nil
 			}
+			promDistBlockLocalFailures.Inc()
 			break
 		}
 	}
@@ -132,14 +147,18 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 			if d.readCache != nil {
 				d.readCache.Add(string(i.ToBytes()), blk)
 			}
+			promDistBlockPeerHits.WithLabelValues(p).Inc()
 			return blk, nil
 		}
 		if err == agro.ErrBlockUnavailable {
 			clog.Debug("block failed, trying next peer")
+			promDistBlockPeerFailures.WithLabelValues(p).Inc()
 			continue
 		}
+		promDistBlockFailures.Inc()
 		return nil, err
 	}
+	promDistBlockFailures.Inc()
 	return nil, ErrNoPeersBlock
 }
 
