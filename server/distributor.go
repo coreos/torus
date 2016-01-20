@@ -8,6 +8,7 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
+	"github.com/dgryski/go-tinylfu"
 )
 
 const (
@@ -15,12 +16,13 @@ const (
 )
 
 type distributor struct {
-	mut     sync.RWMutex
-	blocks  agro.BlockStore
-	inodes  agro.INodeStore
-	srv     *server
-	client  *distClient
-	grpcSrv *grpc.Server
+	mut       sync.RWMutex
+	blocks    agro.BlockStore
+	inodes    agro.INodeStore
+	srv       *server
+	client    *distClient
+	grpcSrv   *grpc.Server
+	readCache *tinylfu.T
 
 	ring           agro.Ring
 	closed         bool
@@ -45,6 +47,16 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 		go d.grpcSrv.Serve(lis)
 		srv.BeginHeartbeat()
 	}
+	gmd, err := d.srv.mds.GlobalMetadata()
+	if err != nil {
+		return nil, err
+	}
+	if srv.cfg.ReadCacheSize != 0 {
+		size := srv.cfg.ReadCacheSize / gmd.BlockSize
+		// TODO(barakmich): What's the correct number of "samples" instead of 4?
+		d.readCache = tinylfu.New(int(size), 4)
+	}
+
 	// Set up the rebalancer
 	d.ring, err = d.srv.mds.GetRing()
 	if err != nil {
