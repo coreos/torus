@@ -103,6 +103,12 @@ func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) 
 
 func (m *mfileBlock) Kind() string { return "mfile" }
 func (m *mfileBlock) NumBlocks() uint64 {
+	m.mut.RLock()
+	defer m.mut.RUnlock()
+	return m.numBlocks()
+}
+
+func (m *mfileBlock) numBlocks() uint64 {
 	return m.data.NumBlocks()
 }
 
@@ -155,10 +161,10 @@ func (m *mfileBlock) findIndex(s agro.BlockRef) int {
 
 func (m *mfileBlock) findEmpty() int {
 	emptyBlock := make([]byte, agro.BlockRefByteSize)
-	for i := uint64(0); i < m.NumBlocks(); i++ {
-		b := m.blockMap.GetBlock((i + uint64(m.lastFree) + 1) % m.NumBlocks())
+	for i := uint64(0); i < m.numBlocks(); i++ {
+		b := m.blockMap.GetBlock((i + uint64(m.lastFree) + 1) % m.numBlocks())
 		if bytes.Equal(b, emptyBlock) {
-			m.lastFree = int((i + uint64(m.lastFree) + 1) % m.NumBlocks())
+			m.lastFree = int((i + uint64(m.lastFree) + 1) % m.numBlocks())
 			return m.lastFree
 		}
 	}
@@ -327,7 +333,7 @@ func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, err
 	if err != nil {
 		return nil, err
 	}
-	promBlocksAvail.WithLabelValues(out.name).Set(float64(out.NumBlocks()))
+	promBlocksAvail.WithLabelValues(out.name).Set(float64(out.numBlocks()))
 	promBlocks.WithLabelValues(out.name).Set(float64(out.size))
 	return out, nil
 }

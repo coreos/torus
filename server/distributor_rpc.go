@@ -87,6 +87,8 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 }
 
 func (d *distributor) PutINode(ctx context.Context, req *models.PutINodeRequest) (*models.PutResponse, error) {
+	d.mut.RLock()
+	defer d.mut.RUnlock()
 	if len(req.Refs) != len(req.INodes) {
 		return &models.PutResponse{Err: "malformed request"}, nil
 	}
