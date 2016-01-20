@@ -24,7 +24,7 @@ import (
 	// do this, but we're vendoring the etcd proto definitions by hand. The alternative
 	// is to use *etcds vendored* version of grpc and net/context everywhere, which is
 	// horrifying. This might be helped by GO15VENDORING but we'll see.
-	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 )
 
 // Package rule for etcd keys: always put the static parts first, followed by
@@ -58,7 +58,7 @@ type etcd struct {
 	ringListeners []chan agro.Ring
 
 	conn *grpc.ClientConn
-	kv   pb.KVClient
+	kv   etcdpb.KVClient
 	uuid string
 }
 
@@ -72,7 +72,7 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	if err != nil {
 		return nil, err
 	}
-	client := pb.NewKVClient(conn)
+	client := etcdpb.NewKVClient(conn)
 
 	e := &etcd{
 		cfg:          cfg,

@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
 )
@@ -39,7 +39,7 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {
 		return err
 	}
 	defer conn.Close()
-	client := pb.NewKVClient(conn)
+	client := etcdpb.NewKVClient(conn)
 	resp, err := client.Txn(context.Background(), tx)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 		return err
 	}
 	defer conn.Close()
-	client := pb.NewKVClient(conn)
+	client := etcdpb.NewKVClient(conn)
 	resp, err := client.Range(context.Background(), getKey(mkKey("meta", "the-one-ring")))
 	if err != nil {
 		return err

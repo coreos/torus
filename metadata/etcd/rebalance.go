@@ -6,7 +6,7 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 
-	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 )
 
 func (c *etcdCtx) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
@@ -85,7 +85,7 @@ func (c *etcdCtx) openRebalanceLeader(rev int64) (inOut [2]chan *models.Rebalanc
 }
 
 func (c *etcdCtx) leaderWatch(toC chan *models.RebalanceStatus, fromC chan *models.RebalanceStatus, rev int64) error {
-	wAPI := pb.NewWatchClient(c.etcd.conn)
+	wAPI := etcdpb.NewWatchClient(c.etcd.conn)
 	wStream, err := wAPI.Watch(c.getContext())
 	if err != nil {
 		return err
@@ -121,9 +121,9 @@ func (c *etcdCtx) leaderWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 			}
 		}
 	}()
-	p := &pb.WatchRequest{
-		RequestUnion: &pb.WatchRequest_CreateRequest{
-			CreateRequest: &pb.WatchCreateRequest{
+	p := &etcdpb.WatchRequest{
+		RequestUnion: &etcdpb.WatchRequest_CreateRequest{
+			CreateRequest: &etcdpb.WatchCreateRequest{
 				Prefix:        mkKey("meta", "rebalance-status"),
 				StartRevision: rev,
 			},
@@ -149,7 +149,7 @@ func (c *etcdCtx) openRebalanceFollower(rev int64) (inOut [2]chan *models.Rebala
 }
 
 func (c *etcdCtx) followWatch(toC chan *models.RebalanceStatus, fromC chan *models.RebalanceStatus, rev int64) error {
-	wAPI := pb.NewWatchClient(c.etcd.conn)
+	wAPI := etcdpb.NewWatchClient(c.etcd.conn)
 	wStream, err := wAPI.Watch(c.getContext())
 	if err != nil {
 		return err
@@ -180,9 +180,9 @@ func (c *etcdCtx) followWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 			}
 		}
 	}()
-	p := &pb.WatchRequest{
-		RequestUnion: &pb.WatchRequest_CreateRequest{
-			CreateRequest: &pb.WatchCreateRequest{
+	p := &etcdpb.WatchRequest{
+		RequestUnion: &etcdpb.WatchRequest_CreateRequest{
+			CreateRequest: &etcdpb.WatchCreateRequest{
 				Key:           mkKey("meta", "rebalance-leader-status"),
 				StartRevision: rev,
 			},
@@ -192,7 +192,7 @@ func (c *etcdCtx) followWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 	return err
 }
 
-func watchStream(wStream pb.Watch_WatchClient, c chan *models.RebalanceStatus) {
+func watchStream(wStream etcdpb.Watch_WatchClient, c chan *models.RebalanceStatus) {
 	for {
 		resp, err := wStream.Recv()
 		if err == io.EOF {

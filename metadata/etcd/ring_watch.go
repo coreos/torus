@@ -5,21 +5,21 @@ import (
 
 	"golang.org/x/net/context"
 
-	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 	"github.com/coreos/agro/ring"
 )
 
 func (e *etcd) watchRingUpdates() error {
-	wAPI := pb.NewWatchClient(e.conn)
+	wAPI := etcdpb.NewWatchClient(e.conn)
 	wStream, err := wAPI.Watch(context.TODO())
 	if err != nil {
 		return err
 	}
 	go e.watchRing(wStream)
 
-	p := &pb.WatchRequest{
-		RequestUnion: &pb.WatchRequest_CreateRequest{
-			CreateRequest: &pb.WatchCreateRequest{
+	p := &etcdpb.WatchRequest{
+		RequestUnion: &etcdpb.WatchRequest_CreateRequest{
+			CreateRequest: &etcdpb.WatchCreateRequest{
 				Key: mkKey("meta", "the-new-ring"),
 			},
 		},
@@ -28,7 +28,7 @@ func (e *etcd) watchRingUpdates() error {
 	return err
 }
 
-func (e *etcd) watchRing(wStream pb.Watch_WatchClient) {
+func (e *etcd) watchRing(wStream etcdpb.Watch_WatchClient) {
 	r, err := e.GetRing()
 	if err != nil {
 		clog.Errorf("can't get inital ring: %s", err)
