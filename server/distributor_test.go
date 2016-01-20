@@ -83,11 +83,15 @@ func testThreeWrite(t *testing.T) {
 	for _, x := range p {
 		uuids = append(uuids, x.UUID)
 	}
-	md.SetRing(&models.Ring{
+	r, err := ring.CreateRing(&models.Ring{
 		Type:    uint32(ring.Mod),
 		UUIDs:   uuids,
 		Version: 2,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	md.SetRing(r, false)
 	for {
 		ok := true
 		for i := 0; i < 3; i++ {

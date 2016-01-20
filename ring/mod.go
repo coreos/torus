@@ -31,7 +31,7 @@ func makeMod(r *models.Ring) (agro.Ring, error) {
 	}, nil
 }
 
-func (m *mod) GetBlockPeers(key agro.BlockRef) ([]string, error) {
+func (m *mod) GetBlockPeers(key agro.BlockRef) (agro.PeerList, error) {
 	var permute []string
 	crc := crc32.ChecksumIEEE(key.ToBytes())
 	sum := int(crc) % len(m.peers)
@@ -40,14 +40,14 @@ func (m *mod) GetBlockPeers(key agro.BlockRef) ([]string, error) {
 	return permute[:m.rep], nil
 }
 
-func (m *mod) GetINodePeers(key agro.INodeRef) ([]string, error) {
+func (m *mod) GetINodePeers(key agro.INodeRef) (agro.PeerList, error) {
 	return m.GetBlockPeers(agro.BlockRef{
 		INodeRef: key,
 		Index:    agro.IndexID(0),
 	})
 }
 
-func (m *mod) Members() []string { return m.peers }
+func (m *mod) Members() agro.PeerList { return append([]string(nil), m.peers...) }
 
 func (m *mod) Describe() string {
 	s := fmt.Sprintf("Ring: Mod\nReplication:%d\nPeers:", m.rep)

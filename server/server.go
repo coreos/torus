@@ -25,12 +25,14 @@ var _ agro.Server = &server{}
 
 type server struct {
 	mut           sync.RWMutex
+	writeableLock sync.RWMutex
 	blocks        agro.BlockStore
 	mds           agro.MetadataService
 	inodes        agro.INodeStore
 	peersMap      map[string]*models.PeerInfo
 	closeChans    []chan interface{}
 	openINodeRefs map[string]map[agro.INodeID]int
+	cfg           agro.Config
 
 	internalAddr string
 

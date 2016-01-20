@@ -10,6 +10,7 @@ service AgroStorage {
 	rpc INode (INodeRequest) returns (INodeResponse);
 	rpc PutBlock (PutBlockRequest) returns (PutResponse);
 	rpc PutINode (PutINodeRequest) returns (PutResponse);
+  rpc RebalanceMessage (RebalanceRequest) returns (RebalanceResponse);
 }
 
 message Block {
@@ -48,3 +49,26 @@ message PutResponse {
 	string err = 2;
 }
 
+message RebalanceRequest {
+  oneof subrequest {
+    BlockRequest block_request = 1;
+    PutBlockRequest put_block_request = 2;
+    INodeRequest inode_request = 3 [(gogoproto.customname) = "INodeRequest"];
+    PutINodeRequest put_inode_request = 4 [(gogoproto.customname) = "PutINodeRequest"];
+  }
+  int32 phase = 5;
+  string uuid = 6 [(gogoproto.customname) = "UUID"];
+  bytes rebalance_data = 7;
+}
+
+message RebalanceResponse {
+  bool ok = 1;
+  string err = 2;
+  oneof subresponse {
+    BlockResponse block_response = 3;
+    INodeResponse inode_response = 4 [(gogoproto.customname) = "INodeRepsonse"];
+  }
+  int32 phase = 5;
+  string uuid = 6 [(gogoproto.customname) = "UUID"];
+  bytes rebalance_data = 7;
+}

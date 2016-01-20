@@ -82,6 +82,8 @@ func (f *file) openWrite() error {
 	if f.writeOpen {
 		return nil
 	}
+	f.srv.writeableLock.RLock()
+	defer f.srv.writeableLock.RUnlock()
 	vid, err := f.srv.mds.GetVolumeID(f.path.Volume)
 	if err != nil {
 		return err
@@ -168,8 +170,10 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	// Write the front matter, which may dangle from a byte offset
 	blkIndex := int(off / f.blkSize)
 
-	if f.blocks.Length() < blkIndex {
+	if f.blocks.Length() < blkIndex && blkIndex != f.openIdx+1 {
 		// TODO(barakmich) Support truncate in the block abstraction, fill/return 0s
+		clog.Debug("begin write: offset ", off, " size ", len(b))
+		clog.Debug("end of file ", f.blocks.Length(), " blkIndex ", blkIndex)
 		return n, errors.New("Can't write past the end of a file")
 	}
 

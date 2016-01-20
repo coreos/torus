@@ -34,20 +34,35 @@ type Server struct {
 	volIndex   map[string]agro.VolumeID
 	global     agro.GlobalMetadata
 	peers      []*models.PeerInfo
-	ring       *models.Ring
+	ring       agro.Ring
+	newRing    agro.Ring
 	openINodes map[string]map[string]*roaring.RoaringBitmap
 	deadMap    map[string]*roaring.RoaringBitmap
 
-	ringListeners []chan agro.Ring
+	ringListeners      []chan agro.Ring
+	rebalanceListeners []chan *models.RebalanceStatus
+	leaderListener     chan *models.RebalanceStatus
+	rebalanceKind      uint64
+	rebalanceSnapshot  []byte
 }
 
 type Client struct {
-	cfg  agro.Config
-	uuid string
-	srv  *Server
+	cfg    agro.Config
+	uuid   string
+	srv    *Server
+	toC    chan *models.RebalanceStatus
+	fromC  chan *models.RebalanceStatus
+	leader bool
 }
 
 func NewServer() *Server {
+	r, err := ring.CreateRing(&models.Ring{
+		Type:    uint32(ring.Empty),
+		Version: 1,
+	})
+	if err != nil {
+		panic(err)
+	}
 	return &Server{
 		volIndex: make(map[string]agro.VolumeID),
 		tree:     iradix.New(),
@@ -57,10 +72,7 @@ func NewServer() *Server {
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 			INodeReplication: 2,
 		},
-		ring: &models.Ring{
-			Type:    uint32(ring.Empty),
-			Version: 1,
-		},
+		ring:       r,
 		inode:      make(map[string]agro.INodeID),
 		openINodes: make(map[string]map[string]*roaring.RoaringBitmap),
 		deadMap:    make(map[string]*roaring.RoaringBitmap),
@@ -279,6 +291,19 @@ func (t *Client) GetVolumes() ([]string, error) {
 	return out, nil
 }
 
+func (t *Client) GetVolumeName(vid agro.VolumeID) (string, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+
+	for k, v := range t.srv.volIndex {
+		if v == vid {
+			return k, nil
+		}
+	}
+	return "", errors.New("temp: no such volume exists")
+
+}
+
 func (t *Client) GetVolumeID(volume string) (agro.VolumeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
@@ -292,7 +317,7 @@ func (t *Client) GetVolumeID(volume string) (agro.VolumeID, error) {
 func (t *Client) GetRing() (agro.Ring, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	return ring.CreateRing(t.srv.ring)
+	return t.srv.ring, nil
 }
 
 func (t *Client) SubscribeNewRings(ch chan agro.Ring) {
@@ -319,19 +344,6 @@ func (s *Server) UnsubscribeNewRings(ch chan agro.Ring) {
 		}
 	}
 	panic("couldn't remove channel")
-}
-
-func (s *Server) SetRing(r *models.Ring) {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-	s.ring = r
-	new, err := ring.CreateRing(s.ring)
-	if err != nil {
-		panic(err)
-	}
-	for _, c := range s.ringListeners {
-		c <- new
-	}
 }
 
 func (t *Client) Close() error {
@@ -373,6 +385,97 @@ func (t *Client) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*ro
 		}
 	}
 	return x, l, nil
+}
+
+func (t *Client) SetRebalanceSnapshot(kind uint64, data []byte) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	t.srv.rebalanceKind = kind
+	t.srv.rebalanceSnapshot = data
+	return nil
+}
+
+func (t *Client) GetRebalanceSnapshot() (uint64, []byte, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	return t.srv.rebalanceKind, t.srv.rebalanceSnapshot, nil
+}
+
+func (t *Client) SetRing(ring agro.Ring, force bool) error {
+	return t.srv.SetRing(ring, force)
+}
+
+func (s *Server) SetRing(ring agro.Ring, force bool) error {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	if force {
+		s.ring = ring
+		return nil
+	}
+	s.newRing = ring
+	for _, c := range s.ringListeners {
+		c <- s.newRing
+	}
+	return nil
+}
+
+func (t *Client) GetINodeIndex(volume string) (agro.INodeID, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	return t.srv.inode[volume], nil
+}
+
+func (t *Client) GetINodeIndexes() (map[string]agro.INodeID, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	out := make(map[string]agro.INodeID)
+	for k, v := range t.srv.inode {
+		out[k] = v
+	}
+	return out, nil
+}
+
+func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
+	t.toC = make(chan *models.RebalanceStatus)
+	t.fromC = make(chan *models.RebalanceStatus)
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	isLeader := false
+	if t.srv.leaderListener == nil {
+		isLeader = true
+		t.srv.leaderListener = t.toC
+	}
+	t.srv.rebalanceListeners = append(t.srv.rebalanceListeners, t.toC)
+	go func(leader bool, t *Client) {
+		for {
+			d, ok := <-t.fromC
+			if !ok {
+				t.srv.mut.Lock()
+				if leader {
+					t.srv.leaderListener = nil
+				}
+				for i, c := range t.srv.rebalanceListeners {
+					if t.toC == c {
+						t.srv.rebalanceListeners = append(t.srv.rebalanceListeners[:i], t.srv.rebalanceListeners[i+1:]...)
+						break
+					}
+				}
+				t.srv.mut.Unlock()
+				close(t.toC)
+				return
+			}
+			t.srv.mut.Lock()
+			if leader {
+				for _, c := range t.srv.rebalanceListeners {
+					c <- d
+				}
+			} else {
+				t.srv.leaderListener <- d
+			}
+			t.srv.mut.Unlock()
+		}
+	}(isLeader, t)
+	return [2]chan *models.RebalanceStatus{t.toC, t.fromC}, isLeader, nil
 }
 
 func (s *Server) Close() error {

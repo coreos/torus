@@ -1,6 +1,7 @@
 package inode
 
 import (
+	"errors"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -20,12 +21,13 @@ type tempINodeStore struct {
 	store map[agro.INodeRef]*models.INode
 }
 
-func openTempINodeStore(cfg agro.Config) (agro.INodeStore, error) {
+func openTempINodeStore(_ string, cfg agro.Config) (agro.INodeStore, error) {
 	return &tempINodeStore{
 		store: make(map[agro.INodeRef]*models.INode),
 	}, nil
 }
 
+func (t *tempINodeStore) Kind() string { return "temp" }
 func (t *tempINodeStore) Flush() error { return nil }
 func (t *tempINodeStore) Close() error {
 	t.mut.Lock()
@@ -72,3 +74,42 @@ func (t *tempINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
 	delete(t.store, i)
 	return nil
 }
+
+func (t *tempINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore, error) {
+	if v, ok := is.(*tempINodeStore); ok {
+		return v, nil
+	}
+	return nil, errors.New("not a tempINodeStore")
+}
+
+func (t *tempINodeStore) INodeIterator() agro.INodeIterator {
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+	var inodes []agro.INodeRef
+	for k := range t.store {
+		inodes = append(inodes, k)
+	}
+	return &tempIterator{
+		inodes: inodes,
+		index:  -1,
+	}
+}
+
+type tempIterator struct {
+	inodes []agro.INodeRef
+	index  int
+}
+
+func (i *tempIterator) Err() error { return nil }
+
+func (i *tempIterator) Next() bool {
+	i.index++
+	if i.index >= len(i.inodes) {
+		return false
+	}
+	return true
+}
+
+func (i *tempIterator) INodeRef() agro.INodeRef { return i.inodes[i.index] }
+
+func (i *tempIterator) Close() error { return nil }

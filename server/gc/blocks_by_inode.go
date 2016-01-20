@@ -15,6 +15,7 @@ type blocksByINode struct {
 	blocks    agro.BlockStore
 	stopChan  chan bool
 	forceChan chan bool
+	doneChan  chan bool
 	last      time.Time
 }
 
@@ -27,19 +28,34 @@ func NewBlocksByINodeGC(mds agro.MetadataService, blocks agro.BlockStore) GC {
 }
 
 func (b *blocksByINode) Start() {
+	if b.stopChan != nil {
+		return
+	}
 	sc := make(chan bool)
 	fc := make(chan bool)
+	dc := make(chan bool)
 	b.stopChan = sc
 	b.forceChan = fc
-	go blocksByINodeMain(b, sc, fc)
+	b.doneChan = dc
+	go blocksByINodeMain(b, sc, fc, dc)
 }
 
 func (b *blocksByINode) Stop() {
+	if b.stopChan == nil {
+		return
+	}
 	close(b.stopChan)
+	close(b.forceChan)
+	<-b.doneChan
+	b.stopChan = nil
+	b.doneChan = nil
+	b.forceChan = nil
 }
 
 func (b *blocksByINode) Force() {
-	b.forceChan <- true
+	if b.forceChan != nil {
+		b.forceChan <- true
+	}
 }
 
 func (b *blocksByINode) LastComplete() time.Time {
@@ -72,7 +88,7 @@ func (b *blocksByINode) gc(volume string) {
 	}
 }
 
-func blocksByINodeMain(b *blocksByINode, stop chan bool, force chan bool) {
+func blocksByINodeMain(b *blocksByINode, stop chan bool, force chan bool, done chan bool) {
 	clog.Debug("bbi: starting blocksByInode")
 all:
 	for {
@@ -104,4 +120,5 @@ all:
 		b.last = time.Now()
 	}
 	clog.Debug("bbi: ending blocksByInode")
+	close(done)
 }

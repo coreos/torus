@@ -24,6 +24,7 @@ type (
 // Store is the interface that represents methods that should be common across
 // all types of storage providers.
 type Store interface {
+	Kind() string
 	Flush() error
 	Close() error
 }
@@ -90,6 +91,23 @@ func (b BlockRef) ToProto() *models.BlockRef {
 	}
 }
 
+func BlockFromProto(p *models.BlockRef) BlockRef {
+	return BlockRef{
+		INodeRef: INodeRef{
+			Volume: VolumeID(p.Volume),
+			INode:  INodeID(p.INode),
+		},
+		Index: IndexID(p.Block),
+	}
+}
+
+func INodeFromProto(p *models.INodeRef) INodeRef {
+	return INodeRef{
+		Volume: VolumeID(p.Volume),
+		INode:  INodeID(p.INode),
+	}
+}
+
 func (b BlockRef) String() string {
 	i := b.INodeRef
 	return fmt.Sprintf("vol: %d, inode: %d, block: %d", i.Volume, i.INode, b.Index)
@@ -109,10 +127,19 @@ type BlockStore interface {
 	DeleteINodeBlocks(ctx context.Context, b INodeRef) error
 	NumBlocks() uint64
 	UsedBlocks() uint64
+	BlockIterator() BlockIterator
+	ReplaceBlockStore(BlockStore) (BlockStore, error)
 	// TODO(barakmich) FreeBlocks()
 }
 
-type NewBlockStoreFunc func(Config, GlobalMetadata) (BlockStore, error)
+type BlockIterator interface {
+	Err() error
+	Next() bool
+	BlockRef() BlockRef
+	Close() error
+}
+
+type NewBlockStoreFunc func(string, Config, GlobalMetadata) (BlockStore, error)
 
 var blockStores map[string]NewBlockStoreFunc
 
@@ -128,9 +155,9 @@ func RegisterBlockStore(name string, newFunc NewBlockStoreFunc) {
 	blockStores[name] = newFunc
 }
 
-func CreateBlockStore(name string, cfg Config, gmd GlobalMetadata) (BlockStore, error) {
-	clog.Infof("creating blockstore: %s", name)
-	return blockStores[name](cfg, gmd)
+func CreateBlockStore(kind string, name string, cfg Config, gmd GlobalMetadata) (BlockStore, error) {
+	clog.Infof("creating blockstore: %s", kind)
+	return blockStores[kind](name, cfg, gmd)
 }
 
 // INodeStore is the interface representing the standardized methods to
@@ -140,9 +167,18 @@ type INodeStore interface {
 	GetINode(ctx context.Context, i INodeRef) (*models.INode, error)
 	WriteINode(ctx context.Context, i INodeRef, inode *models.INode) error
 	DeleteINode(ctx context.Context, i INodeRef) error
+	INodeIterator() INodeIterator
+	ReplaceINodeStore(INodeStore) (INodeStore, error)
 }
 
-type NewINodeStoreFunc func(Config) (INodeStore, error)
+type INodeIterator interface {
+	Err() error
+	Next() bool
+	INodeRef() INodeRef
+	Close() error
+}
+
+type NewINodeStoreFunc func(string, Config) (INodeStore, error)
 
 var inodeStores map[string]NewINodeStoreFunc
 
@@ -158,7 +194,7 @@ func RegisterINodeStore(name string, newFunc NewINodeStoreFunc) {
 	inodeStores[name] = newFunc
 }
 
-func CreateINodeStore(name string, cfg Config) (INodeStore, error) {
-	clog.Infof("creating inode store: %s", name)
-	return inodeStores[name](cfg)
+func CreateINodeStore(kind string, name string, cfg Config) (INodeStore, error) {
+	clog.Infof("creating inode store: %s", kind)
+	return inodeStores[kind](name, cfg)
 }

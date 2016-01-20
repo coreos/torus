@@ -88,8 +88,11 @@ type MetadataService interface {
 	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
 	GetVolumes() ([]string, error)
 	GetVolumeID(volume string) (VolumeID, error)
+	GetVolumeName(vid VolumeID) (string, error)
 
 	CommitINodeIndex(volume string) (INodeID, error)
+	GetINodeIndex(volume string) (INodeID, error)
+	GetINodeIndexes() (map[string]INodeID, error)
 
 	Mkdir(path Path, dir *models.Directory) error
 	Getdir(path Path) (*models.Directory, []Path, error)
@@ -106,14 +109,18 @@ type MetadataService interface {
 	GetRing() (Ring, error)
 	SubscribeNewRings(chan Ring)
 	UnsubscribeNewRings(chan Ring)
+	SetRing(ring Ring, force bool) error
 
 	WithContext(ctx context.Context) MetadataService
 
 	// TODO(barakmich): THESE NEED A LEASE ID
 	RegisterPeer(*models.PeerInfo) error
 	ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error
+	OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, leader bool, err error)
 	// ^^^^^^^
 
+	SetRebalanceSnapshot(uint64, []byte) error
+	GetRebalanceSnapshot() (uint64, []byte, error)
 	ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error
 	GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error)
 

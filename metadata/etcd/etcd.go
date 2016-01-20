@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"strconv"
 	"sync"
 	"time"
 
@@ -23,8 +24,11 @@ import (
 	// do this, but we're vendoring the etcd proto definitions by hand. The alternative
 	// is to use *etcds vendored* version of grpc and net/context everywhere, which is
 	// horrifying. This might be helped by GO15VENDORING but we'll see.
-	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 )
+
+// Package rule for etcd keys: always put the static parts first, followed by
+// the variables. This makes range gets a lot easier.
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "etcd")
 
@@ -54,7 +58,7 @@ type etcd struct {
 	ringListeners []chan agro.Ring
 
 	conn *grpc.ClientConn
-	kv   pb.KVClient
+	kv   etcdpb.KVClient
 	uuid string
 }
 
@@ -68,7 +72,7 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	if err != nil {
 		return nil, err
 	}
-	client := pb.NewKVClient(conn)
+	client := etcdpb.NewKVClient(conn)
 
 	e := &etcd{
 		cfg:          cfg,
@@ -255,10 +259,12 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 	if err != nil {
 		return err
 	}
+	sID := strconv.FormatUint(newID.(uint64), 10)
 	do := tx().Do(
 		setKey(mkKey("volumes", volume), uint64ToBytes(newID.(uint64))),
-		setKey(mkKey("volumemeta", volume, "inode"), uint64ToBytes(1)),
-		setKey(mkKey("volumemeta", volume, "deadmap"), roaringToBytes(roaring.NewRoaringBitmap())),
+		setKey(mkKey("volumeid", sID), []byte(volume)),
+		setKey(mkKey("volumemeta", "inode", volume), uint64ToBytes(1)),
+		setKey(mkKey("volumemeta", "deadmap", volume), roaringToBytes(roaring.NewRoaringBitmap())),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
 	).Tx()
 	_, err = c.etcd.kv.Txn(c.getContext(), do)
@@ -302,17 +308,55 @@ func (c *etcdCtx) GetVolumeID(volume string) (agro.VolumeID, error) {
 	vid := agro.VolumeID(bytesToUint64(resp.Kvs[0].Value))
 	c.etcd.volumesCache[volume] = vid
 	return vid, nil
+}
 
+func (c *etcdCtx) GetVolumeName(vid agro.VolumeID) (string, error) {
+	s := strconv.FormatUint(uint64(vid), 10)
+	req := getKey(mkKey("volumeid", s))
+	resp, err := c.etcd.kv.Range(c.getContext(), req)
+	if err != nil {
+		return "", err
+	}
+	if len(resp.Kvs) == 0 {
+		return "", errors.New("etcd: no such volume exists")
+	}
+	return string(resp.Kvs[0].Value), nil
 }
 
 func (c *etcdCtx) CommitINodeIndex(volume string) (agro.INodeID, error) {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	newID, err := c.atomicModifyKey(mkKey("volumemeta", volume, "inode"), bytesAddOne)
+	newID, err := c.atomicModifyKey(mkKey("volumemeta", "inode", volume), bytesAddOne)
 	if err != nil {
 		return 0, err
 	}
 	return agro.INodeID(newID.(uint64)), nil
+}
+
+func (c *etcdCtx) GetINodeIndex(volume string) (agro.INodeID, error) {
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "inode", volume)))
+	if err != nil {
+		return agro.INodeID(0), err
+	}
+	if len(resp.Kvs) != 1 {
+		return agro.INodeID(0), agro.ErrNotExist
+	}
+	id := bytesToUint64(resp.Kvs[0].Value)
+	return agro.INodeID(id), nil
+}
+
+func (c *etcdCtx) GetINodeIndexes() (map[string]agro.INodeID, error) {
+	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "inode")))
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]agro.INodeID)
+	for _, kv := range resp.Kvs {
+		vol := path.Base(string(kv.Key))
+		id := bytesToUint64(kv.Value)
+		out[vol] = agro.INodeID(id)
+	}
+	return out, nil
 }
 
 func (c *etcdCtx) Mkdir(path agro.Path, dir *models.Directory) error {
@@ -409,8 +453,8 @@ func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
 
 func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
 	tx := tx().Do(
-		getKey(mkKey("volumemeta", volume, "deadmap")),
-		getPrefix(mkKey("volumemeta", volume, "open")),
+		getKey(mkKey("volumemeta", "deadmap", volume)),
+		getPrefix(mkKey("volumemeta", "open", volume)),
 	).Tx()
 	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if err != nil {
@@ -426,7 +470,7 @@ func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*r
 
 func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
 	// TODO(barakmich): LEASE
-	key := mkKey("volumemeta", volume, "open", c.UUID())
+	key := mkKey("volumemeta", "open", volume, c.UUID())
 	if inodes == nil {
 		_, err := c.etcd.kv.DeleteRange(c.getContext(), deleteKey(key))
 		return err
@@ -439,11 +483,29 @@ func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap
 }
 
 func (c *etcdCtx) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error {
-	_, err := c.atomicModifyKey(mkKey("volumemeta", volume, "deadmap"), func(b []byte) ([]byte, interface{}, error) {
+	_, err := c.atomicModifyKey(mkKey("volumemeta", "deadmap", volume), func(b []byte) ([]byte, interface{}, error) {
 		bm := bytesToRoaring(b)
 		bm.Or(dead)
 		bm.AndNot(live)
 		return roaringToBytes(bm), nil, nil
 	})
 	return err
+}
+
+func (c *etcdCtx) SetRing(ring agro.Ring, force bool) error {
+	b, err := ring.Marshal()
+	if err != nil {
+		return err
+	}
+	key := mkKey("meta", "the-new-ring")
+	if force {
+		key = mkKey("meta", "the-one-ring")
+	}
+	_, err = c.etcd.kv.Put(c.getContext(),
+		setKey(key, b))
+	if err != nil {
+		return err
+	}
+	return nil
+
 }

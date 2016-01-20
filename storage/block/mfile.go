@@ -3,7 +3,10 @@ package block
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
+
 	"runtime"
 	"sync"
 
@@ -29,6 +32,8 @@ type mfileBlock struct {
 	closed    bool
 	lastFree  int
 	size      uint64
+	dfilename string
+	mfilename string
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
@@ -62,10 +67,10 @@ func loadTrie(m *storage.MFile) (*iradix.Tree, uint64, error) {
 	return tx.Commit(), size, nil
 }
 
-func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
+func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
 	nBlocks := cfg.StorageSize / meta.BlockSize
-	dpath := filepath.Join(cfg.DataDir, "block", "data.blk")
-	mpath := filepath.Join(cfg.DataDir, "block", "map.blk")
+	dpath := filepath.Join(cfg.DataDir, "block", fmt.Sprintf("data-%s.blk", name))
+	mpath := filepath.Join(cfg.DataDir, "block", fmt.Sprintf("map-%s.blk", name))
 	d, err := storage.CreateOrOpenMFile(dpath, cfg.StorageSize, meta.BlockSize)
 	if err != nil {
 		return nil, err
@@ -86,9 +91,12 @@ func newMFileBlockStore(cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockSt
 		blockMap:  m,
 		blockTrie: trie,
 		size:      size,
+		dfilename: dpath,
+		mfilename: mpath,
 	}, nil
 }
 
+func (m *mfileBlock) Kind() string { return "mfile" }
 func (m *mfileBlock) NumBlocks() uint64 {
 	return m.data.NumBlocks()
 }
@@ -99,6 +107,7 @@ func (m *mfileBlock) UsedBlocks() uint64 {
 
 func (m *mfileBlock) Flush() error {
 	err := m.data.Flush()
+
 	if err != nil {
 		return err
 	}
@@ -112,6 +121,10 @@ func (m *mfileBlock) Flush() error {
 func (m *mfileBlock) Close() error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
+	return m.close()
+}
+
+func (m *mfileBlock) close() error {
 	m.Flush()
 	err := m.data.Close()
 	if err != nil {
@@ -245,5 +258,86 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	}
 	m.size = m.size - uint64(len(deleteList))
 	m.blockTrie = tx.Commit()
+	return nil
+}
+
+func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+	newM, ok := bs.(*mfileBlock)
+	if !ok {
+		return nil, errors.New("not replacing an mfileBlockStore")
+	}
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	newM.mut.Lock()
+	defer newM.mut.Unlock()
+	err := os.Remove(m.dfilename)
+	if err != nil {
+		return nil, err
+	}
+	err = os.Remove(m.mfilename)
+	if err != nil {
+		return nil, err
+	}
+	err = os.Rename(newM.mfilename, m.mfilename)
+	if err != nil {
+		return nil, err
+	}
+	err = os.Rename(newM.dfilename, m.dfilename)
+	if err != nil {
+		return nil, err
+	}
+	out := &mfileBlock{
+		data:      newM.data,
+		blockMap:  newM.blockMap,
+		blockTrie: newM.blockTrie,
+		lastFree:  newM.lastFree,
+		size:      newM.size,
+		dfilename: m.dfilename,
+		mfilename: m.mfilename,
+	}
+	newM.data = nil
+	newM.blockMap = nil
+	err = m.close()
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (m *mfileBlock) BlockIterator() agro.BlockIterator {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	return &mfileIterator{
+		tx: m.blockTrie.Txn(),
+	}
+}
+
+type mfileIterator struct {
+	tx     *iradix.Txn
+	err    error
+	it     *iradix.Iterator
+	result []byte
+}
+
+func (i *mfileIterator) Err() error { return i.err }
+
+func (i *mfileIterator) Next() bool {
+	if i.err != nil || i.tx == nil {
+		return false
+	}
+	if i.it == nil {
+		i.it = i.tx.Root().Iterator()
+	}
+	var ok bool
+	i.result, _, ok = i.it.Next()
+	return ok
+}
+
+func (i *mfileIterator) BlockRef() agro.BlockRef {
+	return agro.BlockRefFromBytes(i.result)
+}
+
+func (i *mfileIterator) Close() error {
+	i.tx = nil
 	return nil
 }

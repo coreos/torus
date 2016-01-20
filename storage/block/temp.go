@@ -1,6 +1,7 @@
 package block
 
 import (
+	"errors"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -20,7 +21,7 @@ type tempBlockStore struct {
 	nBlocks uint64
 }
 
-func openTempBlockStore(cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
+func openTempBlockStore(_ string, cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
 	return &tempBlockStore{
 		store: make(map[agro.BlockRef][]byte),
 		// TODO(barakmich): Currently we lie about the number of blocks.
@@ -29,6 +30,7 @@ func openTempBlockStore(cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockSto
 	}, nil
 }
 
+func (t *tempBlockStore) Kind() string { return "temp" }
 func (t *tempBlockStore) Flush() error { return nil }
 
 func (t *tempBlockStore) Close() error {
@@ -36,6 +38,13 @@ func (t *tempBlockStore) Close() error {
 	t.store = nil
 	t.mut.Unlock()
 	return nil
+}
+
+func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+	if v, ok := bs.(*tempBlockStore); ok {
+		return v, nil
+	}
+	return nil, errors.New("not a tempBlockStore")
 }
 
 func (t *tempBlockStore) NumBlocks() uint64 {
@@ -100,3 +109,35 @@ func (t *tempBlockStore) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) e
 	}
 	return nil
 }
+
+func (t *tempBlockStore) BlockIterator() agro.BlockIterator {
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+	var blocks []agro.BlockRef
+	for k := range t.store {
+		blocks = append(blocks, k)
+	}
+	return &tempIterator{
+		blocks: blocks,
+		index:  -1,
+	}
+}
+
+type tempIterator struct {
+	blocks []agro.BlockRef
+	index  int
+}
+
+func (i *tempIterator) Err() error { return nil }
+
+func (i *tempIterator) Next() bool {
+	i.index++
+	if i.index >= len(i.blocks) {
+		return false
+	}
+	return true
+}
+
+func (i *tempIterator) BlockRef() agro.BlockRef { return i.blocks[i.index] }
+
+func (i *tempIterator) Close() error { return nil }

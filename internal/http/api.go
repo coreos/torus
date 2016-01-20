@@ -7,8 +7,11 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
+	"github.com/coreos/pkg/capnslog"
 	"github.com/gin-gonic/gin"
 )
+
+var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "http")
 
 type Server struct {
 	router *gin.Engine
@@ -68,6 +71,7 @@ func (s *Server) putFile(c *gin.Context) {
 	defer f.Close()
 	_, err = io.Copy(f, c.Request.Body)
 	if err != nil {
+		clog.Error(err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))
 		return

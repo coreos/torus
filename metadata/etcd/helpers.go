@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"path"
 
-	pb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 	"github.com/coreos/agro/models"
 	"github.com/tgruben/roaring"
 )
@@ -54,29 +54,29 @@ func bytesToUint64(b []byte) uint64 {
 }
 
 type transact struct {
-	tx *pb.TxnRequest
+	tx *etcdpb.TxnRequest
 }
 
 func tx() *transact {
-	t := transact{&pb.TxnRequest{}}
+	t := transact{&etcdpb.TxnRequest{}}
 	return &t
 }
 
-func (t *transact) If(comps ...*pb.Compare) *transact {
+func (t *transact) If(comps ...*etcdpb.Compare) *transact {
 	t.tx.Compare = comps
 	return t
 }
 
-func requestUnion(comps ...interface{}) []*pb.RequestUnion {
-	var out []*pb.RequestUnion
+func requestUnion(comps ...interface{}) []*etcdpb.RequestUnion {
+	var out []*etcdpb.RequestUnion
 	for _, v := range comps {
 		switch m := v.(type) {
-		case *pb.RangeRequest:
-			out = append(out, &pb.RequestUnion{&pb.RequestUnion_RequestRange{RequestRange: m}})
-		case *pb.PutRequest:
-			out = append(out, &pb.RequestUnion{&pb.RequestUnion_RequestPut{RequestPut: m}})
-		case *pb.DeleteRangeRequest:
-			out = append(out, &pb.RequestUnion{&pb.RequestUnion_RequestDeleteRange{RequestDeleteRange: m}})
+		case *etcdpb.RangeRequest:
+			out = append(out, &etcdpb.RequestUnion{&etcdpb.RequestUnion_RequestRange{RequestRange: m}})
+		case *etcdpb.PutRequest:
+			out = append(out, &etcdpb.RequestUnion{&etcdpb.RequestUnion_RequestPut{RequestPut: m}})
+		case *etcdpb.DeleteRangeRequest:
+			out = append(out, &etcdpb.RequestUnion{&etcdpb.RequestUnion_RequestDeleteRange{RequestDeleteRange: m}})
 		default:
 			panic("cannot create this request option within a requestUnion")
 		}
@@ -100,78 +100,78 @@ func (t *transact) Else(comps ...interface{}) *transact {
 	return t
 }
 
-func (t *transact) Tx() *pb.TxnRequest {
+func (t *transact) Tx() *etcdpb.TxnRequest {
 	return t.tx
 }
 
-func keyEquals(key []byte, value []byte) *pb.Compare {
-	return &pb.Compare{
-		Target: pb.Compare_VALUE,
+func keyEquals(key []byte, value []byte) *etcdpb.Compare {
+	return &etcdpb.Compare{
+		Target: etcdpb.Compare_VALUE,
 		Key:    key,
-		Result: pb.Compare_EQUAL,
-		TargetUnion: &pb.Compare_Value{
+		Result: etcdpb.Compare_EQUAL,
+		TargetUnion: &etcdpb.Compare_Value{
 			Value: value,
 		},
 	}
 }
 
-func keyExists(key []byte) *pb.Compare {
-	return &pb.Compare{
-		Target: pb.Compare_VERSION,
-		Result: pb.Compare_GREATER,
+func keyExists(key []byte) *etcdpb.Compare {
+	return &etcdpb.Compare{
+		Target: etcdpb.Compare_VERSION,
+		Result: etcdpb.Compare_GREATER,
 		Key:    key,
-		TargetUnion: &pb.Compare_Version{
+		TargetUnion: &etcdpb.Compare_Version{
 			Version: 0,
 		},
 	}
 }
 
-func keyNotExists(key []byte) *pb.Compare {
-	return &pb.Compare{
-		Target: pb.Compare_VERSION,
-		Result: pb.Compare_LESS,
+func keyNotExists(key []byte) *etcdpb.Compare {
+	return &etcdpb.Compare{
+		Target: etcdpb.Compare_VERSION,
+		Result: etcdpb.Compare_LESS,
 		Key:    key,
-		TargetUnion: &pb.Compare_Version{
+		TargetUnion: &etcdpb.Compare_Version{
 			Version: 1,
 		},
 	}
 }
 
-func keyIsVersion(key []byte, version int64) *pb.Compare {
-	return &pb.Compare{
-		Target: pb.Compare_VERSION,
-		Result: pb.Compare_EQUAL,
+func keyIsVersion(key []byte, version int64) *etcdpb.Compare {
+	return &etcdpb.Compare{
+		Target: etcdpb.Compare_VERSION,
+		Result: etcdpb.Compare_EQUAL,
 		Key:    key,
-		TargetUnion: &pb.Compare_Version{
+		TargetUnion: &etcdpb.Compare_Version{
 			Version: version,
 		},
 	}
 }
 
-func setKey(key []byte, value []byte) *pb.PutRequest {
-	return &pb.PutRequest{
+func setKey(key []byte, value []byte) *etcdpb.PutRequest {
+	return &etcdpb.PutRequest{
 		Key:   key,
 		Value: value,
 	}
 }
 
-func deleteKey(key []byte) *pb.DeleteRangeRequest {
-	return &pb.DeleteRangeRequest{
+func deleteKey(key []byte) *etcdpb.DeleteRangeRequest {
+	return &etcdpb.DeleteRangeRequest{
 		Key: key,
 	}
 }
 
-func getKey(key []byte) *pb.RangeRequest {
-	return &pb.RangeRequest{
+func getKey(key []byte) *etcdpb.RangeRequest {
+	return &etcdpb.RangeRequest{
 		Key: key,
 	}
 }
 
-func getPrefix(key []byte) *pb.RangeRequest {
+func getPrefix(key []byte) *etcdpb.RangeRequest {
 	end := make([]byte, len(key))
 	copy(end, key)
 	end[len(end)-1]++
-	return &pb.RangeRequest{
+	return &etcdpb.RangeRequest{
 		Key:      key,
 		RangeEnd: end,
 	}

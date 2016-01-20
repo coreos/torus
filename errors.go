@@ -28,6 +28,9 @@ var (
 	// ErrExists is returned if the entity already exists
 	ErrExists = errors.New("agro: already exists")
 
+	// ErrNotExist is returned if the entity doesn't already exist
+	ErrNotExist = errors.New("agro: doesn't exist")
+
 	// ErrAgain is returned if the operation was interrupted. The call was valid, and
 	// may be tried again.
 	ErrAgain = errors.New("agro: interrupted, try again")
@@ -37,4 +40,7 @@ var (
 
 	// ErrNonSequentialRing is returned if the ring's internal version number appears to jump.
 	ErrNonSequentialRing = errors.New("agro: non-sequential ring")
+
+	// ErrNoPeer is returned if the peer can't be found.
+	ErrNoPeer = errors.New("agro: no such peer")
 )

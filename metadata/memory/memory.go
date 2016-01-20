@@ -38,13 +38,17 @@ type memory struct {
 	inodes map[string]agro.INodeID
 	vol    agro.VolumeID
 
-	tree       *iradix.Tree
-	volIndex   map[string]agro.VolumeID
-	global     agro.GlobalMetadata
-	cfg        agro.Config
-	uuid       string
-	openINodes map[string]*roaring.RoaringBitmap
-	deadMap    map[string]*roaring.RoaringBitmap
+	tree              *iradix.Tree
+	volIndex          map[string]agro.VolumeID
+	global            agro.GlobalMetadata
+	cfg               agro.Config
+	uuid              string
+	openINodes        map[string]*roaring.RoaringBitmap
+	deadMap           map[string]*roaring.RoaringBitmap
+	rebalanceKind     uint64
+	rebalanceSnapshot []byte
+	ring              agro.Ring
+	ringWatchers      []chan agro.Ring
 }
 
 func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
@@ -56,6 +60,14 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	if err == nil {
 		t.uuid = uuid
 		return t, nil
+	}
+	ring, err := ring.CreateRing(&models.Ring{
+		Type:    uint32(ring.Single),
+		Version: 1,
+		UUIDs:   []string{uuid},
+	})
+	if err != nil {
+		return nil, err
 	}
 	clog.Info("single: couldn't parse metadata: ", err)
 	return &memory{
@@ -71,6 +83,7 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		uuid:       uuid,
 		openINodes: make(map[string]*roaring.RoaringBitmap),
 		deadMap:    make(map[string]*roaring.RoaringBitmap),
+		ring:       ring,
 	}, nil
 }
 
@@ -120,6 +133,22 @@ func (s *memory) CommitINodeIndex(vol string) (agro.INodeID, error) {
 	defer s.mut.Unlock()
 	s.inodes[vol]++
 	return s.inodes[vol], nil
+}
+
+func (s *memory) GetINodeIndex(volume string) (agro.INodeID, error) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	return s.inodes[volume], nil
+}
+
+func (s *memory) GetINodeIndexes() (map[string]agro.INodeID, error) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	out := make(map[string]agro.INodeID)
+	for k, v := range s.inodes {
+		out[k] = v
+	}
+	return out, nil
 }
 
 func (s *memory) Mkdir(p agro.Path, dir *models.Directory) error {
@@ -263,6 +292,19 @@ func (s *memory) GetVolumes() ([]string, error) {
 	return out, nil
 }
 
+func (s *memory) GetVolumeName(vid agro.VolumeID) (string, error) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
+	for k, v := range s.volIndex {
+		if v == vid {
+			return k, nil
+		}
+	}
+	return "", errors.New("memory: no such volume exists")
+
+}
+
 func (s *memory) GetVolumeID(volume string) (agro.VolumeID, error) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
@@ -274,19 +316,30 @@ func (s *memory) GetVolumeID(volume string) (agro.VolumeID, error) {
 }
 
 func (s *memory) GetRing() (agro.Ring, error) {
-	return ring.CreateRing(&models.Ring{
-		Type:    uint32(ring.Single),
-		Version: 1,
-		UUIDs:   []string{s.uuid},
-	})
+	return s.ring, nil
 }
 
 func (s *memory) SubscribeNewRings(ch chan agro.Ring) {
-	close(ch)
+	s.ringWatchers = append(s.ringWatchers, ch)
 }
 
 func (s *memory) UnsubscribeNewRings(ch chan agro.Ring) {
-	// Kay. We unsubscribed you already.
+	for i, c := range s.ringWatchers {
+		if c == ch {
+			s.ringWatchers = append(s.ringWatchers[:i], s.ringWatchers[i+1:]...)
+		}
+	}
+}
+
+func (s *memory) SetRing(newring agro.Ring, _ bool) error {
+	if newring.Type() != ring.Single {
+		return errors.New("invalid ring type for memory mds (must be Single)")
+	}
+	s.ring = newring
+	for _, c := range s.ringWatchers {
+		c <- newring
+	}
+	return nil
 }
 
 func (s *memory) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
@@ -304,6 +357,33 @@ func (s *memory) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead 
 	s.deadMap[volume] = x
 	return nil
 }
+
+func (s *memory) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
+	toC := make(chan *models.RebalanceStatus)
+	fromC := make(chan *models.RebalanceStatus)
+	go func() {
+		for {
+			d, ok := <-fromC
+			if !ok {
+				close(toC)
+				break
+			}
+			toC <- d
+		}
+
+	}()
+	return [2]chan *models.RebalanceStatus{toC, fromC}, true, nil
+}
+
+func (s *memory) SetRebalanceSnapshot(kind uint64, data []byte) error {
+	s.rebalanceKind = kind
+	s.rebalanceSnapshot = data
+	return nil
+}
+func (s *memory) GetRebalanceSnapshot() (uint64, []byte, error) {
+	return s.rebalanceKind, s.rebalanceSnapshot, nil
+}
+
 func (s *memory) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
 	x, ok := s.deadMap[volume]
 	if !ok {

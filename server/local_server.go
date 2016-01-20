@@ -32,13 +32,13 @@ func mkdirsFor(dir string) error {
 	return nil
 }
 
-func NewServer(cfg agro.Config, metadataServiceName, inodeStoreName, blockStoreName string) (agro.Server, error) {
+func NewServer(cfg agro.Config, metadataServiceKind, inodeStoreKind, blockStoreKind string) (agro.Server, error) {
 	err := mkdirsFor(cfg.DataDir)
 	if err != nil {
 		return nil, err
 	}
 
-	mds, err := agro.CreateMetadataService(metadataServiceName, cfg)
+	mds, err := agro.CreateMetadataService(metadataServiceKind, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -48,12 +48,12 @@ func NewServer(cfg agro.Config, metadataServiceName, inodeStoreName, blockStoreN
 		return nil, err
 	}
 
-	inodes, err := agro.CreateINodeStore(inodeStoreName, cfg)
+	inodes, err := agro.CreateINodeStore(inodeStoreKind, "current", cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	blocks, err := agro.CreateBlockStore(blockStoreName, cfg, global)
+	blocks, err := agro.CreateBlockStore(blockStoreKind, "current", cfg, global)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +64,7 @@ func NewServer(cfg agro.Config, metadataServiceName, inodeStoreName, blockStoreN
 		inodes:        inodes,
 		peersMap:      make(map[string]*models.PeerInfo),
 		openINodeRefs: make(map[string]map[agro.INodeID]int),
+		cfg:           cfg,
 		gc:            gc.NewGCController(mds, blocks),
 	}
 	s.gc.Start()

@@ -138,6 +138,268 @@ func (m *PutResponse) Reset()         { *m = PutResponse{} }
 func (m *PutResponse) String() string { return proto.CompactTextString(m) }
 func (*PutResponse) ProtoMessage()    {}
 
+type RebalanceRequest struct {
+	// Types that are valid to be assigned to Subrequest:
+	//	*RebalanceRequest_BlockRequest
+	//	*RebalanceRequest_PutBlockRequest
+	//	*RebalanceRequest_INodeRequest
+	//	*RebalanceRequest_PutINodeRequest
+	Subrequest    isRebalanceRequest_Subrequest `protobuf_oneof:"subrequest"`
+	Phase         int32                         `protobuf:"varint,5,opt,name=phase,proto3" json:"phase,omitempty"`
+	UUID          string                        `protobuf:"bytes,6,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	RebalanceData []byte                        `protobuf:"bytes,7,opt,name=rebalance_data,proto3" json:"rebalance_data,omitempty"`
+}
+
+func (m *RebalanceRequest) Reset()         { *m = RebalanceRequest{} }
+func (m *RebalanceRequest) String() string { return proto.CompactTextString(m) }
+func (*RebalanceRequest) ProtoMessage()    {}
+
+type isRebalanceRequest_Subrequest interface {
+	isRebalanceRequest_Subrequest()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type RebalanceRequest_BlockRequest struct {
+	BlockRequest *BlockRequest `protobuf:"bytes,1,opt,name=block_request,oneof"`
+}
+type RebalanceRequest_PutBlockRequest struct {
+	PutBlockRequest *PutBlockRequest `protobuf:"bytes,2,opt,name=put_block_request,oneof"`
+}
+type RebalanceRequest_INodeRequest struct {
+	INodeRequest *INodeRequest `protobuf:"bytes,3,opt,name=inode_request,oneof"`
+}
+type RebalanceRequest_PutINodeRequest struct {
+	PutINodeRequest *PutINodeRequest `protobuf:"bytes,4,opt,name=put_inode_request,oneof"`
+}
+
+func (*RebalanceRequest_BlockRequest) isRebalanceRequest_Subrequest()    {}
+func (*RebalanceRequest_PutBlockRequest) isRebalanceRequest_Subrequest() {}
+func (*RebalanceRequest_INodeRequest) isRebalanceRequest_Subrequest()    {}
+func (*RebalanceRequest_PutINodeRequest) isRebalanceRequest_Subrequest() {}
+
+func (m *RebalanceRequest) GetSubrequest() isRebalanceRequest_Subrequest {
+	if m != nil {
+		return m.Subrequest
+	}
+	return nil
+}
+
+func (m *RebalanceRequest) GetBlockRequest() *BlockRequest {
+	if x, ok := m.GetSubrequest().(*RebalanceRequest_BlockRequest); ok {
+		return x.BlockRequest
+	}
+	return nil
+}
+
+func (m *RebalanceRequest) GetPutBlockRequest() *PutBlockRequest {
+	if x, ok := m.GetSubrequest().(*RebalanceRequest_PutBlockRequest); ok {
+		return x.PutBlockRequest
+	}
+	return nil
+}
+
+func (m *RebalanceRequest) GetINodeRequest() *INodeRequest {
+	if x, ok := m.GetSubrequest().(*RebalanceRequest_INodeRequest); ok {
+		return x.INodeRequest
+	}
+	return nil
+}
+
+func (m *RebalanceRequest) GetPutINodeRequest() *PutINodeRequest {
+	if x, ok := m.GetSubrequest().(*RebalanceRequest_PutINodeRequest); ok {
+		return x.PutINodeRequest
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*RebalanceRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
+	return _RebalanceRequest_OneofMarshaler, _RebalanceRequest_OneofUnmarshaler, []interface{}{
+		(*RebalanceRequest_BlockRequest)(nil),
+		(*RebalanceRequest_PutBlockRequest)(nil),
+		(*RebalanceRequest_INodeRequest)(nil),
+		(*RebalanceRequest_PutINodeRequest)(nil),
+	}
+}
+
+func _RebalanceRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*RebalanceRequest)
+	// subrequest
+	switch x := m.Subrequest.(type) {
+	case *RebalanceRequest_BlockRequest:
+		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.BlockRequest); err != nil {
+			return err
+		}
+	case *RebalanceRequest_PutBlockRequest:
+		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.PutBlockRequest); err != nil {
+			return err
+		}
+	case *RebalanceRequest_INodeRequest:
+		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.INodeRequest); err != nil {
+			return err
+		}
+	case *RebalanceRequest_PutINodeRequest:
+		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.PutINodeRequest); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("RebalanceRequest.Subrequest has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _RebalanceRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*RebalanceRequest)
+	switch tag {
+	case 1: // subrequest.block_request
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(BlockRequest)
+		err := b.DecodeMessage(msg)
+		m.Subrequest = &RebalanceRequest_BlockRequest{msg}
+		return true, err
+	case 2: // subrequest.put_block_request
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(PutBlockRequest)
+		err := b.DecodeMessage(msg)
+		m.Subrequest = &RebalanceRequest_PutBlockRequest{msg}
+		return true, err
+	case 3: // subrequest.inode_request
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(INodeRequest)
+		err := b.DecodeMessage(msg)
+		m.Subrequest = &RebalanceRequest_INodeRequest{msg}
+		return true, err
+	case 4: // subrequest.put_inode_request
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(PutINodeRequest)
+		err := b.DecodeMessage(msg)
+		m.Subrequest = &RebalanceRequest_PutINodeRequest{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+type RebalanceResponse struct {
+	Ok  bool   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Err string `protobuf:"bytes,2,opt,name=err,proto3" json:"err,omitempty"`
+	// Types that are valid to be assigned to Subresponse:
+	//	*RebalanceResponse_BlockResponse
+	//	*RebalanceResponse_INodeRepsonse
+	Subresponse   isRebalanceResponse_Subresponse `protobuf_oneof:"subresponse"`
+	Phase         int32                           `protobuf:"varint,5,opt,name=phase,proto3" json:"phase,omitempty"`
+	UUID          string                          `protobuf:"bytes,6,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	RebalanceData []byte                          `protobuf:"bytes,7,opt,name=rebalance_data,proto3" json:"rebalance_data,omitempty"`
+}
+
+func (m *RebalanceResponse) Reset()         { *m = RebalanceResponse{} }
+func (m *RebalanceResponse) String() string { return proto.CompactTextString(m) }
+func (*RebalanceResponse) ProtoMessage()    {}
+
+type isRebalanceResponse_Subresponse interface {
+	isRebalanceResponse_Subresponse()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type RebalanceResponse_BlockResponse struct {
+	BlockResponse *BlockResponse `protobuf:"bytes,3,opt,name=block_response,oneof"`
+}
+type RebalanceResponse_INodeRepsonse struct {
+	INodeRepsonse *INodeResponse `protobuf:"bytes,4,opt,name=inode_response,oneof"`
+}
+
+func (*RebalanceResponse_BlockResponse) isRebalanceResponse_Subresponse() {}
+func (*RebalanceResponse_INodeRepsonse) isRebalanceResponse_Subresponse() {}
+
+func (m *RebalanceResponse) GetSubresponse() isRebalanceResponse_Subresponse {
+	if m != nil {
+		return m.Subresponse
+	}
+	return nil
+}
+
+func (m *RebalanceResponse) GetBlockResponse() *BlockResponse {
+	if x, ok := m.GetSubresponse().(*RebalanceResponse_BlockResponse); ok {
+		return x.BlockResponse
+	}
+	return nil
+}
+
+func (m *RebalanceResponse) GetINodeRepsonse() *INodeResponse {
+	if x, ok := m.GetSubresponse().(*RebalanceResponse_INodeRepsonse); ok {
+		return x.INodeRepsonse
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*RebalanceResponse) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
+	return _RebalanceResponse_OneofMarshaler, _RebalanceResponse_OneofUnmarshaler, []interface{}{
+		(*RebalanceResponse_BlockResponse)(nil),
+		(*RebalanceResponse_INodeRepsonse)(nil),
+	}
+}
+
+func _RebalanceResponse_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*RebalanceResponse)
+	// subresponse
+	switch x := m.Subresponse.(type) {
+	case *RebalanceResponse_BlockResponse:
+		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.BlockResponse); err != nil {
+			return err
+		}
+	case *RebalanceResponse_INodeRepsonse:
+		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.INodeRepsonse); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("RebalanceResponse.Subresponse has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _RebalanceResponse_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*RebalanceResponse)
+	switch tag {
+	case 3: // subresponse.block_response
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(BlockResponse)
+		err := b.DecodeMessage(msg)
+		m.Subresponse = &RebalanceResponse_BlockResponse{msg}
+		return true, err
+	case 4: // subresponse.inode_response
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(INodeResponse)
+		err := b.DecodeMessage(msg)
+		m.Subresponse = &RebalanceResponse_INodeRepsonse{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
 func init() {
 	proto.RegisterType((*Block)(nil), "models.Block")
 	proto.RegisterType((*BlockRequest)(nil), "models.BlockRequest")
@@ -147,6 +409,8 @@ func init() {
 	proto.RegisterType((*PutBlockRequest)(nil), "models.PutBlockRequest")
 	proto.RegisterType((*PutINodeRequest)(nil), "models.PutINodeRequest")
 	proto.RegisterType((*PutResponse)(nil), "models.PutResponse")
+	proto.RegisterType((*RebalanceRequest)(nil), "models.RebalanceRequest")
+	proto.RegisterType((*RebalanceResponse)(nil), "models.RebalanceResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -160,6 +424,7 @@ type AgroStorageClient interface {
 	INode(ctx context.Context, in *INodeRequest, opts ...grpc.CallOption) (*INodeResponse, error)
 	PutBlock(ctx context.Context, in *PutBlockRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	PutINode(ctx context.Context, in *PutINodeRequest, opts ...grpc.CallOption) (*PutResponse, error)
+	RebalanceMessage(ctx context.Context, in *RebalanceRequest, opts ...grpc.CallOption) (*RebalanceResponse, error)
 }
 
 type agroStorageClient struct {
@@ -206,6 +471,15 @@ func (c *agroStorageClient) PutINode(ctx context.Context, in *PutINodeRequest, o
 	return out, nil
 }
 
+func (c *agroStorageClient) RebalanceMessage(ctx context.Context, in *RebalanceRequest, opts ...grpc.CallOption) (*RebalanceResponse, error) {
+	out := new(RebalanceResponse)
+	err := grpc.Invoke(ctx, "/models.AgroStorage/RebalanceMessage", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for AgroStorage service
 
 type AgroStorageServer interface {
@@ -213,6 +487,7 @@ type AgroStorageServer interface {
 	INode(context.Context, *INodeRequest) (*INodeResponse, error)
 	PutBlock(context.Context, *PutBlockRequest) (*PutResponse, error)
 	PutINode(context.Context, *PutINodeRequest) (*PutResponse, error)
+	RebalanceMessage(context.Context, *RebalanceRequest) (*RebalanceResponse, error)
 }
 
 func RegisterAgroStorageServer(s *grpc.Server, srv AgroStorageServer) {
@@ -267,6 +542,18 @@ func _AgroStorage_PutINode_Handler(srv interface{}, ctx context.Context, dec fun
 	return out, nil
 }
 
+func _AgroStorage_RebalanceMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+	in := new(RebalanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	out, err := srv.(AgroStorageServer).RebalanceMessage(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 var _AgroStorage_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "models.AgroStorage",
 	HandlerType: (*AgroStorageServer)(nil),
@@ -286,6 +573,10 @@ var _AgroStorage_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PutINode",
 			Handler:    _AgroStorage_PutINode_Handler,
+		},
+		{
+			MethodName: "RebalanceMessage",
+			Handler:    _AgroStorage_RebalanceMessage_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{},
@@ -561,6 +852,194 @@ func (m *PutResponse) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
+func (m *RebalanceRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *RebalanceRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Subrequest != nil {
+		nn1, err := m.Subrequest.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += nn1
+	}
+	if m.Phase != 0 {
+		data[i] = 0x28
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.Phase))
+	}
+	if len(m.UUID) > 0 {
+		data[i] = 0x32
+		i++
+		i = encodeVarintRpc(data, i, uint64(len(m.UUID)))
+		i += copy(data[i:], m.UUID)
+	}
+	if m.RebalanceData != nil {
+		if len(m.RebalanceData) > 0 {
+			data[i] = 0x3a
+			i++
+			i = encodeVarintRpc(data, i, uint64(len(m.RebalanceData)))
+			i += copy(data[i:], m.RebalanceData)
+		}
+	}
+	return i, nil
+}
+
+func (m *RebalanceRequest_BlockRequest) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.BlockRequest != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.BlockRequest.Size()))
+		n2, err := m.BlockRequest.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n2
+	}
+	return i, nil
+}
+func (m *RebalanceRequest_PutBlockRequest) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.PutBlockRequest != nil {
+		data[i] = 0x12
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.PutBlockRequest.Size()))
+		n3, err := m.PutBlockRequest.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n3
+	}
+	return i, nil
+}
+func (m *RebalanceRequest_INodeRequest) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.INodeRequest != nil {
+		data[i] = 0x1a
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.INodeRequest.Size()))
+		n4, err := m.INodeRequest.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n4
+	}
+	return i, nil
+}
+func (m *RebalanceRequest_PutINodeRequest) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.PutINodeRequest != nil {
+		data[i] = 0x22
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.PutINodeRequest.Size()))
+		n5, err := m.PutINodeRequest.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n5
+	}
+	return i, nil
+}
+func (m *RebalanceResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *RebalanceResponse) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Ok {
+		data[i] = 0x8
+		i++
+		if m.Ok {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
+	if len(m.Err) > 0 {
+		data[i] = 0x12
+		i++
+		i = encodeVarintRpc(data, i, uint64(len(m.Err)))
+		i += copy(data[i:], m.Err)
+	}
+	if m.Subresponse != nil {
+		nn6, err := m.Subresponse.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += nn6
+	}
+	if m.Phase != 0 {
+		data[i] = 0x28
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.Phase))
+	}
+	if len(m.UUID) > 0 {
+		data[i] = 0x32
+		i++
+		i = encodeVarintRpc(data, i, uint64(len(m.UUID)))
+		i += copy(data[i:], m.UUID)
+	}
+	if m.RebalanceData != nil {
+		if len(m.RebalanceData) > 0 {
+			data[i] = 0x3a
+			i++
+			i = encodeVarintRpc(data, i, uint64(len(m.RebalanceData)))
+			i += copy(data[i:], m.RebalanceData)
+		}
+	}
+	return i, nil
+}
+
+func (m *RebalanceResponse_BlockResponse) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.BlockResponse != nil {
+		data[i] = 0x1a
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.BlockResponse.Size()))
+		n7, err := m.BlockResponse.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n7
+	}
+	return i, nil
+}
+func (m *RebalanceResponse_INodeRepsonse) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.INodeRepsonse != nil {
+		data[i] = 0x22
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.INodeRepsonse.Size()))
+		n8, err := m.INodeRepsonse.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n8
+	}
+	return i, nil
+}
 func encodeFixed64Rpc(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -695,6 +1174,112 @@ func (m *PutResponse) Size() (n int) {
 	}
 	l = len(m.Err)
 	if l > 0 {
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+
+func (m *RebalanceRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.Subrequest != nil {
+		n += m.Subrequest.Size()
+	}
+	if m.Phase != 0 {
+		n += 1 + sovRpc(uint64(m.Phase))
+	}
+	l = len(m.UUID)
+	if l > 0 {
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	if m.RebalanceData != nil {
+		l = len(m.RebalanceData)
+		if l > 0 {
+			n += 1 + l + sovRpc(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *RebalanceRequest_BlockRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.BlockRequest != nil {
+		l = m.BlockRequest.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+func (m *RebalanceRequest_PutBlockRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.PutBlockRequest != nil {
+		l = m.PutBlockRequest.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+func (m *RebalanceRequest_INodeRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.INodeRequest != nil {
+		l = m.INodeRequest.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+func (m *RebalanceRequest_PutINodeRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.PutINodeRequest != nil {
+		l = m.PutINodeRequest.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+func (m *RebalanceResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Ok {
+		n += 2
+	}
+	l = len(m.Err)
+	if l > 0 {
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	if m.Subresponse != nil {
+		n += m.Subresponse.Size()
+	}
+	if m.Phase != 0 {
+		n += 1 + sovRpc(uint64(m.Phase))
+	}
+	l = len(m.UUID)
+	if l > 0 {
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	if m.RebalanceData != nil {
+		l = len(m.RebalanceData)
+		if l > 0 {
+			n += 1 + l + sovRpc(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *RebalanceResponse_BlockResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.BlockResponse != nil {
+		l = m.BlockResponse.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+func (m *RebalanceResponse_INodeRepsonse) Size() (n int) {
+	var l int
+	_ = l
+	if m.INodeRepsonse != nil {
+		l = m.INodeRepsonse.Size()
 		n += 1 + l + sovRpc(uint64(l))
 	}
 	return n
@@ -1434,6 +2019,499 @@ func (m *PutResponse) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Err = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RebalanceRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RebalanceRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RebalanceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BlockRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &BlockRequest{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Subrequest = &RebalanceRequest_BlockRequest{v}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PutBlockRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &PutBlockRequest{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Subrequest = &RebalanceRequest_PutBlockRequest{v}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field INodeRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &INodeRequest{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Subrequest = &RebalanceRequest_INodeRequest{v}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PutINodeRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &PutINodeRequest{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Subrequest = &RebalanceRequest_PutINodeRequest{v}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Phase", wireType)
+			}
+			m.Phase = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Phase |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UUID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.UUID = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RebalanceData", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RebalanceData = append([]byte{}, data[iNdEx:postIndex]...)
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RebalanceResponse) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RebalanceResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RebalanceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Ok", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Ok = bool(v != 0)
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Err", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Err = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BlockResponse", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &BlockResponse{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Subresponse = &RebalanceResponse_BlockResponse{v}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field INodeRepsonse", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &INodeResponse{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Subresponse = &RebalanceResponse_INodeRepsonse{v}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Phase", wireType)
+			}
+			m.Phase = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Phase |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UUID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.UUID = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RebalanceData", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RebalanceData = append([]byte{}, data[iNdEx:postIndex]...)
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
