@@ -262,14 +262,14 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 }
 
 func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
-	new, ok := bs.(*mfileBlock)
+	newM, ok := bs.(*mfileBlock)
 	if !ok {
 		return nil, errors.New("not replacing an mfileBlockStore")
 	}
 	m.mut.Lock()
 	defer m.mut.Unlock()
-	new.mut.Lock()
-	defer new.mut.Unlock()
+	newM.mut.Lock()
+	defer newM.mut.Unlock()
 	err := os.Remove(m.dfilename)
 	if err != nil {
 		return nil, err
@@ -278,25 +278,25 @@ func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, err
 	if err != nil {
 		return nil, err
 	}
-	err = os.Rename(new.mfilename, m.mfilename)
+	err = os.Rename(newM.mfilename, m.mfilename)
 	if err != nil {
 		return nil, err
 	}
-	err = os.Rename(new.dfilename, m.dfilename)
+	err = os.Rename(newM.dfilename, m.dfilename)
 	if err != nil {
 		return nil, err
 	}
 	out := &mfileBlock{
-		data:      new.data,
-		blockMap:  new.blockMap,
-		blockTrie: new.blockTrie,
-		lastFree:  new.lastFree,
-		size:      new.size,
+		data:      newM.data,
+		blockMap:  newM.blockMap,
+		blockTrie: newM.blockTrie,
+		lastFree:  newM.lastFree,
+		size:      newM.size,
 		dfilename: m.dfilename,
 		mfilename: m.mfilename,
 	}
-	new.data = nil
-	new.blockMap = nil
+	newM.data = nil
+	newM.blockMap = nil
 	err = m.close()
 	if err != nil {
 		return nil, err

@@ -21,6 +21,18 @@ func init() {
 	}
 }
 
+type fullPhase int32
+
+const (
+	fullStateNull    fullPhase = 0
+	fullStateError   fullPhase = -1
+	fullStatePrepare fullPhase = iota
+	fullStateUnion
+	fullStateCopyBlock
+	fullStateCopyINode
+	fullStateReplaceAndContinue
+)
+
 type full struct {
 	d        *distributor
 	oldRing  agro.Ring
@@ -31,71 +43,76 @@ type full struct {
 	store    *unionStorage
 }
 
-func (f *full) leaderMessage(phase int32) *models.RebalanceStatus {
+func (f *full) leaderMessage(phase fullPhase) *models.RebalanceStatus {
 	s := f.makeMessage(phase)
 	s.FromLeader = true
 	return s
 }
 
-func (f *full) makeMessage(phase int32) *models.RebalanceStatus {
+func (f *full) makeMessage(phase fullPhase) *models.RebalanceStatus {
 	return &models.RebalanceStatus{
 		RebalanceType: int32(Full),
-		Phase:         phase,
+		Phase:         int32(phase),
 		UUID:          f.d.UUID(),
 	}
 }
 
-func (f *full) abort(out chan *models.RebalanceStatus, phase int32, err error) {
+func (f *full) abort(out chan *models.RebalanceStatus, phase fullPhase, err error) {
 	rlog.Error(err)
 	rlog.Errorf("state %d, safe to abort", phase)
-	out <- f.leaderMessage(-1)
+	out <- f.leaderMessage(fullStateError)
 	f.Timeout()
+}
+
+func (f *full) waitAll(c chan *models.RebalanceStatus, phase fullPhase) error {
+	return waitAll(c, f.newRing, int32(phase))
 }
 
 func (f *full) Leader(inOut [2]chan *models.RebalanceStatus) {
 	rlog.Info("full: starting full rebalance")
 	in, out := inOut[0], inOut[1]
 	// Phase 1: Everyone stop printing inodes.
-	out <- f.leaderMessage(1)
-	f.doState(1)
-	waitAll(in, f.newRing, 1)
+	out <- f.leaderMessage(fullStatePrepare)
+	f.doState(fullStatePrepare)
+	f.waitAll(in, fullStatePrepare)
 	// Phase 2: Capture the inode map, save it as the rebalance state.
 	//          Everyone else grabs this, injects, and goes again.
 	rlog.Info("full: capturing inode map")
 	state, err := f.d.srv.mds.GetINodeIndexes()
 	if err != nil {
-		f.abort(out, 1, err)
+		f.abort(out, fullStatePrepare, err)
 		return
 	}
 	b, err := json.Marshal(state)
 	if err != nil {
-		f.abort(out, 1, err)
+		f.abort(out, fullStatePrepare, err)
 		return
 	}
 	err = f.d.srv.mds.SetRebalanceSnapshot(uint64(Replace), b)
-	out <- f.leaderMessage(2)
-	f.doState(2)
-	waitAll(in, f.newRing, 2)
+	out <- f.leaderMessage(fullStateUnion)
+	f.doState(fullStateUnion)
+	f.waitAll(in, fullStateUnion)
 	// Phase 3: Begin copying blocks! (Until complete)
 	rlog.Info("full: copying blocks")
-	out <- f.leaderMessage(3)
-	f.doState(3)
-	waitAll(in, f.newRing, 3)
+	out <- f.leaderMessage(fullStateCopyBlock)
+	f.doState(fullStateCopyBlock)
+	f.waitAll(in, fullStateCopyBlock)
 	// Phase 4: Begin copying inodes! (Until complete)
 	rlog.Info("full: copying inodes")
-	out <- f.leaderMessage(4)
-	f.doState(4)
-	waitAll(in, f.newRing, 4)
+	out <- f.leaderMessage(fullStateCopyINode)
+	f.doState(fullStateCopyINode)
+	f.waitAll(in, fullStateCopyINode)
 	// Phase 5: Replace the ring and remove self from storage
 	rlog.Info("full: finishing")
-	out <- f.leaderMessage(5)
-	f.doState(5)
-	waitAll(in, f.newRing, 5)
+	out <- f.leaderMessage(fullStateReplaceAndContinue)
+	f.doState(fullStateReplaceAndContinue)
+	f.waitAll(in, fullStateReplaceAndContinue)
 }
 
 func (f *full) AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStatus, bool, error) {
 	rlog.Debugf("full: follower, starting phase %d", s.Phase)
-	err := f.doState(s.Phase)
+	phase := fullPhase(s.Phase)
+	err := f.doState(phase)
 	rlog.Debugf("full: follower, finished phase %d", s.Phase)
 	if err != nil {
 		// Abort
@@ -104,18 +121,22 @@ func (f *full) AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStatus,
 		return nil, true, err
 	}
 	if s.Phase == 5 {
-		return f.makeMessage(s.Phase), true, nil
+		return f.makeMessage(phase), true, nil
 	}
-	return f.makeMessage(s.Phase), false, nil
+	return f.makeMessage(phase), false, nil
 }
 
-func (f *full) doState(phase int32) error {
+func (f *full) doState(phase fullPhase) error {
+	if !peerListHas(f.newRing.Members(), f.d.UUID()) && !peerListHas(f.oldRing.Members(), f.d.UUID()) {
+		// if we're not participating, just go through the motions.
+		return nil
+	}
 	switch phase {
-	case 1:
+	case fullStatePrepare:
 		f.d.srv.gc.Stop()
 		f.d.srv.writeableLock.Lock()
 		f.locked = true
-	case 2:
+	case fullStateUnion:
 		f.d.srv.writeableLock.Unlock()
 		f.locked = false
 		_, b, err := f.d.srv.mds.GetRebalanceSnapshot()
@@ -150,17 +171,17 @@ func (f *full) doState(phase int32) error {
 		f.d.inodes = f.store
 		f.d.ring = ring.NewUnionRing(f.d.ring, f.newRing)
 		f.replaced = true
-	case 3:
+	case fullStateCopyBlock:
 		err := f.sendAllBlocks()
 		if err != nil {
 			return err
 		}
-	case 4:
+	case fullStateCopyINode:
 		err := f.sendAllINodes()
 		if err != nil {
 			return err
 		}
-	case 5:
+	case fullStateReplaceAndContinue:
 		f.d.mut.Lock()
 		defer f.d.mut.Unlock()
 		blocks, err := f.store.oldBlock.ReplaceBlockStore(f.store.newBlock)
@@ -187,7 +208,7 @@ func (f *full) sendBlockCache(m map[string]*models.PutBlockRequest) error {
 			Subrequest: &models.RebalanceRequest_PutBlockRequest{
 				PutBlockRequest: pbr,
 			},
-			Phase: 3,
+			Phase: int32(fullStateCopyBlock),
 			UUID:  f.d.UUID(),
 		})
 		if err != nil {
@@ -232,8 +253,8 @@ func (f *full) sendAllBlocks() error {
 		if err != nil {
 			return err
 		}
-		myIndex := peerListHas(oldpeers, f.d.UUID())
-		if peerListHas(newpeers, f.d.UUID()) != -1 {
+		myIndex := peerListAt(oldpeers, f.d.UUID())
+		if peerListHas(newpeers, f.d.UUID()) {
 			err := f.store.newBlock.WriteBlock(context.TODO(), ref, bytes)
 			if err != nil {
 				return err
@@ -256,7 +277,11 @@ func (f *full) sendAllBlocks() error {
 	return f.sendBlockCache(cache)
 }
 
-func peerListHas(pl []string, uuid string) int {
+func peerListHas(pl []string, uuid string) bool {
+	return peerListAt(pl, uuid) != -1
+}
+
+func peerListAt(pl []string, uuid string) int {
 	for i, x := range pl {
 		if x == uuid {
 			return i
@@ -268,7 +293,7 @@ func peerListHas(pl []string, uuid string) int {
 func peerListAndNot(a []string, b []string) []string {
 	var out []string
 	for _, x := range a {
-		if peerListHas(b, x) == -1 {
+		if !peerListHas(b, x) {
 			out = append(out, x)
 		}
 	}
@@ -299,7 +324,7 @@ func (f *full) RebalanceMessage(ctx context.Context, req *models.RebalanceReques
 		Ok: true,
 	}
 	switch req.Phase {
-	case 3:
+	case fullStateCopyBlock:
 		br := req.GetPutBlockRequest()
 		for i, ref := range br.Refs {
 			err := f.store.newBlock.WriteBlock(ctx, agro.BlockFromProto(ref), br.Blocks[i])
@@ -307,7 +332,7 @@ func (f *full) RebalanceMessage(ctx context.Context, req *models.RebalanceReques
 				return nil, err
 			}
 		}
-	case 4:
+	case fullStateCopyINode:
 		ir := req.GetPutINodeRequest()
 		for i, ref := range ir.Refs {
 			err := f.store.newINode.WriteINode(ctx, agro.INodeFromProto(ref), ir.INodes[i])
@@ -327,7 +352,7 @@ func (f *full) sendINodeCache(m map[string]*models.PutINodeRequest) error {
 			Subrequest: &models.RebalanceRequest_PutINodeRequest{
 				PutINodeRequest: pbr,
 			},
-			Phase: 4,
+			Phase: int32(fullStateCopyINode),
 			UUID:  f.d.UUID(),
 		})
 		if err != nil {
@@ -372,8 +397,8 @@ func (f *full) sendAllINodes() error {
 		if err != nil {
 			return err
 		}
-		myIndex := peerListHas(oldpeers, f.d.UUID())
-		if peerListHas(newpeers, f.d.UUID()) != -1 {
+		myIndex := peerListAt(oldpeers, f.d.UUID())
+		if peerListHas(newpeers, f.d.UUID()) {
 			err := f.store.newINode.WriteINode(context.TODO(), ref, inode)
 			if err != nil {
 				return err

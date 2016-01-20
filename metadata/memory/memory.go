@@ -47,6 +47,8 @@ type memory struct {
 	deadMap           map[string]*roaring.RoaringBitmap
 	rebalanceKind     uint64
 	rebalanceSnapshot []byte
+	ring              agro.Ring
+	ringWatchers      []chan agro.Ring
 }
 
 func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
@@ -58,6 +60,14 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	if err == nil {
 		t.uuid = uuid
 		return t, nil
+	}
+	ring, err := ring.CreateRing(&models.Ring{
+		Type:    uint32(ring.Single),
+		Version: 1,
+		UUIDs:   []string{uuid},
+	})
+	if err != nil {
+		return nil, err
 	}
 	clog.Info("single: couldn't parse metadata: ", err)
 	return &memory{
@@ -73,6 +83,7 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		uuid:       uuid,
 		openINodes: make(map[string]*roaring.RoaringBitmap),
 		deadMap:    make(map[string]*roaring.RoaringBitmap),
+		ring:       ring,
 	}, nil
 }
 
@@ -305,23 +316,29 @@ func (s *memory) GetVolumeID(volume string) (agro.VolumeID, error) {
 }
 
 func (s *memory) GetRing() (agro.Ring, error) {
-	return ring.CreateRing(&models.Ring{
-		Type:    uint32(ring.Single),
-		Version: 1,
-		UUIDs:   []string{s.uuid},
-	})
+	return s.ring, nil
 }
 
 func (s *memory) SubscribeNewRings(ch chan agro.Ring) {
-	close(ch)
+	s.ringWatchers = append(s.ringWatchers, ch)
 }
 
 func (s *memory) UnsubscribeNewRings(ch chan agro.Ring) {
-	// Kay. We unsubscribed you already.
+	for i, c := range s.ringWatchers {
+		if c == ch {
+			s.ringWatchers = append(s.ringWatchers[:i], s.ringWatchers[i+1:]...)
+		}
+	}
 }
 
-func (s *memory) SetRing(ring agro.Ring, force bool) error {
-	// Can't change it.
+func (s *memory) SetRing(newring agro.Ring, _ bool) error {
+	if newring.Type() != ring.Single {
+		return errors.New("invalid ring type for memory mds (must be Single)")
+	}
+	s.ring = newring
+	for _, c := range s.ringWatchers {
+		c <- newring
+	}
 	return nil
 }
 

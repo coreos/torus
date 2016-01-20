@@ -48,12 +48,12 @@ func NewServer(cfg agro.Config, metadataServiceKind, inodeStoreKind, blockStoreK
 		return nil, err
 	}
 
-	inodes, err := agro.CreateINodeStore(inodeStoreKind, "main", cfg)
+	inodes, err := agro.CreateINodeStore(inodeStoreKind, "current", cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	blocks, err := agro.CreateBlockStore(blockStoreKind, "main", cfg, global)
+	blocks, err := agro.CreateBlockStore(blockStoreKind, "current", cfg, global)
 	if err != nil {
 		return nil, err
 	}

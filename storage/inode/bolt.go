@@ -39,7 +39,7 @@ func openBoltINodeStore(name string, cfg agro.Config) (agro.INodeStore, error) {
 }
 
 func (b *boltINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore, error) {
-	new, ok := is.(*boltINodeStore)
+	newBolt, ok := is.(*boltINodeStore)
 	if !ok {
 		return nil, errors.New("not replacing a bolt inode store")
 	}
@@ -47,7 +47,7 @@ func (b *boltINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore,
 	if err != nil {
 		return nil, err
 	}
-	err = os.Rename(new.filename, b.filename)
+	err = os.Rename(newBolt.filename, b.filename)
 	if err != nil {
 		return nil, err
 	}
@@ -56,10 +56,10 @@ func (b *boltINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore,
 		return nil, err
 	}
 	out := &boltINodeStore{
-		db:       new.db,
+		db:       newBolt.db,
 		filename: b.filename,
 	}
-	new.db = nil
+	newBolt.db = nil
 	return out, nil
 }
 

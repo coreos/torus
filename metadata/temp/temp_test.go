@@ -70,7 +70,7 @@ func TestRebalanceChannels(t *testing.T) {
 		NewClient(cfg, m),
 		NewClient(cfg, m),
 	}
-	ok := make(chan bool)
+	ready := make(chan bool)
 	for i := 0; i < len(cs); i++ {
 		go func(i int) {
 			inOut, elected, _ := cs[i].OpenRebalanceChannels()
@@ -83,25 +83,25 @@ func TestRebalanceChannels(t *testing.T) {
 					s := <-inOut[0]
 					if s.Phase != 3 {
 						t.Fatal("unexpected phase")
-						ok <- false
+						ready <- false
 						return
 					}
 				}
 				close(inOut[1])
-				ok <- true
+				ready <- true
 			} else {
 				d := <-inOut[0]
 				inOut[1] <- d
 				close(inOut[1])
-				ok <- true
+				ready <- true
 			}
 		}(i)
 	}
 	for j := 0; j < len(cs); j++ {
-		p := <-ok
+		p := <-ready
 		if !p {
 			t.Fatal("failed rebalance round")
 		}
 	}
-	close(ok)
+	close(ready)
 }

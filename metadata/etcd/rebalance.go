@@ -1,6 +1,8 @@
 package etcd
 
 import (
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/coreos/agro"
@@ -77,7 +79,8 @@ func (c *etcdCtx) openRebalanceLeader(rev int64) (inOut [2]chan *models.Rebalanc
 		).Tx()
 		_, derr := c.etcd.kv.Txn(c.getContext(), tx)
 		if derr != nil {
-			err = derr
+			clog.Error(derr)
+			err = errors.New(fmt.Sprintf("combined err: %s %s", err.Error(), derr.Error()))
 		}
 		return [2]chan *models.RebalanceStatus{nil, nil}, true, err
 	}
@@ -141,7 +144,7 @@ func (c *etcdCtx) openRebalanceFollower(rev int64) (inOut [2]chan *models.Rebala
 		_, derr := c.etcd.kv.DeleteRange(c.getContext(),
 			deleteKey(mkKey("meta", "rebalance-status", c.UUID())))
 		if derr != nil {
-			err = derr
+			err = errors.New(fmt.Sprintf("combined err: %s %s", err.Error(), derr.Error()))
 		}
 		return [2]chan *models.RebalanceStatus{nil, nil}, false, err
 	}
@@ -163,7 +166,7 @@ func (c *etcdCtx) followWatch(toC chan *models.RebalanceStatus, fromC chan *mode
 				_, derr := c.etcd.kv.DeleteRange(c.getContext(),
 					deleteKey(mkKey("meta", "rebalance-status", c.UUID())))
 				if derr != nil {
-					err = derr
+					err = errors.New(fmt.Sprintf("combined err: %s %s", err.Error(), derr.Error()))
 				}
 				return
 			}
@@ -200,19 +203,19 @@ func watchStream(wStream etcdpb.Watch_WatchClient, c chan *models.RebalanceStatu
 			return
 		}
 		if err != nil {
-			clog.Errorf("error watching stream: %s", err)
+			// TODO(barakmich): Pass an error in RebalanceStatus
+			clog.Fatalf("error watching stream: %s SHOULD BE ABLE TO CONTINUE (SEE TODO)", err)
 			break
 		}
 		switch {
-		case resp.Canceled:
-			continue
-		case resp.Compacted:
+		case resp.Canceled, resp.Compacted:
 			continue
 		}
 		for _, ev := range resp.Events {
 			m := &models.RebalanceStatus{}
 			err := m.Unmarshal(ev.Kv.Value)
 			if err != nil {
+				clog.Debugf("corrupted data: %#v", ev.Kv.Value)
 				clog.Error("corrupted rebalance data?")
 				continue
 			}

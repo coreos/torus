@@ -81,7 +81,6 @@ func (d *distributor) Rebalance(newring agro.Ring) {
 	}
 	if !isMember {
 		clog.Infof("rebalance detected, but not a member")
-		return
 	}
 	// TODO(barakmich): Rebalancing is tricky. But here's the entry point.
 	clog.Infof("rebalancing beginning: new ring version %d for %s", newring.Version(), d.UUID())
@@ -171,6 +170,9 @@ func waitAll(c chan *models.RebalanceStatus, newring agro.Ring, phase int32) err
 	member := newring.Members()
 	for len(member) > 0 {
 
+		// TODO(barakmich) Check if the status is an error, such as the TTL of
+		// the key being lost in etcd (thus a machine has timed out and we're in
+		// trouble). LEASES.
 		stat, ok := <-c
 		if !ok {
 			clog.Error("close before end of rebalance")

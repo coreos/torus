@@ -44,16 +44,13 @@ func (e *etcd) watchRing(wStream etcdpb.Watch_WatchClient) {
 			break
 		}
 		switch {
-		case resp.Created:
-			continue
-		case resp.Canceled:
-			continue
-		case resp.Compacted:
+		case resp.Created, resp.Canceled, resp.Compacted:
 			continue
 		}
 		for _, ev := range resp.Events {
 			newRing, err := ring.Unmarshal(ev.Kv.Value)
 			if err != nil {
+				clog.Debugf("corrupted ring: %#v", ev.Kv.Value)
 				clog.Error("corrupted ring? Continuing with current ring")
 				continue
 			}
