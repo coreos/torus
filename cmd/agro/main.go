@@ -6,6 +6,7 @@ import (
 	"os/signal"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
 	"github.com/coreos/agro"
@@ -22,14 +23,16 @@ import (
 )
 
 var (
-	dataDir        string
-	etcdAddress    string
-	httpAddress    string
-	peerAddress    string
-	fuseMountpoint string
-	fuseVolume     string
-	port           int
-	mkfs           bool
+	dataDir          string
+	etcdAddress      string
+	httpAddress      string
+	peerAddress      string
+	fuseMountpoint   string
+	fuseVolume       string
+	readCacheSize    uint64
+	readCacheSizeStr string
+	port             int
+	mkfs             bool
 
 	debug bool
 	trace bool
@@ -53,6 +56,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&peerAddress, "peer-address", "", "", "Address to listen on for intra-cluster data")
 	rootCommand.PersistentFlags().StringVarP(&fuseMountpoint, "fuse-mountpoint", "", "", "Location to mount a FUSE filesystem")
 	rootCommand.PersistentFlags().StringVarP(&fuseVolume, "fuse-volume", "", "", "Volume to be mounted as a FUSE filesystem")
+	rootCommand.PersistentFlags().StringVarP(&readCacheSizeStr, "read-cache-size", "", "20MiB", "Amount of memory to use for read cache")
 }
 
 func main() {
@@ -73,6 +77,13 @@ func configureServer(cmd *cobra.Command, args []string) {
 	}
 
 	httpAddress = fmt.Sprintf("127.0.0.1:%d", port)
+
+	var err error
+	readCacheSize, err = humanize.ParseBytes(readCacheSizeStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing read-cache-size: %s\n", err)
+		os.Exit(1)
+	}
 }
 
 func runServer(cmd *cobra.Command, args []string) {
@@ -80,6 +91,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		DataDir:         dataDir,
 		StorageSize:     1 * 1024 * 1024 * 1024,
 		MetadataAddress: etcdAddress,
+		ReadCacheSize:   readCacheSize,
 	}
 
 	var (

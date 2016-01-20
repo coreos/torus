@@ -101,6 +101,12 @@ func (d *distributor) INodeIterator() agro.INodeIterator {
 func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
+	if d.readCache != nil {
+		bcache, ok := d.readCache.Get(string(i.ToBytes()))
+		if ok {
+			return bcache.([]byte), nil
+		}
+	}
 	peers, err := d.ring.GetBlockPeers(i)
 	if err != nil {
 		return nil, err
@@ -123,6 +129,9 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		}
 		blk, err := d.client.GetBlock(ctx, p, i)
 		if err == nil {
+			if d.readCache != nil {
+				d.readCache.Add(string(i.ToBytes()), blk)
+			}
 			return blk, nil
 		}
 		if err == agro.ErrBlockUnavailable {
