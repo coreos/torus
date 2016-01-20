@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -24,9 +25,14 @@ func init() {
 type fullPhase int32
 
 const (
-	fullStateNull    fullPhase = 0
-	fullStateError   fullPhase = -1
-	fullStatePrepare fullPhase = iota
+	fullRebalancePage  = 50
+	fullRebalancePause = 100 * time.Millisecond
+)
+
+const (
+	fullStateError fullPhase = iota - 1
+	fullStateNull
+	fullStatePrepare
 	fullStateUnion
 	fullStateCopyBlock
 	fullStateCopyINode
@@ -120,7 +126,7 @@ func (f *full) AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStatus,
 		f.Timeout()
 		return nil, true, err
 	}
-	if s.Phase == 5 {
+	if phase == fullStateReplaceAndContinue {
 		return f.makeMessage(phase), true, nil
 	}
 	return f.makeMessage(phase), false, nil
@@ -212,6 +218,7 @@ func (f *full) sendBlockCache(m map[string]*models.PutBlockRequest) error {
 			UUID:  f.d.UUID(),
 		})
 		if err != nil {
+			clog.Errorf("got sendBlock error: %#v", err)
 			return err
 		}
 	}
@@ -232,13 +239,14 @@ func (f *full) sendAllBlocks() error {
 	cache := make(map[string]*models.PutBlockRequest)
 	count := 0
 	for it.Next() {
-		if count == 100 {
+		if count == fullRebalancePage {
 			err := f.sendBlockCache(cache)
 			if err != nil {
 				return err
 			}
 			cache = make(map[string]*models.PutBlockRequest)
 			count = 0
+			time.Sleep(fullRebalancePause)
 		}
 		ref := it.BlockRef()
 		bytes, err := ob.GetBlock(context.TODO(), ref)
@@ -333,6 +341,7 @@ func (f *full) sendINodeCache(m map[string]*models.PutINodeRequest) error {
 			UUID:  f.d.UUID(),
 		})
 		if err != nil {
+			clog.Errorf("got sendINode error: %#v", err)
 			return err
 		}
 	}
@@ -353,13 +362,14 @@ func (f *full) sendAllINodes() error {
 	cache := make(map[string]*models.PutINodeRequest)
 	count := 0
 	for it.Next() {
-		if count == 100 {
+		if count == fullRebalancePage {
 			err := f.sendINodeCache(cache)
 			if err != nil {
 				return err
 			}
 			cache = make(map[string]*models.PutINodeRequest)
 			count = 0
+			time.Sleep(fullRebalancePause)
 		}
 		ref := it.INodeRef()
 		inode, err := ob.GetINode(context.TODO(), ref)

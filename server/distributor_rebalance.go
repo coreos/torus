@@ -126,7 +126,6 @@ func (d *distributor) rebalanceFollower(inOut [2]chan *models.RebalanceStatus, n
 				d.mut.Unlock()
 			}
 			news, done, err := d.rebalancer.AdvanceState(s)
-			news.UUID = d.UUID()
 			if err != nil {
 				clog.Error(err)
 				stat := d.rebalancer.OnError(err)
@@ -136,6 +135,7 @@ func (d *distributor) rebalanceFollower(inOut [2]chan *models.RebalanceStatus, n
 				close(out)
 				return
 			}
+			news.UUID = d.UUID()
 			out <- news
 			if done {
 				close(out)

@@ -16,9 +16,9 @@ import (
 func newServer(md *temp.Server) *server {
 	cfg := agro.Config{}
 	mds := temp.NewClient(cfg, md)
-	inodes, _ := agro.CreateINodeStore("temp", cfg)
+	inodes, _ := agro.CreateINodeStore("temp", "current", cfg)
 	gmd, _ := mds.GlobalMetadata()
-	cold, _ := agro.CreateBlockStore("temp", cfg, gmd)
+	cold, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
 	return &server{
 		blocks:        cold,
 		mds:           mds,
