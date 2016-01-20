@@ -127,7 +127,7 @@ func (f *full) AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStatus,
 }
 
 func (f *full) doState(phase fullPhase) error {
-	if !peerListHas(f.newRing.Members(), f.d.UUID()) && !peerListHas(f.oldRing.Members(), f.d.UUID()) {
+	if !f.newRing.Members().Union(f.oldRing.Members()).Has(f.d.UUID()) {
 		// if we're not participating, just go through the motions.
 		return nil
 	}
@@ -253,14 +253,14 @@ func (f *full) sendAllBlocks() error {
 		if err != nil {
 			return err
 		}
-		myIndex := peerListAt(oldpeers, f.d.UUID())
-		if peerListHas(newpeers, f.d.UUID()) {
+		myIndex := oldpeers.IndexAt(f.d.UUID())
+		if newpeers.Has(f.d.UUID()) {
 			err := f.store.newBlock.WriteBlock(context.TODO(), ref, bytes)
 			if err != nil {
 				return err
 			}
 		}
-		diffpeers := peerListAndNot(newpeers, oldpeers)
+		diffpeers := newpeers.AndNot(oldpeers)
 		if myIndex >= len(diffpeers) {
 			// downsizing
 			continue
@@ -275,29 +275,6 @@ func (f *full) sendAllBlocks() error {
 		}
 	}
 	return f.sendBlockCache(cache)
-}
-
-func peerListHas(pl []string, uuid string) bool {
-	return peerListAt(pl, uuid) != -1
-}
-
-func peerListAt(pl []string, uuid string) int {
-	for i, x := range pl {
-		if x == uuid {
-			return i
-		}
-	}
-	return -1
-}
-
-func peerListAndNot(a []string, b []string) []string {
-	var out []string
-	for _, x := range a {
-		if !peerListHas(b, x) {
-			out = append(out, x)
-		}
-	}
-	return out
 }
 
 func (f *full) OnError(err error) *models.RebalanceStatus {
@@ -323,7 +300,7 @@ func (f *full) RebalanceMessage(ctx context.Context, req *models.RebalanceReques
 	resp := &models.RebalanceResponse{
 		Ok: true,
 	}
-	switch req.Phase {
+	switch fullPhase(req.Phase) {
 	case fullStateCopyBlock:
 		br := req.GetPutBlockRequest()
 		for i, ref := range br.Refs {
@@ -397,14 +374,14 @@ func (f *full) sendAllINodes() error {
 		if err != nil {
 			return err
 		}
-		myIndex := peerListAt(oldpeers, f.d.UUID())
-		if peerListHas(newpeers, f.d.UUID()) {
+		myIndex := oldpeers.IndexAt(f.d.UUID())
+		if newpeers.Has(f.d.UUID()) {
 			err := f.store.newINode.WriteINode(context.TODO(), ref, inode)
 			if err != nil {
 				return err
 			}
 		}
-		diffpeers := peerListAndNot(newpeers, oldpeers)
+		diffpeers := newpeers.AndNot(oldpeers)
 		if myIndex >= len(diffpeers) {
 			// downsizing
 			continue

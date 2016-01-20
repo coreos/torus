@@ -66,19 +66,7 @@ exit:
 
 func (d *distributor) Rebalance(newring agro.Ring) {
 	d.srv.updatePeerMap()
-	isMember := false
-	for _, x := range d.ring.Members() {
-		if x == d.UUID() {
-			isMember = true
-			break
-		}
-	}
-	for _, x := range newring.Members() {
-		if x == d.UUID() {
-			isMember = true
-			break
-		}
-	}
+	isMember := d.ring.Members().Union(newring.Members()).Has(d.UUID())
 	if !isMember {
 		clog.Infof("rebalance detected, but not a member")
 	}

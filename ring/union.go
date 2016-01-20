@@ -46,7 +46,7 @@ func NewUnionRing(oldRing agro.Ring, newRing agro.Ring) agro.Ring {
 	}
 }
 
-func (u *unionRing) GetBlockPeers(key agro.BlockRef) ([]string, error) {
+func (u *unionRing) GetBlockPeers(key agro.BlockRef) (agro.PeerList, error) {
 	n, err := u.newRing.GetBlockPeers(key)
 	if err != nil {
 		return nil, err
@@ -55,10 +55,10 @@ func (u *unionRing) GetBlockPeers(key agro.BlockRef) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return memberUnion(o, n), nil
+	return o.Union(n), nil
 }
 
-func (u *unionRing) GetINodePeers(key agro.INodeRef) ([]string, error) {
+func (u *unionRing) GetINodePeers(key agro.INodeRef) (agro.PeerList, error) {
 	a, err := u.newRing.GetINodePeers(key)
 	if err != nil {
 		return nil, err
@@ -67,28 +67,11 @@ func (u *unionRing) GetINodePeers(key agro.INodeRef) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return memberUnion(a, b), nil
+	return a.Union(b), nil
 }
 
-func memberUnion(a []string, b []string) []string {
-	out := append([]string(nil), a...)
-	for _, m := range b {
-		exists := false
-		for _, x := range out {
-			if x == m {
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			out = append(out, m)
-		}
-	}
-	return out
-}
-
-func (u *unionRing) Members() []string {
-	return memberUnion(u.newRing.Members(), u.oldRing.Members())
+func (u *unionRing) Members() agro.PeerList {
+	return u.newRing.Members().Union(u.oldRing.Members())
 }
 
 func (u *unionRing) Describe() string {

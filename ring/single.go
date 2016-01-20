@@ -26,15 +26,15 @@ func makeSingle(r *models.Ring) (agro.Ring, error) {
 	}, nil
 }
 
-func (s *single) GetBlockPeers(key agro.BlockRef) ([]string, error) {
+func (s *single) GetBlockPeers(key agro.BlockRef) (agro.PeerList, error) {
 	return []string{s.uuid}, nil
 }
 
-func (s *single) GetINodePeers(key agro.INodeRef) ([]string, error) {
+func (s *single) GetINodePeers(key agro.INodeRef) (agro.PeerList, error) {
 	return []string{s.uuid}, nil
 }
 
-func (s *single) Members() []string { return []string{s.uuid} }
+func (s *single) Members() agro.PeerList { return []string{s.uuid} }
 
 func (s *single) Describe() string {
 	return fmt.Sprintf("Ring: Single\nUUID: %s", s.uuid)
