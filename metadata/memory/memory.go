@@ -190,6 +190,37 @@ func (s *memory) Mkdir(p agro.Path, dir *models.Directory) error {
 	return nil
 }
 
+func (s *memory) Rmdir(p agro.Path) error {
+	if p.Path == "/" {
+		return errors.New("can't delete the root directory")
+	}
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
+	tx := s.tree.Txn()
+
+	k := []byte(p.Key())
+	v, ok := tx.Get(k)
+	if !ok {
+		return &os.PathError{
+			Op:   "rmdir",
+			Path: p.Path,
+			Err:  os.ErrNotExist,
+		}
+	}
+	dir := v.(*models.Directory)
+	if len(dir.Files) != 0 {
+		return &os.PathError{
+			Op:   "rmdir",
+			Path: p.Path,
+			Err:  os.ErrInvalid,
+		}
+	}
+	tx.Delete(k)
+	s.tree = tx.Commit()
+	return nil
+}
+
 func (s *memory) debugPrintTree() {
 	it := s.tree.Root().Iterator()
 	for {
