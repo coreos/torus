@@ -38,6 +38,7 @@ func (s *Server) setupRoutes() {
 		v0.GET("/volume", s.getVolumes)
 		v0.PUT("/volume/:volume/file/:filename", s.putFile)
 		v0.GET("/volume/:volume/file/:filename", s.getFile)
+		v0.DELETE("/volume/:volume/file/:filename", s.deleteFile)
 	}
 	s.router.GET("/metrics", s.prometheus)
 	ginpprof.Wrapper(s.router)
@@ -103,6 +104,21 @@ func (s *Server) getFile(c *gin.Context) {
 	}
 	defer f.Close()
 	_, err = io.Copy(c.Writer, f)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		c.Writer.Write([]byte(err.Error()))
+		return
+	}
+	c.Writer.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) deleteFile(c *gin.Context) {
+	vol := c.Params.ByName("volume")
+	filename := c.Params.ByName("filename")
+	err := s.dfs.Remove(agro.Path{
+		Volume: vol,
+		Path:   "/" + filename,
+	})
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))
