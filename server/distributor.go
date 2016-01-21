@@ -53,8 +53,10 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 	}
 	if srv.cfg.ReadCacheSize != 0 {
 		size := srv.cfg.ReadCacheSize / gmd.BlockSize
-		// TODO(barakmich): What's the correct number of "samples" instead of 4?
-		d.readCache = tinylfu.New(int(size), 4)
+		if size < 100 {
+			size = 100
+		}
+		d.readCache = tinylfu.New(int(size), 10*int(size))
 	}
 
 	// Set up the rebalancer

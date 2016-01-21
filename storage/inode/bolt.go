@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 
 	"golang.org/x/net/context"
 
@@ -21,6 +22,7 @@ func init() {
 }
 
 type boltINodeStore struct {
+	mut      sync.RWMutex
 	db       *bolt.DB
 	filename string
 	name     string
@@ -43,6 +45,8 @@ func openBoltINodeStore(name string, cfg agro.Config) (agro.INodeStore, error) {
 }
 
 func (b *boltINodeStore) updateNumINodes() {
+	b.mut.RLock()
+	defer b.mut.RUnlock()
 	out := 0
 	b.db.View(func(tx *bolt.Tx) error {
 		tx.ForEach(func(_ []byte, b *bolt.Bucket) error {
@@ -59,6 +63,10 @@ func (b *boltINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore,
 	if !ok {
 		return nil, errors.New("not replacing a bolt inode store")
 	}
+	b.mut.Lock()
+	defer b.mut.Unlock()
+	newBolt.mut.Lock()
+	defer newBolt.mut.Unlock()
 	err := os.Remove(b.filename)
 	if err != nil {
 		return nil, err
@@ -82,11 +90,15 @@ func (b *boltINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore,
 }
 
 func (b *boltINodeStore) Flush() error {
+	b.mut.Lock()
+	defer b.mut.Unlock()
 	promINodeFlushes.WithLabelValues(b.name).Inc()
 	return b.db.Sync()
 }
 
 func (b *boltINodeStore) Close() error {
+	b.mut.Lock()
+	defer b.mut.Unlock()
 	return b.db.Close()
 }
 
@@ -95,6 +107,8 @@ func (b *boltINodeStore) Kind() string {
 }
 
 func (b *boltINodeStore) GetINode(_ context.Context, i agro.INodeRef) (*models.INode, error) {
+	b.mut.RLock()
+	defer b.mut.RUnlock()
 	var inodeBytes []byte
 	key, vol := formatKeyVol(i)
 	err := b.db.View(func(tx *bolt.Tx) error {
@@ -119,6 +133,8 @@ func formatKeyVol(i agro.INodeRef) (string, string) {
 }
 
 func (b *boltINodeStore) WriteINode(_ context.Context, i agro.INodeRef, inode *models.INode) error {
+	b.mut.Lock()
+	defer b.mut.Unlock()
 	inodeBytes, err := inode.Marshal()
 	if err != nil {
 		promINodeWritesFailed.WithLabelValues(b.name).Inc()
@@ -142,6 +158,8 @@ func (b *boltINodeStore) WriteINode(_ context.Context, i agro.INodeRef, inode *m
 }
 
 func (b *boltINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
+	b.mut.Lock()
+	defer b.mut.Unlock()
 	key, vol := formatKeyVol(i)
 	err := b.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(vol))
@@ -157,6 +175,8 @@ func (b *boltINodeStore) DeleteINode(_ context.Context, i agro.INodeRef) error {
 }
 
 func (b *boltINodeStore) INodeIterator() agro.INodeIterator {
+	b.mut.RLock()
+	defer b.mut.RUnlock()
 	tx, err := b.db.Begin(false)
 	return &boltINodeIterator{
 		tx:  tx,

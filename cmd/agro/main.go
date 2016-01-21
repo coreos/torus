@@ -31,6 +31,9 @@ var (
 	fuseVolume       string
 	readCacheSize    uint64
 	readCacheSizeStr string
+	sizeStr          string
+	size             uint64
+	host             string
 	port             int
 	mkfs             bool
 
@@ -51,11 +54,13 @@ func init() {
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
 	rootCommand.PersistentFlags().BoolVarP(&mkfs, "debug-mkfs", "", false, "Run mkfs for the given ")
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "", "", "Address for talking to etcd")
+	rootCommand.PersistentFlags().StringVarP(&host, "host", "", "127.0.0.1", "Host to listen on for HTTP")
 	rootCommand.PersistentFlags().IntVarP(&port, "port", "", 4321, "Port to listen on for HTTP")
 	rootCommand.PersistentFlags().BoolVarP(&trace, "trace", "", false, "Turn on trace output")
 	rootCommand.PersistentFlags().StringVarP(&peerAddress, "peer-address", "", "", "Address to listen on for intra-cluster data")
 	rootCommand.PersistentFlags().StringVarP(&fuseMountpoint, "fuse-mountpoint", "", "", "Location to mount a FUSE filesystem")
 	rootCommand.PersistentFlags().StringVarP(&fuseVolume, "fuse-volume", "", "", "Volume to be mounted as a FUSE filesystem")
+	rootCommand.PersistentFlags().StringVarP(&sizeStr, "size", "", "1GiB", "Amount of memory to use for read cache")
 	rootCommand.PersistentFlags().StringVarP(&readCacheSizeStr, "read-cache-size", "", "20MiB", "Amount of memory to use for read cache")
 }
 
@@ -76,7 +81,7 @@ func configureServer(cmd *cobra.Command, args []string) {
 		capnslog.SetGlobalLogLevel(capnslog.INFO)
 	}
 
-	httpAddress = fmt.Sprintf("127.0.0.1:%d", port)
+	httpAddress = fmt.Sprintf("%s:%d", host, port)
 
 	var err error
 	readCacheSize, err = humanize.ParseBytes(readCacheSizeStr)
@@ -84,12 +89,17 @@ func configureServer(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "error parsing read-cache-size: %s\n", err)
 		os.Exit(1)
 	}
+	size, err = humanize.ParseBytes(sizeStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
+		os.Exit(1)
+	}
 }
 
 func runServer(cmd *cobra.Command, args []string) {
 	cfg := agro.Config{
 		DataDir:         dataDir,
-		StorageSize:     1 * 1024 * 1024 * 1024,
+		StorageSize:     size,
 		MetadataAddress: etcdAddress,
 		ReadCacheSize:   readCacheSize,
 	}
