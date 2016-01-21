@@ -234,7 +234,11 @@ func (s *memory) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, err
 	if v, ok := dir.Files[p.Filename()]; ok {
 		old = agro.INodeID(v)
 	}
-	dir.Files[p.Filename()] = uint64(ref.INode)
+	if ref.Volume == 0 && ref.INode == 0 {
+		delete(dir.Files, p.Filename())
+	} else {
+		dir.Files[p.Filename()] = uint64(ref.INode)
+	}
 	tx.Insert(k, dir)
 	s.tree = tx.Commit()
 	return old, nil

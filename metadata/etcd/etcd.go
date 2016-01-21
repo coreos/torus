@@ -440,7 +440,11 @@ func trySetFileINode(p agro.Path, ref agro.INodeRef) AtomicModifyFunc {
 		if v, ok := dir.Files[p.Filename()]; ok {
 			old = agro.INodeID(v)
 		}
-		dir.Files[p.Filename()] = uint64(ref.INode)
+		if ref.INode == 0 && ref.Volume == 0 {
+			delete(dir.Files, p.Filename())
+		} else {
+			dir.Files[p.Filename()] = uint64(ref.INode)
+		}
 		bytes, err := dir.Marshal()
 		return bytes, old, err
 	}
