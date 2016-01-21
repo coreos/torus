@@ -114,42 +114,35 @@ func (d *distributor) rebalanceLeader(chans [2]chan *models.RebalanceStatus, new
 func (d *distributor) rebalanceFollower(inOut [2]chan *models.RebalanceStatus, newring agro.Ring) {
 	in, out := inOut[0], inOut[1]
 	for {
-		select {
-		case s := <-in:
-			if !s.FromLeader {
-				panic("got a message not from leader")
+		s := <-in
+		if !s.FromLeader {
+			panic("got a message not from leader")
+		}
+		if d.rebalancer == nil {
+			d.mut.Lock()
+			rlog.Debugf("creating rebalancer %d", s.RebalanceType)
+			d.rebalancer = rebalancerRegistry[RebalanceStrategy(s.RebalanceType)](d, newring)
+			d.mut.Unlock()
+		}
+		news, done, err := d.rebalancer.AdvanceState(s)
+		if err != nil {
+			clog.Error(err)
+			stat := d.rebalancer.OnError(err)
+			if stat != nil {
+				out <- stat
 			}
-			if d.rebalancer == nil {
-				d.mut.Lock()
-				rlog.Debugf("creating rebalancer %d", s.RebalanceType)
-				d.rebalancer = rebalancerRegistry[RebalanceStrategy(s.RebalanceType)](d, newring)
-				d.mut.Unlock()
-			}
-			news, done, err := d.rebalancer.AdvanceState(s)
-			if err != nil {
-				clog.Error(err)
-				stat := d.rebalancer.OnError(err)
-				if stat != nil {
-					out <- stat
-				}
-				close(out)
-				return
-			}
-			news.UUID = d.UUID()
-			out <- news
-			if done {
-				close(out)
-				d.srv.mut.Lock()
-				defer d.srv.mut.Unlock()
-				clog.Info("follower: success, setting new ring")
-				d.ring = newring
-				return
-			}
-		case <-time.After(rebalanceTimeout):
 			close(out)
-			d.rebalancer.Timeout()
-			// Re-elect
-			d.Rebalance(newring)
+			return
+		}
+		news.UUID = d.UUID()
+		out <- news
+		if done {
+			close(out)
+			d.srv.mut.Lock()
+			defer d.srv.mut.Unlock()
+			clog.Info("follower: success, setting new ring")
+			d.ring = newring
+			return
 		}
 	}
 }
