@@ -10,6 +10,7 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
+	"github.com/coreos/agro/storage/inode"
 )
 
 func init() {
@@ -162,7 +163,12 @@ func (f *full) doState(phase fullPhase) error {
 		if err != nil {
 			return err
 		}
-		newINode, err := agro.CreateINodeStore(f.d.inodes.Kind(), "rebalance", f.d.srv.cfg)
+		var newINode agro.INodeStore
+		if f.d.inodes.Kind() == "block" {
+			newINode, err = inode.NewBlockINodeStore("rebalance", f.d.srv.cfg, newBlock, gmd)
+		} else {
+			newINode, err = agro.CreateINodeStore(f.d.inodes.Kind(), "rebalance", f.d.srv.cfg)
+		}
 		if err != nil {
 			return err
 		}
@@ -195,7 +201,16 @@ func (f *full) doState(phase fullPhase) error {
 		if err != nil {
 			return err
 		}
-		inodes, err := f.store.oldINode.ReplaceINodeStore(f.store.newINode)
+		var inodes agro.INodeStore
+		if f.d.inodes.Kind() == "block" {
+			gmd, err := f.d.srv.mds.GlobalMetadata()
+			if err != nil {
+				return err
+			}
+			inodes, err = inode.NewBlockINodeStore("current", f.d.srv.cfg, blocks, gmd)
+		} else {
+			inodes, err = f.store.oldINode.ReplaceINodeStore(f.store.newINode)
+		}
 		if err != nil {
 			return err
 		}
@@ -250,6 +265,9 @@ func (f *full) sendAllBlocks() error {
 			time.Sleep(fullRebalancePause)
 		}
 		ref := it.BlockRef()
+		if ref.BlockType() != agro.Block {
+			continue
+		}
 		bytes, err := ob.GetBlock(context.TODO(), ref)
 		if err != nil {
 			return err

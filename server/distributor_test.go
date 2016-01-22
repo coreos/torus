@@ -11,16 +11,17 @@ import (
 	"github.com/coreos/agro/metadata/temp"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
+	"github.com/coreos/agro/storage/inode"
 )
 
 func newServer(md *temp.Server) *server {
 	cfg := agro.Config{}
 	mds := temp.NewClient(cfg, md)
-	inodes, _ := agro.CreateINodeStore("temp", "current", cfg)
 	gmd, _ := mds.GlobalMetadata()
-	cold, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
+	blocks, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
+	inodes, _ := inode.NewBlockINodeStore("current", cfg, blocks, gmd)
 	return &server{
-		blocks:        cold,
+		blocks:        blocks,
 		mds:           mds,
 		inodes:        inodes,
 		peersMap:      make(map[string]*models.PeerInfo),
