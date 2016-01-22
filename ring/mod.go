@@ -13,6 +13,7 @@ type mod struct {
 	version int
 	rep     int
 	peers   []string
+	npeers  int
 }
 
 func init() {
@@ -28,16 +29,20 @@ func makeMod(r *models.Ring) (agro.Ring, error) {
 		version: int(r.Version),
 		peers:   sort.StringSlice(r.UUIDs),
 		rep:     rep,
+		npeers:  len(r.UUIDs),
 	}, nil
 }
 
 func (m *mod) GetBlockPeers(key agro.BlockRef) (agro.PeerList, error) {
-	var permute []string
+	permute := make([]string, m.rep)
 	crc := crc32.ChecksumIEEE(key.ToBytes())
 	sum := int(crc) % len(m.peers)
-	permute = append(permute, m.peers[sum:]...)
-	permute = append(permute, m.peers[:sum]...)
-	return permute[:m.rep], nil
+	copy(permute, m.peers[sum:])
+	if m.npeers-sum >= m.rep {
+		return permute, nil
+	}
+	copy(permute[m.npeers-sum:], m.peers)
+	return permute, nil
 }
 
 func (m *mod) GetINodePeers(key agro.INodeRef) (agro.PeerList, error) {

@@ -216,7 +216,8 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 	tx := m.blockTrie.Txn()
 	_, exists := tx.Insert(s.ToBytes(), index)
 	if exists {
-		return errors.New("mfile: block already existed?")
+		clog.Error("block already exists", s.ToBytes())
+		return errors.New("mfile: block already existed? " + s.String())
 	}
 	m.size++
 	promBlocks.WithLabelValues(m.name).Inc()

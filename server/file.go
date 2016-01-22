@@ -68,8 +68,9 @@ type file struct {
 	writeOpen     bool
 
 	// half-finished blocks
-	openIdx  int
-	openData []byte
+	openIdx   int
+	openData  []byte
+	openWrote bool
 }
 
 func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error) {
@@ -166,6 +167,7 @@ func (f *file) openBlock(i int) error {
 }
 
 func (f *file) writeToBlock(from, to int, data []byte) int {
+	f.openWrote = true
 	if f.openData == nil {
 		panic("server: file data not open")
 	}
@@ -176,12 +178,13 @@ func (f *file) writeToBlock(from, to int, data []byte) int {
 }
 
 func (f *file) syncBlock() error {
-	if f.openData == nil {
+	if f.openData == nil || !f.openWrote {
 		return nil
 	}
 	err := f.blocks.PutBlock(context.TODO(), f.writeINodeRef, f.openIdx, f.openData)
 	f.openIdx = -1
 	f.openData = nil
+	f.openWrote = false
 	return err
 }
 
@@ -299,7 +302,9 @@ func (f *file) ReadAt(b []byte, off int64) (n int, ferr error) {
 	f.mut.RLock()
 	defer f.mut.RUnlock()
 	toRead := len(b)
-	clog.Tracef("begin read of size %d", toRead)
+	if clog.LevelAt(capnslog.TRACE) {
+		clog.Tracef("begin read of size %d", toRead)
+	}
 	n = 0
 	if int64(toRead)+off > int64(f.inode.Filesize) {
 		toRead = int(int64(f.inode.Filesize) - off)
@@ -313,8 +318,10 @@ func (f *file) ReadAt(b []byte, off int64) (n int, ferr error) {
 			return n, io.EOF
 		}
 		blkOff := off - int64(int(f.blkSize)*blkIndex)
-		clog.Tracef("getting block index %d", blkIndex)
-		blk, err := f.blocks.GetBlock(context.TODO(), blkIndex)
+		if clog.LevelAt(capnslog.TRACE) {
+			clog.Tracef("getting block index %d", blkIndex)
+		}
+		err := f.openBlock(blkIndex)
 		if err != nil {
 			return n, err
 		}
@@ -322,7 +329,7 @@ func (f *file) ReadAt(b []byte, off int64) (n int, ferr error) {
 		if int64(toRead-n) < thisRead {
 			thisRead = int64(toRead - n)
 		}
-		count := copy(b[n:], blk[blkOff:blkOff+thisRead])
+		count := copy(b[n:], f.openData[blkOff:blkOff+thisRead])
 		n += count
 		off += int64(count)
 	}
