@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/DeanThompson/ginpprof"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
@@ -39,6 +40,7 @@ func (s *Server) setupRoutes() {
 		v0.GET("/volume/:volume/file/:filename", s.getFile)
 	}
 	s.router.GET("/metrics", s.prometheus)
+	ginpprof.Wrapper(s.router)
 }
 
 func (s *Server) createVolume(c *gin.Context) {

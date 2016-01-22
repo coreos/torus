@@ -49,13 +49,11 @@ func (i INodeRef) ToProto() *models.INodeRef {
 const INodeRefByteSize = 8 * 2
 
 func (i INodeRef) ToBytes() []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, INodeRefByteSize))
-	binary.Write(buf, binary.LittleEndian, i)
-	out := buf.Bytes()
-	if len(out) != INodeRefByteSize {
-		panic("breaking contract -- must make size appropriate")
-	}
-	return out
+	buf := make([]byte, INodeRefByteSize)
+	order := binary.LittleEndian
+	order.PutUint64(buf[0:8], uint64(i.Volume))
+	order.PutUint64(buf[8:16], uint64(i.INode))
+	return buf
 }
 
 // BlockRef is the identifier for a unique block in the filesystem.
@@ -67,13 +65,12 @@ type BlockRef struct {
 const BlockRefByteSize = 8 * 3
 
 func (b BlockRef) ToBytes() []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, BlockRefByteSize))
-	binary.Write(buf, binary.LittleEndian, b)
-	out := buf.Bytes()
-	if len(out) != BlockRefByteSize {
-		panic("breaking contract -- must make size appropriate")
-	}
-	return out
+	buf := make([]byte, BlockRefByteSize)
+	order := binary.LittleEndian
+	order.PutUint64(buf[0:8], uint64(b.Volume))
+	order.PutUint64(buf[8:16], uint64(b.INode))
+	order.PutUint64(buf[16:24], uint64(b.Index))
+	return buf
 }
 
 func BlockRefFromBytes(b []byte) BlockRef {
@@ -81,6 +78,10 @@ func BlockRefFromBytes(b []byte) BlockRef {
 	out := BlockRef{}
 	binary.Read(buf, binary.LittleEndian, &out)
 	return out
+}
+
+func (b BlockRef) String() string {
+	return fmt.Sprintf("br %d : %d : %d", b.Volume, b.INode, b.Index)
 }
 
 func (b BlockRef) ToProto() *models.BlockRef {
@@ -106,11 +107,6 @@ func INodeFromProto(p *models.INodeRef) INodeRef {
 		Volume: VolumeID(p.Volume),
 		INode:  INodeID(p.INode),
 	}
-}
-
-func (b BlockRef) String() string {
-	i := b.INodeRef
-	return fmt.Sprintf("vol: %d, inode: %d, block: %d", i.Volume, i.INode, b.Index)
 }
 
 func (b BlockRef) IsINode(i INodeRef) bool {
