@@ -14,15 +14,15 @@ import (
 type makeTestBlockset func(s agro.BlockStore) blockset
 
 func TestBaseReadWrite(t *testing.T) {
-	s, _ := agro.CreateBlockStore("temp", agro.Config{}, agro.GlobalMetadata{})
+	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{}, agro.GlobalMetadata{})
 	b := newBaseBlockset(s)
 	readWriteTest(t, b)
 }
 
 func readWriteTest(t *testing.T, b blockset) {
-	inode := agro.INodeRef{1, 1}
+	inode := agro.NewINodeRef(1, 1)
 	b.PutBlock(context.TODO(), inode, 0, []byte("Some data"))
-	inode = agro.INodeRef{1, 2}
+	inode = agro.NewINodeRef(1, 2)
 	b.PutBlock(context.TODO(), inode, 1, []byte("Some more data"))
 	data, err := b.GetBlock(context.TODO(), 0)
 	if err != nil {
@@ -42,7 +42,7 @@ func readWriteTest(t *testing.T, b blockset) {
 }
 
 func TestBaseMarshal(t *testing.T) {
-	s, _ := agro.CreateBlockStore("temp", agro.Config{}, agro.GlobalMetadata{})
+	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{}, agro.GlobalMetadata{})
 	marshalTest(t, s, MustParseBlockLayerSpec("base"))
 }
 
@@ -51,7 +51,7 @@ func marshalTest(t *testing.T, s agro.BlockStore, spec agro.BlockLayerSpec) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	inode := agro.INodeRef{1, 1}
+	inode := agro.NewINodeRef(1, 1)
 	b.PutBlock(context.TODO(), inode, 0, []byte("Some data"))
 	marshal, err := MarshalToProto(b)
 	if err != nil {

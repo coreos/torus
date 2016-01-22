@@ -42,8 +42,9 @@ func (r *replace) AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStat
 	if s.Phase != 1 {
 		return nil, true, errors.New("unknown phase")
 	}
-	s.FromLeader = false
-	return s, true, nil
+	out := r.makeMessage(s.Phase)
+	out.FromLeader = false
+	return out, true, nil
 }
 
 func (r *replace) OnError(err error) *models.RebalanceStatus {

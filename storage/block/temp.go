@@ -41,7 +41,9 @@ func (t *tempBlockStore) Flush() error { return nil }
 
 func (t *tempBlockStore) Close() error {
 	t.mut.Lock()
-	t.store = nil
+	if t.store != nil {
+		t.store = nil
+	}
 	t.mut.Unlock()
 	return nil
 }

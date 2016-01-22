@@ -138,6 +138,9 @@ func (m *mfileBlock) Close() error {
 
 func (m *mfileBlock) close() error {
 	m.Flush()
+	if m.closed {
+		return nil
+	}
 	err := m.data.Close()
 	if err != nil {
 		return err

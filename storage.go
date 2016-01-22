@@ -1,7 +1,6 @@
 package agro
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 
@@ -96,10 +95,15 @@ func (b BlockRef) ToBytes() []byte {
 }
 
 func BlockRefFromBytes(b []byte) BlockRef {
-	buf := bytes.NewBuffer(b)
-	out := BlockRef{}
-	binary.Read(buf, binary.LittleEndian, &out)
-	return out
+	order := binary.LittleEndian
+	ref := BlockRef{
+		INodeRef: NewINodeRef(
+			VolumeID(order.Uint64(b[0:8])),
+			INodeID(order.Uint64(b[8:16])),
+		),
+		Index: IndexID(order.Uint64(b[16:24])),
+	}
+	return ref
 }
 
 func (b BlockRef) String() string {
