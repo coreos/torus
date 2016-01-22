@@ -130,10 +130,7 @@ func (f *file) openWrite() error {
 		}
 		return err
 	}
-	f.writeINodeRef = agro.INodeRef{
-		Volume: vid,
-		INode:  newINode,
-	}
+	f.writeINodeRef = agro.NewINodeRef(vid, newINode)
 	if f.inode != nil {
 		f.inode.Replaces = f.inode.INode
 		f.inode.INode = uint64(newINode)
@@ -414,10 +411,7 @@ func (f *file) sync(closing bool) error {
 		promFileChangedSyncs.WithLabelValues(f.path.Volume).Inc()
 		var newINode *models.INode
 		for {
-			newINode, err = f.srv.inodes.GetINode(context.TODO(), agro.INodeRef{
-				Volume: f.writeINodeRef.Volume,
-				INode:  replaced,
-			})
+			newINode, err = f.srv.inodes.GetINode(context.TODO(), agro.NewINodeRef(f.writeINodeRef.Volume(), replaced))
 			if err == nil {
 				break
 			}

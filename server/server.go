@@ -104,7 +104,7 @@ func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
 		return agro.INodeRef{}, os.ErrNotExist
 	}
 
-	return agro.INodeRef{volID, agro.INodeID(inodeID)}, nil
+	return agro.NewINodeRef(volID, agro.INodeID(inodeID)), nil
 }
 
 type fileInfo struct {

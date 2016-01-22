@@ -19,6 +19,17 @@ type (
 
 	// INodeID represents a unique identifier for an INode.
 	INodeID uint64
+
+	BlockType uint16
+)
+
+const (
+	Block BlockType = iota
+	INode
+)
+
+const (
+	VolumeMax = 0x000000FFFFFFFFFF
 )
 
 // Store is the interface that represents methods that should be common across
@@ -31,18 +42,29 @@ type Store interface {
 
 // INodeRef is a reference to a unique INode in the filesystem.
 type INodeRef struct {
-	Volume VolumeID
+	volume VolumeID
 	INode  INodeID
 }
 
+func (i INodeRef) Volume() VolumeID {
+	return i.volume & VolumeMax
+}
+
 func (i INodeRef) String() string {
-	return fmt.Sprintf("vol: %d, inode: %d", i.Volume, i.INode)
+	return fmt.Sprintf("vol: %d, inode: %d", i.Volume(), i.INode)
 }
 
 func (i INodeRef) ToProto() *models.INodeRef {
 	return &models.INodeRef{
-		Volume: uint64(i.Volume),
+		Volume: uint64(i.volume),
 		INode:  uint64(i.INode),
+	}
+}
+
+func NewINodeRef(vol VolumeID, i INodeID) INodeRef {
+	return INodeRef{
+		volume: vol & VolumeMax,
+		INode:  i,
 	}
 }
 
@@ -51,7 +73,7 @@ const INodeRefByteSize = 8 * 2
 func (i INodeRef) ToBytes() []byte {
 	buf := make([]byte, INodeRefByteSize)
 	order := binary.LittleEndian
-	order.PutUint64(buf[0:8], uint64(i.Volume))
+	order.PutUint64(buf[0:8], uint64(i.volume))
 	order.PutUint64(buf[8:16], uint64(i.INode))
 	return buf
 }
@@ -67,7 +89,7 @@ const BlockRefByteSize = 8 * 3
 func (b BlockRef) ToBytes() []byte {
 	buf := make([]byte, BlockRefByteSize)
 	order := binary.LittleEndian
-	order.PutUint64(buf[0:8], uint64(b.Volume))
+	order.PutUint64(buf[0:8], uint64(b.volume))
 	order.PutUint64(buf[8:16], uint64(b.INode))
 	order.PutUint64(buf[16:24], uint64(b.Index))
 	return buf
@@ -81,12 +103,12 @@ func BlockRefFromBytes(b []byte) BlockRef {
 }
 
 func (b BlockRef) String() string {
-	return fmt.Sprintf("br %d : %d : %d", b.Volume, b.INode, b.Index)
+	return fmt.Sprintf("br %d : %d : %d", b.volume, b.INode, b.Index)
 }
 
 func (b BlockRef) ToProto() *models.BlockRef {
 	return &models.BlockRef{
-		Volume: uint64(b.Volume),
+		Volume: uint64(b.volume),
 		INode:  uint64(b.INode),
 		Block:  uint64(b.Index),
 	}
@@ -95,7 +117,7 @@ func (b BlockRef) ToProto() *models.BlockRef {
 func BlockFromProto(p *models.BlockRef) BlockRef {
 	return BlockRef{
 		INodeRef: INodeRef{
-			Volume: VolumeID(p.Volume),
+			volume: VolumeID(p.Volume),
 			INode:  INodeID(p.INode),
 		},
 		Index: IndexID(p.Block),
@@ -104,13 +126,21 @@ func BlockFromProto(p *models.BlockRef) BlockRef {
 
 func INodeFromProto(p *models.INodeRef) INodeRef {
 	return INodeRef{
-		Volume: VolumeID(p.Volume),
+		volume: VolumeID(p.Volume),
 		INode:  INodeID(p.INode),
 	}
 }
 
-func (b BlockRef) IsINode(i INodeRef) bool {
-	return b.INode == i.INode && b.Volume == i.Volume
+func (b BlockRef) HasINode(i INodeRef, t BlockType) bool {
+	return b.INode == i.INode && b.Volume() == i.Volume() && b.BlockType() == t
+}
+
+func (b BlockRef) BlockType() BlockType {
+	return BlockType((b.volume &^ VolumeMax) >> 40)
+}
+
+func (b *BlockRef) SetBlockType(t BlockType) {
+	b.volume = VolumeID(uint64(b.volume) | ((uint64(t) & 0xFFFFFF) << 40))
 }
 
 // BlockStore is the interface representing the standardized methods to

@@ -13,13 +13,7 @@ func (d *distributor) Block(ctx context.Context, req *models.BlockRequest) (*mod
 	out := &models.BlockResponse{}
 	fail := false
 	for _, b := range req.BlockRefs {
-		ref := agro.BlockRef{
-			INodeRef: agro.INodeRef{
-				Volume: agro.VolumeID(b.Volume),
-				INode:  agro.INodeID(b.INode),
-			},
-			Index: agro.IndexID(b.Block),
-		}
+		ref := agro.BlockFromProto(b)
 		data, err := d.blocks.GetBlock(ctx, ref)
 		if err != nil {
 			clog.Warningf("remote asking for non-existent block")
@@ -45,10 +39,7 @@ func (d *distributor) INode(ctx context.Context, req *models.INodeRequest) (*mod
 	out := &models.INodeResponse{}
 	fail := false
 	for _, b := range req.INodeRefs {
-		ref := agro.INodeRef{
-			Volume: agro.VolumeID(b.Volume),
-			INode:  agro.INodeID(b.INode),
-		}
+		ref := agro.INodeFromProto(b)
 		in, err := d.inodes.GetINode(ctx, ref)
 		if err != nil {
 			clog.Warningf("remote asking for non-existent inode")
@@ -72,13 +63,7 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 		return &models.PutResponse{Err: "malformed request"}, nil
 	}
 	for i, b := range req.Refs {
-		ref := agro.BlockRef{
-			INodeRef: agro.INodeRef{
-				Volume: agro.VolumeID(b.Volume),
-				INode:  agro.INodeID(b.INode),
-			},
-			Index: agro.IndexID(b.Block),
-		}
+		ref := agro.BlockFromProto(b)
 		peers, err := d.ring.GetBlockPeers(ref)
 		if err != nil {
 			promDistPutBlockRPCFailures.Inc()
@@ -111,10 +96,7 @@ func (d *distributor) PutINode(ctx context.Context, req *models.PutINodeRequest)
 		return &models.PutResponse{Err: "malformed request"}, nil
 	}
 	for i, b := range req.Refs {
-		ref := agro.INodeRef{
-			Volume: agro.VolumeID(b.Volume),
-			INode:  agro.INodeID(b.INode),
-		}
+		ref := agro.INodeFromProto(b)
 		peers, err := d.ring.GetINodePeers(ref)
 		if err != nil {
 			promDistPutINodeRPCFailures.Inc()

@@ -128,7 +128,7 @@ func (b *boltINodeStore) GetINode(_ context.Context, i agro.INodeRef) (*models.I
 
 func formatKeyVol(i agro.INodeRef) (string, string) {
 	key := strconv.FormatUint(uint64(i.INode), 10)
-	vol := strconv.FormatUint(uint64(i.Volume), 10)
+	vol := strconv.FormatUint(uint64(i.Volume()), 10)
 	return key, vol
 }
 
@@ -231,10 +231,10 @@ func (b *boltINodeIterator) INodeRef() agro.INodeRef {
 	if err != nil {
 		panic(err)
 	}
-	return agro.INodeRef{
-		Volume: agro.VolumeID(vol),
-		INode:  agro.INodeID(inode),
-	}
+	return agro.NewINodeRef(
+		agro.VolumeID(vol),
+		agro.INodeID(inode),
+	)
 }
 
 func (b *boltINodeIterator) Close() error {

@@ -121,7 +121,7 @@ func (t *tempBlockStore) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) e
 	}
 
 	for k := range t.store {
-		if k.IsINode(s) {
+		if k.HasINode(s, agro.Block) {
 			promBlocksDeleted.WithLabelValues(t.name).Inc()
 			delete(t.store, k)
 		}

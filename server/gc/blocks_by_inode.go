@@ -77,10 +77,7 @@ func (b *blocksByINode) gc(volume string) {
 	it := deadmap.Iterator()
 	for it.HasNext() {
 		i := it.Next()
-		ref := agro.INodeRef{
-			Volume: vid,
-			INode:  agro.INodeID(i),
-		}
+		ref := agro.NewINodeRef(vid, agro.INodeID(i))
 		err := b.blocks.DeleteINodeBlocks(context.TODO(), ref)
 		if err != nil {
 			clog.Errorf("bbi: got error gcing volume %s deleting INode %v: %v", volume, ref, err)

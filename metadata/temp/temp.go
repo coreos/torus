@@ -206,7 +206,7 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, err
 	if err != nil {
 		return old, err
 	}
-	if vid != ref.Volume {
+	if vid != ref.Volume() {
 		return old, errors.New("temp: inodeRef volume not for given path volume")
 	}
 	t.srv.mut.Lock()
