@@ -147,9 +147,8 @@ func (d *distributor) rebalanceFollower(inOut [2]chan *models.RebalanceStatus, n
 	}
 }
 
-func waitAll(c chan *models.RebalanceStatus, newring agro.Ring, phase int32) error {
-	member := newring.Members()
-	for len(member) > 0 {
+func waitAll(c chan *models.RebalanceStatus, peerList agro.PeerList, phase int32) error {
+	for len(peerList) > 0 {
 
 		// TODO(barakmich) Check if the status is an error, such as the TTL of
 		// the key being lost in etcd (thus a machine has timed out and we're in
@@ -160,10 +159,10 @@ func waitAll(c chan *models.RebalanceStatus, newring agro.Ring, phase int32) err
 			return agro.ErrClosed
 		}
 		if stat.Phase == phase {
-			for i, m := range member {
+			for i, m := range peerList {
 				if m == stat.UUID {
 					clog.Debugf("got response from %s", stat.UUID)
-					member = append(member[:i], member[i+1:]...)
+					peerList = append(peerList[:i], peerList[i+1:]...)
 					break
 				}
 			}

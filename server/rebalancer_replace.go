@@ -35,7 +35,7 @@ func (r *replace) makeMessage(phase int32) *models.RebalanceStatus {
 func (r *replace) Leader(inOut [2]chan *models.RebalanceStatus) {
 	in, out := inOut[0], inOut[1]
 	out <- r.makeMessage(1)
-	waitAll(in, r.newRing, 1)
+	waitAll(in, r.newRing.Members(), 1)
 }
 
 func (r *replace) AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStatus, bool, error) {

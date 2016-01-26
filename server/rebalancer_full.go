@@ -71,7 +71,8 @@ func (f *full) abort(out chan *models.RebalanceStatus, phase fullPhase, err erro
 }
 
 func (f *full) waitAll(c chan *models.RebalanceStatus, phase fullPhase) error {
-	return waitAll(c, f.newRing, int32(phase))
+	members := f.newRing.Members().Union(f.oldRing.Members())
+	return waitAll(c, members, int32(phase))
 }
 
 func (f *full) Leader(inOut [2]chan *models.RebalanceStatus) {
