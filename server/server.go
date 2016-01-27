@@ -18,7 +18,6 @@ import (
 	// Register drivers
 	_ "github.com/coreos/agro/metadata/memory"
 	_ "github.com/coreos/agro/storage/block"
-	_ "github.com/coreos/agro/storage/inode"
 )
 
 var _ agro.Server = &server{}
@@ -28,7 +27,7 @@ type server struct {
 	writeableLock sync.RWMutex
 	blocks        agro.BlockStore
 	mds           agro.MetadataService
-	inodes        agro.INodeStore
+	inodes        *INodeStore
 	peersMap      map[string]*models.PeerInfo
 	closeChans    []chan interface{}
 	openINodeRefs map[string]map[agro.INodeID]int

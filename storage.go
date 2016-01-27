@@ -159,6 +159,7 @@ type BlockStore interface {
 	UsedBlocks() uint64
 	BlockIterator() BlockIterator
 	ReplaceBlockStore(BlockStore) (BlockStore, error)
+	BlockSize() uint64
 	// TODO(barakmich) FreeBlocks()
 }
 
@@ -188,43 +189,4 @@ func RegisterBlockStore(name string, newFunc NewBlockStoreFunc) {
 func CreateBlockStore(kind string, name string, cfg Config, gmd GlobalMetadata) (BlockStore, error) {
 	clog.Infof("creating blockstore: %s", kind)
 	return blockStores[kind](name, cfg, gmd)
-}
-
-// INodeStore is the interface representing the standardized methods to
-// interact with something storing INodes.
-type INodeStore interface {
-	Store
-	GetINode(ctx context.Context, i INodeRef) (*models.INode, error)
-	WriteINode(ctx context.Context, i INodeRef, inode *models.INode) error
-	DeleteINode(ctx context.Context, i INodeRef) error
-	INodeIterator() INodeIterator
-	ReplaceINodeStore(INodeStore) (INodeStore, error)
-}
-
-type INodeIterator interface {
-	Err() error
-	Next() bool
-	INodeRef() INodeRef
-	Close() error
-}
-
-type NewINodeStoreFunc func(string, Config) (INodeStore, error)
-
-var inodeStores map[string]NewINodeStoreFunc
-
-func RegisterINodeStore(name string, newFunc NewINodeStoreFunc) {
-	if inodeStores == nil {
-		inodeStores = make(map[string]NewINodeStoreFunc)
-	}
-
-	if _, ok := inodeStores[name]; ok {
-		panic("agro: attempted to register INodeStore " + name + " twice")
-	}
-
-	inodeStores[name] = newFunc
-}
-
-func CreateINodeStore(kind string, name string, cfg Config) (INodeStore, error) {
-	clog.Infof("creating inode store: %s", kind)
-	return inodeStores[kind](name, cfg)
 }

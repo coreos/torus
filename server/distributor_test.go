@@ -11,7 +11,6 @@ import (
 	"github.com/coreos/agro/metadata/temp"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
-	"github.com/coreos/agro/storage/inode"
 )
 
 func newServer(md *temp.Server) *server {
@@ -19,11 +18,10 @@ func newServer(md *temp.Server) *server {
 	mds := temp.NewClient(cfg, md)
 	gmd, _ := mds.GlobalMetadata()
 	blocks, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
-	inodes, _ := inode.NewBlockINodeStore("current", cfg, blocks, gmd)
 	return &server{
 		blocks:        blocks,
 		mds:           mds,
-		inodes:        inodes,
+		inodes:        NewINodeStore(blocks),
 		peersMap:      make(map[string]*models.PeerInfo),
 		openINodeRefs: make(map[string]map[agro.INodeID]int),
 	}
@@ -96,7 +94,7 @@ func testThreeWrite(t *testing.T) {
 	for {
 		ok := true
 		for i := 0; i < 3; i++ {
-			d := srvs[i].inodes.(*distributor)
+			d := srvs[i].blocks.(*distributor)
 			if d.ring.Version() != 2 {
 				ok = false
 				break

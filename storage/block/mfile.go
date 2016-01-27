@@ -35,6 +35,7 @@ type mfileBlock struct {
 	dfilename string
 	mfilename string
 	name      string
+	blocksize uint64
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
@@ -98,6 +99,7 @@ func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) 
 		dfilename: dpath,
 		mfilename: mpath,
 		name:      name,
+		blocksize: meta.BlockSize,
 	}, nil
 }
 
@@ -106,6 +108,10 @@ func (m *mfileBlock) NumBlocks() uint64 {
 	m.mut.RLock()
 	defer m.mut.RUnlock()
 	return m.numBlocks()
+}
+
+func (m *mfileBlock) BlockSize() uint64 {
+	return m.blocksize
 }
 
 func (m *mfileBlock) numBlocks() uint64 {

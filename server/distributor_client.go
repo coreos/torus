@@ -84,51 +84,6 @@ func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef)
 	return resp.Blocks[0].Data, nil
 }
 
-func (d *distClient) GetINode(ctx context.Context, uuid string, b agro.INodeRef) (*models.INode, error) {
-	conn := d.getConn(uuid)
-	if conn == nil {
-		return nil, agro.ErrINodeUnavailable
-	}
-	client := models.NewAgroStorageClient(conn)
-	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
-	defer cancel()
-	resp, err := client.INode(newctx, &models.INodeRequest{
-		INodeRefs: []*models.INodeRef{b.ToProto()},
-	})
-	if err != nil {
-		clog.Debug(err)
-		return nil, agro.ErrINodeUnavailable
-	}
-	if resp.INodes[0].INode != uint64(b.INode) {
-		return nil, agro.ErrINodeUnavailable
-	}
-	return resp.INodes[0], nil
-}
-
-func (d *distClient) PutINode(ctx context.Context, uuid string, b agro.INodeRef, inode *models.INode) error {
-	conn := d.getConn(uuid)
-	if conn == nil {
-		return agro.ErrINodeUnavailable
-	}
-	client := models.NewAgroStorageClient(conn)
-	newctx, cancel := context.WithTimeout(ctx, writeClientTimeout)
-	defer cancel()
-	resp, err := client.PutINode(newctx, &models.PutINodeRequest{
-		Refs:   []*models.INodeRef{b.ToProto()},
-		INodes: []*models.INode{inode},
-	})
-	if err != nil {
-		if err == context.DeadlineExceeded {
-			return agro.ErrINodeUnavailable
-		}
-		return err
-	}
-	if !resp.Ok {
-		return errors.New(resp.Err)
-	}
-	return nil
-}
-
 func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef, data []byte) error {
 	conn := d.getConn(uuid)
 	if conn == nil {

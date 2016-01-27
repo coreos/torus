@@ -36,8 +36,9 @@ func openTempBlockStore(name string, cfg agro.Config, gmd agro.GlobalMetadata) (
 	}, nil
 }
 
-func (t *tempBlockStore) Kind() string { return "temp" }
-func (t *tempBlockStore) Flush() error { return nil }
+func (t *tempBlockStore) Kind() string      { return "temp" }
+func (t *tempBlockStore) Flush() error      { return nil }
+func (t *tempBlockStore) BlockSize() uint64 { return 1024 }
 
 func (t *tempBlockStore) Close() error {
 	t.mut.Lock()

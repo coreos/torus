@@ -19,7 +19,6 @@ import (
 	_ "github.com/coreos/agro/metadata/etcd"
 	_ "github.com/coreos/agro/metadata/temp"
 	_ "github.com/coreos/agro/storage/block"
-	_ "github.com/coreos/agro/storage/inode"
 )
 
 var (
@@ -110,7 +109,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	)
 	switch {
 	case etcdAddress == "":
-		srv, err = server.NewServer(cfg, "temp", "bolt", "mfile")
+		srv, err = server.NewServer(cfg, "temp", "mfile")
 	case mkfs:
 		err = agro.Mkfs("etcd", cfg, agro.GlobalMetadata{
 			BlockSize:        8 * 1024,
@@ -127,7 +126,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		}
 		fallthrough
 	default:
-		srv, err = server.NewServer(cfg, "etcd", "bolt", "mfile")
+		srv, err = server.NewServer(cfg, "etcd", "mfile")
 	}
 	if err != nil {
 		fmt.Printf("Couldn't start: %s\n", err)

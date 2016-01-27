@@ -25,14 +25,10 @@ func mkdirsFor(dir string) error {
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll(filepath.Join(dir, "inode"), 0700)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-func NewServer(cfg agro.Config, metadataServiceKind, inodeStoreKind, blockStoreKind string) (agro.Server, error) {
+func NewServer(cfg agro.Config, metadataServiceKind, blockStoreKind string) (agro.Server, error) {
 	err := mkdirsFor(cfg.DataDir)
 	if err != nil {
 		return nil, err
@@ -48,11 +44,6 @@ func NewServer(cfg agro.Config, metadataServiceKind, inodeStoreKind, blockStoreK
 		return nil, err
 	}
 
-	inodes, err := agro.CreateINodeStore(inodeStoreKind, "current", cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	blocks, err := agro.CreateBlockStore(blockStoreKind, "current", cfg, global)
 	if err != nil {
 		return nil, err
@@ -61,7 +52,7 @@ func NewServer(cfg agro.Config, metadataServiceKind, inodeStoreKind, blockStoreK
 	s := &server{
 		blocks:        blocks,
 		mds:           mds,
-		inodes:        inodes,
+		inodes:        NewINodeStore(blocks),
 		peersMap:      make(map[string]*models.PeerInfo),
 		openINodeRefs: make(map[string]map[agro.INodeID]int),
 		cfg:           cfg,
@@ -73,7 +64,7 @@ func NewServer(cfg agro.Config, metadataServiceKind, inodeStoreKind, blockStoreK
 
 func NewMemoryServer() agro.Server {
 	cfg := agro.Config{}
-	x, err := NewServer(cfg, "memory", "temp", "temp")
+	x, err := NewServer(cfg, "memory", "temp")
 	if err != nil {
 		panic(err)
 	}

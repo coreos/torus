@@ -1,49 +1,42 @@
-package inode
+package server
 
 import (
 	"encoding/binary"
-	"errors"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"golang.org/x/net/context"
 )
 
-var _ agro.INodeStore = &blockINodeStore{}
-
-type blockINodeStore struct {
-	bs        agro.BlockStore
-	name      string
-	blocksize uint64
+type INodeStore struct {
+	bs   agro.BlockStore
+	name string
 }
 
-func NewBlockINodeStore(name string, cfg agro.Config, bs agro.BlockStore, gmd agro.GlobalMetadata) (agro.INodeStore, error) {
-	return &blockINodeStore{
-		bs:        bs,
-		name:      name,
-		blocksize: gmd.BlockSize,
-	}, nil
+func NewINodeStore(bs agro.BlockStore) *INodeStore {
+	return &INodeStore{
+		bs: bs,
+	}
 }
 
-func (b *blockINodeStore) Kind() string { return "block" }
-func (b *blockINodeStore) Flush() error { return b.bs.Flush() }
-func (b *blockINodeStore) Close() error {
+func (b *INodeStore) Flush() error { return b.bs.Flush() }
+func (b *INodeStore) Close() error {
 	return b.bs.Close()
 }
 
-func (b *blockINodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *models.INode) error {
+func (b *INodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *models.INode) error {
 	inodedata, err := inode.Marshal()
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, b.blocksize)
+	buf := make([]byte, b.bs.BlockSize())
 	binary.LittleEndian.PutUint32(buf[0:4], uint32(len(inodedata)))
 	bufoffset := 4
 	inodeoffset := 0
 	index := 1
 	for inodeoffset != len(inodedata) {
 		if bufoffset == 0 {
-			buf = make([]byte, b.blocksize)
+			buf = make([]byte, b.bs.BlockSize())
 		}
 		written := copy(buf[bufoffset:], inodedata[inodeoffset:])
 		inodeoffset += written
@@ -62,7 +55,7 @@ func (b *blockINodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode
 	return nil
 }
 
-func (b *blockINodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
+func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
 	index := 1
 	ref := agro.BlockRef{
 		INodeRef: i,
@@ -102,7 +95,7 @@ func (b *blockINodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*model
 	return out, nil
 }
 
-func (b *blockINodeStore) DeleteINode(ctx context.Context, i agro.INodeRef) error {
+func (b *INodeStore) DeleteINode(ctx context.Context, i agro.INodeRef) error {
 	ref := agro.BlockRef{
 		INodeRef: i,
 		Index:    agro.IndexID(1),
@@ -113,7 +106,7 @@ func (b *blockINodeStore) DeleteINode(ctx context.Context, i agro.INodeRef) erro
 		return err
 	}
 	dlen := binary.LittleEndian.Uint32(data[0:4])
-	nblocks := (uint64(dlen) / b.blocksize) + 1
+	nblocks := (uint64(dlen) / b.bs.BlockSize()) + 1
 	for j := uint64(1); j <= nblocks; j++ {
 		ref := agro.BlockRef{
 			INodeRef: i,
@@ -128,28 +121,17 @@ func (b *blockINodeStore) DeleteINode(ctx context.Context, i agro.INodeRef) erro
 	return nil
 }
 
-func (b *blockINodeStore) ReplaceINodeStore(is agro.INodeStore) (agro.INodeStore, error) {
-	if v, ok := is.(*blockINodeStore); ok {
-		return &blockINodeStore{
-			bs:        v.bs,
-			name:      b.name,
-			blocksize: v.blocksize,
-		}, nil
-	}
-	return nil, errors.New("not a blockINodeStore")
-}
-
-func (b *blockINodeStore) INodeIterator() agro.INodeIterator {
+func (b *INodeStore) INodeIterator() *INodeIterator {
 	it := b.bs.BlockIterator()
-	return &blockINodeIterator{it}
+	return &INodeIterator{it}
 }
 
-type blockINodeIterator struct {
+type INodeIterator struct {
 	it agro.BlockIterator
 }
 
-func (i *blockINodeIterator) Err() error { return i.it.Err() }
-func (i *blockINodeIterator) Next() bool {
+func (i *INodeIterator) Err() error { return i.it.Err() }
+func (i *INodeIterator) Next() bool {
 	for i.it.Next() {
 		ref := i.it.BlockRef()
 		if ref.BlockType() == agro.INode && ref.Index == 1 {
@@ -159,10 +141,10 @@ func (i *blockINodeIterator) Next() bool {
 	return false
 }
 
-func (i *blockINodeIterator) INodeRef() agro.INodeRef {
+func (i *INodeIterator) INodeRef() agro.INodeRef {
 	return i.it.BlockRef().INodeRef
 }
 
-func (i *blockINodeIterator) Close() error {
+func (i *INodeIterator) Close() error {
 	return i.it.Close()
 }
