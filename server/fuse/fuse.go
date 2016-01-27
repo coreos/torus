@@ -129,31 +129,32 @@ func (d Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 type File struct {
 	dfs  agro.Server
 	path agro.Path
+	file agro.File
 }
 
 var (
-	_           fs.Handle       = File{}
-	_           fs.HandleReader = File{}
-	handleCache                 = make(map[fuse.NodeID]agro.File)
+	_ fs.Handle       = File{}
+	_ fs.HandleReader = File{}
 )
+
+func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	var err error
+	file, err := f.dfs.Open(f.path)
+	if err != nil {
+		clog.Error(err)
+		return nil, err
+	}
+	clog.Debugf("opening %d", req.Node)
+	f.file = file
+	return f, nil
+}
 
 func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	if req.Dir {
 		return errors.New("ENOTDIR")
 	}
-	file, ok := handleCache[req.Node]
-	if !ok {
-		var err error
-		file, err = f.dfs.Open(f.path)
-		if err != nil {
-			clog.Error(err)
-			return err
-		}
-		clog.Debugf("opening %d", req.Node)
-		handleCache[req.Node] = file
-	}
 	data := make([]byte, req.Size)
-	n, err := file.ReadAt(data, req.Offset)
+	n, err := f.file.ReadAt(data, req.Offset)
 	if err != nil && err != io.EOF {
 		clog.Println(err)
 		return err
@@ -163,11 +164,8 @@ func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadRe
 }
 
 func (f File) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
-	if f, ok := handleCache[req.Node]; ok {
-		clog.Debugf("closing %d nicely", req.Node)
-		f.Close()
-		delete(handleCache, req.Node)
-	}
+	clog.Debugf("closing %d nicely", req.Node)
+	f.file.Close()
 	return nil
 }
 
