@@ -75,6 +75,7 @@ func (i INodeRef) ToBytes() []byte {
 	order.PutUint64(buf[0:8], uint64(i.volume))
 	order.PutUint64(buf[8:16], uint64(i.INode))
 	return buf
+
 }
 
 // BlockRef is the identifier for a unique block in the filesystem.
@@ -97,17 +98,17 @@ func (b BlockRef) ToBytes() []byte {
 func BlockRefFromBytes(b []byte) BlockRef {
 	order := binary.LittleEndian
 	ref := BlockRef{
-		INodeRef: NewINodeRef(
-			VolumeID(order.Uint64(b[0:8])),
-			INodeID(order.Uint64(b[8:16])),
-		),
+		INodeRef: INodeRef{
+			volume: VolumeID(order.Uint64(b[0:8])),
+			INode:  INodeID(order.Uint64(b[8:16])),
+		},
 		Index: IndexID(order.Uint64(b[16:24])),
 	}
 	return ref
 }
 
 func (b BlockRef) String() string {
-	return fmt.Sprintf("br %d : %d : %d", b.volume, b.INode, b.Index)
+	return fmt.Sprintf("br %x : %x : %x", b.volume, b.INode, b.Index)
 }
 
 func (b BlockRef) ToProto() *models.BlockRef {
