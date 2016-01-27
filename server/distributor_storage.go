@@ -37,7 +37,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 			return bcache.([]byte), nil
 		}
 	}
-	peers, err := d.ring.GetBlockPeers(i)
+	peers, err := d.ring.GetPeers(i)
 	if err != nil {
 		promDistBlockFailures.Inc()
 		return nil, err
@@ -84,7 +84,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
-	peers, err := d.ring.GetBlockPeers(i)
+	peers, err := d.ring.GetPeers(i)
 	if err != nil {
 		return err
 	}

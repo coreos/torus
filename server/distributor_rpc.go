@@ -43,7 +43,7 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 	}
 	for i, b := range req.Refs {
 		ref := agro.BlockFromProto(b)
-		peers, err := d.ring.GetBlockPeers(ref)
+		peers, err := d.ring.GetPeers(ref)
 		if err != nil {
 			promDistPutBlockRPCFailures.Inc()
 			return nil, err

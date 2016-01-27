@@ -3,8 +3,7 @@ package agro
 type RingType int
 
 type Ring interface {
-	GetBlockPeers(key BlockRef) (PeerList, error)
-	GetINodePeers(key INodeRef) (PeerList, error)
+	GetPeers(key BlockRef) (PeerList, error)
 	Members() PeerList
 
 	Describe() string

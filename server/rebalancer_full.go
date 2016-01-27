@@ -234,11 +234,11 @@ func (f *full) sendAllBlocks() error {
 		if err != nil {
 			return err
 		}
-		newpeers, err := f.newRing.GetBlockPeers(ref)
+		newpeers, err := f.newRing.GetPeers(ref)
 		if err != nil {
 			return err
 		}
-		oldpeers, err := f.oldRing.GetBlockPeers(ref)
+		oldpeers, err := f.oldRing.GetPeers(ref)
 		if err != nil {
 			return err
 		}
