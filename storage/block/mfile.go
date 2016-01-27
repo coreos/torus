@@ -302,10 +302,10 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	return nil
 }
 
-func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) error {
 	newM, ok := bs.(*mfileBlock)
 	if !ok {
-		return nil, errors.New("not replacing an mfileBlockStore")
+		return errors.New("not replacing an mfileBlockStore")
 	}
 	m.mut.Lock()
 	defer m.mut.Unlock()
@@ -313,39 +313,30 @@ func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, err
 	defer newM.mut.Unlock()
 	err := os.Remove(m.dfilename)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = os.Remove(m.mfilename)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = os.Rename(newM.mfilename, m.mfilename)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = os.Rename(newM.dfilename, m.dfilename)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	out := &mfileBlock{
-		data:      newM.data,
-		blockMap:  newM.blockMap,
-		blockTrie: newM.blockTrie,
-		lastFree:  newM.lastFree,
-		size:      newM.size,
-		dfilename: m.dfilename,
-		mfilename: m.mfilename,
-		name:      m.name,
-	}
+	m.data = newM.data
+	m.blockMap = newM.blockMap
+	m.blockTrie = newM.blockTrie
+	m.lastFree = newM.lastFree
+	m.size = newM.size
 	newM.data = nil
 	newM.blockMap = nil
-	err = m.close()
-	if err != nil {
-		return nil, err
-	}
-	promBlocksAvail.WithLabelValues(out.name).Set(float64(out.numBlocks()))
-	promBlocks.WithLabelValues(out.name).Set(float64(out.size))
-	return out, nil
+	promBlocksAvail.WithLabelValues(m.name).Set(float64(m.numBlocks()))
+	promBlocks.WithLabelValues(m.name).Set(float64(m.size))
+	return nil
 }
 
 func (m *mfileBlock) BlockIterator() agro.BlockIterator {

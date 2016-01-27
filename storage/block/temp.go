@@ -49,14 +49,19 @@ func (t *tempBlockStore) Close() error {
 	return nil
 }
 
-func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) error {
 	if v, ok := bs.(*tempBlockStore); ok {
-		v.name = t.name
-		promBlocks.WithLabelValues(v.name).Set(float64(len(v.store)))
-		promBlocksAvail.WithLabelValues(v.name).Set(float64(v.nBlocks))
-		return v, nil
+		t.mut.Lock()
+		defer t.mut.Unlock()
+		v.mut.Lock()
+		defer v.mut.Unlock()
+		t.store = v.store
+		t.nBlocks = v.nBlocks
+		promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
+		promBlocksAvail.WithLabelValues(t.name).Set(float64(t.nBlocks))
+		return nil
 	}
-	return nil, errors.New("not a tempBlockStore")
+	return errors.New("not a tempBlockStore")
 }
 
 func (t *tempBlockStore) NumBlocks() uint64 {

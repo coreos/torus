@@ -176,11 +176,11 @@ func (f *full) doState(phase fullPhase) error {
 	case fullStateReplaceAndContinue:
 		f.d.mut.Lock()
 		defer f.d.mut.Unlock()
-		blocks, err := f.store.oldBlock.ReplaceBlockStore(f.store.newBlock)
+		err := f.store.oldBlock.ReplaceBlockStore(f.store.newBlock)
 		if err != nil {
 			return err
 		}
-		f.d.blocks = blocks
+		f.d.blocks = f.store.oldBlock
 		f.replaced = false
 		f.d.srv.gc.Start()
 	default:

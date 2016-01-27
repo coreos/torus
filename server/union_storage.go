@@ -66,6 +66,6 @@ func (r *unionStorage) BlockSize() uint64 {
 
 func (r *unionStorage) Kind() string { return "union" }
 
-func (r *unionStorage) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+func (r *unionStorage) ReplaceBlockStore(bs agro.BlockStore) error {
 	panic("unimplemented")
 }
