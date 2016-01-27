@@ -42,6 +42,9 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 		table.SetHeader([]string{"Address", "UUID", "Size", "Used", "Last Registered"})
 	}
 	for _, x := range peers {
+		if x.Address == "" {
+			continue
+		}
 		table.Append([]string{
 			x.Address,
 			x.UUID,

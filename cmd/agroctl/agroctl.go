@@ -25,6 +25,7 @@ func init() {
 	rootCommand.AddCommand(mkfsCommand)
 	rootCommand.AddCommand(listPeersCommand)
 	rootCommand.AddCommand(ringCommand)
+	rootCommand.AddCommand(peerCommand)
 }
 
 func main() {
