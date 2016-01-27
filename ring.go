@@ -14,6 +14,14 @@ type Ring interface {
 	Marshal() ([]byte, error)
 }
 
+type RingAdder interface {
+	AddPeers(PeerList) (Ring, error)
+}
+
+type RingRemover interface {
+	RemovePeers(PeerList) (Ring, error)
+}
+
 type PeerList []string
 
 func (pl PeerList) IndexAt(uuid string) int {

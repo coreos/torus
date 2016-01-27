@@ -1,8 +1,10 @@
 package ring
 
 import (
+	"errors"
 	"fmt"
 	"hash/crc32"
+	"reflect"
 	"sort"
 
 	"github.com/coreos/agro"
@@ -72,4 +74,30 @@ func (m *mod) Marshal() ([]byte, error) {
 	out.Type = uint32(m.Type())
 	out.UUIDs = m.peers
 	return out.Marshal()
+}
+
+func (m *mod) AddPeers(pl agro.PeerList) (agro.Ring, error) {
+	newPeers := sort.StringSlice(m.Members().Union(pl))
+	if reflect.DeepEqual(newPeers, m.Members()) {
+		return nil, errors.New("no difference in membership")
+	}
+	return &mod{
+		version: m.version + 1,
+		rep:     m.rep,
+		peers:   newPeers,
+		npeers:  len(newPeers),
+	}, nil
+}
+
+func (m *mod) RemovePeers(pl agro.PeerList) (agro.Ring, error) {
+	newPeers := sort.StringSlice(m.Members().AndNot(pl))
+	if reflect.DeepEqual(newPeers, m.Members()) {
+		return nil, errors.New("no difference in membership")
+	}
+	return &mod{
+		version: m.version + 1,
+		rep:     m.rep,
+		peers:   newPeers,
+		npeers:  len(newPeers),
+	}, nil
 }
