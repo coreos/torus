@@ -5,8 +5,26 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 )
+
+var (
+	// INodes
+	promINodeRequests = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "agro_distributor_inode_requests_total",
+		Help: "Total number of inodes requested of the distributor layer",
+	})
+	promINodeFailures = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "agro_distributor_inode_request_failures",
+		Help: "Number of failed inode requests",
+	})
+)
+
+func init() {
+	prometheus.MustRegister(promINodeRequests)
+	prometheus.MustRegister(promINodeFailures)
+}
 
 type INodeStore struct {
 	bs   agro.BlockStore
@@ -56,6 +74,7 @@ func (b *INodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *mod
 }
 
 func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
+	promINodeRequests.Inc()
 	index := 1
 	ref := agro.BlockRef{
 		INodeRef: i,
@@ -64,6 +83,7 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 	ref.SetBlockType(agro.INode)
 	data, err := b.bs.GetBlock(ctx, ref)
 	if err != nil {
+		promINodeFailures.Inc()
 		return nil, err
 	}
 	dlen := binary.LittleEndian.Uint32(data[0:4])
@@ -80,6 +100,7 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 			ref.SetBlockType(agro.INode)
 			data, err = b.bs.GetBlock(ctx, ref)
 			if err != nil {
+				promINodeFailures.Inc()
 				return nil, err
 			}
 		}
@@ -90,6 +111,7 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 	out := &models.INode{}
 	err = out.Unmarshal(buf)
 	if err != nil {
+		promINodeFailures.Inc()
 		return nil, err
 	}
 	return out, nil
