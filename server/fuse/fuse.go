@@ -93,6 +93,18 @@ func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	return File{dfs: d.dfs, path: newPath}, nil
 }
 
+func (d Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
+	dirstr := ""
+	if req.Dir {
+		dirstr = "/"
+	}
+	newPath, ok := d.path.Child(req.Name + dirstr)
+	if !ok {
+		return errors.New("fuse: path is not a directory")
+	}
+	return d.dfs.Remove(newPath)
+}
+
 func (d Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	if !d.path.IsDir() {
 		return nil, fuse.Errno(syscall.ENOTDIR)
