@@ -44,6 +44,7 @@ var rootCommand = &cobra.Command{
 func init() {
 	rootCommand.AddCommand(fuseCommand)
 	rootCommand.AddCommand(aoeCommand)
+	rootCommand.AddCommand(ninepCommand)
 	// rootCommand.AddCommand(blockCommand)
 	// rootCommand.AddCommand(daemonCommand)
 
