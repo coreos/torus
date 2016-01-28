@@ -70,6 +70,11 @@ func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err er
 		initialINodes: roaring.NewRoaringBitmap(),
 	}
 	s.addOpenFile(file)
+	// Fake a write, to open up the created file
+	written, err := file.Write([]byte{})
+	if written != 0 || err != nil {
+		return nil, errors.New("couldn't write empty data to the file")
+	}
 	return file, nil
 }
 
@@ -185,6 +190,12 @@ func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
 	return entries, nil
 }
 
+func (s *server) Mkdir(path agro.Path) error {
+	if !path.IsDir() {
+		return os.ErrInvalid
+	}
+	return s.mds.Mkdir(path, &models.Metadata{})
+}
 func (s *server) CreateVolume(vol string) error {
 	err := s.mds.CreateVolume(vol)
 	if err == agro.ErrAgain {

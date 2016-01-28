@@ -151,7 +151,7 @@ func (t *Client) CommitINodeIndex(vol string) (agro.INodeID, error) {
 	return t.srv.inode[vol], nil
 }
 
-func (t *Client) Mkdir(p agro.Path, dir *models.Directory) error {
+func (t *Client) Mkdir(p agro.Path, md *models.Metadata) error {
 	if p.Path == "/" {
 		return errors.New("can't create the root directory")
 	}
@@ -169,7 +169,10 @@ func (t *Client) Mkdir(p agro.Path, dir *models.Directory) error {
 			Err:  os.ErrExist,
 		}
 	}
-	tx.Insert(k, dir)
+	tx.Insert(k, &models.Directory{
+		Metadata: md,
+		Files:    make(map[string]uint64),
+	})
 
 	for {
 		p.Path, _ = path.Split(strings.TrimSuffix(p.Path, "/"))

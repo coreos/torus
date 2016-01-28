@@ -15,6 +15,7 @@ type Server interface {
 	Lstat(Path) (os.FileInfo, error)
 	Readdir(Path) ([]Path, error)
 	Remove(Path) error
+	Mkdir(Path) error
 
 	// Some server metacalls.
 	CreateVolume(string) error

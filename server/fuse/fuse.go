@@ -115,6 +115,18 @@ func (d Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	return d.dfs.Remove(newPath)
 }
 
+func (d Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
+	newPath, ok := d.path.Child(req.Name + "/")
+	if !ok {
+		return nil, errors.New("fuse: path is not a directory")
+	}
+	err := d.dfs.Mkdir(newPath)
+	if err != nil {
+		return nil, err
+	}
+	return Dir{dfs: d.dfs, path: newPath}, nil
+}
+
 func (d Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	if !d.path.IsDir() {
 		return nil, fuse.Errno(syscall.ENOTDIR)

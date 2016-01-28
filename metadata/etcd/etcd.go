@@ -370,7 +370,7 @@ func (c *etcdCtx) GetINodeIndexes() (map[string]agro.INodeID, error) {
 	return out, nil
 }
 
-func (c *etcdCtx) Mkdir(path agro.Path, dir *models.Directory) error {
+func (c *etcdCtx) Mkdir(path agro.Path, md *models.Metadata) error {
 	parent, ok := path.Parent()
 	if !ok {
 		return errors.New("etcd: not a directory")
@@ -378,7 +378,7 @@ func (c *etcdCtx) Mkdir(path agro.Path, dir *models.Directory) error {
 	tx := tx().If(
 		keyExists(mkKey("dirs", parent.Key())),
 	).Then(
-		setKey(mkKey("dirs", path.Key()), newDirProto(&models.Metadata{})),
+		setKey(mkKey("dirs", path.Key()), newDirProto(md)),
 	).Tx()
 	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if err != nil {
@@ -446,7 +446,7 @@ func (c *etcdCtx) getdir(p agro.Path) (*models.Directory, []agro.Path, int64, er
 		s := bytes.SplitN(kv.Key, []byte{':'}, 2)
 		outpaths = append(outpaths, agro.Path{
 			Volume: p.Volume,
-			Path:   string(s[2]),
+			Path:   string(s[1]),
 		})
 	}
 	return outdir, outpaths, dirkv.Version, nil
