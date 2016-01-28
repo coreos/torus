@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"io"
+	"os"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -103,6 +104,7 @@ func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error)
 		initialINodes: set,
 		blkSize:       int64(md.BlockSize),
 	}
+	s.addOpenFile(f)
 	promOpenFiles.WithLabelValues(path.Volume).Inc()
 	return f, nil
 }
@@ -344,6 +346,7 @@ func (f *file) Close() error {
 	if err != nil {
 		clog.Error(err)
 	}
+	f.srv.removeOpenFile(f)
 	promOpenFiles.WithLabelValues(f.path.Volume).Dec()
 	return err
 }
@@ -453,4 +456,11 @@ func (f *file) updateHeldINodes(closing bool) {
 	if err != nil {
 		clog.Error("file: TODO: Can't re-claim")
 	}
+}
+
+func (f *file) Stat() (os.FileInfo, error) {
+	return fileInfo{
+		inode: f.inode,
+		path:  f.path,
+	}, nil
 }

@@ -31,6 +31,7 @@ type server struct {
 	peersMap      map[string]*models.PeerInfo
 	closeChans    []chan interface{}
 	openINodeRefs map[string]map[agro.INodeID]int
+	openFiles     []*file
 	cfg           agro.Config
 
 	internalAddr string
@@ -60,14 +61,16 @@ func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err er
 		return nil, err
 	}
 	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.INode, bs.Length())
-	return &file{
+	file := &file{
 		path:          path,
 		inode:         n,
 		srv:           s,
 		blocks:        bs,
 		blkSize:       int64(globals.BlockSize),
 		initialINodes: roaring.NewRoaringBitmap(),
-	}, nil
+	}
+	s.addOpenFile(file)
+	return file, nil
 }
 
 func (s *server) Open(p agro.Path) (agro.File, error) {
@@ -137,6 +140,13 @@ func (fi FileInfo) Sys() interface{} {
 }
 
 func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
+	s.mut.RLock()
+	defer s.mut.RUnlock()
+	for _, x := range s.openFiles {
+		if x.path.Equals(path) {
+			return x.Stat()
+		}
+	}
 	ref, err := s.inodeRefForPath(path)
 	if err != nil {
 		return nil, err
@@ -301,4 +311,21 @@ func (s *server) removeFile(p agro.Path) error {
 
 func (s *server) removeDir(path agro.Path) error {
 	return s.mds.Rmdir(path)
+}
+
+func (s *server) addOpenFile(f *file) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	s.openFiles = append(s.openFiles, f)
+}
+
+func (s *server) removeOpenFile(f *file) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	for i, x := range s.openFiles {
+		if x == f {
+			s.openFiles = append(s.openFiles[:i], s.openFiles[i+1:]...)
+			return
+		}
+	}
 }

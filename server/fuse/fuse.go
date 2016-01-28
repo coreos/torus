@@ -8,6 +8,7 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 
@@ -15,6 +16,8 @@ import (
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "fuse")
+
+var fuseSrv *fs.Server
 
 func MustMount(mountpoint, volume string, srv agro.Server) {
 	c, err := fuse.Mount(
@@ -29,7 +32,14 @@ func MustMount(mountpoint, volume string, srv agro.Server) {
 	}
 	defer c.Close()
 
-	err = fs.Serve(c, FS{srv, volume})
+	cfg := &fs.Config{}
+	if clog.LevelAt(capnslog.TRACE) {
+		cfg.Debug = func(msg interface{}) {
+			clog.Trace(msg)
+		}
+	}
+	fuseSrv = fs.New(c, cfg)
+	err = fuseSrv.Serve(FS{srv, volume})
 	if err != nil {
 		clog.Fatal(err)
 	}
@@ -126,35 +136,95 @@ func (d Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	return fuseEntries, nil
 }
 
+func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
+	clog.Debugf("opening file at path %s", req.Name)
+	newPath, ok := d.path.Child(req.Name)
+	if !ok {
+		clog.Error("not a dir")
+		return nil, nil, errors.New("fuse: path is not a directory")
+	}
+	f, err := d.dfs.Create(newPath, models.Metadata{})
+	if err != nil {
+		clog.Error(err)
+		return nil, nil, err
+	}
+	clog.Debugf("path %s", newPath)
+	node := File{
+		dfs:  d.dfs,
+		path: newPath,
+	}
+	fh := FileHandle{
+		dfs:  d.dfs,
+		path: newPath,
+		file: f,
+		node: &node,
+	}
+	return node, fh, nil
+}
+
 type File struct {
 	dfs  agro.Server
 	path agro.Path
+}
+
+type FileHandle struct {
+	dfs  agro.Server
+	path agro.Path
 	file agro.File
+	node *File
 }
 
 var (
-	_ fs.Handle       = File{}
-	_ fs.HandleReader = File{}
+	_        fs.Node         = File{}
+	_        fs.Handle       = FileHandle{}
+	_        fs.HandleReader = FileHandle{}
+	syncRefs                 = make(map[fuse.HandleID]agro.File)
 )
 
 func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	clog.Debugf("opening %d %x", req.Node, &f)
 	var err error
 	file, err := f.dfs.Open(f.path)
 	if err != nil {
 		clog.Error(err)
 		return nil, err
 	}
-	clog.Debugf("opening %d", req.Node)
-	f.file = file
-	return f, nil
+	out := FileHandle{
+		dfs:  f.dfs,
+		path: f.path,
+		file: file,
+		node: &f,
+	}
+	return out, nil
 }
 
-func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+func (f File) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	file := syncRefs[req.Handle]
+	err := file.Sync()
+	if err != nil {
+		return err
+	}
+	delete(syncRefs, req.Handle)
+	fuseSrv.InvalidateNodeAttr(f)
+	return nil
+}
+
+func (fh FileHandle) Flush(ctx context.Context, req *fuse.FlushRequest) error {
+	err := fh.file.Sync()
+	if err != nil {
+		return err
+	}
+	delete(syncRefs, req.Handle)
+	fuseSrv.InvalidateNodeAttr(fh.node)
+	return nil
+}
+
+func (fh FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	if req.Dir {
 		return errors.New("ENOTDIR")
 	}
 	data := make([]byte, req.Size)
-	n, err := f.file.ReadAt(data, req.Offset)
+	n, err := fh.file.ReadAt(data, req.Offset)
 	if err != nil && err != io.EOF {
 		clog.Println(err)
 		return err
@@ -163,10 +233,21 @@ func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadRe
 	return nil
 }
 
-func (f File) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
-	clog.Debugf("closing %d nicely", req.Node)
-	f.file.Close()
+func (fh FileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+	syncRefs[req.Handle] = fh.file
+	n, err := fh.file.WriteAt(req.Data, req.Offset)
+	if err != nil && err != io.EOF {
+		clog.Println(err)
+		return err
+	}
+	resp.Size = n
 	return nil
+}
+
+func (fh FileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	clog.Debugf("closing %d nicely", req.Node)
+	delete(syncRefs, req.Handle)
+	return fh.file.Close()
 }
 
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {

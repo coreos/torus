@@ -82,6 +82,10 @@ func (p Path) Filename() string {
 	return f
 }
 
+func (p Path) Equals(b Path) bool {
+	return p.Volume == b.Volume && p.Path == b.Path
+}
+
 // MetadataService is the interface representing the basic ways to manipulate
 // consistently stored fileystem metadata.
 type MetadataService interface {
