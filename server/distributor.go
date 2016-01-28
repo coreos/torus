@@ -18,7 +18,6 @@ const (
 type distributor struct {
 	mut       sync.RWMutex
 	blocks    agro.BlockStore
-	inodes    agro.INodeStore
 	srv       *server
 	client    *distClient
 	grpcSrv   *grpc.Server
@@ -34,7 +33,6 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 	var err error
 	d := &distributor{
 		blocks: srv.blocks,
-		inodes: srv.inodes,
 		srv:    srv,
 	}
 	if listen {
@@ -74,15 +72,6 @@ func (d *distributor) UUID() string {
 	return d.srv.mds.UUID()
 }
 
-func (d *distributor) inodeReplication() int {
-	r, err := d.srv.mds.GlobalMetadata()
-	if err != nil {
-		clog.Error(err)
-		return defaultINodeReplication
-	}
-	return r.INodeReplication
-}
-
 func (d *distributor) Close() error {
 	d.mut.Lock()
 	defer d.mut.Unlock()
@@ -92,11 +81,7 @@ func (d *distributor) Close() error {
 	close(d.rebalancerChan)
 	d.grpcSrv.Stop()
 	d.client.Close()
-	err := d.inodes.Close()
-	if err != nil {
-		return err
-	}
-	err = d.blocks.Close()
+	err := d.blocks.Close()
 	if err != nil {
 		return err
 	}

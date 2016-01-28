@@ -35,7 +35,6 @@ const (
 	fullStatePrepare
 	fullStateUnion
 	fullStateCopyBlock
-	fullStateCopyINode
 	fullStateReplaceAndContinue
 )
 
@@ -104,12 +103,7 @@ func (f *full) Leader(inOut [2]chan *models.RebalanceStatus) {
 	out <- f.leaderMessage(fullStateCopyBlock)
 	f.doState(fullStateCopyBlock)
 	f.waitAll(in, fullStateCopyBlock)
-	// Phase 4: Begin copying inodes! (Until complete)
-	rlog.Info("full: copying inodes")
-	out <- f.leaderMessage(fullStateCopyINode)
-	f.doState(fullStateCopyINode)
-	f.waitAll(in, fullStateCopyINode)
-	// Phase 5: Replace the ring and remove self from storage
+	// Phase 4: Replace the ring and remove self from storage
 	rlog.Info("full: finishing")
 	out <- f.leaderMessage(fullStateReplaceAndContinue)
 	f.doState(fullStateReplaceAndContinue)
@@ -162,7 +156,6 @@ func (f *full) doState(phase fullPhase) error {
 		if err != nil {
 			return err
 		}
-		newINode, err := agro.CreateINodeStore(f.d.inodes.Kind(), "rebalance", f.d.srv.cfg)
 		if err != nil {
 			return err
 		}
@@ -171,11 +164,8 @@ func (f *full) doState(phase fullPhase) error {
 		f.store = &unionStorage{
 			oldBlock: f.d.blocks,
 			newBlock: newBlock,
-			oldINode: f.d.inodes,
-			newINode: newINode,
 		}
 		f.d.blocks = f.store
-		f.d.inodes = f.store
 		f.d.ring = ring.NewUnionRing(f.d.ring, f.newRing)
 		f.replaced = true
 	case fullStateCopyBlock:
@@ -183,24 +173,14 @@ func (f *full) doState(phase fullPhase) error {
 		if err != nil {
 			return err
 		}
-	case fullStateCopyINode:
-		err := f.sendAllINodes()
-		if err != nil {
-			return err
-		}
 	case fullStateReplaceAndContinue:
 		f.d.mut.Lock()
 		defer f.d.mut.Unlock()
-		blocks, err := f.store.oldBlock.ReplaceBlockStore(f.store.newBlock)
+		err := f.store.oldBlock.ReplaceBlockStore(f.store.newBlock)
 		if err != nil {
 			return err
 		}
-		inodes, err := f.store.oldINode.ReplaceINodeStore(f.store.newINode)
-		if err != nil {
-			return err
-		}
-		f.d.inodes = inodes
-		f.d.blocks = blocks
+		f.d.blocks = f.store.oldBlock
 		f.replaced = false
 		f.d.srv.gc.Start()
 	default:
@@ -254,11 +234,11 @@ func (f *full) sendAllBlocks() error {
 		if err != nil {
 			return err
 		}
-		newpeers, err := f.newRing.GetBlockPeers(ref)
+		newpeers, err := f.newRing.GetPeers(ref)
 		if err != nil {
 			return err
 		}
-		oldpeers, err := f.oldRing.GetBlockPeers(ref)
+		oldpeers, err := f.oldRing.GetPeers(ref)
 		if err != nil {
 			return err
 		}
@@ -299,7 +279,6 @@ func (f *full) Timeout() {
 		f.d.mut.Lock()
 		defer f.d.mut.Unlock()
 		f.d.blocks = f.store.oldBlock
-		f.d.inodes = f.store.oldINode
 		f.d.ring = f.oldRing
 	}
 	return
@@ -318,93 +297,8 @@ func (f *full) RebalanceMessage(ctx context.Context, req *models.RebalanceReques
 				return nil, err
 			}
 		}
-	case fullStateCopyINode:
-		ir := req.GetPutINodeRequest()
-		for i, ref := range ir.Refs {
-			err := f.store.newINode.WriteINode(ctx, agro.INodeFromProto(ref), ir.INodes[i])
-			if err != nil {
-				return nil, err
-			}
-		}
 	default:
 		return nil, errors.New("wrong rebalance phase")
 	}
 	return resp, nil
-}
-
-func (f *full) sendINodeCache(m map[string]*models.PutINodeRequest) error {
-	for peer, pbr := range m {
-		_, err := f.d.client.SendRebalance(context.TODO(), peer, &models.RebalanceRequest{
-			Subrequest: &models.RebalanceRequest_PutINodeRequest{
-				PutINodeRequest: pbr,
-			},
-			Phase: int32(fullStateCopyINode),
-			UUID:  f.d.UUID(),
-		})
-		if err != nil {
-			clog.Errorf("got sendINode error: %#v", err)
-			return err
-		}
-	}
-	return nil
-}
-
-func (f *full) addToINodeCache(m map[string]*models.PutINodeRequest, ref agro.INodeRef, b *models.INode, uuid string) {
-	if _, ok := m[uuid]; !ok {
-		m[uuid] = &models.PutINodeRequest{}
-	}
-	m[uuid].Refs = append(m[uuid].Refs, ref.ToProto())
-	m[uuid].INodes = append(m[uuid].INodes, b)
-}
-
-func (f *full) sendAllINodes() error {
-	ob := f.store.oldINode
-	it := ob.INodeIterator()
-	cache := make(map[string]*models.PutINodeRequest)
-	count := 0
-	for it.Next() {
-		if count == fullRebalancePage {
-			err := f.sendINodeCache(cache)
-			if err != nil {
-				return err
-			}
-			cache = make(map[string]*models.PutINodeRequest)
-			count = 0
-			time.Sleep(fullRebalancePause)
-		}
-		ref := it.INodeRef()
-		inode, err := ob.GetINode(context.TODO(), ref)
-		if err != nil {
-			return err
-		}
-		newpeers, err := f.newRing.GetINodePeers(ref)
-		if err != nil {
-			return err
-		}
-		oldpeers, err := f.oldRing.GetINodePeers(ref)
-		if err != nil {
-			return err
-		}
-		myIndex := oldpeers.IndexAt(f.d.UUID())
-		if newpeers.Has(f.d.UUID()) {
-			err := f.store.newINode.WriteINode(context.TODO(), ref, inode)
-			if err != nil {
-				return err
-			}
-		}
-		diffpeers := newpeers.AndNot(oldpeers)
-		if myIndex >= len(diffpeers) {
-			// downsizing
-			continue
-		}
-		if myIndex == len(oldpeers)-1 && len(diffpeers) > len(oldpeers) {
-			for i := myIndex; i < len(diffpeers); i++ {
-				p := diffpeers[i]
-				f.addToINodeCache(cache, ref, inode, p)
-			}
-		} else {
-			f.addToINodeCache(cache, ref, inode, diffpeers[myIndex])
-		}
-	}
-	return f.sendINodeCache(cache)
 }

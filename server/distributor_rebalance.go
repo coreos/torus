@@ -78,7 +78,7 @@ func (d *distributor) Rebalance(newring agro.Ring) {
 		return
 	}
 	if leader {
-		clog.Infof("elected as leader")
+		clog.Infof("elected as leader: %s", d.UUID())
 		d.rebalanceLeader(chans, newring)
 	} else {
 		clog.Infof("elected to follow")

@@ -42,6 +42,7 @@ type Server struct {
 	ringListeners      []chan agro.Ring
 	rebalanceListeners []chan *models.RebalanceStatus
 	leaderListener     chan *models.RebalanceStatus
+	rebalanceHistory   []*models.RebalanceStatus
 	rebalanceKind      uint64
 	rebalanceSnapshot  []byte
 }
@@ -206,7 +207,7 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, err
 	if err != nil {
 		return old, err
 	}
-	if vid != ref.Volume {
+	if vid != ref.Volume() {
 		return old, errors.New("temp: inodeRef volume not for given path volume")
 	}
 	t.srv.mut.Lock()
@@ -444,9 +445,17 @@ func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus,
 	if t.srv.leaderListener == nil {
 		isLeader = true
 		t.srv.leaderListener = t.toC
+		t.srv.rebalanceHistory = nil
 	}
 	t.srv.rebalanceListeners = append(t.srv.rebalanceListeners, t.toC)
 	go func(leader bool, t *Client) {
+		if !leader {
+			t.srv.mut.Lock()
+			for _, x := range t.srv.rebalanceHistory {
+				t.toC <- x
+			}
+			t.srv.mut.Unlock()
+		}
 		for {
 			d, ok := <-t.fromC
 			if !ok {
@@ -466,6 +475,7 @@ func (t *Client) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus,
 			}
 			t.srv.mut.Lock()
 			if leader {
+				t.srv.rebalanceHistory = append(t.srv.rebalanceHistory, d)
 				for _, c := range t.srv.rebalanceListeners {
 					c <- d
 				}

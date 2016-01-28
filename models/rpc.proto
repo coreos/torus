@@ -7,10 +7,8 @@ package models;
 
 service AgroStorage {
 	rpc Block (BlockRequest) returns (BlockResponse);
-	rpc INode (INodeRequest) returns (INodeResponse);
 	rpc PutBlock (PutBlockRequest) returns (PutResponse);
-	rpc PutINode (PutINodeRequest) returns (PutResponse);
-  rpc RebalanceMessage (RebalanceRequest) returns (RebalanceResponse);
+        rpc RebalanceMessage (RebalanceRequest) returns (RebalanceResponse);
 }
 
 message Block {
@@ -26,22 +24,9 @@ message BlockResponse {
 	repeated Block blocks = 1;
 }
 
-message INodeRequest {
-	repeated INodeRef inoderefs = 1 [(gogoproto.customname) = "INodeRefs"];
-}
-
-message INodeResponse {
-	repeated INode inodes = 2 [(gogoproto.customname) = "INodes"];
-}
-
 message PutBlockRequest {
 	repeated BlockRef refs = 1;
 	repeated bytes blocks = 2;
-}
-
-message PutINodeRequest {
-	repeated INodeRef refs = 1;
-	repeated INode inodes = 2 [(gogoproto.customname) = "INodes"];
 }
 
 message PutResponse {
@@ -53,8 +38,6 @@ message RebalanceRequest {
   oneof subrequest {
     BlockRequest block_request = 1;
     PutBlockRequest put_block_request = 2;
-    INodeRequest inode_request = 3 [(gogoproto.customname) = "INodeRequest"];
-    PutINodeRequest put_inode_request = 4 [(gogoproto.customname) = "PutINodeRequest"];
   }
   int32 phase = 5;
   string uuid = 6 [(gogoproto.customname) = "UUID"];
@@ -66,7 +49,6 @@ message RebalanceResponse {
   string err = 2;
   oneof subresponse {
     BlockResponse block_response = 3;
-    INodeResponse inode_response = 4 [(gogoproto.customname) = "INodeRepsonse"];
   }
   int32 phase = 5;
   string uuid = 6 [(gogoproto.customname) = "UUID"];

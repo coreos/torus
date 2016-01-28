@@ -81,7 +81,7 @@ func (b *baseBlockset) Marshal() ([]byte, error) {
 		return nil, err
 	}
 	for _, x := range b.blocks {
-		err := binary.Write(buf, binary.LittleEndian, x)
+		_, err := buf.Write(x.ToBytes())
 		if err != nil {
 			return nil, err
 		}
@@ -101,9 +101,13 @@ func (b *baseBlockset) Unmarshal(data []byte) error {
 		return err
 	}
 	out := make([]agro.BlockRef, l)
-	err = binary.Read(r, binary.LittleEndian, &out)
-	if err != nil {
-		return err
+	for i := 0; i < int(l); i++ {
+		buf := make([]byte, agro.BlockRefByteSize)
+		_, err := r.Read(buf)
+		if err != nil {
+			return err
+		}
+		out[i] = agro.BlockRefFromBytes(buf)
 	}
 	b.blocks = out
 	return nil

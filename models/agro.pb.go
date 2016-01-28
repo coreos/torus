@@ -22,10 +22,7 @@
 		Block
 		BlockRequest
 		BlockResponse
-		INodeRequest
-		INodeResponse
 		PutBlockRequest
-		PutINodeRequest
 		PutResponse
 		RebalanceRequest
 		RebalanceResponse

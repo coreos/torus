@@ -36,24 +36,32 @@ func openTempBlockStore(name string, cfg agro.Config, gmd agro.GlobalMetadata) (
 	}, nil
 }
 
-func (t *tempBlockStore) Kind() string { return "temp" }
-func (t *tempBlockStore) Flush() error { return nil }
+func (t *tempBlockStore) Kind() string      { return "temp" }
+func (t *tempBlockStore) Flush() error      { return nil }
+func (t *tempBlockStore) BlockSize() uint64 { return 1024 }
 
 func (t *tempBlockStore) Close() error {
 	t.mut.Lock()
-	t.store = nil
+	if t.store != nil {
+		t.store = nil
+	}
 	t.mut.Unlock()
 	return nil
 }
 
-func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) error {
 	if v, ok := bs.(*tempBlockStore); ok {
-		v.name = t.name
-		promBlocks.WithLabelValues(v.name).Set(float64(len(v.store)))
-		promBlocksAvail.WithLabelValues(v.name).Set(float64(v.nBlocks))
-		return v, nil
+		t.mut.Lock()
+		defer t.mut.Unlock()
+		v.mut.Lock()
+		defer v.mut.Unlock()
+		t.store = v.store
+		t.nBlocks = v.nBlocks
+		promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
+		promBlocksAvail.WithLabelValues(t.name).Set(float64(t.nBlocks))
+		return nil
 	}
-	return nil, errors.New("not a tempBlockStore")
+	return errors.New("not a tempBlockStore")
 }
 
 func (t *tempBlockStore) NumBlocks() uint64 {
@@ -121,7 +129,7 @@ func (t *tempBlockStore) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) e
 	}
 
 	for k := range t.store {
-		if k.IsINode(s) {
+		if k.HasINode(s, agro.Block) {
 			promBlocksDeleted.WithLabelValues(t.name).Inc()
 			delete(t.store, k)
 		}

@@ -16,13 +16,12 @@ import (
 func newServer(md *temp.Server) *server {
 	cfg := agro.Config{}
 	mds := temp.NewClient(cfg, md)
-	inodes, _ := agro.CreateINodeStore("temp", "current", cfg)
 	gmd, _ := mds.GlobalMetadata()
-	cold, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
+	blocks, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
 	return &server{
-		blocks:        cold,
+		blocks:        blocks,
 		mds:           mds,
-		inodes:        inodes,
+		inodes:        NewINodeStore(blocks),
 		peersMap:      make(map[string]*models.PeerInfo),
 		openINodeRefs: make(map[string]map[agro.INodeID]int),
 	}
@@ -95,7 +94,7 @@ func testThreeWrite(t *testing.T) {
 	for {
 		ok := true
 		for i := 0; i < 3; i++ {
-			d := srvs[i].inodes.(*distributor)
+			d := srvs[i].blocks.(*distributor)
 			if d.ring.Version() != 2 {
 				ok = false
 				break

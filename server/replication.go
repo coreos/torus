@@ -21,7 +21,7 @@ func (s *server) openReplication(addr string, listen bool) error {
 		return err
 	}
 	s.blocks = dist
-	s.inodes = dist
+	s.inodes = NewINodeStore(dist)
 	err = s.BeginHeartbeat()
 	if err != nil {
 		return err

@@ -26,11 +26,7 @@ func makeSingle(r *models.Ring) (agro.Ring, error) {
 	}, nil
 }
 
-func (s *single) GetBlockPeers(key agro.BlockRef) (agro.PeerList, error) {
-	return []string{s.uuid}, nil
-}
-
-func (s *single) GetINodePeers(key agro.INodeRef) (agro.PeerList, error) {
+func (s *single) GetPeers(key agro.BlockRef) (agro.PeerList, error) {
 	return []string{s.uuid}, nil
 }
 

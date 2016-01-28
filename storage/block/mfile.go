@@ -35,6 +35,7 @@ type mfileBlock struct {
 	dfilename string
 	mfilename string
 	name      string
+	blocksize uint64
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
@@ -98,6 +99,7 @@ func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) 
 		dfilename: dpath,
 		mfilename: mpath,
 		name:      name,
+		blocksize: meta.BlockSize,
 	}, nil
 }
 
@@ -106,6 +108,10 @@ func (m *mfileBlock) NumBlocks() uint64 {
 	m.mut.RLock()
 	defer m.mut.RUnlock()
 	return m.numBlocks()
+}
+
+func (m *mfileBlock) BlockSize() uint64 {
+	return m.blocksize
 }
 
 func (m *mfileBlock) numBlocks() uint64 {
@@ -138,6 +144,9 @@ func (m *mfileBlock) Close() error {
 
 func (m *mfileBlock) close() error {
 	m.Flush()
+	if m.closed {
+		return nil
+	}
 	err := m.data.Close()
 	if err != nil {
 		return err
@@ -293,10 +302,10 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	return nil
 }
 
-func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, error) {
+func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) error {
 	newM, ok := bs.(*mfileBlock)
 	if !ok {
-		return nil, errors.New("not replacing an mfileBlockStore")
+		return errors.New("not replacing an mfileBlockStore")
 	}
 	m.mut.Lock()
 	defer m.mut.Unlock()
@@ -304,39 +313,30 @@ func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) (agro.BlockStore, err
 	defer newM.mut.Unlock()
 	err := os.Remove(m.dfilename)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = os.Remove(m.mfilename)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = os.Rename(newM.mfilename, m.mfilename)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = os.Rename(newM.dfilename, m.dfilename)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	out := &mfileBlock{
-		data:      newM.data,
-		blockMap:  newM.blockMap,
-		blockTrie: newM.blockTrie,
-		lastFree:  newM.lastFree,
-		size:      newM.size,
-		dfilename: m.dfilename,
-		mfilename: m.mfilename,
-		name:      m.name,
-	}
+	m.data = newM.data
+	m.blockMap = newM.blockMap
+	m.blockTrie = newM.blockTrie
+	m.lastFree = newM.lastFree
+	m.size = newM.size
 	newM.data = nil
 	newM.blockMap = nil
-	err = m.close()
-	if err != nil {
-		return nil, err
-	}
-	promBlocksAvail.WithLabelValues(out.name).Set(float64(out.numBlocks()))
-	promBlocks.WithLabelValues(out.name).Set(float64(out.size))
-	return out, nil
+	promBlocksAvail.WithLabelValues(m.name).Set(float64(m.numBlocks()))
+	promBlocks.WithLabelValues(m.name).Set(float64(m.size))
+	return nil
 }
 
 func (m *mfileBlock) BlockIterator() agro.BlockIterator {
