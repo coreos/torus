@@ -148,6 +148,14 @@ func (b *BlockRef) SetBlockType(t BlockType) {
 	b.volume = VolumeID(uint64(b.volume) | ((uint64(t) & 0xFFFFFF) << 40))
 }
 
+func (b BlockRef) IsZero() bool {
+	return b.Volume() == 0 && b.INode == 0 && b.Index == 0
+}
+
+func ZeroBlock() BlockRef {
+	return BlockRef{}
+}
+
 // BlockStore is the interface representing the standardized methods to
 // interact with something storing blocks.
 type BlockStore interface {

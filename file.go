@@ -14,4 +14,5 @@ type File interface {
 	io.Closer
 	Sync() error
 	Stat() (os.FileInfo, error)
+	Truncate(int64) error
 }

@@ -103,6 +103,10 @@ func (b *replicationBlockset) setStore(s agro.BlockStore) {
 	b.sub.setStore(s)
 }
 
+func (b *replicationBlockset) getStore() agro.BlockStore {
+	return b.bs
+}
+
 func (b *replicationBlockset) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, int32(b.rep))
@@ -157,4 +161,25 @@ func (b *replicationBlockset) GetSubBlockset() agro.Blockset { return b.sub }
 
 func (b *replicationBlockset) GetLiveINodes() *roaring.RoaringBitmap {
 	return b.sub.GetLiveINodes()
+}
+
+func (b *replicationBlockset) Truncate(lastIndex int) error {
+	err := b.sub.Truncate(lastIndex)
+	if err != nil {
+		return err
+	}
+	if lastIndex <= len(b.repBlocks[0]) {
+		for i := range b.repBlocks {
+			b.repBlocks[i] = b.repBlocks[i][:lastIndex]
+		}
+		return nil
+	}
+	for i := range b.repBlocks {
+		toadd := lastIndex - len(b.repBlocks[0])
+		for toadd != 0 {
+			b.repBlocks[i] = append(b.repBlocks[i], agro.ZeroBlock())
+			toadd--
+		}
+	}
+	return nil
 }

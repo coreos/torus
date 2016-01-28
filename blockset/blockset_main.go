@@ -28,6 +28,7 @@ type blockset interface {
 	agro.Blockset
 	makeID(agro.INodeRef) agro.BlockRef
 	setStore(store agro.BlockStore)
+	getStore() agro.BlockStore
 }
 
 // Constants for each type of layer, for serializing/deserializing

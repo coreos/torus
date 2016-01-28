@@ -8,7 +8,6 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 
@@ -20,6 +19,7 @@ var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "fuse")
 var fuseSrv *fs.Server
 
 func MustMount(mountpoint, volume string, srv agro.Server) {
+	os.Create("foo")
 	c, err := fuse.Mount(
 		mountpoint,
 		fuse.FSName("agro"),
@@ -155,7 +155,7 @@ func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cre
 		clog.Error("not a dir")
 		return nil, nil, errors.New("fuse: path is not a directory")
 	}
-	f, err := d.dfs.Create(newPath, models.Metadata{})
+	f, err := d.dfs.Create(newPath)
 	if err != nil {
 		clog.Error(err)
 		return nil, nil, err

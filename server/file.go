@@ -67,46 +67,15 @@ type file struct {
 	initialINodes *roaring.RoaringBitmap
 	writeINodeRef agro.INodeRef
 	writeOpen     bool
+	inodeChanged  bool
 
 	// half-finished blocks
 	openIdx   int
 	openData  []byte
 	openWrote bool
-}
 
-func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error) {
-	bs, err := blockset.UnmarshalFromProto(inode.GetBlocks(), s.blocks)
-	if err != nil {
-		return nil, err
-	}
-	md, err := s.mds.GlobalMetadata()
-	if err != nil {
-		return nil, err
-	}
-
-	set := bs.GetLiveINodes()
-	s.incRef(path.Volume, set)
-	bm, _ := s.getBitmap(path.Volume)
-	err = s.mds.ClaimVolumeINodes(path.Volume, bm)
-	if err != nil {
-		s.decRef(path.Volume, set)
-		return nil, err
-	}
-	promOpenINodes.WithLabelValues(path.Volume).Set(float64(bm.GetCardinality()))
-
-	clog.Debugf("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
-	f := &file{
-		path:          path,
-		inode:         inode,
-		srv:           s,
-		offset:        0,
-		blocks:        bs,
-		initialINodes: set,
-		blkSize:       int64(md.BlockSize),
-	}
-	s.addOpenFile(f)
-	promOpenFiles.WithLabelValues(path.Volume).Inc()
-	return f, nil
+	readOnly  bool
+	writeOnly bool
 }
 
 func (f *file) Write(b []byte) (n int, err error) {
@@ -357,7 +326,7 @@ func (f *file) Sync() error {
 
 func (f *file) sync(closing bool) error {
 	// Here there be dragons.
-	if !f.writeOpen {
+	if !f.writeOpen && !f.inodeChanged {
 		f.updateHeldINodes(closing)
 		return nil
 	}
@@ -463,4 +432,17 @@ func (f *file) Stat() (os.FileInfo, error) {
 		inode: f.inode,
 		path:  f.path,
 	}, nil
+}
+
+func (f *file) Truncate(size int64) error {
+	if f.readOnly {
+		return os.ErrPermission
+	}
+	f.inodeChanged = true
+	nBlocks := (size / f.blkSize)
+	if size%f.blkSize != 0 {
+		nBlocks++
+	}
+	f.blocks.Truncate(int(nBlocks))
+	return nil
 }

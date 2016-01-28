@@ -10,7 +10,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/server/gc"
 	"github.com/tgruben/roaring"
@@ -39,59 +38,6 @@ type server struct {
 	heartbeating    bool
 	replicationOpen bool
 	gc              gc.GC
-}
-
-func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err error) {
-	// Truncate the file if it already exists. This is equivalent to creating
-	// a new (empty) inode with the path that we're going to overwrite later.
-	n := models.NewEmptyINode()
-	n.Filenames = []string{path.Path}
-	volid, err := s.mds.GetVolumeID(path.Volume)
-	n.Volume = uint64(volid)
-	if err != nil {
-		return nil, err
-	}
-	n.Permissions = &md
-	globals, err := s.mds.GlobalMetadata()
-	if err != nil {
-		return nil, err
-	}
-	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, s.blocks)
-	if err != nil {
-		return nil, err
-	}
-	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.INode, bs.Length())
-	file := &file{
-		path:          path,
-		inode:         n,
-		srv:           s,
-		blocks:        bs,
-		blkSize:       int64(globals.BlockSize),
-		initialINodes: roaring.NewRoaringBitmap(),
-	}
-	s.addOpenFile(file)
-	// Fake a write, to open up the created file
-	written, err := file.Write([]byte{})
-	if written != 0 || err != nil {
-		return nil, errors.New("couldn't write empty data to the file")
-	}
-	return file, nil
-}
-
-func (s *server) Open(p agro.Path) (agro.File, error) {
-	ref, err := s.inodeRefForPath(p)
-	if err != nil {
-		return nil, err
-	}
-
-	inode, err := s.inodes.GetINode(context.TODO(), ref)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO(jzelinskie): check metadata for permission
-
-	return s.newFile(p, inode)
 }
 
 func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
