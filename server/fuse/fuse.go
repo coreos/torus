@@ -155,7 +155,7 @@ func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cre
 		clog.Error("not a dir")
 		return nil, nil, errors.New("fuse: path is not a directory")
 	}
-	f, err := d.dfs.Create(newPath)
+	f, err := d.dfs.OpenFile(newPath, int(req.Flags)|os.O_CREATE, req.Mode)
 	if err != nil {
 		clog.Error(err)
 		return nil, nil, err
@@ -194,9 +194,9 @@ var (
 )
 
 func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	clog.Debugf("opening %d %x", req.Node, &f)
+	clog.Debugf("opening %d %s", req.Node, req.Flags)
 	var err error
-	file, err := f.dfs.Open(f.path)
+	file, err := f.dfs.OpenFile(f.path, int(req.Flags), 0)
 	if err != nil {
 		clog.Error(err)
 		return nil, err
@@ -271,11 +271,10 @@ func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 	/*
 
 		a.Mtime = fileInfo.ModTime()
-		a.Mode = fileInfo.Mode()
 	*/
 
 	a.Size = uint64(fileInfo.Size())
-	a.Mode = 0555
+	a.Mode = fileInfo.Mode()
 
 	return nil
 }

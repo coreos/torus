@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/server/gc"
 	"github.com/tgruben/roaring"

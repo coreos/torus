@@ -443,6 +443,8 @@ func (f *file) Truncate(size int64) error {
 	if size%f.blkSize != 0 {
 		nBlocks++
 	}
+	clog.Debugf("truncate to %d $d", size, nBlocks)
 	f.blocks.Truncate(int(nBlocks))
+	f.inode.Filesize = uint64(size)
 	return nil
 }

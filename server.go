@@ -8,6 +8,7 @@ type Server interface {
 	// Standard file path calls.
 	Create(Path) (File, error)
 	Open(Path) (File, error)
+	OpenFile(p Path, flag int, perm os.FileMode) (File, error)
 	Lstat(Path) (os.FileInfo, error)
 	Readdir(Path) ([]Path, error)
 	Remove(Path) error

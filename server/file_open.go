@@ -89,34 +89,22 @@ func (s *server) openFile(p agro.Path, flag int, md *models.Metadata) (agro.File
 	}
 
 	// TODO(jzelinskie): check metadata for permission
-
 	return s.newFile(p, flag, inode)
 
 }
 
 func onlys(flag int) (rdOnly bool, wrOnly bool, err error) {
-	err = nil
-	if flag&os.O_WRONLY == 0 && flag&os.O_RDWR == 0 && flag&os.O_RDONLY == 0 {
-		err = os.ErrInvalid
-		return
+	modeMask := os.O_WRONLY | os.O_RDWR | os.O_RDONLY
+	switch flag & modeMask {
+	case os.O_WRONLY:
+		return false, true, nil
+	case os.O_RDONLY:
+		return true, false, nil
+	case os.O_RDWR:
+		return false, false, nil
+	default:
+		return false, false, os.ErrInvalid
 	}
-	if flag&os.O_RDONLY != 0 {
-		if flag&os.O_RDWR != 0 || flag&os.O_WRONLY != 0 {
-			err = os.ErrInvalid
-			return
-		}
-		rdOnly = true
-		return
-	}
-	if flag&os.O_WRONLY != 0 {
-		if flag&os.O_RDWR != 0 || flag&os.O_RDONLY != 0 {
-			err = os.ErrInvalid
-			return
-		}
-		wrOnly = true
-		return
-	}
-	return
 }
 
 func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.File, error) {
@@ -135,13 +123,17 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 
 	set := bs.GetLiveINodes()
 	s.incRef(path.Volume, set)
-	bm, _ := s.getBitmap(path.Volume)
+	bm, ok := s.getBitmap(path.Volume)
 	err = s.mds.ClaimVolumeINodes(path.Volume, bm)
 	if err != nil {
 		s.decRef(path.Volume, set)
 		return nil, err
 	}
-	promOpenINodes.WithLabelValues(path.Volume).Set(float64(bm.GetCardinality()))
+	if ok {
+		promOpenINodes.WithLabelValues(path.Volume).Set(float64(bm.GetCardinality()))
+	} else {
+		promOpenINodes.WithLabelValues(path.Volume).Set(0)
+	}
 
 	clog.Debugf("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
 	f := &file{
