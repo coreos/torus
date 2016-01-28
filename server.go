@@ -14,6 +14,7 @@ type Server interface {
 	Open(Path) (File, error)
 	Lstat(Path) (os.FileInfo, error)
 	Readdir(Path) ([]Path, error)
+	Remove(Path) error
 
 	// Some server metacalls.
 	CreateVolume(string) error

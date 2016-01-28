@@ -390,7 +390,38 @@ func (c *etcdCtx) Mkdir(path agro.Path, dir *models.Directory) error {
 	return nil
 }
 
+func (c *etcdCtx) Rmdir(path agro.Path) error {
+	if !path.IsDir() {
+		return errors.New("etcd: not a directory")
+	}
+	if path.Path == "/" {
+		return errors.New("etcd: cannot delete root directory")
+	}
+	dir, subdirs, version, err := c.getdir(path)
+	if err != nil {
+		return err
+	}
+	if len(dir.Files) == 0 || len(subdirs) != 0 {
+		return errors.New("etcd: directory not empty")
+	}
+	tx := tx().If(
+		keyIsVersion(mkKey("dirs", path.Key()), version),
+	).Then(
+		deleteKey(mkKey("dirs", path.Key())),
+	).Tx()
+	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
+	if !resp.Succeeded {
+		return os.ErrInvalid
+	}
+	return nil
+}
+
 func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
+	dir, paths, _, err := c.getdir(p)
+	return dir, paths, err
+}
+
+func (c *etcdCtx) getdir(p agro.Path) (*models.Directory, []agro.Path, int64, error) {
 	tx := tx().If(
 		keyExists(mkKey("dirs", p.Key())),
 	).Then(
@@ -399,16 +430,16 @@ func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	).Tx()
 	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 	if !resp.Succeeded {
-		return nil, nil, os.ErrNotExist
+		return nil, nil, 0, os.ErrNotExist
 	}
 	dirkv := resp.Responses[0].GetResponseRange().Kvs[0]
 	outdir := &models.Directory{}
 	err = outdir.Unmarshal(dirkv.Value)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 	var outpaths []agro.Path
 	for _, kv := range resp.Responses[1].GetResponseRange().Kvs {
@@ -418,7 +449,7 @@ func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 			Path:   string(s[2]),
 		})
 	}
-	return outdir, outpaths, nil
+	return outdir, outpaths, dirkv.Version, nil
 }
 
 func (c *etcdCtx) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, error) {
@@ -440,7 +471,11 @@ func trySetFileINode(p agro.Path, ref agro.INodeRef) AtomicModifyFunc {
 		if v, ok := dir.Files[p.Filename()]; ok {
 			old = agro.INodeID(v)
 		}
-		dir.Files[p.Filename()] = uint64(ref.INode)
+		if ref.INode == 0 && ref.Volume == 0 {
+			delete(dir.Files, p.Filename())
+		} else {
+			dir.Files[p.Filename()] = uint64(ref.INode)
+		}
 		bytes, err := dir.Marshal()
 		return bytes, old, err
 	}

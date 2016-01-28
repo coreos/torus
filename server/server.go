@@ -267,3 +267,37 @@ func (s *server) getBitmap(vol string) (*roaring.RoaringBitmap, bool) {
 	}
 	return out, true
 }
+
+func (s *server) Remove(path agro.Path) error {
+	if path.IsDir() {
+		return s.removeDir(path)
+	}
+	return s.removeFile(path)
+}
+
+func (s *server) removeFile(p agro.Path) error {
+	ref, err := s.inodeRefForPath(p)
+	if err != nil {
+		return err
+	}
+	inode, err := s.inodes.GetINode(context.TODO(), ref)
+	if err != nil {
+		return err
+	}
+	bs, err := blockset.UnmarshalFromProto(inode.Blocks, s.blocks)
+	if err != nil {
+		return err
+	}
+	live := bs.GetLiveINodes()
+	_, err = s.mds.SetFileINode(p, agro.INodeRef{})
+	if err != nil {
+		return err
+	}
+	// Anybody who had it open still does, and a write/sync will bring it back,
+	// as expected. So this is safe to modify.
+	return s.mds.ModifyDeadMap(p.Volume, roaring.NewRoaringBitmap(), live)
+}
+
+func (s *server) removeDir(path agro.Path) error {
+	return s.mds.Rmdir(path)
+}

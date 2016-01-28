@@ -190,6 +190,37 @@ func (t *Client) Mkdir(p agro.Path, dir *models.Directory) error {
 	return nil
 }
 
+func (t *Client) Rmdir(p agro.Path) error {
+	if p.Path == "/" {
+		return errors.New("can't delete the root directory")
+	}
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+
+	tx := t.srv.tree.Txn()
+
+	k := []byte(p.Key())
+	v, ok := tx.Get(k)
+	if !ok {
+		return &os.PathError{
+			Op:   "rmdir",
+			Path: p.Path,
+			Err:  os.ErrNotExist,
+		}
+	}
+	dir := v.(*models.Directory)
+	if len(dir.Files) != 0 {
+		return &os.PathError{
+			Op:   "rmdir",
+			Path: p.Path,
+			Err:  os.ErrInvalid,
+		}
+	}
+	tx.Delete(k)
+	t.srv.tree = tx.Commit()
+	return nil
+}
+
 func (t *Client) debugPrintTree() {
 	it := t.srv.tree.Root().Iterator()
 	for {
@@ -234,7 +265,11 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, err
 	if v, ok := dir.Files[p.Filename()]; ok {
 		old = agro.INodeID(v)
 	}
-	dir.Files[p.Filename()] = uint64(ref.INode)
+	if ref.Volume == 0 && ref.INode == 0 {
+		delete(dir.Files, p.Filename())
+	} else {
+		dir.Files[p.Filename()] = uint64(ref.INode)
+	}
 	tx.Insert(k, dir)
 	t.srv.tree = tx.Commit()
 	return old, nil
