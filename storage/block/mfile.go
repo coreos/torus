@@ -274,7 +274,7 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	}
 	tx := m.blockTrie.Txn()
 	it := tx.Root().Iterator()
-	it.SeekPrefix(s.ToBytes())
+	it.SeekPrefix(s.Volume().ToBytes())
 	var keyList [][]byte
 	var deleteList []int
 	for {
@@ -282,8 +282,11 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 		if !ok {
 			break
 		}
-		deleteList = append(deleteList, value.(int))
-		keyList = append(keyList, key)
+		br := agro.BlockRefFromBytes(key)
+		if br.INode == s.INode && br.Volume() == s.Volume() {
+			deleteList = append(deleteList, value.(int))
+			keyList = append(keyList, key)
+		}
 	}
 	for _, v := range deleteList {
 		err := m.blockMap.WriteBlock(uint64(v), make([]byte, agro.BlockRefByteSize))

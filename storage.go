@@ -49,6 +49,13 @@ func (i INodeRef) Volume() VolumeID {
 	return i.volume & VolumeMax
 }
 
+func (v VolumeID) ToBytes() []byte {
+	buf := make([]byte, 8)
+	order := binary.LittleEndian
+	order.PutUint64(buf, uint64(v))
+	return buf[:VolumeIDByteSize]
+}
+
 func (i INodeRef) String() string {
 	return fmt.Sprintf("vol: %d, inode: %d", i.Volume(), i.INode)
 }
@@ -67,6 +74,7 @@ func NewINodeRef(vol VolumeID, i INodeID) INodeRef {
 	}
 }
 
+const VolumeIDByteSize = 5
 const INodeRefByteSize = 8 * 2
 
 func (i INodeRef) ToBytes() []byte {

@@ -68,7 +68,7 @@ type FileInfo struct {
 }
 
 func (fi FileInfo) Name() string {
-	return fi.INode.Filenames[0]
+	return fi.Path.Path
 }
 
 func (fi FileInfo) Size() int64 {
@@ -94,6 +94,7 @@ func (fi FileInfo) Sys() interface{} {
 func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
+	clog.Debugf("lstat %s", path)
 	for _, x := range s.openFiles {
 		if x.path.Equals(path) {
 			return x.Stat()
@@ -135,6 +136,24 @@ func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
 	}
 
 	return entries, nil
+}
+
+func (s *server) Rename(from, to agro.Path) error {
+	//TODO(barakmich): Handle hard links
+	ref, err := s.inodeRefForPath(from)
+	if err != nil {
+		return err
+	}
+	clog.Debugf("renaming %s %s %#v", from, to, ref)
+	_, err = s.mds.SetFileINode(from, agro.NewINodeRef(0, 0))
+	if err != nil {
+		return err
+	}
+	_, err = s.mds.SetFileINode(to, ref)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *server) Mkdir(path agro.Path) error {

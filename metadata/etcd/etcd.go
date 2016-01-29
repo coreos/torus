@@ -443,12 +443,13 @@ func (c *etcdCtx) getdir(p agro.Path) (*models.Directory, []agro.Path, int64, er
 	}
 	var outpaths []agro.Path
 	for _, kv := range resp.Responses[1].GetResponseRange().Kvs {
-		s := bytes.SplitN(kv.Key, []byte{':'}, 2)
+		s := bytes.SplitN(kv.Key, []byte{':'}, 3)
 		outpaths = append(outpaths, agro.Path{
 			Volume: p.Volume,
-			Path:   string(s[1]),
+			Path:   string(s[2]) + "/",
 		})
 	}
+	clog.Debugf("outpaths %#v", outpaths)
 	return outdir, outpaths, dirkv.Version, nil
 }
 

@@ -82,6 +82,10 @@ func (p Path) Filename() string {
 	return f
 }
 
+func (p Path) Base() string {
+	return path.Base(p.Path)
+}
+
 func (p Path) Equals(b Path) bool {
 	return p.Volume == b.Volume && p.Path == b.Path
 }

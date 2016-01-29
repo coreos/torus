@@ -67,7 +67,6 @@ type file struct {
 	initialINodes *roaring.RoaringBitmap
 	writeINodeRef agro.INodeRef
 	writeOpen     bool
-	inodeChanged  bool
 
 	// half-finished blocks
 	openIdx   int
@@ -160,6 +159,9 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
 	clog.Trace("begin write: offset ", off, " size ", len(b))
+	if f.writeOnly {
+		f.Truncate(off)
+	}
 	toWrite := len(b)
 	err = f.openWrite()
 	if err != nil {
@@ -326,7 +328,7 @@ func (f *file) Sync() error {
 
 func (f *file) sync(closing bool) error {
 	// Here there be dragons.
-	if !f.writeOpen && !f.inodeChanged {
+	if !f.writeOpen {
 		f.updateHeldINodes(closing)
 		return nil
 	}
@@ -438,12 +440,15 @@ func (f *file) Truncate(size int64) error {
 	if f.readOnly {
 		return os.ErrPermission
 	}
-	f.inodeChanged = true
+	err := f.openWrite()
+	if err != nil {
+		return err
+	}
 	nBlocks := (size / f.blkSize)
 	if size%f.blkSize != 0 {
 		nBlocks++
 	}
-	clog.Debugf("truncate to %d $d", size, nBlocks)
+	clog.Tracef("truncate to %d %d", size, nBlocks)
 	f.blocks.Truncate(int(nBlocks))
 	f.inode.Filesize = uint64(size)
 	return nil
