@@ -19,7 +19,6 @@ var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "fuse")
 var fuseSrv *fs.Server
 
 func MustMount(mountpoint, volume string, srv agro.Server) {
-	os.Create("foo")
 	c, err := fuse.Mount(
 		mountpoint,
 		fuse.FSName("agro"),

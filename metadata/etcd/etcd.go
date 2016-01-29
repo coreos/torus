@@ -449,7 +449,7 @@ func (c *etcdCtx) getdir(p agro.Path) (*models.Directory, []agro.Path, int64, er
 			Path:   string(s[2]) + "/",
 		})
 	}
-	clog.Debugf("outpaths %#v", outpaths)
+	clog.Tracef("outpaths %#v", outpaths)
 	return outdir, outpaths, dirkv.Version, nil
 }
 
