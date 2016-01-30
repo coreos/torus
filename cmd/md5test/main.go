@@ -12,7 +12,6 @@ import (
 	_ "github.com/coreos/agro/metadata/temp"
 	"github.com/coreos/agro/server"
 	_ "github.com/coreos/agro/storage/block"
-	_ "github.com/coreos/agro/storage/inode"
 )
 
 var etcdAddress = flag.String("etcd", "127.0.0.1:2378", "Etcd")
@@ -25,7 +24,7 @@ func main() {
 		MetadataAddress: *etcdAddress,
 		ReadCacheSize:   40 * 1024 * 1024,
 	}
-	srv, err := server.NewServer(cfg, "etcd", "temp", "temp")
+	srv, err := server.NewServer(cfg, "etcd", "temp")
 	srv.OpenReplication()
 	f, err := srv.Open(agro.Path{
 		Volume: *volume,

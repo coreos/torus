@@ -106,32 +106,33 @@ func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
 	return agro.NewINodeRef(volID, agro.INodeID(inodeID)), nil
 }
 
-type fileInfo struct {
-	inode *models.INode
-	path  agro.Path
+type FileInfo struct {
+	INode *models.INode
+	Path  agro.Path
+	Ref   agro.INodeRef
 }
 
-func (fi fileInfo) Name() string {
-	return fi.inode.Filenames[0]
+func (fi FileInfo) Name() string {
+	return fi.INode.Filenames[0]
 }
 
-func (fi fileInfo) Size() int64 {
-	return int64(fi.inode.Filesize)
+func (fi FileInfo) Size() int64 {
+	return int64(fi.INode.Filesize)
 }
 
-func (fi fileInfo) Mode() os.FileMode {
-	return os.FileMode(fi.inode.Permissions.Mode)
+func (fi FileInfo) Mode() os.FileMode {
+	return os.FileMode(fi.INode.Permissions.Mode)
 }
 
-func (fi fileInfo) ModTime() time.Time {
-	return time.Unix(0, int64(fi.inode.Permissions.Mtime))
+func (fi FileInfo) ModTime() time.Time {
+	return time.Unix(0, int64(fi.INode.Permissions.Mtime))
 }
 
-func (fi fileInfo) IsDir() bool {
-	return fi.path.IsDir()
+func (fi FileInfo) IsDir() bool {
+	return fi.Path.IsDir()
 }
 
-func (fi fileInfo) Sys() interface{} {
+func (fi FileInfo) Sys() interface{} {
 	return fi
 }
 
@@ -146,7 +147,7 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 		return nil, err
 	}
 
-	return fileInfo{inode, path}, nil
+	return FileInfo{inode, path, ref}, nil
 }
 
 func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
