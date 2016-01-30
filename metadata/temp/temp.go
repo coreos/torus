@@ -265,7 +265,7 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, err
 	if v, ok := dir.Files[p.Filename()]; ok {
 		old = agro.INodeID(v)
 	}
-	if ref.Volume == 0 && ref.INode == 0 {
+	if ref.Volume() == 0 && ref.INode == 0 {
 		delete(dir.Files, p.Filename())
 	} else {
 		dir.Files[p.Filename()] = uint64(ref.INode)
