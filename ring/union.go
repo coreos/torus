@@ -14,7 +14,7 @@ type unionRing struct {
 }
 
 func init() {
-	registerRing(Union, makeUnion)
+	registerRing(Union, "union", makeUnion)
 }
 
 func makeUnion(r *models.Ring) (agro.Ring, error) {

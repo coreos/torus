@@ -19,7 +19,7 @@ type mod struct {
 }
 
 func init() {
-	registerRing(Mod, makeMod)
+	registerRing(Mod, "mod", makeMod)
 }
 
 func makeMod(r *models.Ring) (agro.Ring, error) {
