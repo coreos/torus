@@ -68,6 +68,10 @@ func (s *server) OpenFile(p agro.Path, flag int, perm os.FileMode) (agro.File, e
 	})
 }
 
+func (s *server) OpenFileMetadata(p agro.Path, flag int, md *models.Metadata) (agro.File, error) {
+	return s.openFile(p, flag, md)
+}
+
 func (s *server) openFile(p agro.Path, flag int, md *models.Metadata) (agro.File, error) {
 	if flag&os.O_CREATE != 0 && (flag&os.O_EXCL) == 0 {
 		return s.create(p, flag, md)

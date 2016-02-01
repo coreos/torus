@@ -430,9 +430,10 @@ func (f *file) updateHeldINodes(closing bool) {
 }
 
 func (f *file) Stat() (os.FileInfo, error) {
-	return fileInfo{
-		inode: f.inode,
-		path:  f.path,
+	return FileInfo{
+		INode: f.inode,
+		Path:  f.path,
+		Ref:   agro.NewINodeRef(agro.VolumeID(f.inode.Volume), agro.INodeID(f.inode.INode)),
 	}, nil
 }
 

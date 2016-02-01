@@ -8,6 +8,7 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 
@@ -172,7 +173,7 @@ func (d DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 		}
 		fuseEntries = append(fuseEntries, fuse.Dirent{Name: path.Filename(), Type: fuse.DT_File})
 	}
-	clog.Debugf("returning dirents: %#v", fuseEntries)
+	clog.Debugf("returning dirents: %s %#v", d.path, fuseEntries)
 	return fuseEntries, nil
 }
 
@@ -183,7 +184,11 @@ func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cre
 		clog.Error("not a dir")
 		return nil, nil, errors.New("fuse: path is not a directory")
 	}
-	f, err := d.dfs.OpenFile(newPath, int(req.Flags)|os.O_CREATE, req.Mode)
+	f, err := d.dfs.OpenFileMetadata(newPath, int(req.Flags)|os.O_CREATE, &models.Metadata{
+		Uid:  req.Uid,
+		Gid:  req.Gid,
+		Mode: uint32(req.Mode),
+	})
 	if err != nil {
 		clog.Error(err)
 		return nil, nil, err

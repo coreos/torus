@@ -1,6 +1,10 @@
 package agro
 
-import "os"
+import (
+	"os"
+
+	"github.com/coreos/agro/models"
+)
 
 // Server is the interface representing the basic ways to interact with the
 // filesystem.
@@ -9,6 +13,7 @@ type Server interface {
 	Create(Path) (File, error)
 	Open(Path) (File, error)
 	OpenFile(p Path, flag int, perm os.FileMode) (File, error)
+	OpenFileMetadata(p Path, flag int, md *models.Metadata) (File, error)
 	Rename(p Path, new Path) error
 	Lstat(Path) (os.FileInfo, error)
 	Readdir(Path) ([]Path, error)
