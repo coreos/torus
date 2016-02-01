@@ -49,6 +49,13 @@ func (i INodeRef) Volume() VolumeID {
 	return i.volume & VolumeMax
 }
 
+func (v VolumeID) ToBytes() []byte {
+	buf := make([]byte, 8)
+	order := binary.LittleEndian
+	order.PutUint64(buf, uint64(v))
+	return buf[:VolumeIDByteSize]
+}
+
 func (i INodeRef) String() string {
 	return fmt.Sprintf("vol: %d, inode: %d", i.Volume(), i.INode)
 }
@@ -67,6 +74,7 @@ func NewINodeRef(vol VolumeID, i INodeID) INodeRef {
 	}
 }
 
+const VolumeIDByteSize = 5
 const INodeRefByteSize = 8 * 2
 
 func (i INodeRef) ToBytes() []byte {
@@ -146,6 +154,14 @@ func (b BlockRef) BlockType() BlockType {
 
 func (b *BlockRef) SetBlockType(t BlockType) {
 	b.volume = VolumeID(uint64(b.volume) | ((uint64(t) & 0xFFFFFF) << 40))
+}
+
+func (b BlockRef) IsZero() bool {
+	return b.Volume() == 0 && b.INode == 0 && b.Index == 0
+}
+
+func ZeroBlock() BlockRef {
+	return BlockRef{}
 }
 
 // BlockStore is the interface representing the standardized methods to

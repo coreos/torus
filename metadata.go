@@ -82,6 +82,14 @@ func (p Path) Filename() string {
 	return f
 }
 
+func (p Path) Base() string {
+	return path.Base(p.Path)
+}
+
+func (p Path) Equals(b Path) bool {
+	return p.Volume == b.Volume && p.Path == b.Path
+}
+
 // MetadataService is the interface representing the basic ways to manipulate
 // consistently stored fileystem metadata.
 type MetadataService interface {
@@ -94,7 +102,7 @@ type MetadataService interface {
 	GetINodeIndex(volume string) (INodeID, error)
 	GetINodeIndexes() (map[string]INodeID, error)
 
-	Mkdir(path Path, dir *models.Directory) error
+	Mkdir(path Path, dir *models.Metadata) error
 	Getdir(path Path) (*models.Directory, []Path, error)
 	Rmdir(path Path) error
 	SetFileINode(path Path, ref INodeRef) (INodeID, error)

@@ -31,6 +31,7 @@ type server struct {
 	peersMap      map[string]*models.PeerInfo
 	closeChans    []chan interface{}
 	openINodeRefs map[string]map[agro.INodeID]int
+	openFiles     []*file
 	cfg           agro.Config
 
 	internalAddr string
@@ -38,52 +39,6 @@ type server struct {
 	heartbeating    bool
 	replicationOpen bool
 	gc              gc.GC
-}
-
-func (s *server) Create(path agro.Path, md models.Metadata) (f agro.File, err error) {
-	// Truncate the file if it already exists. This is equivalent to creating
-	// a new (empty) inode with the path that we're going to overwrite later.
-	n := models.NewEmptyINode()
-	n.Filenames = []string{path.Path}
-	volid, err := s.mds.GetVolumeID(path.Volume)
-	n.Volume = uint64(volid)
-	if err != nil {
-		return nil, err
-	}
-	n.Permissions = &md
-	globals, err := s.mds.GlobalMetadata()
-	if err != nil {
-		return nil, err
-	}
-	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, s.blocks)
-	if err != nil {
-		return nil, err
-	}
-	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.INode, bs.Length())
-	return &file{
-		path:          path,
-		inode:         n,
-		srv:           s,
-		blocks:        bs,
-		blkSize:       int64(globals.BlockSize),
-		initialINodes: roaring.NewRoaringBitmap(),
-	}, nil
-}
-
-func (s *server) Open(p agro.Path) (agro.File, error) {
-	ref, err := s.inodeRefForPath(p)
-	if err != nil {
-		return nil, err
-	}
-
-	inode, err := s.inodes.GetINode(context.TODO(), ref)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO(jzelinskie): check metadata for permission
-
-	return s.newFile(p, inode)
 }
 
 func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
@@ -113,7 +68,7 @@ type FileInfo struct {
 }
 
 func (fi FileInfo) Name() string {
-	return fi.INode.Filenames[0]
+	return fi.Path.Path
 }
 
 func (fi FileInfo) Size() int64 {
@@ -137,6 +92,14 @@ func (fi FileInfo) Sys() interface{} {
 }
 
 func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
+	s.mut.RLock()
+	defer s.mut.RUnlock()
+	clog.Debugf("lstat %s", path)
+	for _, x := range s.openFiles {
+		if x.path.Equals(path) {
+			return x.Stat()
+		}
+	}
 	ref, err := s.inodeRefForPath(path)
 	if err != nil {
 		return nil, err
@@ -175,6 +138,30 @@ func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
 	return entries, nil
 }
 
+func (s *server) Rename(from, to agro.Path) error {
+	//TODO(barakmich): Handle hard links
+	ref, err := s.inodeRefForPath(from)
+	if err != nil {
+		return err
+	}
+	clog.Debugf("renaming %s %s %#v", from, to, ref)
+	_, err = s.mds.SetFileINode(from, agro.NewINodeRef(0, 0))
+	if err != nil {
+		return err
+	}
+	_, err = s.mds.SetFileINode(to, ref)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *server) Mkdir(path agro.Path) error {
+	if !path.IsDir() {
+		return os.ErrInvalid
+	}
+	return s.mds.Mkdir(path, &models.Metadata{})
+}
 func (s *server) CreateVolume(vol string) error {
 	err := s.mds.CreateVolume(vol)
 	if err == agro.ErrAgain {
@@ -301,4 +288,21 @@ func (s *server) removeFile(p agro.Path) error {
 
 func (s *server) removeDir(path agro.Path) error {
 	return s.mds.Rmdir(path)
+}
+
+func (s *server) addOpenFile(f *file) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	s.openFiles = append(s.openFiles, f)
+}
+
+func (s *server) removeOpenFile(f *file) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	for i, x := range s.openFiles {
+		if x == f {
+			s.openFiles = append(s.openFiles[:i], s.openFiles[i+1:]...)
+			return
+		}
+	}
 }

@@ -87,6 +87,10 @@ func (b *crcBlockset) setStore(s agro.BlockStore) {
 	b.sub.setStore(s)
 }
 
+func (b *crcBlockset) getStore() agro.BlockStore {
+	return b.sub.getStore()
+}
+
 func (b *crcBlockset) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, int32(len(b.crcs)))
@@ -122,4 +126,22 @@ func (b *crcBlockset) GetSubBlockset() agro.Blockset { return b.sub }
 
 func (b *crcBlockset) GetLiveINodes() *roaring.RoaringBitmap {
 	return b.sub.GetLiveINodes()
+}
+
+func (b *crcBlockset) Truncate(lastIndex int) error {
+	err := b.sub.Truncate(lastIndex)
+	if err != nil {
+		return err
+	}
+	if lastIndex <= len(b.crcs) {
+		b.crcs = b.crcs[:lastIndex]
+		return nil
+	}
+	crc := crc32.ChecksumIEEE(make([]byte, b.getStore().BlockSize()))
+	toadd := lastIndex - len(b.crcs)
+	for toadd != 0 {
+		b.crcs = append(b.crcs, crc)
+		toadd--
+	}
+	return nil
 }

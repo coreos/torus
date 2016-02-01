@@ -7,7 +7,6 @@ import (
 
 	"github.com/DeanThompson/ginpprof"
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
@@ -73,7 +72,7 @@ func (s *Server) putFile(c *gin.Context) {
 	f, err := s.dfs.Create(agro.Path{
 		Volume: vol,
 		Path:   "/" + filename,
-	}, models.Metadata{})
+	})
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))

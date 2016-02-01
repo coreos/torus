@@ -93,6 +93,10 @@ func (b *baseBlockset) setStore(s agro.BlockStore) {
 	b.store = s
 }
 
+func (b *baseBlockset) getStore() agro.BlockStore {
+	return b.store
+}
+
 func (b *baseBlockset) Unmarshal(data []byte) error {
 	r := bytes.NewReader(data)
 	var l int32
@@ -118,7 +122,23 @@ func (b *baseBlockset) GetSubBlockset() agro.Blockset { return nil }
 func (b *baseBlockset) GetLiveINodes() *roaring.RoaringBitmap {
 	out := roaring.NewRoaringBitmap()
 	for _, blk := range b.blocks {
+		if blk.IsZero() {
+			continue
+		}
 		out.Add(uint32(blk.INode))
 	}
 	return out
+}
+
+func (b *baseBlockset) Truncate(lastIndex int) error {
+	if lastIndex <= len(b.blocks) {
+		b.blocks = b.blocks[:lastIndex]
+		return nil
+	}
+	toadd := lastIndex - len(b.blocks)
+	for toadd != 0 {
+		b.blocks = append(b.blocks, agro.ZeroBlock())
+		toadd--
+	}
+	return nil
 }

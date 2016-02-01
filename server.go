@@ -10,11 +10,15 @@ import (
 // filesystem.
 type Server interface {
 	// Standard file path calls.
-	Create(Path, models.Metadata) (File, error)
+	Create(Path) (File, error)
 	Open(Path) (File, error)
+	OpenFile(p Path, flag int, perm os.FileMode) (File, error)
+	OpenFileMetadata(p Path, flag int, md *models.Metadata) (File, error)
+	Rename(p Path, new Path) error
 	Lstat(Path) (os.FileInfo, error)
 	Readdir(Path) ([]Path, error)
 	Remove(Path) error
+	Mkdir(Path) error
 
 	// Some server metacalls.
 	CreateVolume(string) error

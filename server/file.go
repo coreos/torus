@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"io"
+	"os"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -71,40 +72,9 @@ type file struct {
 	openIdx   int
 	openData  []byte
 	openWrote bool
-}
 
-func (s *server) newFile(path agro.Path, inode *models.INode) (agro.File, error) {
-	bs, err := blockset.UnmarshalFromProto(inode.GetBlocks(), s.blocks)
-	if err != nil {
-		return nil, err
-	}
-	md, err := s.mds.GlobalMetadata()
-	if err != nil {
-		return nil, err
-	}
-
-	set := bs.GetLiveINodes()
-	s.incRef(path.Volume, set)
-	bm, _ := s.getBitmap(path.Volume)
-	err = s.mds.ClaimVolumeINodes(path.Volume, bm)
-	if err != nil {
-		s.decRef(path.Volume, set)
-		return nil, err
-	}
-	promOpenINodes.WithLabelValues(path.Volume).Set(float64(bm.GetCardinality()))
-
-	clog.Debugf("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
-	f := &file{
-		path:          path,
-		inode:         inode,
-		srv:           s,
-		offset:        0,
-		blocks:        bs,
-		initialINodes: set,
-		blkSize:       int64(md.BlockSize),
-	}
-	promOpenFiles.WithLabelValues(path.Volume).Inc()
-	return f, nil
+	readOnly  bool
+	writeOnly bool
 }
 
 func (f *file) Write(b []byte) (n int, err error) {
@@ -189,6 +159,9 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
 	clog.Trace("begin write: offset ", off, " size ", len(b))
+	if f.writeOnly {
+		f.Truncate(off)
+	}
 	toWrite := len(b)
 	err = f.openWrite()
 	if err != nil {
@@ -344,6 +317,7 @@ func (f *file) Close() error {
 	if err != nil {
 		clog.Error(err)
 	}
+	f.srv.removeOpenFile(f)
 	promOpenFiles.WithLabelValues(f.path.Volume).Dec()
 	return err
 }
@@ -453,4 +427,30 @@ func (f *file) updateHeldINodes(closing bool) {
 	if err != nil {
 		clog.Error("file: TODO: Can't re-claim")
 	}
+}
+
+func (f *file) Stat() (os.FileInfo, error) {
+	return FileInfo{
+		INode: f.inode,
+		Path:  f.path,
+		Ref:   agro.NewINodeRef(agro.VolumeID(f.inode.Volume), agro.INodeID(f.inode.INode)),
+	}, nil
+}
+
+func (f *file) Truncate(size int64) error {
+	if f.readOnly {
+		return os.ErrPermission
+	}
+	err := f.openWrite()
+	if err != nil {
+		return err
+	}
+	nBlocks := (size / f.blkSize)
+	if size%f.blkSize != 0 {
+		nBlocks++
+	}
+	clog.Tracef("truncate to %d %d", size, nBlocks)
+	f.blocks.Truncate(int(nBlocks))
+	f.inode.Filesize = uint64(size)
+	return nil
 }
