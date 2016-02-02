@@ -13,12 +13,22 @@ type Ring interface {
 	Marshal() ([]byte, error)
 }
 
+type ModifyableRing interface {
+	ChangeReplication(r int)
+}
+
+type RingModification interface {
+	ModifyRing(ModifyableRing)
+}
+
 type RingAdder interface {
-	AddPeers(PeerList) (Ring, error)
+	ModifyableRing
+	AddPeers(PeerList, ...RingModification) (Ring, error)
 }
 
 type RingRemover interface {
-	RemovePeers(PeerList) (Ring, error)
+	ModifyableRing
+	RemovePeers(PeerList, ...RingModification) (Ring, error)
 }
 
 type PeerList []string

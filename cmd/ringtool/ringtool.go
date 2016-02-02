@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 
@@ -18,7 +19,6 @@ var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "ringtool")
 
 var (
 	ringType       = flag.String("ring", "mod", "Ring Type")
-	ringEnd        = flag.String("targetring", "", "Target ring type")
 	replication    = flag.Int("rep", 2, "Replication start")
 	replicationEnd = flag.Int("repEnd", 0, "Replication start")
 	nodes          = flag.Int("nodes", 0, "Number of nodes to start")
@@ -43,9 +43,6 @@ type RebalanceStats struct {
 func main() {
 	var err error
 	flag.Parse()
-	if *ringEnd == "" {
-		*ringEnd = *ringType
-	}
 	if *replicationEnd == 0 {
 		*replicationEnd = *replication
 	}
@@ -83,6 +80,7 @@ func main() {
 		blocks = append(blocks, out...)
 	}
 	r1, r2 := createRings()
+	fmt.Printf("Unique blocks: %d\n", len(blocks))
 	cluster := assignData(blocks, r1)
 	fmt.Println("@START *****")
 	cluster.printBalance()
@@ -108,6 +106,23 @@ func createRings() (agro.Ring, agro.Ring) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error creating from-ring: %s\n", err)
 		os.Exit(1)
+	}
+
+	if v, ok := from.(agro.RingAdder); *delta > 0 && ok {
+		to, err := v.AddPeers(agro.PeerList(uuids[*nodes:]), ring.ReplicationLevel(*replicationEnd))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error adding peers to ring: %s\n", err)
+			os.Exit(1)
+		}
+		return from, to
+	}
+	if v, ok := from.(agro.RingRemover); *delta <= 0 && ok {
+		to, err := v.RemovePeers(agro.PeerList(uuids[*nodes+*delta:]), ring.ReplicationLevel(*replicationEnd))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error removing peers from ring: %s\n", err)
+			os.Exit(1)
+		}
+		return from, to
 	}
 
 	ttype, ok := ring.RingTypeFromString(*ringType)
@@ -153,7 +168,18 @@ func (c ClusterState) printBalance() {
 		fmt.Printf("\t%s: %d\n", p, len(l))
 		total += len(l)
 	}
-	fmt.Printf("Total: %d\n", total)
+	mean := float64(total) / float64(len(c))
+	v := float64(0)
+	for _, l := range c {
+		v += math.Pow(float64(len(l))-mean, 2.0)
+	}
+	v = math.Sqrt(v / float64(len(c)))
+	//	fmt.Printf("Total: %d, Mean: %0.2f, Stddev: %0.4f\n", total, mean, v)
+	fmt.Printf("Total: %s, Mean: %s, Stddev: %s\n",
+		humanize.IBytes(uint64(total)*blockSize),
+		humanize.IBytes(uint64(mean)*blockSize),
+		humanize.IBytes(uint64(v)*blockSize),
+	)
 }
 
 func (c ClusterState) Rebalance(oldRing, newRing agro.Ring) (ClusterState, RebalanceStats) {
@@ -204,6 +230,10 @@ func (s RebalanceStats) printStats() {
 	fmt.Printf("Blocks Kept: %d\n", s.BlocksKept)
 	fmt.Printf("Blocks Sent: %d\n", s.BlocksSent)
 	fmt.Printf("Percentage Sent: %0.2f\n", ((float64(s.BlocksSent) * 100) / (float64(s.BlocksSent + s.BlocksKept))))
+	fmt.Printf("Network Traffic: %s\n", humanize.IBytes(s.BlocksSent*blockSize))
+	total := float64((s.BlocksSent + s.BlocksKept) * blockSize)
+	perfect := total * math.Abs(float64(*delta)/float64(*delta+*nodes))
+	fmt.Printf("Perfect Traffic: %s\n", humanize.IBytes(uint64(perfect)))
 }
 
 func generateLinearFile(vol agro.VolumeID, in agro.INodeID, size int) ([]agro.BlockRef, agro.INodeID) {

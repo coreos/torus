@@ -69,28 +69,40 @@ func (m *mod) Marshal() ([]byte, error) {
 	return out.Marshal()
 }
 
-func (m *mod) AddPeers(pl agro.PeerList) (agro.Ring, error) {
+func (m *mod) AddPeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
 	newPeers := sort.StringSlice(m.Members().Union(pl))
 	if reflect.DeepEqual(newPeers, m.Members()) {
 		return nil, errors.New("no difference in membership")
 	}
-	return &mod{
+	newm := &mod{
 		version: m.version + 1,
 		rep:     m.rep,
 		peers:   newPeers,
 		npeers:  len(newPeers),
-	}, nil
+	}
+	for _, x := range mods {
+		x.ModifyRing(newm)
+	}
+	return newm, nil
 }
 
-func (m *mod) RemovePeers(pl agro.PeerList) (agro.Ring, error) {
+func (m *mod) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
 	newPeers := sort.StringSlice(m.Members().AndNot(pl))
 	if reflect.DeepEqual(newPeers, m.Members()) {
 		return nil, errors.New("no difference in membership")
 	}
-	return &mod{
+	newm := &mod{
 		version: m.version + 1,
 		rep:     m.rep,
 		peers:   newPeers,
 		npeers:  len(newPeers),
-	}, nil
+	}
+	for _, x := range mods {
+		x.ModifyRing(newm)
+	}
+	return newm, nil
+}
+
+func (m *mod) ChangeReplication(r int) {
+	m.rep = r
 }
