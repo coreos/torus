@@ -19,10 +19,10 @@ var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "ringtool")
 
 var (
 	ringType       = flag.String("ring", "mod", "Ring Type")
-	replication    = flag.Int("rep", 2, "Replication start")
-	replicationEnd = flag.Int("repEnd", 0, "Replication start")
+	replication    = flag.Int("rep", 2, "Start Replication")
+	replicationEnd = flag.Int("repEnd", 0, "Target Replication (0 = same as start)")
 	nodes          = flag.Int("nodes", 0, "Number of nodes to start")
-	delta          = flag.Int("delta", 2, "Number of nodes to add/remove")
+	delta          = flag.Int("delta", 2, "Number of nodes to add (positive)/remove (negative)")
 	blockSizeStr   = flag.String("block-size", "256KiB", "Blocksize")
 	totalDataStr   = flag.String("total-data", "1TiB", "Total data simulated")
 	partition      = flag.Int("rewrite-edge", 40, "Percentage of files with small writes")
