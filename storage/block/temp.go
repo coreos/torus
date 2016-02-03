@@ -1,7 +1,6 @@
 package block
 
 import (
-	"errors"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -47,21 +46,6 @@ func (t *tempBlockStore) Close() error {
 	}
 	t.mut.Unlock()
 	return nil
-}
-
-func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) error {
-	if v, ok := bs.(*tempBlockStore); ok {
-		t.mut.Lock()
-		defer t.mut.Unlock()
-		v.mut.Lock()
-		defer v.mut.Unlock()
-		t.store = v.store
-		t.nBlocks = v.nBlocks
-		promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
-		promBlocksAvail.WithLabelValues(t.name).Set(float64(t.nBlocks))
-		return nil
-	}
-	return errors.New("not a tempBlockStore")
 }
 
 func (t *tempBlockStore) NumBlocks() uint64 {

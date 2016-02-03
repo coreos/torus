@@ -175,7 +175,6 @@ type BlockStore interface {
 	NumBlocks() uint64
 	UsedBlocks() uint64
 	BlockIterator() BlockIterator
-	ReplaceBlockStore(BlockStore) error
 	BlockSize() uint64
 	// TODO(barakmich) FreeBlocks()
 }

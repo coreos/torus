@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"runtime"
@@ -302,43 +301,6 @@ func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error
 	m.size = m.size - uint64(len(deleteList))
 	promBlocks.WithLabelValues(m.name).Set(float64(m.size))
 	m.blockTrie = tx.Commit()
-	return nil
-}
-
-func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) error {
-	newM, ok := bs.(*mfileBlock)
-	if !ok {
-		return errors.New("not replacing an mfileBlockStore")
-	}
-	m.mut.Lock()
-	defer m.mut.Unlock()
-	newM.mut.Lock()
-	defer newM.mut.Unlock()
-	err := os.Remove(m.dfilename)
-	if err != nil {
-		return err
-	}
-	err = os.Remove(m.mfilename)
-	if err != nil {
-		return err
-	}
-	err = os.Rename(newM.mfilename, m.mfilename)
-	if err != nil {
-		return err
-	}
-	err = os.Rename(newM.dfilename, m.dfilename)
-	if err != nil {
-		return err
-	}
-	m.data = newM.data
-	m.blockMap = newM.blockMap
-	m.blockTrie = newM.blockTrie
-	m.lastFree = newM.lastFree
-	m.size = newM.size
-	newM.data = nil
-	newM.blockMap = nil
-	promBlocksAvail.WithLabelValues(m.name).Set(float64(m.numBlocks()))
-	promBlocks.WithLabelValues(m.name).Set(float64(m.size))
 	return nil
 }
 

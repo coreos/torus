@@ -136,10 +136,6 @@ func (d *distributor) Flush() error {
 
 func (d *distributor) Kind() string { return "distributor" }
 
-func (d *distributor) ReplaceBlockStore(bs agro.BlockStore) error {
-	return d.blocks.ReplaceBlockStore(bs)
-}
-
 func (d *distributor) BlockSize() uint64 {
 	return d.blocks.BlockSize()
 }
