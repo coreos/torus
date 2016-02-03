@@ -440,20 +440,16 @@ func (t *Client) GetRebalanceSnapshot() (uint64, []byte, error) {
 	return t.srv.rebalanceKind, t.srv.rebalanceSnapshot, nil
 }
 
-func (t *Client) SetRing(ring agro.Ring, force bool) error {
-	return t.srv.SetRing(ring, force)
+func (t *Client) SetRing(ring agro.Ring) error {
+	return t.srv.SetRing(ring)
 }
 
-func (s *Server) SetRing(ring agro.Ring, force bool) error {
+func (s *Server) SetRing(ring agro.Ring) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	if force {
-		s.ring = ring
-		return nil
-	}
-	s.newRing = ring
+	s.ring = ring
 	for _, c := range s.ringListeners {
-		c <- s.newRing
+		c <- s.ring
 	}
 	return nil
 }

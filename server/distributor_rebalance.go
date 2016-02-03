@@ -1,18 +1,15 @@
 package server
 
 import (
+	"io"
 	"time"
 
 	"github.com/coreos/agro"
 )
 
-var (
-	rebalanceTimeout = 30 * time.Second
-)
-
 // Goroutine which watches for new rings and kicks off
 // the rebalance dance.
-func (d *distributor) rebalanceWatcher(closer chan struct{}) {
+func (d *distributor) ringWatcher(closer chan struct{}) {
 	ch := make(chan agro.Ring)
 	d.srv.mds.SubscribeNewRings(ch)
 exit:
@@ -37,6 +34,28 @@ exit:
 			} else {
 				break exit
 			}
+		}
+	}
+}
+
+func (d *distributor) rebalanceTicker(closer chan struct{}) {
+	n := 0
+exit:
+	for {
+		timeout := 10 * time.Duration(n+1) * time.Millisecond
+		select {
+		case <-closer:
+			break exit
+		case <-time.After(timeout):
+			written, err := d.rebalancer.Tick()
+			if err == io.EOF {
+				// Good job, sleep well, I'll most likely rebalance you in the morning.
+				time.Sleep(5 * time.Second)
+			} else if err != nil {
+				// This is usually really bad
+				clog.Error(err)
+			}
+			n = written
 		}
 	}
 }

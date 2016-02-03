@@ -112,7 +112,7 @@ func testThreeWrite(t *testing.T) {
 		Path:   "/foo",
 	}
 
-	f, err := srvs[2].Create(testPath, models.Metadata{})
+	f, err := srvs[2].Create(testPath)
 	if err != nil {
 		t.Errorf("couldn't open: %s", err)
 		return

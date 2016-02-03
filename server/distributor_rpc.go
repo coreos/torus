@@ -66,5 +66,18 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 }
 
 func (d *distributor) RebalanceCheck(ctx context.Context, req *models.RebalanceCheckRequest) (*models.RebalanceCheckResponse, error) {
-	panic("TODO")
+	out := make([]bool, len(req.BlockRefs))
+	d.mut.Lock()
+	defer d.mut.Unlock()
+	for i, x := range req.BlockRefs {
+		_, err := d.blocks.GetBlock(ctx, agro.BlockFromProto(x))
+		if err == nil {
+			out[i] = true
+		} else {
+			out[i] = false
+		}
+	}
+	return &models.RebalanceCheckResponse{
+		Valid: out,
+	}, nil
 }

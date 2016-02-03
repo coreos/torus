@@ -539,15 +539,12 @@ func (c *etcdCtx) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead
 	return err
 }
 
-func (c *etcdCtx) SetRing(ring agro.Ring, force bool) error {
+func (c *etcdCtx) SetRing(ring agro.Ring) error {
 	b, err := ring.Marshal()
 	if err != nil {
 		return err
 	}
-	key := mkKey("meta", "the-new-ring")
-	if force {
-		key = mkKey("meta", "the-one-ring")
-	}
+	key := mkKey("meta", "the-one-ring")
 	_, err = c.etcd.kv.Put(c.getContext(),
 		setKey(key, b))
 	if err != nil {

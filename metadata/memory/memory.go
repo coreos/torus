@@ -369,7 +369,7 @@ func (s *memory) UnsubscribeNewRings(ch chan agro.Ring) {
 	}
 }
 
-func (s *memory) SetRing(newring agro.Ring, _ bool) error {
+func (s *memory) SetRing(newring agro.Ring) error {
 	if newring.Type() != ring.Single {
 		return errors.New("invalid ring type for memory mds (must be Single)")
 	}

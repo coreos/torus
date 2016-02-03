@@ -91,7 +91,7 @@ func peerAddAction(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "couldn't add peer to ring: %s\n", err)
 		os.Exit(1)
 	}
-	err = mds.SetRing(newRing, false)
+	err = mds.SetRing(newRing)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't set new ring: %s\n", err)
 		os.Exit(1)
@@ -118,7 +118,7 @@ func peerRemoveAction(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "couldn't add peer to ring: %s\n", err)
 		os.Exit(1)
 	}
-	err = mds.SetRing(newRing, false)
+	err = mds.SetRing(newRing)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't set new ring: %s\n", err)
 		os.Exit(1)

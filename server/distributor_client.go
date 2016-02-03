@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	clientTimeout      = 50 * time.Millisecond
-	writeClientTimeout = 1000 * time.Millisecond
+	clientTimeout          = 50 * time.Millisecond
+	writeClientTimeout     = 1000 * time.Millisecond
+	rebalanceClientTimeout = 5 * time.Second
 )
 
 // TODO(barakmich): Clean up errors
@@ -106,4 +107,25 @@ func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef,
 		return errors.New(resp.Err)
 	}
 	return nil
+}
+
+func (d *distClient) Check(ctx context.Context, uuid string, blks []agro.BlockRef) ([]bool, error) {
+	conn := d.getConn(uuid)
+	if conn == nil {
+		return nil, agro.ErrNoPeer
+	}
+	client := models.NewAgroStorageClient(conn)
+	refs := make([]*models.BlockRef, 0, len(blks))
+	for _, x := range blks {
+		refs = append(refs, x.ToProto())
+	}
+	newctx, cancel := context.WithTimeout(ctx, rebalanceClientTimeout)
+	defer cancel()
+	resp, err := client.RebalanceCheck(newctx, &models.RebalanceCheckRequest{
+		BlockRefs: refs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Valid, nil
 }
