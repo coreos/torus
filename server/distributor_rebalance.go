@@ -3,8 +3,6 @@ package server
 import (
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
@@ -17,7 +15,6 @@ type Rebalancer interface {
 	Leader(chans [2]chan *models.RebalanceStatus)
 	AdvanceState(s *models.RebalanceStatus) (*models.RebalanceStatus, bool, error)
 	OnError(error) *models.RebalanceStatus
-	RebalanceMessage(context.Context, *models.RebalanceRequest) (*models.RebalanceResponse, error)
 	Timeout()
 }
 

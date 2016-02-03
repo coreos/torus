@@ -26,8 +26,11 @@ func makeSingle(r *models.Ring) (agro.Ring, error) {
 	}, nil
 }
 
-func (s *single) GetPeers(key agro.BlockRef) (agro.PeerList, error) {
-	return []string{s.uuid}, nil
+func (s *single) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
+	return agro.PeerPermutation{
+		Peers:       []string{s.uuid},
+		Replication: 1,
+	}, nil
 }
 
 func (s *single) Members() agro.PeerList { return []string{s.uuid} }

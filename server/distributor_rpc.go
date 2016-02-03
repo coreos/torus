@@ -1,8 +1,6 @@
 package server
 
 import (
-	"errors"
-
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"golang.org/x/net/context"
@@ -49,7 +47,7 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 			return nil, err
 		}
 		ok := false
-		for _, x := range peers {
+		for _, x := range peers.Peers {
 			if x == d.srv.mds.UUID() {
 				ok = true
 				break
@@ -67,17 +65,6 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 	}, nil
 }
 
-func (d *distributor) RebalanceMessage(ctx context.Context, req *models.RebalanceRequest) (*models.RebalanceResponse, error) {
-	d.mut.RLock()
-	defer d.mut.RUnlock()
-	promDistRebalanceRPCs.Inc()
-	if d.rebalancer == nil {
-		promDistRebalanceRPCFailures.Inc()
-		return nil, errors.New("not rebalancing")
-	}
-	resp, err := d.rebalancer.RebalanceMessage(ctx, req)
-	if err != nil {
-		promDistRebalanceRPCFailures.Inc()
-	}
-	return resp, err
+func (d *distributor) RebalanceCheck(ctx context.Context, req *models.RebalanceCheckRequest) (*models.RebalanceCheckResponse, error) {
+	panic("TODO")
 }

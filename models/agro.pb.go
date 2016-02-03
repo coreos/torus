@@ -24,8 +24,8 @@
 		BlockResponse
 		PutBlockRequest
 		PutResponse
-		RebalanceRequest
-		RebalanceResponse
+		RebalanceCheckRequest
+		RebalanceCheckResponse
 */
 package models
 
@@ -124,16 +124,25 @@ func (m *Directory) GetFiles() map[string]uint64 {
 }
 
 type PeerInfo struct {
-	UUID        string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	Address     string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	LastSeen    int64  `protobuf:"varint,3,opt,name=last_seen,proto3" json:"last_seen,omitempty"`
-	TotalBlocks uint64 `protobuf:"varint,4,opt,name=total_blocks,proto3" json:"total_blocks,omitempty"`
-	UsedBlocks  uint64 `protobuf:"varint,5,opt,name=used_blocks,proto3" json:"used_blocks,omitempty"`
+	UUID                  string            `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	Address               string            `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	LastSeen              int64             `protobuf:"varint,3,opt,name=last_seen,proto3" json:"last_seen,omitempty"`
+	TotalBlocks           uint64            `protobuf:"varint,4,opt,name=total_blocks,proto3" json:"total_blocks,omitempty"`
+	UsedBlocks            uint64            `protobuf:"varint,5,opt,name=used_blocks,proto3" json:"used_blocks,omitempty"`
+	LastRebalanceFinish   int64             `protobuf:"varint,6,opt,name=last_rebalance_finish,proto3" json:"last_rebalance_finish,omitempty"`
+	LastRebalanceLowWater map[uint64]uint64 `protobuf:"bytes,7,rep,name=last_rebalance_low_water" json:"last_rebalance_low_water,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 }
 
 func (m *PeerInfo) Reset()         { *m = PeerInfo{} }
 func (m *PeerInfo) String() string { return proto.CompactTextString(m) }
 func (*PeerInfo) ProtoMessage()    {}
+
+func (m *PeerInfo) GetLastRebalanceLowWater() map[uint64]uint64 {
+	if m != nil {
+		return m.LastRebalanceLowWater
+	}
+	return nil
+}
 
 type Ring struct {
 	Type              uint32            `protobuf:"varint,1,opt,name=type,proto3" json:"type,omitempty"`
@@ -451,6 +460,26 @@ func (m *PeerInfo) MarshalTo(data []byte) (int, error) {
 		data[i] = 0x28
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.UsedBlocks))
+	}
+	if m.LastRebalanceFinish != 0 {
+		data[i] = 0x30
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.LastRebalanceFinish))
+	}
+	if len(m.LastRebalanceLowWater) > 0 {
+		for k, _ := range m.LastRebalanceLowWater {
+			data[i] = 0x3a
+			i++
+			v := m.LastRebalanceLowWater[k]
+			mapSize := 1 + sovAgro(uint64(k)) + 1 + sovAgro(uint64(v))
+			i = encodeVarintAgro(data, i, uint64(mapSize))
+			data[i] = 0x8
+			i++
+			i = encodeVarintAgro(data, i, uint64(k))
+			data[i] = 0x10
+			i++
+			i = encodeVarintAgro(data, i, uint64(v))
+		}
 	}
 	return i, nil
 }
@@ -770,6 +799,17 @@ func (m *PeerInfo) Size() (n int) {
 	}
 	if m.UsedBlocks != 0 {
 		n += 1 + sovAgro(uint64(m.UsedBlocks))
+	}
+	if m.LastRebalanceFinish != 0 {
+		n += 1 + sovAgro(uint64(m.LastRebalanceFinish))
+	}
+	if len(m.LastRebalanceLowWater) > 0 {
+		for k, v := range m.LastRebalanceLowWater {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + sovAgro(uint64(k)) + 1 + sovAgro(uint64(v))
+			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
+		}
 	}
 	return n
 }
@@ -1781,6 +1821,116 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastRebalanceFinish", wireType)
+			}
+			m.LastRebalanceFinish = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.LastRebalanceFinish |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastRebalanceLowWater", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var keykey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				keykey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var mapkey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				mapkey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var valuekey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				valuekey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var mapvalue uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				mapvalue |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if m.LastRebalanceLowWater == nil {
+				m.LastRebalanceLowWater = make(map[uint64]uint64)
+			}
+			m.LastRebalanceLowWater[mapkey] = mapvalue
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])

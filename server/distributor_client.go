@@ -107,12 +107,3 @@ func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef,
 	}
 	return nil
 }
-
-func (d *distClient) SendRebalance(ctx context.Context, uuid string, message *models.RebalanceRequest) (*models.RebalanceResponse, error) {
-	conn := d.getConn(uuid)
-	if conn == nil {
-		return nil, agro.ErrNoPeer
-	}
-	client := models.NewAgroStorageClient(conn)
-	return client.RebalanceMessage(ctx, message)
-}
