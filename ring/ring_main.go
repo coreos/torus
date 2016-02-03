@@ -10,6 +10,7 @@ const (
 	Single
 	Mod
 	Union
+	Ketama
 )
 
 func Unmarshal(b []byte) (agro.Ring, error) {
@@ -24,8 +25,9 @@ func Unmarshal(b []byte) (agro.Ring, error) {
 type createRingFunc func(r *models.Ring) (agro.Ring, error)
 
 var ringRegistry map[agro.RingType]createRingFunc
+var ringNames map[string]agro.RingType
 
-func registerRing(t agro.RingType, newFunc createRingFunc) {
+func registerRing(t agro.RingType, name string, newFunc createRingFunc) {
 	if ringRegistry == nil {
 		ringRegistry = make(map[agro.RingType]createRingFunc)
 	}
@@ -35,8 +37,33 @@ func registerRing(t agro.RingType, newFunc createRingFunc) {
 	}
 
 	ringRegistry[t] = newFunc
+
+	if ringNames == nil {
+		ringNames = make(map[string]agro.RingType)
+	}
+
+	if _, ok := ringNames[name]; ok {
+		panic("agro: attempted to register ring name " + name + " twice")
+	}
+
+	ringNames[name] = t
 }
 
 func CreateRing(r *models.Ring) (agro.Ring, error) {
 	return ringRegistry[agro.RingType(r.Type)](r)
+}
+
+func RingTypeFromString(s string) (agro.RingType, bool) {
+	v, ok := ringNames[s]
+	return v, ok
+}
+
+type changeReplication struct{ to int }
+
+func (c changeReplication) ModifyRing(r agro.ModifyableRing) {
+	r.ChangeReplication(c.to)
+}
+
+func ReplicationLevel(x int) agro.RingModification {
+	return changeReplication{to: x}
 }

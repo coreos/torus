@@ -13,7 +13,7 @@ type single struct {
 }
 
 func init() {
-	registerRing(Single, makeSingle)
+	registerRing(Single, "single", makeSingle)
 }
 
 func makeSingle(r *models.Ring) (agro.Ring, error) {

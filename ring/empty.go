@@ -10,7 +10,7 @@ type empty struct {
 }
 
 func init() {
-	registerRing(Empty, makeEmpty)
+	registerRing(Empty, "empty", makeEmpty)
 }
 
 func makeEmpty(r *models.Ring) (agro.Ring, error) {
