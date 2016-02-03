@@ -11,6 +11,10 @@ var (
 	ErrNoPeersBlock = errors.New("distributor: no peers available for a block")
 )
 
+const (
+	ctxWriteLevel int = iota
+)
+
 func getRepFromContext(ctx context.Context) int {
 	if ctx == nil {
 		return 1
@@ -58,6 +62,15 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		}
 	}
 	for _, p := range peers.Peers {
+		if p == d.UUID() {
+			b, err := d.blocks.GetBlock(ctx, i)
+			if err == nil {
+				promDistBlockLocalHits.Inc()
+				return b, nil
+			}
+			promDistBlockLocalFailures.Inc()
+			continue
+		}
 		blk, err := d.client.GetBlock(ctx, p, i)
 		if err == nil {
 			if d.readCache != nil {
@@ -78,6 +91,14 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	return nil, ErrNoPeersBlock
 }
 
+func getWriteFromContext(ctx context.Context) agro.WriteLevel {
+	v, ok := ctx.Value(ctxWriteLevel).(agro.WriteLevel)
+	if ok {
+		return v
+	}
+	return agro.WriteAll
+}
+
 func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
@@ -88,16 +109,42 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 	if len(peers.Peers) == 0 {
 		return agro.ErrOutOfSpace
 	}
-	for _, p := range peers.Peers[:peers.Replication] {
-		var err error
-		if p == d.srv.mds.UUID() {
-			err = d.blocks.WriteBlock(ctx, i, data)
-		} else {
-			err = d.client.PutBlock(ctx, p, i, data)
+	switch getWriteFromContext(ctx) {
+	case agro.WriteLocal:
+		err = d.blocks.WriteBlock(ctx, i, data)
+		return err
+	case agro.WriteOne:
+		for _, p := range peers.Peers[:peers.Replication] {
+			// If we're one of the desired peers, we count, write here first.
+			if p == d.srv.mds.UUID() {
+				err = d.blocks.WriteBlock(ctx, i, data)
+				if err != nil {
+					clog.Errorf("WriteOne error, local: %s", err)
+				}
+			}
 		}
-		if err != nil {
-			// TODO(barakmich): It's the job of a downed peer to catch up.
-			return err
+		for _, p := range peers.Peers[:peers.Replication] {
+			if p == d.srv.mds.UUID() {
+				continue
+			}
+			err = d.client.PutBlock(ctx, p, i, data)
+			if err == nil {
+				return nil
+			}
+			clog.Errorf("WriteOne error, remote: %s", err)
+		}
+		return agro.ErrNoPeer
+	case agro.WriteAll:
+		for _, p := range peers.Peers[:peers.Replication] {
+			var err error
+			if p == d.srv.mds.UUID() {
+				err = d.blocks.WriteBlock(ctx, i, data)
+			} else {
+				err = d.client.PutBlock(ctx, p, i, data)
+			}
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

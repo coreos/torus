@@ -67,6 +67,7 @@ type file struct {
 	initialINodes *roaring.RoaringBitmap
 	writeINodeRef agro.INodeRef
 	writeOpen     bool
+	writeLevel    agro.WriteLevel
 
 	// half-finished blocks
 	openIdx   int
@@ -148,11 +149,15 @@ func (f *file) syncBlock() error {
 	if f.openData == nil || !f.openWrote {
 		return nil
 	}
-	err := f.blocks.PutBlock(context.TODO(), f.writeINodeRef, f.openIdx, f.openData)
+	err := f.blocks.PutBlock(f.getContext(), f.writeINodeRef, f.openIdx, f.openData)
 	f.openIdx = -1
 	f.openData = nil
 	f.openWrote = false
 	return err
+}
+
+func (f *file) getContext() context.Context {
+	return context.WithValue(context.TODO(), ctxWriteLevel, f.writeLevel)
 }
 
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
@@ -178,7 +183,6 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	blkIndex := int(off / f.blkSize)
 
 	if f.blocks.Length() < blkIndex && blkIndex != f.openIdx+1 {
-		// TODO(barakmich) Support truncate in the block abstraction, fill/return 0s
 		clog.Debug("begin write: offset ", off, " size ", len(b))
 		clog.Debug("end of file ", f.blocks.Length(), " blkIndex ", blkIndex)
 		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
@@ -222,7 +226,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	for toWrite >= int(f.blkSize) {
 		blkIndex := int(off / f.blkSize)
 		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
-		err = f.blocks.PutBlock(context.TODO(), f.writeINodeRef, blkIndex, b[:f.blkSize])
+		err = f.blocks.PutBlock(f.getContext(), f.writeINodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
 			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 			return n, err

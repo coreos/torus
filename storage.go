@@ -164,6 +164,14 @@ func ZeroBlock() BlockRef {
 	return BlockRef{}
 }
 
+type WriteLevel int
+
+const (
+	WriteLocal WriteLevel = iota
+	WriteOne
+	WriteAll
+)
+
 // BlockStore is the interface representing the standardized methods to
 // interact with something storing blocks.
 type BlockStore interface {
