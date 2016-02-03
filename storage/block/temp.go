@@ -104,23 +104,6 @@ func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	return nil
 }
 
-func (t *tempBlockStore) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error {
-	t.mut.Lock()
-	defer t.mut.Unlock()
-
-	if t.store == nil {
-		return agro.ErrClosed
-	}
-
-	for k := range t.store {
-		if k.HasINode(s, agro.Block) {
-			promBlocksDeleted.WithLabelValues(t.name).Inc()
-			delete(t.store, k)
-		}
-	}
-	return nil
-}
-
 func (t *tempBlockStore) BlockIterator() agro.BlockIterator {
 	t.mut.RLock()
 	defer t.mut.RUnlock()

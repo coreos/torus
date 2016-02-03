@@ -39,7 +39,7 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 		table.SetBorder(false)
 		table.SetColumnSeparator(",")
 	} else {
-		table.SetHeader([]string{"Address", "UUID", "Size", "Used", "Last Registered"})
+		table.SetHeader([]string{"Address", "UUID", "Size", "Used", "Updated", "Rebalanced", "RebalanceData"})
 	}
 	for _, x := range peers {
 		if x.Address == "" {
@@ -51,6 +51,8 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 			humanize.IBytes(x.TotalBlocks * gmd.BlockSize),
 			humanize.IBytes(x.UsedBlocks * gmd.BlockSize),
 			humanize.Time(time.Unix(0, x.LastSeen)),
+			humanize.Time(time.Unix(0, x.LastRebalanceFinish)),
+			humanize.IBytes(x.LastRebalanceBlocks * gmd.BlockSize),
 		})
 	}
 	table.Render()

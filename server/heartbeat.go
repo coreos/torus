@@ -3,7 +3,6 @@ package server
 import (
 	"time"
 
-	"github.com/coreos/agro/models"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"golang.org/x/net/context"
@@ -11,7 +10,7 @@ import (
 
 const (
 	heartbeatTimeout  = 1 * time.Second
-	heartbeatInterval = 10 * time.Second
+	heartbeatInterval = 5 * time.Second
 )
 
 var (
@@ -58,12 +57,9 @@ func (s *server) oneHeartbeat() {
 	promHeartbeats.Inc()
 	ctx, cancel := context.WithTimeout(context.Background(), heartbeatTimeout)
 	defer cancel()
-	p := &models.PeerInfo{}
-	p.Address = s.internalAddr
-	p.TotalBlocks = s.blocks.NumBlocks()
-	p.UsedBlocks = s.blocks.UsedBlocks()
-	p.UUID = s.mds.UUID()
-	err := s.mds.WithContext(ctx).RegisterPeer(p)
+	s.peerInfo.TotalBlocks = s.blocks.NumBlocks()
+	s.peerInfo.UsedBlocks = s.blocks.UsedBlocks()
+	err := s.mds.WithContext(ctx).RegisterPeer(s.peerInfo)
 	if err != nil {
 		clog.Warningf("couldn't register heartbeat: %s", err)
 	}

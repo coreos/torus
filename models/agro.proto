@@ -44,7 +44,7 @@ message PeerInfo {
   uint64 total_blocks = 4;
   uint64 used_blocks = 5;
   int64 last_rebalance_finish = 6; // In Unix nanoseconds.
-  map<uint64, uint64> last_rebalance_low_water = 7;
+  uint64 last_rebalance_blocks = 7;
 
 }
 

@@ -24,6 +24,7 @@ type GC interface {
 	Stop()
 	Force()
 	LastComplete() time.Time
+	RecentlyGCed(agro.BlockRef) bool
 }
 
 func NewGCController(mds agro.MetadataService, blocks agro.BlockStore) GC {
@@ -61,4 +62,13 @@ func (c *controller) LastComplete() time.Time {
 		}
 	}
 	return earliest
+}
+
+func (c *controller) RecentlyGCed(b agro.BlockRef) bool {
+	for _, x := range c.gcs {
+		if x.RecentlyGCed(b) {
+			return true
+		}
+	}
+	return false
 }

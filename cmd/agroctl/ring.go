@@ -91,6 +91,13 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 			ReplicationFactor: uint32(repFactor),
 			Version:           uint32(currentRing.Version() + 1),
 		})
+	case "ketama":
+		newRing, err = ring.CreateRing(&models.Ring{
+			Type:              uint32(ring.Ketama),
+			UUIDs:             uuids,
+			ReplicationFactor: uint32(repFactor),
+			Version:           uint32(currentRing.Version() + 1),
+		})
 	default:
 		panic("still unknown ring type")
 	}
@@ -137,6 +144,11 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 		}
 		return
 	case "mod":
+		if len(uuids) == 0 {
+			fmt.Fprint(os.Stderr, "need one of --uuids or --all-peers")
+			os.Exit(1)
+		}
+	case "ketama":
 		if len(uuids) == 0 {
 			fmt.Fprint(os.Stderr, "need one of --uuids or --all-peers")
 			os.Exit(1)

@@ -224,8 +224,9 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 	tx := m.blockTrie.Txn()
 	_, exists := tx.Insert(s.ToBytes(), index)
 	if exists {
-		clog.Error("block already exists", s.ToBytes())
-		return errors.New("mfile: block already existed? " + s.String())
+		clog.Debug("block already exists", s.ToBytes())
+		// Not an error, if we already have it
+		return nil
 	}
 	m.size++
 	promBlocks.WithLabelValues(m.name).Inc()
@@ -261,46 +262,6 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	promBlocks.WithLabelValues(m.name).Dec()
 	m.blockTrie = tx.Commit()
 	promBlocksDeleted.WithLabelValues(m.name).Inc()
-	return nil
-}
-
-func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error {
-	m.mut.Lock()
-	defer m.mut.Unlock()
-	if m.closed {
-		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
-		return agro.ErrClosed
-	}
-	tx := m.blockTrie.Txn()
-	it := tx.Root().Iterator()
-	it.SeekPrefix(s.Volume().ToBytes())
-	var keyList [][]byte
-	var deleteList []int
-	for {
-		key, value, ok := it.Next()
-		if !ok {
-			break
-		}
-		br := agro.BlockRefFromBytes(key)
-		if br.INode == s.INode && br.Volume() == s.Volume() {
-			deleteList = append(deleteList, value.(int))
-			keyList = append(keyList, key)
-		}
-	}
-	for _, v := range deleteList {
-		err := m.blockMap.WriteBlock(uint64(v), make([]byte, agro.BlockRefByteSize))
-		promBlocksDeleted.WithLabelValues(m.name).Inc()
-		if err != nil {
-			promBlockDeletesFailed.WithLabelValues(m.name).Inc()
-			return err
-		}
-	}
-	for _, k := range keyList {
-		tx.Delete(k)
-	}
-	m.size = m.size - uint64(len(deleteList))
-	promBlocks.WithLabelValues(m.name).Set(float64(m.size))
-	m.blockTrie = tx.Commit()
 	return nil
 }
 

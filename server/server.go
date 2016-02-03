@@ -33,6 +33,7 @@ type server struct {
 	openINodeRefs map[string]map[agro.INodeID]int
 	openFiles     []*file
 	cfg           agro.Config
+	peerInfo      *models.PeerInfo
 
 	internalAddr string
 

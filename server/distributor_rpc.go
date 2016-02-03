@@ -70,7 +70,12 @@ func (d *distributor) RebalanceCheck(ctx context.Context, req *models.RebalanceC
 	d.mut.Lock()
 	defer d.mut.Unlock()
 	for i, x := range req.BlockRefs {
-		_, err := d.blocks.GetBlock(ctx, agro.BlockFromProto(x))
+		p := agro.BlockFromProto(x)
+		if d.srv.gc.RecentlyGCed(p) {
+			out[i] = true
+			continue
+		}
+		_, err := d.blocks.GetBlock(ctx, p)
 		if err == nil {
 			out[i] = true
 		} else {

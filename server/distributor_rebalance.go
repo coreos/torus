@@ -2,6 +2,7 @@ package server
 
 import (
 	"io"
+	"math/rand"
 	"time"
 
 	"github.com/coreos/agro"
@@ -40,6 +41,8 @@ exit:
 
 func (d *distributor) rebalanceTicker(closer chan struct{}) {
 	n := 0
+	total := 0
+	time.Sleep(time.Duration(250+rand.Intn(250)) * time.Millisecond)
 exit:
 	for {
 		timeout := 10 * time.Duration(n+1) * time.Millisecond
@@ -48,9 +51,13 @@ exit:
 			break exit
 		case <-time.After(timeout):
 			written, err := d.rebalancer.Tick()
+			total += written
 			if err == io.EOF {
 				// Good job, sleep well, I'll most likely rebalance you in the morning.
-				time.Sleep(5 * time.Second)
+				d.srv.peerInfo.LastRebalanceFinish = time.Now().UnixNano()
+				d.srv.peerInfo.LastRebalanceBlocks = uint64(total)
+				total = 0
+				time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
 			} else if err != nil {
 				// This is usually really bad
 				clog.Error(err)
