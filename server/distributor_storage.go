@@ -46,7 +46,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		promDistBlockFailures.Inc()
 		return nil, ErrNoPeersBlock
 	}
-	for _, p := range peers.Peers {
+	for _, p := range peers.Peers[:peers.Replication] {
 		if p == d.UUID() {
 			b, err := d.blocks.GetBlock(ctx, i)
 			if err == nil {
@@ -58,9 +58,6 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		}
 	}
 	for _, p := range peers.Peers {
-		if p == d.UUID() {
-			continue
-		}
 		blk, err := d.client.GetBlock(ctx, p, i)
 		if err == nil {
 			if d.readCache != nil {
@@ -91,7 +88,7 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 	if len(peers.Peers) == 0 {
 		return agro.ErrOutOfSpace
 	}
-	for _, p := range peers.Peers {
+	for _, p := range peers.Peers[:peers.Replication] {
 		var err error
 		if p == d.srv.mds.UUID() {
 			err = d.blocks.WriteBlock(ctx, i, data)
