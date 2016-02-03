@@ -12,7 +12,7 @@ import (
 
 const (
 	clientTimeout          = 50 * time.Millisecond
-	writeClientTimeout     = 1000 * time.Millisecond
+	writeClientTimeout     = 2000 * time.Millisecond
 	rebalanceClientTimeout = 5 * time.Second
 )
 

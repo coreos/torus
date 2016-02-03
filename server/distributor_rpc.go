@@ -75,12 +75,11 @@ func (d *distributor) RebalanceCheck(ctx context.Context, req *models.RebalanceC
 			out[i] = true
 			continue
 		}
-		_, err := d.blocks.GetBlock(ctx, p)
-		if err == nil {
-			out[i] = true
-		} else {
-			out[i] = false
+		ok, err := d.blocks.HasBlock(ctx, p)
+		if err != nil {
+			clog.Error(err)
 		}
+		out[i] = ok
 	}
 	return &models.RebalanceCheckResponse{
 		Valid: out,

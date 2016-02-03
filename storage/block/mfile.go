@@ -179,6 +179,14 @@ func (m *mfileBlock) findEmpty() int {
 	return -1
 }
 
+func (m *mfileBlock) HasBlock(_ context.Context, s agro.BlockRef) (bool, error) {
+	index := m.findIndex(s)
+	if index == -1 {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error) {
 	m.mut.RLock()
 	defer m.mut.RUnlock()

@@ -120,6 +120,8 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 				err = d.blocks.WriteBlock(ctx, i, data)
 				if err != nil {
 					clog.Errorf("WriteOne error, local: %s", err)
+				} else {
+					return nil
 				}
 			}
 		}
@@ -148,6 +150,10 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 		}
 	}
 	return nil
+}
+
+func (d *distributor) HasBlock(ctx context.Context, i agro.BlockRef) (bool, error) {
+	return false, errors.New("unimplemented -- finding if a block exists cluster-wide")
 }
 
 func (d *distributor) DeleteBlock(ctx context.Context, i agro.BlockRef) error {

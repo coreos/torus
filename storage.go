@@ -176,6 +176,7 @@ const (
 // interact with something storing blocks.
 type BlockStore interface {
 	Store
+	HasBlock(ctx context.Context, b BlockRef) (bool, error)
 	GetBlock(ctx context.Context, b BlockRef) ([]byte, error)
 	WriteBlock(ctx context.Context, b BlockRef, data []byte) error
 	DeleteBlock(ctx context.Context, b BlockRef) error

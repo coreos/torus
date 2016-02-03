@@ -52,12 +52,13 @@ exit:
 		case <-time.After(timeout):
 			written, err := d.rebalancer.Tick()
 			total += written
+			d.srv.peerInfo.LastRebalanceBlocks = uint64(total)
 			if err == io.EOF {
 				// Good job, sleep well, I'll most likely rebalance you in the morning.
 				d.srv.peerInfo.LastRebalanceFinish = time.Now().UnixNano()
-				d.srv.peerInfo.LastRebalanceBlocks = uint64(total)
 				total = 0
 				time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+				continue exit
 			} else if err != nil {
 				// This is usually really bad
 				clog.Error(err)
