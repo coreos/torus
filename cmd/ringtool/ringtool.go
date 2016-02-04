@@ -154,7 +154,7 @@ func assignData(blocks []agro.BlockRef, r agro.Ring) ClusterState {
 			fmt.Fprintf(os.Stderr, "error in the ring: %s\n", err)
 			os.Exit(1)
 		}
-		for _, p := range peers {
+		for _, p := range peers.Peers[:peers.Replication] {
 			out[p] = append(out[p], b)
 		}
 	}
@@ -190,12 +190,14 @@ func (c ClusterState) Rebalance(oldRing, newRing agro.Ring) (ClusterState, Rebal
 	}
 	for p, l := range c {
 		for _, ref := range l {
-			newpeers, err := newRing.GetPeers(ref)
+			newp, err := newRing.GetPeers(ref)
+			newpeers := newp.Peers[:newp.Replication]
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error in the new ring: %s\n", err)
 				os.Exit(1)
 			}
-			oldpeers, err := oldRing.GetPeers(ref)
+			oldp, err := oldRing.GetPeers(ref)
+			oldpeers := oldp.Peers[:oldp.Replication]
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error in the old ring: %s\n", err)
 				os.Exit(1)

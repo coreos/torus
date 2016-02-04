@@ -24,6 +24,7 @@ func newServer(md *temp.Server) *server {
 		inodes:        NewINodeStore(blocks),
 		peersMap:      make(map[string]*models.PeerInfo),
 		openINodeRefs: make(map[string]map[agro.INodeID]int),
+		peerInfo:      &models.PeerInfo{UUID: mds.UUID()},
 	}
 }
 
@@ -90,7 +91,7 @@ func testThreeWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	md.SetRing(r, false)
+	md.SetRing(r)
 	for {
 		ok := true
 		for i := 0; i < 3; i++ {
@@ -107,9 +108,17 @@ func testThreeWrite(t *testing.T) {
 	}
 
 	srvs[1].mds.CreateVolume("vol1")
+	err = srvs[1].Mkdir(agro.Path{
+		Volume: "vol1",
+		Path:   "/foo/",
+	})
+	if err != nil {
+		t.Errorf("couldn't mkdir: %s", err)
+		return
+	}
 	testPath := agro.Path{
 		Volume: "vol1",
-		Path:   "/foo",
+		Path:   "/foo/bar",
 	}
 
 	f, err := srvs[2].Create(testPath)

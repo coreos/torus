@@ -47,7 +47,7 @@ func TestGetdir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dir != nil {
+	if dir == nil {
 		t.Fatal("dir was nil, should stay nil")
 	}
 	for i, expected := range []string{"/example/first/", "/example/second/", "/example/third/"} {

@@ -2,10 +2,8 @@ package temp
 
 import (
 	"testing"
-	"time"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
 )
 
 func TestGetVolumes(t *testing.T) {
@@ -49,8 +47,8 @@ func TestGetdir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dir != nil {
-		t.Fatal("dir was nil, should stay nil")
+	if dir == nil {
+		t.Fatal("dir was nil")
 	}
 	for i, expected := range []string{"/example/first/", "/example/second/", "/example/third/"} {
 		if subdirs[i].Volume != "foo" {
@@ -60,48 +58,4 @@ func TestGetdir(t *testing.T) {
 			t.Fatalf("%q != %q; %v", subdirs[i].Path, expected, subdirs)
 		}
 	}
-}
-
-func TestRebalanceChannels(t *testing.T) {
-	cfg := agro.Config{}
-	m := NewServer()
-	cs := [3]*Client{
-		NewClient(cfg, m),
-		NewClient(cfg, m),
-		NewClient(cfg, m),
-	}
-	ready := make(chan bool)
-	for i := 0; i < len(cs); i++ {
-		go func(i int) {
-			inOut, elected, _ := cs[i].OpenRebalanceChannels()
-			if elected {
-				time.Sleep(100 * time.Millisecond)
-				inOut[1] <- &models.RebalanceStatus{
-					Phase: 3,
-				}
-				for j := 0; j < len(cs); j++ {
-					s := <-inOut[0]
-					if s.Phase != 3 {
-						t.Fatal("unexpected phase")
-						ready <- false
-						return
-					}
-				}
-				close(inOut[1])
-				ready <- true
-			} else {
-				d := <-inOut[0]
-				inOut[1] <- d
-				close(inOut[1])
-				ready <- true
-			}
-		}(i)
-	}
-	for j := 0; j < len(cs); j++ {
-		p := <-ready
-		if !p {
-			t.Fatal("failed rebalance round")
-		}
-	}
-	close(ready)
 }
