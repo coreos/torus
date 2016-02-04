@@ -401,7 +401,9 @@ func (s *memory) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*ro
 	}
 	var l []*roaring.RoaringBitmap
 	if y, ok := s.openINodes[volume]; ok {
-		l = append(l, y)
+		if y != nil {
+			l = append(l, y)
+		}
 	}
 	return x, l, nil
 }

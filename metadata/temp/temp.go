@@ -413,7 +413,9 @@ func (t *Client) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*ro
 	var l []*roaring.RoaringBitmap
 	for _, perclient := range t.srv.openINodes {
 		if c, ok := perclient[volume]; ok {
-			l = append(l, c)
+			if c != nil {
+				l = append(l, c)
+			}
 		}
 	}
 	return x, l, nil
