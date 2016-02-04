@@ -38,17 +38,15 @@ type memory struct {
 	inodes map[string]agro.INodeID
 	vol    agro.VolumeID
 
-	tree              *iradix.Tree
-	volIndex          map[string]agro.VolumeID
-	global            agro.GlobalMetadata
-	cfg               agro.Config
-	uuid              string
-	openINodes        map[string]*roaring.RoaringBitmap
-	deadMap           map[string]*roaring.RoaringBitmap
-	rebalanceKind     uint64
-	rebalanceSnapshot []byte
-	ring              agro.Ring
-	ringWatchers      []chan agro.Ring
+	tree         *iradix.Tree
+	volIndex     map[string]agro.VolumeID
+	global       agro.GlobalMetadata
+	cfg          agro.Config
+	uuid         string
+	openINodes   map[string]*roaring.RoaringBitmap
+	deadMap      map[string]*roaring.RoaringBitmap
+	ring         agro.Ring
+	ringWatchers []chan agro.Ring
 }
 
 func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
@@ -369,7 +367,7 @@ func (s *memory) UnsubscribeNewRings(ch chan agro.Ring) {
 	}
 }
 
-func (s *memory) SetRing(newring agro.Ring, _ bool) error {
+func (s *memory) SetRing(newring agro.Ring) error {
 	if newring.Type() != ring.Single {
 		return errors.New("invalid ring type for memory mds (must be Single)")
 	}
@@ -394,32 +392,6 @@ func (s *memory) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead 
 	x.AndNot(live)
 	s.deadMap[volume] = x
 	return nil
-}
-
-func (s *memory) OpenRebalanceChannels() (inOut [2]chan *models.RebalanceStatus, leader bool, err error) {
-	toC := make(chan *models.RebalanceStatus)
-	fromC := make(chan *models.RebalanceStatus)
-	go func() {
-		for {
-			d, ok := <-fromC
-			if !ok {
-				close(toC)
-				break
-			}
-			toC <- d
-		}
-
-	}()
-	return [2]chan *models.RebalanceStatus{toC, fromC}, true, nil
-}
-
-func (s *memory) SetRebalanceSnapshot(kind uint64, data []byte) error {
-	s.rebalanceKind = kind
-	s.rebalanceSnapshot = data
-	return nil
-}
-func (s *memory) GetRebalanceSnapshot() (uint64, []byte, error) {
-	return s.rebalanceKind, s.rebalanceSnapshot, nil
 }
 
 func (s *memory) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {

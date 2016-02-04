@@ -1,7 +1,6 @@
 package block
 
 import (
-	"errors"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -49,27 +48,17 @@ func (t *tempBlockStore) Close() error {
 	return nil
 }
 
-func (t *tempBlockStore) ReplaceBlockStore(bs agro.BlockStore) error {
-	if v, ok := bs.(*tempBlockStore); ok {
-		t.mut.Lock()
-		defer t.mut.Unlock()
-		v.mut.Lock()
-		defer v.mut.Unlock()
-		t.store = v.store
-		t.nBlocks = v.nBlocks
-		promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
-		promBlocksAvail.WithLabelValues(t.name).Set(float64(t.nBlocks))
-		return nil
-	}
-	return errors.New("not a tempBlockStore")
-}
-
 func (t *tempBlockStore) NumBlocks() uint64 {
 	return t.nBlocks
 }
 
 func (t *tempBlockStore) UsedBlocks() uint64 {
 	return uint64(len(t.store))
+}
+
+func (t *tempBlockStore) HasBlock(_ context.Context, s agro.BlockRef) (bool, error) {
+	_, ok := t.store[s]
+	return ok, nil
 }
 
 func (t *tempBlockStore) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error) {
@@ -117,23 +106,6 @@ func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	delete(t.store, s)
 	promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
 	promBlocksDeleted.WithLabelValues(t.name).Inc()
-	return nil
-}
-
-func (t *tempBlockStore) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error {
-	t.mut.Lock()
-	defer t.mut.Unlock()
-
-	if t.store == nil {
-		return agro.ErrClosed
-	}
-
-	for k := range t.store {
-		if k.HasINode(s, agro.Block) {
-			promBlocksDeleted.WithLabelValues(t.name).Inc()
-			delete(t.store, k)
-		}
-	}
 	return nil
 }
 

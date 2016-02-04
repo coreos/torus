@@ -57,6 +57,9 @@ func NewServer(cfg agro.Config, metadataServiceKind, blockStoreKind string) (agr
 		openINodeRefs: make(map[string]map[agro.INodeID]int),
 		cfg:           cfg,
 		gc:            gc.NewGCController(mds, blocks),
+		peerInfo: &models.PeerInfo{
+			UUID: mds.UUID(),
+		},
 	}
 	s.gc.Start()
 	return s, nil

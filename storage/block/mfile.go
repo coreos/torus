@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"runtime"
@@ -180,6 +179,14 @@ func (m *mfileBlock) findEmpty() int {
 	return -1
 }
 
+func (m *mfileBlock) HasBlock(_ context.Context, s agro.BlockRef) (bool, error) {
+	index := m.findIndex(s)
+	if index == -1 {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error) {
 	m.mut.RLock()
 	defer m.mut.RUnlock()
@@ -225,8 +232,9 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 	tx := m.blockTrie.Txn()
 	_, exists := tx.Insert(s.ToBytes(), index)
 	if exists {
-		clog.Error("block already exists", s.ToBytes())
-		return errors.New("mfile: block already existed? " + s.String())
+		clog.Debug("block already exists", s.ToBytes())
+		// Not an error, if we already have it
+		return nil
 	}
 	m.size++
 	promBlocks.WithLabelValues(m.name).Inc()
@@ -262,83 +270,6 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	promBlocks.WithLabelValues(m.name).Dec()
 	m.blockTrie = tx.Commit()
 	promBlocksDeleted.WithLabelValues(m.name).Inc()
-	return nil
-}
-
-func (m *mfileBlock) DeleteINodeBlocks(_ context.Context, s agro.INodeRef) error {
-	m.mut.Lock()
-	defer m.mut.Unlock()
-	if m.closed {
-		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
-		return agro.ErrClosed
-	}
-	tx := m.blockTrie.Txn()
-	it := tx.Root().Iterator()
-	it.SeekPrefix(s.Volume().ToBytes())
-	var keyList [][]byte
-	var deleteList []int
-	for {
-		key, value, ok := it.Next()
-		if !ok {
-			break
-		}
-		br := agro.BlockRefFromBytes(key)
-		if br.INode == s.INode && br.Volume() == s.Volume() {
-			deleteList = append(deleteList, value.(int))
-			keyList = append(keyList, key)
-		}
-	}
-	for _, v := range deleteList {
-		err := m.blockMap.WriteBlock(uint64(v), make([]byte, agro.BlockRefByteSize))
-		promBlocksDeleted.WithLabelValues(m.name).Inc()
-		if err != nil {
-			promBlockDeletesFailed.WithLabelValues(m.name).Inc()
-			return err
-		}
-	}
-	for _, k := range keyList {
-		tx.Delete(k)
-	}
-	m.size = m.size - uint64(len(deleteList))
-	promBlocks.WithLabelValues(m.name).Set(float64(m.size))
-	m.blockTrie = tx.Commit()
-	return nil
-}
-
-func (m *mfileBlock) ReplaceBlockStore(bs agro.BlockStore) error {
-	newM, ok := bs.(*mfileBlock)
-	if !ok {
-		return errors.New("not replacing an mfileBlockStore")
-	}
-	m.mut.Lock()
-	defer m.mut.Unlock()
-	newM.mut.Lock()
-	defer newM.mut.Unlock()
-	err := os.Remove(m.dfilename)
-	if err != nil {
-		return err
-	}
-	err = os.Remove(m.mfilename)
-	if err != nil {
-		return err
-	}
-	err = os.Rename(newM.mfilename, m.mfilename)
-	if err != nil {
-		return err
-	}
-	err = os.Rename(newM.dfilename, m.dfilename)
-	if err != nil {
-		return err
-	}
-	m.data = newM.data
-	m.blockMap = newM.blockMap
-	m.blockTrie = newM.blockTrie
-	m.lastFree = newM.lastFree
-	m.size = newM.size
-	newM.data = nil
-	newM.blockMap = nil
-	promBlocksAvail.WithLabelValues(m.name).Set(float64(m.numBlocks()))
-	promBlocks.WithLabelValues(m.name).Set(float64(m.size))
 	return nil
 }
 

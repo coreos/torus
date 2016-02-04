@@ -8,6 +8,7 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/server/rebalance"
 	"github.com/dgryski/go-tinylfu"
 )
 
@@ -23,10 +24,11 @@ type distributor struct {
 	grpcSrv   *grpc.Server
 	readCache *tinylfu.T
 
-	ring           agro.Ring
-	closed         bool
-	rebalancerChan chan struct{}
-	rebalancer     Rebalancer
+	ring            agro.Ring
+	closed          bool
+	rebalancerChan  chan struct{}
+	ringWatcherChan chan struct{}
+	rebalancer      rebalance.Rebalancer
 }
 
 func newDistributor(srv *server, addr string, listen bool) (*distributor, error) {
@@ -62,14 +64,23 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 	if err != nil {
 		return nil, err
 	}
-	d.rebalancerChan = make(chan struct{})
-	go d.rebalanceWatcher(d.rebalancerChan)
+	d.ringWatcherChan = make(chan struct{})
+	go d.ringWatcher(d.rebalancerChan)
 	d.client = newDistClient(d)
+	d.rebalancer = rebalance.NewRebalancer(d, d.blocks, d.client)
+	d.rebalancerChan = make(chan struct{})
+	go d.rebalanceTicker(d.rebalancerChan)
 	return d, nil
 }
 
 func (d *distributor) UUID() string {
 	return d.srv.mds.UUID()
+}
+
+func (d *distributor) Ring() agro.Ring {
+	d.mut.RLock()
+	defer d.mut.RUnlock()
+	return d.ring
 }
 
 func (d *distributor) Close() error {
@@ -79,6 +90,7 @@ func (d *distributor) Close() error {
 		return nil
 	}
 	close(d.rebalancerChan)
+	close(d.ringWatcherChan)
 	d.grpcSrv.Stop()
 	d.client.Close()
 	err := d.blocks.Close()

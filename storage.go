@@ -164,18 +164,25 @@ func ZeroBlock() BlockRef {
 	return BlockRef{}
 }
 
+type WriteLevel int
+
+const (
+	WriteLocal WriteLevel = iota
+	WriteOne
+	WriteAll
+)
+
 // BlockStore is the interface representing the standardized methods to
 // interact with something storing blocks.
 type BlockStore interface {
 	Store
+	HasBlock(ctx context.Context, b BlockRef) (bool, error)
 	GetBlock(ctx context.Context, b BlockRef) ([]byte, error)
 	WriteBlock(ctx context.Context, b BlockRef, data []byte) error
 	DeleteBlock(ctx context.Context, b BlockRef) error
-	DeleteINodeBlocks(ctx context.Context, b INodeRef) error
 	NumBlocks() uint64
 	UsedBlocks() uint64
 	BlockIterator() BlockIterator
-	ReplaceBlockStore(BlockStore) error
 	BlockSize() uint64
 	// TODO(barakmich) FreeBlocks()
 }

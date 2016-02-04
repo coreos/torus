@@ -3,7 +3,7 @@ package agro
 type RingType int
 
 type Ring interface {
-	GetPeers(key BlockRef) (PeerList, error)
+	GetPeers(key BlockRef) (PeerPermutation, error)
 	Members() PeerList
 
 	Describe() string
@@ -29,6 +29,11 @@ type RingAdder interface {
 type RingRemover interface {
 	ModifyableRing
 	RemovePeers(PeerList, ...RingModification) (Ring, error)
+}
+
+type PeerPermutation struct {
+	Replication int
+	Peers       PeerList
 }
 
 type PeerList []string

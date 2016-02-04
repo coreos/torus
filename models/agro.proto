@@ -43,6 +43,10 @@ message PeerInfo {
   int64 last_seen = 3; // In Unix nanoseconds.
   uint64 total_blocks = 4;
   uint64 used_blocks = 5;
+  int64 last_rebalance_finish = 6; // In Unix nanoseconds.
+  uint64 last_rebalance_blocks = 7;
+  bool rebalancing = 8;
+
 }
 
 message Ring {
@@ -63,11 +67,4 @@ message BlockRef {
 message INodeRef {
 	uint64 volume = 1;
 	uint64 inode = 2 [(gogoproto.customname) = "INode"];
-}
-
-message RebalanceStatus {
-  int32 rebalance_type = 1;
-  int32 phase = 2;
-  string uuid = 3 [(gogoproto.customname) = "UUID"];
-  bool from_leader = 4;
 }

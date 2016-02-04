@@ -8,7 +8,7 @@ package models;
 service AgroStorage {
 	rpc Block (BlockRequest) returns (BlockResponse);
 	rpc PutBlock (PutBlockRequest) returns (PutResponse);
-        rpc RebalanceMessage (RebalanceRequest) returns (RebalanceResponse);
+	rpc RebalanceCheck (RebalanceCheckRequest) returns (RebalanceCheckResponse);
 }
 
 message Block {
@@ -34,23 +34,11 @@ message PutResponse {
 	string err = 2;
 }
 
-message RebalanceRequest {
-  oneof subrequest {
-    BlockRequest block_request = 1;
-    PutBlockRequest put_block_request = 2;
-  }
-  int32 phase = 5;
-  string uuid = 6 [(gogoproto.customname) = "UUID"];
-  bytes rebalance_data = 7;
+message RebalanceCheckRequest {
+  repeated BlockRef block_refs = 1;
 }
 
-message RebalanceResponse {
-  bool ok = 1;
-  string err = 2;
-  oneof subresponse {
-    BlockResponse block_response = 3;
-  }
-  int32 phase = 5;
-  string uuid = 6 [(gogoproto.customname) = "UUID"];
-  bytes rebalance_data = 7;
+message RebalanceCheckResponse {
+  repeated bool valid = 1;
+  int32 status = 2;
 }

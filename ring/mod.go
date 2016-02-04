@@ -31,20 +31,19 @@ func makeMod(r *models.Ring) (agro.Ring, error) {
 		version: int(r.Version),
 		peers:   sort.StringSlice(r.UUIDs),
 		rep:     rep,
-		npeers:  len(r.UUIDs),
 	}, nil
 }
 
-func (m *mod) GetPeers(key agro.BlockRef) (agro.PeerList, error) {
-	permute := make([]string, m.rep)
+func (m *mod) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
+	permute := make([]string, len(m.peers))
 	crc := crc32.ChecksumIEEE(key.ToBytes())
 	sum := int(crc) % len(m.peers)
 	copy(permute, m.peers[sum:])
-	if m.npeers-sum >= m.rep {
-		return permute, nil
-	}
-	copy(permute[m.npeers-sum:], m.peers)
-	return permute, nil
+	copy(permute[len(m.peers)-sum:], m.peers[:sum])
+	return agro.PeerPermutation{
+		Peers:       permute,
+		Replication: m.rep,
+	}, nil
 }
 
 func (m *mod) Members() agro.PeerList { return append([]string(nil), m.peers...) }

@@ -48,6 +48,7 @@ func (s *server) create(path agro.Path, flag int, md *models.Metadata) (f agro.F
 		initialINodes: roaring.NewRoaringBitmap(),
 		readOnly:      rdOnly,
 		writeOnly:     wrOnly,
+		writeLevel:    agro.WriteOne,
 	}
 	s.addOpenFile(file)
 	// Fake a write, to open up the created file
@@ -150,6 +151,7 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 		blkSize:       int64(md.BlockSize),
 		readOnly:      rdOnly,
 		writeOnly:     wrOnly,
+		writeLevel:    agro.WriteOne,
 	}
 	s.addOpenFile(f)
 	if flag&os.O_TRUNC != 0 {

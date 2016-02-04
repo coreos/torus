@@ -16,6 +16,7 @@ func (s *server) openReplication(addr string, listen bool) error {
 		return agro.ErrExists
 	}
 	s.internalAddr = addr
+	s.peerInfo.Address = addr
 	dist, err := newDistributor(s, addr, listen)
 	if err != nil {
 		return err

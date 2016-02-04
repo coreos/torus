@@ -80,6 +80,6 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 	if oldr.Version() != r.Version()-1 {
 		return agro.ErrNonSequentialRing
 	}
-	_, err = client.Put(context.Background(), setKey(mkKey("meta", "the-new-ring"), b))
+	_, err = client.Put(context.Background(), setKey(mkKey("meta", "the-one-ring"), b))
 	return err
 }

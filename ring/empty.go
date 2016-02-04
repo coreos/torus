@@ -19,8 +19,11 @@ func makeEmpty(r *models.Ring) (agro.Ring, error) {
 	}, nil
 }
 
-func (e *empty) GetPeers(key agro.BlockRef) (agro.PeerList, error) {
-	return []string{}, nil
+func (e *empty) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
+	return agro.PeerPermutation{
+		Peers:       []string{},
+		Replication: 0,
+	}, nil
 }
 
 func (e *empty) Members() agro.PeerList { return []string{} }

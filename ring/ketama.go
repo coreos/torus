@@ -35,12 +35,15 @@ func makeKetama(r *models.Ring) (agro.Ring, error) {
 	}, nil
 }
 
-func (k *ketama) GetPeers(key agro.BlockRef) (agro.PeerList, error) {
-	s, ok := k.ring.GetNodes(string(key.ToBytes()), k.rep)
+func (k *ketama) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
+	s, ok := k.ring.GetNodes(string(key.ToBytes()), len(k.peers))
 	if !ok {
-		return nil, errors.New("couldn't get sufficient nodes")
+		return agro.PeerPermutation{}, errors.New("couldn't get sufficient nodes")
 	}
-	return s, nil
+	return agro.PeerPermutation{
+		Peers:       s,
+		Replication: k.rep,
+	}, nil
 }
 
 func (k *ketama) Members() agro.PeerList { return append([]string(nil), k.peers...) }

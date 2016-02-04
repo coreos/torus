@@ -18,14 +18,13 @@
 		Ring
 		BlockRef
 		INodeRef
-		RebalanceStatus
 		Block
 		BlockRequest
 		BlockResponse
 		PutBlockRequest
 		PutResponse
-		RebalanceRequest
-		RebalanceResponse
+		RebalanceCheckRequest
+		RebalanceCheckResponse
 */
 package models
 
@@ -124,11 +123,14 @@ func (m *Directory) GetFiles() map[string]uint64 {
 }
 
 type PeerInfo struct {
-	UUID        string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	Address     string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	LastSeen    int64  `protobuf:"varint,3,opt,name=last_seen,proto3" json:"last_seen,omitempty"`
-	TotalBlocks uint64 `protobuf:"varint,4,opt,name=total_blocks,proto3" json:"total_blocks,omitempty"`
-	UsedBlocks  uint64 `protobuf:"varint,5,opt,name=used_blocks,proto3" json:"used_blocks,omitempty"`
+	UUID                string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	Address             string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	LastSeen            int64  `protobuf:"varint,3,opt,name=last_seen,proto3" json:"last_seen,omitempty"`
+	TotalBlocks         uint64 `protobuf:"varint,4,opt,name=total_blocks,proto3" json:"total_blocks,omitempty"`
+	UsedBlocks          uint64 `protobuf:"varint,5,opt,name=used_blocks,proto3" json:"used_blocks,omitempty"`
+	LastRebalanceFinish int64  `protobuf:"varint,6,opt,name=last_rebalance_finish,proto3" json:"last_rebalance_finish,omitempty"`
+	LastRebalanceBlocks uint64 `protobuf:"varint,7,opt,name=last_rebalance_blocks,proto3" json:"last_rebalance_blocks,omitempty"`
+	Rebalancing         bool   `protobuf:"varint,8,opt,name=rebalancing,proto3" json:"rebalancing,omitempty"`
 }
 
 func (m *PeerInfo) Reset()         { *m = PeerInfo{} }
@@ -173,17 +175,6 @@ func (m *INodeRef) Reset()         { *m = INodeRef{} }
 func (m *INodeRef) String() string { return proto.CompactTextString(m) }
 func (*INodeRef) ProtoMessage()    {}
 
-type RebalanceStatus struct {
-	RebalanceType int32  `protobuf:"varint,1,opt,name=rebalance_type,proto3" json:"rebalance_type,omitempty"`
-	Phase         int32  `protobuf:"varint,2,opt,name=phase,proto3" json:"phase,omitempty"`
-	UUID          string `protobuf:"bytes,3,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	FromLeader    bool   `protobuf:"varint,4,opt,name=from_leader,proto3" json:"from_leader,omitempty"`
-}
-
-func (m *RebalanceStatus) Reset()         { *m = RebalanceStatus{} }
-func (m *RebalanceStatus) String() string { return proto.CompactTextString(m) }
-func (*RebalanceStatus) ProtoMessage()    {}
-
 func init() {
 	proto.RegisterType((*Metadata)(nil), "models.Metadata")
 	proto.RegisterType((*INode)(nil), "models.INode")
@@ -193,7 +184,6 @@ func init() {
 	proto.RegisterType((*Ring)(nil), "models.Ring")
 	proto.RegisterType((*BlockRef)(nil), "models.BlockRef")
 	proto.RegisterType((*INodeRef)(nil), "models.INodeRef")
-	proto.RegisterType((*RebalanceStatus)(nil), "models.RebalanceStatus")
 }
 func (m *Metadata) Marshal() (data []byte, err error) {
 	size := m.Size()
@@ -452,6 +442,26 @@ func (m *PeerInfo) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.UsedBlocks))
 	}
+	if m.LastRebalanceFinish != 0 {
+		data[i] = 0x30
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.LastRebalanceFinish))
+	}
+	if m.LastRebalanceBlocks != 0 {
+		data[i] = 0x38
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.LastRebalanceBlocks))
+	}
+	if m.Rebalancing {
+		data[i] = 0x40
+		i++
+		if m.Rebalancing {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
 	return i, nil
 }
 
@@ -577,50 +587,6 @@ func (m *INodeRef) MarshalTo(data []byte) (int, error) {
 		data[i] = 0x10
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.INode))
-	}
-	return i, nil
-}
-
-func (m *RebalanceStatus) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *RebalanceStatus) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.RebalanceType != 0 {
-		data[i] = 0x8
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.RebalanceType))
-	}
-	if m.Phase != 0 {
-		data[i] = 0x10
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Phase))
-	}
-	if len(m.UUID) > 0 {
-		data[i] = 0x1a
-		i++
-		i = encodeVarintAgro(data, i, uint64(len(m.UUID)))
-		i += copy(data[i:], m.UUID)
-	}
-	if m.FromLeader {
-		data[i] = 0x20
-		i++
-		if m.FromLeader {
-			data[i] = 1
-		} else {
-			data[i] = 0
-		}
-		i++
 	}
 	return i, nil
 }
@@ -771,6 +737,15 @@ func (m *PeerInfo) Size() (n int) {
 	if m.UsedBlocks != 0 {
 		n += 1 + sovAgro(uint64(m.UsedBlocks))
 	}
+	if m.LastRebalanceFinish != 0 {
+		n += 1 + sovAgro(uint64(m.LastRebalanceFinish))
+	}
+	if m.LastRebalanceBlocks != 0 {
+		n += 1 + sovAgro(uint64(m.LastRebalanceBlocks))
+	}
+	if m.Rebalancing {
+		n += 2
+	}
 	return n
 }
 
@@ -826,25 +801,6 @@ func (m *INodeRef) Size() (n int) {
 	}
 	if m.INode != 0 {
 		n += 1 + sovAgro(uint64(m.INode))
-	}
-	return n
-}
-
-func (m *RebalanceStatus) Size() (n int) {
-	var l int
-	_ = l
-	if m.RebalanceType != 0 {
-		n += 1 + sovAgro(uint64(m.RebalanceType))
-	}
-	if m.Phase != 0 {
-		n += 1 + sovAgro(uint64(m.Phase))
-	}
-	l = len(m.UUID)
-	if l > 0 {
-		n += 1 + l + sovAgro(uint64(l))
-	}
-	if m.FromLeader {
-		n += 2
 	}
 	return n
 }
@@ -1781,6 +1737,64 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastRebalanceFinish", wireType)
+			}
+			m.LastRebalanceFinish = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.LastRebalanceFinish |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastRebalanceBlocks", wireType)
+			}
+			m.LastRebalanceBlocks = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.LastRebalanceBlocks |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Rebalancing", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Rebalancing = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])
@@ -2224,143 +2238,6 @@ func (m *INodeRef) Unmarshal(data []byte) error {
 					break
 				}
 			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipAgro(data[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgro
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *RebalanceStatus) Unmarshal(data []byte) error {
-	l := len(data)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowAgro
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := data[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: RebalanceStatus: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: RebalanceStatus: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RebalanceType", wireType)
-			}
-			m.RebalanceType = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.RebalanceType |= (int32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Phase", wireType)
-			}
-			m.Phase = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Phase |= (int32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field UUID", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthAgro
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.UUID = string(data[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field FromLeader", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				v |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.FromLeader = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])

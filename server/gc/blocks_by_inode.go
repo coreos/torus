@@ -4,26 +4,35 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tylertreat/BoomFilters"
 	"golang.org/x/net/context"
 
 	"github.com/coreos/agro"
 )
 
 type blocksByINode struct {
-	mut       sync.Mutex
-	mds       agro.MetadataService
-	blocks    agro.BlockStore
-	stopChan  chan bool
-	forceChan chan bool
-	doneChan  chan bool
-	last      time.Time
+	mut        sync.Mutex
+	mds        agro.MetadataService
+	blocks     agro.BlockStore
+	stopChan   chan bool
+	forceChan  chan bool
+	doneChan   chan bool
+	last       time.Time
+	gcBloom    *boom.InverseBloomFilter
+	bloomSize  uint
+	bloomCount uint
 }
 
+const bbiBloomGCSize = 100 * 1024 * 1024 * 1024 //100GiB
+
 func NewBlocksByINodeGC(mds agro.MetadataService, blocks agro.BlockStore) GC {
+	size := uint(bbiBloomGCSize / blocks.BlockSize())
 	return &blocksByINode{
-		mds:    mds,
-		blocks: blocks,
-		last:   time.Unix(0, 0),
+		mds:       mds,
+		blocks:    blocks,
+		last:      time.Unix(0, 0),
+		gcBloom:   boom.NewInverseBloomFilter(size),
+		bloomSize: size,
 	}
 }
 
@@ -62,6 +71,10 @@ func (b *blocksByINode) LastComplete() time.Time {
 	return b.last
 }
 
+func (b *blocksByINode) RecentlyGCed(ref agro.BlockRef) bool {
+	return b.gcBloom.Test(ref.ToBytes())
+}
+
 func (b *blocksByINode) gc(volume string) {
 	vid, err := b.mds.GetVolumeID(volume)
 	if err != nil {
@@ -74,14 +87,23 @@ func (b *blocksByINode) gc(volume string) {
 	for _, x := range held {
 		deadmap.AndNot(x)
 	}
-	it := deadmap.Iterator()
-	for it.HasNext() {
-		i := it.Next()
-		ref := agro.NewINodeRef(vid, agro.INodeID(i))
-		err := b.blocks.DeleteINodeBlocks(context.TODO(), ref)
-		if err != nil {
-			clog.Errorf("bbi: got error gcing volume %s deleting INode %v: %v", volume, ref, err)
+	it := b.blocks.BlockIterator()
+	for it.Next() {
+		ref := it.BlockRef()
+		if ref.Volume() == vid && deadmap.Contains(uint32(ref.INode)) {
+			b.blocks.DeleteBlock(context.TODO(), ref)
+			b.gcBloom.Add(ref.ToBytes())
+			b.bloomCount++
 		}
+	}
+	err = it.Err()
+	if err != nil {
+		clog.Errorf("bbi: error in blockref iteration")
+	}
+	if b.bloomCount >= b.bloomSize {
+		// Flush it if it's getting too full
+		b.gcBloom = boom.NewInverseBloomFilter(b.bloomSize)
+		b.bloomCount = 0
 	}
 }
 

@@ -46,16 +46,19 @@ func NewUnionRing(oldRing agro.Ring, newRing agro.Ring) agro.Ring {
 	}
 }
 
-func (u *unionRing) GetPeers(key agro.BlockRef) (agro.PeerList, error) {
+func (u *unionRing) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
 	n, err := u.newRing.GetPeers(key)
 	if err != nil {
-		return nil, err
+		return agro.PeerPermutation{}, err
 	}
 	o, err := u.oldRing.GetPeers(key)
 	if err != nil {
-		return nil, err
+		return agro.PeerPermutation{}, err
 	}
-	return o.Union(n), nil
+	return agro.PeerPermutation{
+		Peers:       o.Peers.Union(n.Peers),
+		Replication: n.Replication,
+	}, nil
 }
 
 func (u *unionRing) Members() agro.PeerList {

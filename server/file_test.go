@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
 )
 
 func TestReadWrite(t *testing.T) {
@@ -19,7 +18,7 @@ func TestReadWrite(t *testing.T) {
 		Volume: "test",
 		Path:   "/foobar",
 	}
-	f, err := srv.Create(testPath, models.Metadata{})
+	f, err := srv.Create(testPath)
 	if err != nil {
 		t.Fatal(err)
 	}
