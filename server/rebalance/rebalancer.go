@@ -15,6 +15,7 @@ type Ringer interface {
 
 type Rebalancer interface {
 	Tick() (int, error)
+	VersionStart() int
 }
 
 type CheckAndSender interface {
@@ -24,15 +25,24 @@ type CheckAndSender interface {
 
 func NewRebalancer(r Ringer, bs agro.BlockStore, cs CheckAndSender) Rebalancer {
 	return &rebalancer{
-		r:  r,
-		bs: bs,
-		cs: cs,
+		r:       r,
+		bs:      bs,
+		cs:      cs,
+		version: 0,
 	}
 }
 
 type rebalancer struct {
-	r  Ringer
-	bs agro.BlockStore
-	cs CheckAndSender
-	it agro.BlockIterator
+	r       Ringer
+	bs      agro.BlockStore
+	cs      CheckAndSender
+	it      agro.BlockIterator
+	version int
+}
+
+func (r *rebalancer) VersionStart() int {
+	if r.version == 0 {
+		return r.r.Ring().Version()
+	}
+	return r.version
 }

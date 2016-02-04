@@ -51,12 +51,20 @@ exit:
 			break exit
 		case <-time.After(timeout):
 			written, err := d.rebalancer.Tick()
+			if d.ring.Version() != d.rebalancer.VersionStart() {
+				// Something is changed -- we are now rebalancing
+				d.srv.peerInfo.Rebalancing = true
+			}
 			total += written
 			d.srv.peerInfo.LastRebalanceBlocks = uint64(total)
 			if err == io.EOF {
 				// Good job, sleep well, I'll most likely rebalance you in the morning.
 				d.srv.peerInfo.LastRebalanceFinish = time.Now().UnixNano()
 				total = 0
+				finishver := d.rebalancer.VersionStart()
+				if finishver == d.ring.Version() {
+					d.srv.peerInfo.Rebalancing = false
+				}
 				time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
 				continue exit
 			} else if err != nil {

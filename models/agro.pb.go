@@ -130,6 +130,7 @@ type PeerInfo struct {
 	UsedBlocks          uint64 `protobuf:"varint,5,opt,name=used_blocks,proto3" json:"used_blocks,omitempty"`
 	LastRebalanceFinish int64  `protobuf:"varint,6,opt,name=last_rebalance_finish,proto3" json:"last_rebalance_finish,omitempty"`
 	LastRebalanceBlocks uint64 `protobuf:"varint,7,opt,name=last_rebalance_blocks,proto3" json:"last_rebalance_blocks,omitempty"`
+	Rebalancing         bool   `protobuf:"varint,8,opt,name=rebalancing,proto3" json:"rebalancing,omitempty"`
 }
 
 func (m *PeerInfo) Reset()         { *m = PeerInfo{} }
@@ -451,6 +452,16 @@ func (m *PeerInfo) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.LastRebalanceBlocks))
 	}
+	if m.Rebalancing {
+		data[i] = 0x40
+		i++
+		if m.Rebalancing {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
 	return i, nil
 }
 
@@ -731,6 +742,9 @@ func (m *PeerInfo) Size() (n int) {
 	}
 	if m.LastRebalanceBlocks != 0 {
 		n += 1 + sovAgro(uint64(m.LastRebalanceBlocks))
+	}
+	if m.Rebalancing {
+		n += 2
 	}
 	return n
 }
@@ -1761,6 +1775,26 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Rebalancing", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Rebalancing = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])

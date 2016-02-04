@@ -12,6 +12,7 @@ const maxIters = 1
 
 func (r *rebalancer) Tick() (int, error) {
 	if r.it == nil {
+		r.version = r.r.Ring().Version()
 		r.it = r.bs.BlockIterator()
 	}
 	m := make(map[string][]agro.BlockRef)
