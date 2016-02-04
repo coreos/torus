@@ -16,7 +16,7 @@ func (r *rebalancer) Tick() (int, error) {
 		r.it = r.bs.BlockIterator()
 	}
 	m := make(map[string][]agro.BlockRef)
-	var toDelete []agro.BlockRef
+	toDelete := make(map[agro.BlockRef]bool)
 	ring := r.r.Ring()
 	for i := 0; i < maxIters; i++ {
 		ok := r.it.Next()
@@ -42,18 +42,19 @@ func (r *rebalancer) Tick() (int, error) {
 			m[p] = append(m[p], ref)
 		}
 		if myIndex == -1 {
-			toDelete = append(toDelete, ref)
+			toDelete[ref] = true
 		}
 	}
 
 	n := 0
-	doDelete := true
 	for k, v := range m {
 		oks, err := r.cs.Check(context.TODO(), k, v)
 		if err != nil {
-			doDelete = false
+			for _, blk := range v {
+				toDelete[blk] = false
+			}
 			clog.Error(err)
-			// Ignore for now; this is a never-ending loop
+			continue
 		}
 		for i, ok := range oks {
 			if !ok {
@@ -65,16 +66,16 @@ func (r *rebalancer) Tick() (int, error) {
 				err = r.cs.PutBlock(context.TODO(), k, v[i], data)
 				if err != nil {
 					// Continue for now
-					doDelete = false
+					toDelete[v[i]] = false
 					clog.Error(err)
 				}
 			}
 		}
 	}
 
-	if doDelete {
-		for _, x := range toDelete {
-			err := r.bs.DeleteBlock(context.TODO(), x)
+	for k, v := range toDelete {
+		if v {
+			err := r.bs.DeleteBlock(context.TODO(), k)
 			if err != nil {
 				return n, err
 			}

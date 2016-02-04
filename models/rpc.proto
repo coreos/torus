@@ -8,7 +8,7 @@ package models;
 service AgroStorage {
 	rpc Block (BlockRequest) returns (BlockResponse);
 	rpc PutBlock (PutBlockRequest) returns (PutResponse);
-  rpc RebalanceCheck (RebalanceCheckRequest) returns (RebalanceCheckResponse);
+	rpc RebalanceCheck (RebalanceCheckRequest) returns (RebalanceCheckResponse);
 }
 
 message Block {
