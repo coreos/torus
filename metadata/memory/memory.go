@@ -282,7 +282,7 @@ func (s *memory) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 		k  = []byte(p.Key())
 	)
 	v, ok := tx.Get(k)
-	if !ok {
+	if v == nil || v.(*models.Directory) == nil || !ok {
 		return nil, nil, &os.PathError{
 			Op:   "stat",
 			Path: p.Path,
