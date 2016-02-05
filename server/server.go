@@ -278,7 +278,7 @@ func (s *server) removeFile(p agro.Path) error {
 		return err
 	}
 	live := bs.GetLiveINodes()
-	_, err = s.mds.SetFileINode(p, agro.INodeRef{})
+	_, err = s.mds.SetFileINode(p, agro.NewINodeRef(ref.Volume(), 0))
 	if err != nil {
 		return err
 	}
