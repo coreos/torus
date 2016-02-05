@@ -43,7 +43,9 @@ type server struct {
 }
 
 func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
-	dir, _, err := s.mds.Getdir(p)
+	dirname, filename := path.Split(p.Path)
+	dirpath := agro.Path{p.Volume, dirname}
+	dir, _, err := s.mds.Getdir(dirpath)
 	if err != nil {
 		return agro.INodeRef{}, err
 	}
@@ -53,7 +55,6 @@ func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
 		return agro.INodeRef{}, err
 	}
 
-	_, filename := path.Split(p.Path)
 	inodeID, ok := dir.Files[filename]
 	if !ok {
 		return agro.INodeRef{}, os.ErrNotExist
