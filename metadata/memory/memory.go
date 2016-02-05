@@ -306,6 +306,9 @@ func (s *memory) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 }
 
 func (s *memory) GetVolumes() ([]string, error) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
 	var (
 		iter = s.tree.Root().Iterator()
 		out  []string
