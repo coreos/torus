@@ -240,7 +240,7 @@ func (s *memory) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, err
 		return old, err
 	}
 	if vid != ref.Volume() {
-		return old, errors.New("temp: inodeRef volume not for given path volume")
+		return old, errors.New("memory: inodeRef volume not for given path volume")
 	}
 	s.mut.Lock()
 	defer s.mut.Unlock()
@@ -282,7 +282,7 @@ func (s *memory) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 		k  = []byte(p.Key())
 	)
 	v, ok := tx.Get(k)
-	if !ok {
+	if v == nil || v.(*models.Directory) == nil || !ok {
 		return nil, nil, &os.PathError{
 			Op:   "stat",
 			Path: p.Path,
@@ -306,6 +306,9 @@ func (s *memory) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 }
 
 func (s *memory) GetVolumes() ([]string, error) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
 	var (
 		iter = s.tree.Root().Iterator()
 		out  []string
@@ -348,7 +351,7 @@ func (s *memory) GetVolumeID(volume string) (agro.VolumeID, error) {
 	if vol, ok := s.volIndex[volume]; ok {
 		return vol, nil
 	}
-	return 0, errors.New("temp: no such volume exists")
+	return 0, errors.New("memory: no such volume exists")
 }
 
 func (s *memory) GetRing() (agro.Ring, error) {

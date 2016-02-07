@@ -166,7 +166,12 @@ func RegisterMetadataService(name string, newFunc CreateMetadataServiceFunc) {
 // with the provided address.
 func CreateMetadataService(name string, cfg Config) (MetadataService, error) {
 	clog.Infof("creating metadata service: %s", name)
-	return metadataServices[name](cfg)
+
+	if mdsf, ok := metadataServices[name]; ok {
+		return mdsf(cfg)
+	}
+
+	return nil, fmt.Errorf("agro: the metadata service %q doesn't exist", name)
 }
 
 // MkfsFunc is the signature of a function which preformats a metadata service.

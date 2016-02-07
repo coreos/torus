@@ -79,7 +79,8 @@ func (s *server) openFile(p agro.Path, flag int, md *models.Metadata) (agro.File
 	}
 	ref, err := s.inodeRefForPath(p)
 	if (flag&os.O_CREATE) != 0 && flag&os.O_EXCL != 0 {
-		if err != os.ErrNotExist {
+		perr, ok := err.(*os.PathError)
+		if err == nil || (ok && perr.Err != os.ErrNotExist) {
 			return nil, os.ErrExist
 		}
 		return s.create(p, flag, md)
