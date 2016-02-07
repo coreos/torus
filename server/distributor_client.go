@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	clientTimeout          = 50 * time.Millisecond
+	clientTimeout          = 100 * time.Millisecond
 	writeClientTimeout     = 2000 * time.Millisecond
 	rebalanceClientTimeout = 5 * time.Second
 )
@@ -21,18 +21,20 @@ const (
 type distClient struct {
 	dist *distributor
 	//TODO(barakmich): Better connection pooling
-	openConns map[string]*grpc.ClientConn
+	openConns   map[string]*grpc.ClientConn
+	openClients map[string]models.AgroStorageClient
 }
 
 func newDistClient(d *distributor) *distClient {
 	return &distClient{
-		dist:      d,
-		openConns: make(map[string]*grpc.ClientConn),
+		dist:        d,
+		openConns:   make(map[string]*grpc.ClientConn),
+		openClients: make(map[string]models.AgroStorageClient),
 	}
 }
 
-func (d *distClient) getConn(uuid string) *grpc.ClientConn {
-	if conn, ok := d.openConns[uuid]; ok {
+func (d *distClient) getConn(uuid string) models.AgroStorageClient {
+	if conn, ok := d.openClients[uuid]; ok {
 		return conn
 	}
 	pi := d.dist.srv.peersMap[uuid]
@@ -47,11 +49,13 @@ func (d *distClient) getConn(uuid string) *grpc.ClientConn {
 	}
 	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure())
 	if err != nil {
-		clog.Error(err)
+		clog.Errorf("couldn't dial: %v", err)
 		return nil
 	}
+	m := models.NewAgroStorageClient(conn)
 	d.openConns[uuid] = conn
-	return conn
+	d.openClients[uuid] = m
+	return m
 }
 
 func (d *distClient) Close() error {
@@ -67,12 +71,11 @@ func (d *distClient) Close() error {
 func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef) ([]byte, error) {
 	conn := d.getConn(uuid)
 	if conn == nil {
-		return nil, agro.ErrBlockUnavailable
+		return nil, agro.ErrNoPeer
 	}
-	client := models.NewAgroStorageClient(conn)
 	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
-	resp, err := client.Block(newctx, &models.BlockRequest{
+	resp, err := conn.Block(newctx, &models.BlockRequest{
 		BlockRefs: []*models.BlockRef{b.ToProto()},
 	})
 	if err != nil {
@@ -90,10 +93,9 @@ func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef,
 	if conn == nil {
 		return agro.ErrBlockUnavailable
 	}
-	client := models.NewAgroStorageClient(conn)
 	newctx, cancel := context.WithTimeout(ctx, writeClientTimeout)
 	defer cancel()
-	resp, err := client.PutBlock(newctx, &models.PutBlockRequest{
+	resp, err := conn.PutBlock(newctx, &models.PutBlockRequest{
 		Refs:   []*models.BlockRef{b.ToProto()},
 		Blocks: [][]byte{data},
 	})
@@ -114,14 +116,13 @@ func (d *distClient) Check(ctx context.Context, uuid string, blks []agro.BlockRe
 	if conn == nil {
 		return nil, agro.ErrNoPeer
 	}
-	client := models.NewAgroStorageClient(conn)
 	refs := make([]*models.BlockRef, 0, len(blks))
 	for _, x := range blks {
 		refs = append(refs, x.ToProto())
 	}
 	newctx, cancel := context.WithTimeout(ctx, rebalanceClientTimeout)
 	defer cancel()
-	resp, err := client.RebalanceCheck(newctx, &models.RebalanceCheckRequest{
+	resp, err := conn.RebalanceCheck(newctx, &models.RebalanceCheckRequest{
 		BlockRefs: refs,
 	})
 	if err != nil {

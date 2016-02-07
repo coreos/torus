@@ -80,7 +80,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 			return blk, nil
 		}
 		if err == agro.ErrBlockUnavailable {
-			clog.Debug("block failed, trying next peer")
+			clog.Debugf("block from %s failed, trying next peer", p)
 			promDistBlockPeerFailures.WithLabelValues(p).Inc()
 			continue
 		}
