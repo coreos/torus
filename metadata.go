@@ -113,7 +113,7 @@ type MetadataService interface {
 	// unique for every created datadir.
 	UUID() string
 
-	GetPeers() ([]*models.PeerInfo, error)
+	GetPeers() (PeerInfoList, error)
 
 	GetRing() (Ring, error)
 	SubscribeNewRings(chan Ring)

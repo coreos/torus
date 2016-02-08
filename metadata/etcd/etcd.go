@@ -193,7 +193,7 @@ func (c *etcdCtx) RegisterPeer(p *models.PeerInfo) error {
 	return err
 }
 
-func (c *etcdCtx) GetPeers() ([]*models.PeerInfo, error) {
+func (c *etcdCtx) GetPeers() (agro.PeerInfoList, error) {
 	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("nodes")))
 	if err != nil {
 		return nil, err
@@ -213,7 +213,7 @@ func (c *etcdCtx) GetPeers() ([]*models.PeerInfo, error) {
 		}
 		out = append(out, &p)
 	}
-	return out, nil
+	return agro.PeerInfoList(out), nil
 }
 
 // AtomicModifyFunc is a class of commutative functions that, given the current

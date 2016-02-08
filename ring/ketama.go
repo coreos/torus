@@ -14,7 +14,7 @@ import (
 type ketama struct {
 	version int
 	rep     int
-	peers   []string
+	peers   agro.PeerInfoList
 	ring    *hashring.HashRing
 }
 
@@ -27,11 +27,12 @@ func makeKetama(r *models.Ring) (agro.Ring, error) {
 	if rep == 0 {
 		rep = 1
 	}
+	pi := agro.PeerInfoList(r.Peers)
 	return &ketama{
 		version: int(r.Version),
-		peers:   r.UUIDs,
+		peers:   pi,
 		rep:     rep,
-		ring:    hashring.New(r.UUIDs),
+		ring:    hashring.New(pi.PeerList()),
 	}, nil
 }
 
@@ -46,7 +47,7 @@ func (k *ketama) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
 	}, nil
 }
 
-func (k *ketama) Members() agro.PeerList { return append([]string(nil), k.peers...) }
+func (k *ketama) Members() agro.PeerList { return models.GetUUIDs(k.peers) }
 
 func (k *ketama) Describe() string {
 	s := fmt.Sprintf("Ring: Ketama\nReplication:%d\nPeers:", k.rep)
@@ -64,20 +65,20 @@ func (k *ketama) Marshal() ([]byte, error) {
 	out.Version = uint32(k.version)
 	out.ReplicationFactor = uint32(k.rep)
 	out.Type = uint32(k.Type())
-	out.UUIDs = k.peers
+	out.Peers = k.peers
 	return out.Marshal()
 }
 
-func (k *ketama) AddPeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
-	newPeers := k.Members().Union(pl)
-	if reflect.DeepEqual(newPeers, k.Members()) {
+func (k *ketama) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification) (agro.Ring, error) {
+	newPeers := k.peers.Union(peers)
+	if reflect.DeepEqual(newPeers.PeerList(), k.peers.PeerList()) {
 		return nil, errors.New("no difference in membership")
 	}
 	newk := &ketama{
 		version: k.version + 1,
 		rep:     k.rep,
 		peers:   newPeers,
-		ring:    hashring.New(newPeers),
+		ring:    hashring.New(newPeers.PeerList()),
 	}
 	for _, x := range mods {
 		x.ModifyRing(newk)
@@ -86,15 +87,16 @@ func (k *ketama) AddPeers(pl agro.PeerList, mods ...agro.RingModification) (agro
 }
 
 func (k *ketama) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
-	newPeers := k.Members().AndNot(pl)
-	if reflect.DeepEqual(newPeers, k.Members()) {
+	newPeers := k.peers.AndNot(pl)
+	if len(newPeers) == len(k.Members()) {
 		return nil, errors.New("no difference in membership")
 	}
+
 	newk := &ketama{
 		version: k.version + 1,
 		rep:     k.rep,
 		peers:   newPeers,
-		ring:    hashring.New(newPeers),
+		ring:    hashring.New(newPeers.PeerList()),
 	}
 	for _, x := range mods {
 		x.ModifyRing(newk)

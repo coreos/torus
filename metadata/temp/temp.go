@@ -33,7 +33,7 @@ type Server struct {
 	tree       *iradix.Tree
 	volIndex   map[string]agro.VolumeID
 	global     agro.GlobalMetadata
-	peers      []*models.PeerInfo
+	peers      agro.PeerInfoList
 	ring       agro.Ring
 	newRing    agro.Ring
 	openINodes map[string]map[string]*roaring.RoaringBitmap
@@ -98,7 +98,7 @@ func (t *Client) UUID() string {
 	return t.uuid
 }
 
-func (t *Client) GetPeers() ([]*models.PeerInfo, error) {
+func (t *Client) GetPeers() (agro.PeerInfoList, error) {
 	return t.srv.peers, nil
 }
 

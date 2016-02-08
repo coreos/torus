@@ -12,6 +12,7 @@ import (
 
 var (
 	ringType  string
+	peers     agro.PeerInfoList
 	uuids     []string
 	allUUIDs  bool
 	repFactor int
@@ -81,20 +82,20 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 	case "single":
 		newRing, err = ring.CreateRing(&models.Ring{
 			Type:    uint32(ring.Single),
-			UUIDs:   uuids,
+			Peers:   peers,
 			Version: uint32(currentRing.Version() + 1),
 		})
 	case "mod":
 		newRing, err = ring.CreateRing(&models.Ring{
 			Type:              uint32(ring.Mod),
-			UUIDs:             uuids,
+			Peers:             peers,
 			ReplicationFactor: uint32(repFactor),
 			Version:           uint32(currentRing.Version() + 1),
 		})
 	case "ketama":
 		newRing, err = ring.CreateRing(&models.Ring{
 			Type:              uint32(ring.Ketama),
-			UUIDs:             uuids,
+			Peers:             peers,
 			ReplicationFactor: uint32(repFactor),
 			Version:           uint32(currentRing.Version() + 1),
 		})
@@ -116,20 +117,23 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 }
 
 func ringChangePreRun(cmd *cobra.Command, args []string) {
+	mds = mustConnectToMDS()
+	currentPeers, err := mds.GetPeers()
 	if allUUIDs {
 		if allUUIDs && len(uuids) != 0 {
 			fmt.Fprint(os.Stderr, "use only one of --uuids or --all-peers")
 			os.Exit(1)
 		}
-		mds = mustConnectToMDS()
-		peers, err := mds.GetPeers()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "couldn't get peer list: %s\n", err)
 			os.Exit(1)
 		}
-		for _, p := range peers {
-			if p.Address != "" {
-				uuids = append(uuids, p.UUID)
+		uuids = currentPeers.PeerList()
+	}
+	for _, p := range currentPeers {
+		for _, x := range uuids {
+			if p.UUID == x {
+				peers = append(peers, p)
 			}
 		}
 	}
@@ -138,18 +142,18 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 		uuids = nil
 		return
 	case "single":
-		if len(uuids) != 1 {
+		if len(peers) != 1 {
 			fmt.Fprint(os.Stderr, "require one uuid (use --uuids)\n")
 			os.Exit(1)
 		}
 		return
 	case "mod":
-		if len(uuids) == 0 {
+		if len(peers) == 0 {
 			fmt.Fprint(os.Stderr, "need one of --uuids or --all-peers")
 			os.Exit(1)
 		}
 	case "ketama":
-		if len(uuids) == 0 {
+		if len(peers) == 0 {
 			fmt.Fprint(os.Stderr, "need one of --uuids or --all-peers")
 			os.Exit(1)
 		}
