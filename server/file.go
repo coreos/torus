@@ -206,10 +206,6 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 			return n, errors.New("Couldn't write all of the first block at the offset")
 		}
-		if err := f.syncBlock(); err != nil {
-			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
-			return n, err
-		}
 		b = b[frontlen:]
 		n += wrote
 		off += int64(wrote)
