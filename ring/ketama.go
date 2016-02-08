@@ -32,7 +32,7 @@ func makeKetama(r *models.Ring) (agro.Ring, error) {
 		version: int(r.Version),
 		peers:   pi,
 		rep:     rep,
-		ring:    hashring.New(pi.PeerList()),
+		ring:    hashring.NewWithWeights(pi.GetWeights()),
 	}, nil
 }
 
@@ -78,7 +78,7 @@ func (k *ketama) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification
 		version: k.version + 1,
 		rep:     k.rep,
 		peers:   newPeers,
-		ring:    hashring.New(newPeers.PeerList()),
+		ring:    hashring.NewWithWeights(newPeers.GetWeights()),
 	}
 	for _, x := range mods {
 		x.ModifyRing(newk)
@@ -96,7 +96,7 @@ func (k *ketama) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (a
 		version: k.version + 1,
 		rep:     k.rep,
 		peers:   newPeers,
-		ring:    hashring.New(newPeers.PeerList()),
+		ring:    hashring.NewWithWeights(newPeers.GetWeights()),
 	}
 	for _, x := range mods {
 		x.ModifyRing(newk)

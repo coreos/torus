@@ -1,6 +1,10 @@
 package agro
 
-import "github.com/coreos/agro/models"
+import (
+	"math/big"
+
+	"github.com/coreos/agro/models"
+)
 
 type RingType int
 
@@ -142,4 +146,20 @@ func (pi PeerInfoList) PeerList() PeerList {
 		out[i] = x.UUID
 	}
 	return PeerList(out)
+}
+
+func (pi PeerInfoList) GetWeights() map[string]int {
+	out := make(map[string]int)
+	if len(pi) == 0 {
+		return out
+	}
+	gcd := big.NewInt(int64(pi[0].TotalBlocks))
+	for _, p := range pi[1:] {
+		gcd.GCD(nil, nil, gcd, big.NewInt(int64(p.TotalBlocks)))
+	}
+	for _, p := range pi {
+		out[p.UUID] = int(p.TotalBlocks / uint64(gcd.Int64()))
+		clog.Infof("%s: %d", p.UUID, out[p.UUID])
+	}
+	return out
 }
