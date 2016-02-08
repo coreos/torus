@@ -47,7 +47,7 @@ func (k *ketama) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
 	}, nil
 }
 
-func (k *ketama) Members() agro.PeerList { return models.GetUUIDs(k.peers) }
+func (k *ketama) Members() agro.PeerList { return k.peers.PeerList() }
 
 func (k *ketama) Describe() string {
 	s := fmt.Sprintf("Ring: Ketama\nReplication:%d\nPeers:", k.rep)

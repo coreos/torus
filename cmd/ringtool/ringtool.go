@@ -28,7 +28,7 @@ var (
 	partition      = flag.Int("rewrite-edge", 40, "Percentage of files with small writes")
 	blockSize      uint64
 	totalData      uint64
-	uuids          []string
+	peers          agro.PeerInfoList
 )
 
 var maxIterations = 30
@@ -50,9 +50,13 @@ func main() {
 	if *delta <= 0 {
 		nPeers = *nodes
 	}
-	uuids = make([]string, nPeers)
+	peers = make([]*models.PeerInfo, nPeers)
 	for i := 0; i < nPeers; i++ {
-		uuids[i], _ = metadata.MakeOrGetUUID("")
+		u, _ := metadata.MakeOrGetUUID("")
+		peers[i] = &models.PeerInfo{
+			UUID:        u,
+			TotalBlocks: 100 * 1024 * 1024 * 1024, // 100giga-blocks for testing
+		}
 	}
 	blockSize, err = humanize.ParseBytes(*blockSizeStr)
 	if err != nil {
@@ -101,7 +105,7 @@ func createRings() (agro.Ring, agro.Ring) {
 		Type:              uint32(ftype),
 		Version:           1,
 		ReplicationFactor: uint32(*replication),
-		UUIDs:             uuids[:*nodes],
+		Peers:             peers[:*nodes],
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error creating from-ring: %s\n", err)
@@ -109,7 +113,7 @@ func createRings() (agro.Ring, agro.Ring) {
 	}
 
 	if v, ok := from.(agro.RingAdder); *delta > 0 && ok {
-		to, err := v.AddPeers(agro.PeerList(uuids[*nodes:]), ring.ReplicationLevel(*replicationEnd))
+		to, err := v.AddPeers(peers[*nodes:], ring.ReplicationLevel(*replicationEnd))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error adding peers to ring: %s\n", err)
 			os.Exit(1)
@@ -117,7 +121,7 @@ func createRings() (agro.Ring, agro.Ring) {
 		return from, to
 	}
 	if v, ok := from.(agro.RingRemover); *delta <= 0 && ok {
-		to, err := v.RemovePeers(agro.PeerList(uuids[*nodes+*delta:]), ring.ReplicationLevel(*replicationEnd))
+		to, err := v.RemovePeers(peers[*nodes+*delta:].PeerList(), ring.ReplicationLevel(*replicationEnd))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error removing peers from ring: %s\n", err)
 			os.Exit(1)
@@ -134,7 +138,7 @@ func createRings() (agro.Ring, agro.Ring) {
 		Type:              uint32(ttype),
 		Version:           2,
 		ReplicationFactor: uint32(*replicationEnd),
-		UUIDs:             uuids[:(*nodes + *delta)],
+		Peers:             peers[:(*nodes + *delta)],
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error creating from-ring: %s\n", err)

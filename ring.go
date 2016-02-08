@@ -86,9 +86,11 @@ func (pl PeerList) Intersect(b PeerList) PeerList {
 	return out
 }
 
+// Applicative! Applicative! My kingdom for Applicative!
+
 type PeerInfoList []*models.PeerInfo
 
-func (pi PeerInfoList) UUIDIndexAt(uuid string) int {
+func (pi PeerInfoList) UUIDAt(uuid string) int {
 	for i, x := range pi {
 		if x.UUID == uuid {
 			return i
@@ -98,7 +100,7 @@ func (pi PeerInfoList) UUIDIndexAt(uuid string) int {
 }
 
 func (pi PeerInfoList) HasUUID(uuid string) bool {
-	return pi.UUIDIndexAt(uuid) != -1
+	return pi.UUIDAt(uuid) != -1
 }
 
 func (pi PeerInfoList) AndNot(b PeerList) PeerInfoList {

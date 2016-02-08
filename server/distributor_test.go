@@ -77,15 +77,11 @@ func testOpenClose(t *testing.T) {
 func testThreeWrite(t *testing.T) {
 	srvs, md := createThree(t)
 	p, _ := srvs[0].mds.GetPeers()
-	var uuids []string
 	defer md.Close()
 	defer closeAll(t, srvs...)
-	for _, x := range p {
-		uuids = append(uuids, x.UUID)
-	}
 	r, err := ring.CreateRing(&models.Ring{
 		Type:    uint32(ring.Mod),
-		UUIDs:   uuids,
+		Peers:   p,
 		Version: 2,
 	})
 	if err != nil {
