@@ -53,7 +53,7 @@ message Ring {
   uint32 type = 1;
   uint32 version = 2;
   uint32 replication_factor = 3;
-  repeated string uuids = 4 [(gogoproto.customname) = "UUIDs"];
+  repeated PeerInfo peers = 4;
   map<string, bytes> attrs = 5;
 }
 

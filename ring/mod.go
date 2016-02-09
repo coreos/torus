@@ -12,10 +12,11 @@ import (
 )
 
 type mod struct {
-	version int
-	rep     int
-	peers   []string
-	npeers  int
+	version  int
+	rep      int
+	peers    agro.PeerInfoList
+	peerlist []string
+	npeers   int
 }
 
 func init() {
@@ -27,30 +28,32 @@ func makeMod(r *models.Ring) (agro.Ring, error) {
 	if rep == 0 {
 		rep = 1
 	}
+	pil := agro.PeerInfoList(r.Peers)
 	return &mod{
-		version: int(r.Version),
-		peers:   sort.StringSlice(r.UUIDs),
-		rep:     rep,
+		version:  int(r.Version),
+		peers:    pil,
+		peerlist: sort.StringSlice([]string(pil.PeerList())),
+		rep:      rep,
 	}, nil
 }
 
 func (m *mod) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
-	permute := make([]string, len(m.peers))
+	permute := make([]string, len(m.peerlist))
 	crc := crc32.ChecksumIEEE(key.ToBytes())
 	sum := int(crc) % len(m.peers)
-	copy(permute, m.peers[sum:])
-	copy(permute[len(m.peers)-sum:], m.peers[:sum])
+	copy(permute, m.peerlist[sum:])
+	copy(permute[len(m.peerlist)-sum:], m.peerlist[:sum])
 	return agro.PeerPermutation{
 		Peers:       permute,
 		Replication: m.rep,
 	}, nil
 }
 
-func (m *mod) Members() agro.PeerList { return append([]string(nil), m.peers...) }
+func (m *mod) Members() agro.PeerList { return m.peers.PeerList() }
 
 func (m *mod) Describe() string {
 	s := fmt.Sprintf("Ring: Mod\nReplication:%d\nPeers:", m.rep)
-	for _, x := range m.peers {
+	for _, x := range m.peerlist {
 		s += fmt.Sprintf("\n\t%s", x)
 	}
 	return s
@@ -64,20 +67,21 @@ func (m *mod) Marshal() ([]byte, error) {
 	out.Version = uint32(m.version)
 	out.ReplicationFactor = uint32(m.rep)
 	out.Type = uint32(m.Type())
-	out.UUIDs = m.peers
+	out.Peers = m.peers
 	return out.Marshal()
 }
 
-func (m *mod) AddPeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
-	newPeers := sort.StringSlice(m.Members().Union(pl))
-	if reflect.DeepEqual(newPeers, m.Members()) {
+func (m *mod) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification) (agro.Ring, error) {
+	newPeers := m.peers.Union(peers)
+	if reflect.DeepEqual(newPeers.PeerList(), m.peers.PeerList()) {
 		return nil, errors.New("no difference in membership")
 	}
 	newm := &mod{
-		version: m.version + 1,
-		rep:     m.rep,
-		peers:   newPeers,
-		npeers:  len(newPeers),
+		version:  m.version + 1,
+		rep:      m.rep,
+		peers:    newPeers,
+		peerlist: sort.StringSlice([]string(newPeers.PeerList())),
+		npeers:   len(newPeers),
 	}
 	for _, x := range mods {
 		x.ModifyRing(newm)
@@ -86,15 +90,17 @@ func (m *mod) AddPeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ri
 }
 
 func (m *mod) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
-	newPeers := sort.StringSlice(m.Members().AndNot(pl))
-	if reflect.DeepEqual(newPeers, m.Members()) {
+	newPeers := m.peers.AndNot(pl)
+	if len(newPeers) == len(m.peers) {
 		return nil, errors.New("no difference in membership")
 	}
+
 	newm := &mod{
-		version: m.version + 1,
-		rep:     m.rep,
-		peers:   newPeers,
-		npeers:  len(newPeers),
+		version:  m.version + 1,
+		rep:      m.rep,
+		peers:    newPeers,
+		peerlist: sort.StringSlice([]string(newPeers.PeerList())),
+		npeers:   len(newPeers),
 	}
 	for _, x := range mods {
 		x.ModifyRing(newm)

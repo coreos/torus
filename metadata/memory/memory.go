@@ -62,7 +62,11 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	ring, err := ring.CreateRing(&models.Ring{
 		Type:    uint32(ring.Single),
 		Version: 1,
-		UUIDs:   []string{uuid},
+		Peers: []*models.PeerInfo{
+			&models.PeerInfo{
+				UUID: t.uuid,
+			},
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -93,8 +97,8 @@ func (s *memory) UUID() string {
 	return s.uuid
 }
 
-func (s *memory) GetPeers() ([]*models.PeerInfo, error) {
-	return []*models.PeerInfo{
+func (s *memory) GetPeers() (agro.PeerInfoList, error) {
+	return agro.PeerInfoList{
 		&models.PeerInfo{
 			UUID:        s.uuid,
 			LastSeen:    time.Now().UnixNano(),

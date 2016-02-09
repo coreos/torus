@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	newPeers agro.PeerList
+	newPeers agro.PeerInfoList
 )
 
 var peerCommand = &cobra.Command{
@@ -49,16 +49,16 @@ func peerChangePreRun(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "couldn't get peer list: %s\n", err)
 		os.Exit(1)
 	}
-	var out agro.PeerList
+	var out agro.PeerInfoList
 	for _, arg := range args {
 		found := false
 		for _, p := range peers {
 			if p.Address != "" {
 				if p.Address == arg {
-					out = out.Union(agro.PeerList{p.UUID})
+					out = out.Union(agro.PeerInfoList{p})
 					found = true
 				} else if p.UUID == arg {
-					out = out.Union(agro.PeerList{p.UUID})
+					out = out.Union(agro.PeerInfoList{p})
 					found = true
 				}
 			}
@@ -109,7 +109,7 @@ func peerRemoveAction(cmd *cobra.Command, args []string) {
 	}
 	var newRing agro.Ring
 	if r, ok := currentRing.(agro.RingRemover); ok {
-		newRing, err = r.RemovePeers(newPeers)
+		newRing, err = r.RemovePeers(newPeers.PeerList())
 	} else {
 		fmt.Fprintf(os.Stderr, "current ring type cannot support removal")
 		os.Exit(1)

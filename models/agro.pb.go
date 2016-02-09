@@ -141,13 +141,20 @@ type Ring struct {
 	Type              uint32            `protobuf:"varint,1,opt,name=type,proto3" json:"type,omitempty"`
 	Version           uint32            `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	ReplicationFactor uint32            `protobuf:"varint,3,opt,name=replication_factor,proto3" json:"replication_factor,omitempty"`
-	UUIDs             []string          `protobuf:"bytes,4,rep,name=uuids" json:"uuids,omitempty"`
+	Peers             []*PeerInfo       `protobuf:"bytes,4,rep,name=peers" json:"peers,omitempty"`
 	Attrs             map[string][]byte `protobuf:"bytes,5,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
 func (m *Ring) Reset()         { *m = Ring{} }
 func (m *Ring) String() string { return proto.CompactTextString(m) }
 func (*Ring) ProtoMessage()    {}
+
+func (m *Ring) GetPeers() []*PeerInfo {
+	if m != nil {
+		return m.Peers
+	}
+	return nil
+}
 
 func (m *Ring) GetAttrs() map[string][]byte {
 	if m != nil {
@@ -495,19 +502,16 @@ func (m *Ring) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.ReplicationFactor))
 	}
-	if len(m.UUIDs) > 0 {
-		for _, s := range m.UUIDs {
+	if len(m.Peers) > 0 {
+		for _, msg := range m.Peers {
 			data[i] = 0x22
 			i++
-			l = len(s)
-			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
+			i = encodeVarintAgro(data, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
 			}
-			data[i] = uint8(l)
-			i++
-			i += copy(data[i:], s)
+			i += n
 		}
 	}
 	if len(m.Attrs) > 0 {
@@ -761,9 +765,9 @@ func (m *Ring) Size() (n int) {
 	if m.ReplicationFactor != 0 {
 		n += 1 + sovAgro(uint64(m.ReplicationFactor))
 	}
-	if len(m.UUIDs) > 0 {
-		for _, s := range m.UUIDs {
-			l = len(s)
+	if len(m.Peers) > 0 {
+		for _, e := range m.Peers {
+			l = e.Size()
 			n += 1 + l + sovAgro(uint64(l))
 		}
 	}
@@ -1904,9 +1908,9 @@ func (m *Ring) Unmarshal(data []byte) error {
 			}
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field UUIDs", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Peers", wireType)
 			}
-			var stringLen uint64
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowAgro
@@ -1916,20 +1920,22 @@ func (m *Ring) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLengthAgro
 			}
-			postIndex := iNdEx + intStringLen
+			postIndex := iNdEx + msglen
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.UUIDs = append(m.UUIDs, string(data[iNdEx:postIndex]))
+			m.Peers = append(m.Peers, &PeerInfo{})
+			if err := m.Peers[len(m.Peers)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
