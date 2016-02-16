@@ -1,0 +1,38 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    app: agro
+  name: agro
+spec:
+  template:
+    metadata:
+      name: agro
+      labels:
+        daemon: agro
+    spec:
+      containers:
+      - name: agro
+        image: quay.io/coreos/agro:latest
+        ports:
+        - name: peer
+          containerPort: 40000
+        - name: http
+          containerPort: 4321
+        env:
+        - name: ETCD_HOST
+          value: $(ETCD_AGRO_SERVICE_HOST)
+        - name: STORAGE_SIZE
+          value: 20GiB
+        - name: LISTEN_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: false
+      volumes:
+        - name: data
+          hostPath:
+            path: /srv/agro
