@@ -9,7 +9,7 @@ import (
 
 	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "agro")
@@ -124,11 +124,11 @@ type MetadataService interface {
 
 	// TODO(barakmich): THESE NEED A LEASE ID
 	RegisterPeer(*models.PeerInfo) error
-	ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error
+	ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error
 	// ^^^^^^^
 
-	ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error
-	GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error)
+	ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roaring.Bitmap) error
+	GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.Bitmap, error)
 
 	// TODO(barakmich): Extend with GC interaction, et al
 	Close() error

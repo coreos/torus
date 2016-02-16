@@ -13,7 +13,7 @@ import (
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/server/gc"
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 
 	// Register drivers
 	_ "github.com/coreos/agro/metadata/memory"
@@ -201,7 +201,7 @@ func (s *server) Close() error {
 	return nil
 }
 
-func (s *server) incRef(vol string, bm *roaring.RoaringBitmap) {
+func (s *server) incRef(vol string, bm *roaring.Bitmap) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	if bm.GetCardinality() == 0 {
@@ -222,7 +222,7 @@ func (s *server) incRef(vol string, bm *roaring.RoaringBitmap) {
 	}
 }
 
-func (s *server) decRef(vol string, bm *roaring.RoaringBitmap) {
+func (s *server) decRef(vol string, bm *roaring.Bitmap) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	it := bm.Iterator()
@@ -245,13 +245,13 @@ func (s *server) decRef(vol string, bm *roaring.RoaringBitmap) {
 	}
 }
 
-func (s *server) getBitmap(vol string) (*roaring.RoaringBitmap, bool) {
+func (s *server) getBitmap(vol string) (*roaring.Bitmap, bool) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	if _, ok := s.openINodeRefs[vol]; !ok {
 		return nil, false
 	}
-	out := roaring.NewRoaringBitmap()
+	out := roaring.NewBitmap()
 	for k := range s.openINodeRefs[vol] {
 		out.Add(uint32(k))
 	}
@@ -285,7 +285,7 @@ func (s *server) removeFile(p agro.Path) error {
 	}
 	// Anybody who had it open still does, and a write/sync will bring it back,
 	// as expected. So this is safe to modify.
-	return s.mds.ModifyDeadMap(p.Volume, roaring.NewRoaringBitmap(), live)
+	return s.mds.ModifyDeadMap(p.Volume, roaring.NewBitmap(), live)
 }
 
 func (s *server) removeDir(path agro.Path) error {

@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/agro"
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 )
 
 type baseBlockset struct {
@@ -119,8 +119,8 @@ func (b *baseBlockset) Unmarshal(data []byte) error {
 
 func (b *baseBlockset) GetSubBlockset() agro.Blockset { return nil }
 
-func (b *baseBlockset) GetLiveINodes() *roaring.RoaringBitmap {
-	out := roaring.NewRoaringBitmap()
+func (b *baseBlockset) GetLiveINodes() *roaring.Bitmap {
+	out := roaring.NewBitmap()
 	for _, blk := range b.blocks {
 		if blk.IsZero() {
 			continue

@@ -10,7 +10,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
@@ -64,7 +64,7 @@ type file struct {
 	blocks agro.Blockset
 
 	// during write
-	initialINodes *roaring.RoaringBitmap
+	initialINodes *roaring.Bitmap
 	writeINodeRef agro.INodeRef
 	writeOpen     bool
 	writeLevel    agro.WriteLevel
@@ -372,7 +372,7 @@ func (f *file) sync(closing bool) error {
 	case agro.INodeID(0):
 		// Easy. We're creating or replacing a deleted file.
 		// TODO(barakmich): Correct behavior depending on O_CREAT
-		dead := roaring.NewRoaringBitmap()
+		dead := roaring.NewBitmap()
 		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
 	case agro.INodeID(f.inode.Replaces):
 		// Easy. We're replacing the inode we opened. This is the happy case.

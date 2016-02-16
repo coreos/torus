@@ -17,7 +17,7 @@ import (
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
 	"github.com/hashicorp/go-immutable-radix"
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 )
 
 func init() {
@@ -36,8 +36,8 @@ type Server struct {
 	peers      agro.PeerInfoList
 	ring       agro.Ring
 	newRing    agro.Ring
-	openINodes map[string]map[string]*roaring.RoaringBitmap
-	deadMap    map[string]*roaring.RoaringBitmap
+	openINodes map[string]map[string]*roaring.Bitmap
+	deadMap    map[string]*roaring.Bitmap
 
 	ringListeners []chan agro.Ring
 }
@@ -68,8 +68,8 @@ func NewServer() *Server {
 		},
 		ring:       r,
 		inode:      make(map[string]agro.INodeID),
-		openINodes: make(map[string]map[string]*roaring.RoaringBitmap),
-		deadMap:    make(map[string]*roaring.RoaringBitmap),
+		openINodes: make(map[string]map[string]*roaring.Bitmap),
+		deadMap:    make(map[string]*roaring.Bitmap),
 	}
 }
 
@@ -78,7 +78,7 @@ func NewClient(cfg agro.Config, srv *Server) *Client {
 	if err != nil {
 		return nil
 	}
-	srv.openINodes[uuid] = make(map[string]*roaring.RoaringBitmap)
+	srv.openINodes[uuid] = make(map[string]*roaring.Bitmap)
 	return &Client{
 		cfg:  cfg,
 		uuid: uuid,
@@ -383,19 +383,19 @@ func (t *Client) Close() error {
 	return nil
 }
 
-func (t *Client) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
+func (t *Client) ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	t.srv.openINodes[t.uuid][volume] = inodes
 	return nil
 }
 
-func (t *Client) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error {
+func (t *Client) ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roaring.Bitmap) error {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	x, ok := t.srv.deadMap[volume]
 	if !ok {
-		x = roaring.NewRoaringBitmap()
+		x = roaring.NewBitmap()
 	}
 	x.Or(dead)
 	x.AndNot(live)
@@ -403,14 +403,14 @@ func (t *Client) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead 
 	return nil
 }
 
-func (t *Client) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
+func (t *Client) GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.Bitmap, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	x, ok := t.srv.deadMap[volume]
 	if !ok {
-		x = roaring.NewRoaringBitmap()
+		x = roaring.NewBitmap()
 	}
-	var l []*roaring.RoaringBitmap
+	var l []*roaring.Bitmap
 	for _, perclient := range t.srv.openINodes {
 		if c, ok := perclient[volume]; ok {
 			if c != nil {

@@ -14,7 +14,7 @@ import (
 	"github.com/coreos/agro/metadata"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
@@ -275,7 +275,7 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 		setKey(mkKey("volumes", volume), uint64ToBytes(newID.(uint64))),
 		setKey(mkKey("volumeid", sID), []byte(volume)),
 		setKey(mkKey("volumemeta", "inode", volume), uint64ToBytes(1)),
-		setKey(mkKey("volumemeta", "deadmap", volume), roaringToBytes(roaring.NewRoaringBitmap())),
+		setKey(mkKey("volumemeta", "deadmap", volume), roaringToBytes(roaring.NewBitmap())),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
 	).Tx()
 	_, err = c.etcd.kv.Txn(c.getContext(), do)
@@ -498,7 +498,7 @@ func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
 	c.etcd.UnsubscribeNewRings(ch)
 }
 
-func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
+func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.Bitmap, error) {
 	tx := tx().Do(
 		getKey(mkKey("volumemeta", "deadmap", volume)),
 		getPrefix(mkKey("volumemeta", "open", volume)),
@@ -508,14 +508,14 @@ func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*r
 		return nil, nil, err
 	}
 	deadmap := bytesToRoaring(resp.Responses[0].GetResponseRange().Kvs[0].Value)
-	var l []*roaring.RoaringBitmap
+	var l []*roaring.Bitmap
 	for _, x := range resp.Responses[1].GetResponseRange().Kvs {
 		l = append(l, bytesToRoaring(x.Value))
 	}
 	return deadmap, l, nil
 }
 
-func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
+func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error {
 	// TODO(barakmich): LEASE
 	key := mkKey("volumemeta", "open", volume, c.UUID())
 	if inodes == nil {
@@ -529,7 +529,7 @@ func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap
 	return err
 }
 
-func (c *etcdCtx) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error {
+func (c *etcdCtx) ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roaring.Bitmap) error {
 	_, err := c.atomicModifyKey(mkKey("volumemeta", "deadmap", volume), func(b []byte) ([]byte, interface{}, error) {
 		bm := bytesToRoaring(b)
 		bm.Or(dead)

@@ -7,7 +7,7 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 	"golang.org/x/net/context"
 )
 
@@ -45,7 +45,7 @@ func (s *server) create(path agro.Path, flag int, md *models.Metadata) (f agro.F
 		srv:           s,
 		blocks:        bs,
 		blkSize:       int64(globals.BlockSize),
-		initialINodes: roaring.NewRoaringBitmap(),
+		initialINodes: roaring.NewBitmap(),
 		readOnly:      rdOnly,
 		writeOnly:     wrOnly,
 		writeLevel:    agro.WriteOne,

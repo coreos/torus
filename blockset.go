@@ -1,7 +1,7 @@
 package agro
 
 import (
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 	"golang.org/x/net/context"
 )
 
@@ -12,7 +12,7 @@ type Blockset interface {
 	Kind() uint32
 	GetBlock(ctx context.Context, i int) ([]byte, error)
 	PutBlock(ctx context.Context, inode INodeRef, i int, b []byte) error
-	GetLiveINodes() *roaring.RoaringBitmap
+	GetLiveINodes() *roaring.Bitmap
 
 	Marshal() ([]byte, error)
 	Unmarshal(data []byte) error

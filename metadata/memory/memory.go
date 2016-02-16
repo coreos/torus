@@ -23,7 +23,7 @@ import (
 	"github.com/coreos/agro/ring"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/hashicorp/go-immutable-radix"
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "memory")
@@ -43,8 +43,8 @@ type memory struct {
 	global       agro.GlobalMetadata
 	cfg          agro.Config
 	uuid         string
-	openINodes   map[string]*roaring.RoaringBitmap
-	deadMap      map[string]*roaring.RoaringBitmap
+	openINodes   map[string]*roaring.Bitmap
+	deadMap      map[string]*roaring.Bitmap
 	ring         agro.Ring
 	ringWatchers []chan agro.Ring
 }
@@ -83,8 +83,8 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		},
 		cfg:        cfg,
 		uuid:       uuid,
-		openINodes: make(map[string]*roaring.RoaringBitmap),
-		deadMap:    make(map[string]*roaring.RoaringBitmap),
+		openINodes: make(map[string]*roaring.Bitmap),
+		deadMap:    make(map[string]*roaring.Bitmap),
 		ring:       ring,
 	}, nil
 }
@@ -385,15 +385,15 @@ func (s *memory) SetRing(newring agro.Ring) error {
 	return nil
 }
 
-func (s *memory) ClaimVolumeINodes(volume string, inodes *roaring.RoaringBitmap) error {
+func (s *memory) ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error {
 	s.openINodes[volume] = inodes
 	return nil
 }
 
-func (s *memory) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead *roaring.RoaringBitmap) error {
+func (s *memory) ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roaring.Bitmap) error {
 	x, ok := s.deadMap[volume]
 	if !ok {
-		x = roaring.NewRoaringBitmap()
+		x = roaring.NewBitmap()
 	}
 	x.Or(dead)
 	x.AndNot(live)
@@ -401,12 +401,12 @@ func (s *memory) ModifyDeadMap(volume string, live *roaring.RoaringBitmap, dead 
 	return nil
 }
 
-func (s *memory) GetVolumeLiveness(volume string) (*roaring.RoaringBitmap, []*roaring.RoaringBitmap, error) {
+func (s *memory) GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.Bitmap, error) {
 	x, ok := s.deadMap[volume]
 	if !ok {
-		x = roaring.NewRoaringBitmap()
+		x = roaring.NewBitmap()
 	}
-	var l []*roaring.RoaringBitmap
+	var l []*roaring.Bitmap
 	if y, ok := s.openINodes[volume]; ok {
 		if y != nil {
 			l = append(l, y)

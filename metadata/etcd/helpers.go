@@ -7,7 +7,7 @@ import (
 
 	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 	"github.com/coreos/agro/models"
-	"github.com/tgruben/roaring"
+	"github.com/RoaringBitmap/roaring"
 )
 
 func mkKey(s ...string) []byte {
@@ -24,7 +24,7 @@ func uint64ToBytes(x uint64) []byte {
 	return buf.Bytes()
 }
 
-func roaringToBytes(r *roaring.RoaringBitmap) []byte {
+func roaringToBytes(r *roaring.Bitmap) []byte {
 	buf := new(bytes.Buffer)
 	_, err := r.WriteTo(buf)
 	if err != nil {
@@ -33,9 +33,9 @@ func roaringToBytes(r *roaring.RoaringBitmap) []byte {
 	return buf.Bytes()
 }
 
-func bytesToRoaring(b []byte) *roaring.RoaringBitmap {
+func bytesToRoaring(b []byte) *roaring.Bitmap {
 	r := bytes.NewReader(b)
-	bm := roaring.NewRoaringBitmap()
+	bm := roaring.NewBitmap()
 	_, err := bm.ReadFrom(r)
 	if err != nil {
 		panic(err)
