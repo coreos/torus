@@ -12,13 +12,13 @@ import (
 	"github.com/coreos/agro/ring"
 )
 
-func mkfs(cfg agro.Config, gmd agro.GlobalMetadata) error {
+func mkfs(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) error {
 	gmdbytes, err := json.Marshal(gmd)
 	if err != nil {
 		return err
 	}
 	emptyRing, err := ring.CreateRing(&models.Ring{
-		Type:    uint32(ring.Empty),
+		Type:    uint32(ringType),
 		Version: 1,
 	})
 	if err != nil {

@@ -2,6 +2,8 @@
 set -e
 
 : ${LISTEN_HOST:=0.0.0.0}
+: ${LISTEN_PEER_PORT:=40000}
+: ${LISTEN_HTTP_PORT:=4321}
 : ${ETCD_HOST:=127.0.0.1}
 : ${ETCD_PORT:=2378}
 : ${DEBUG:=0}

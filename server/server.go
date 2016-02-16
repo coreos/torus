@@ -9,11 +9,11 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/server/gc"
-	"github.com/RoaringBitmap/roaring"
 
 	// Register drivers
 	_ "github.com/coreos/agro/metadata/memory"
@@ -34,8 +34,6 @@ type server struct {
 	openFiles     []*file
 	cfg           agro.Config
 	peerInfo      *models.PeerInfo
-
-	internalAddr string
 
 	heartbeating    bool
 	replicationOpen bool

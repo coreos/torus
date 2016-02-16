@@ -7,6 +7,7 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
+	"github.com/coreos/agro/ring"
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
@@ -18,6 +19,7 @@ var (
 	blockSizeStr     string
 	blockSpec        string
 	inodeReplication int
+	noMakeRing       bool
 )
 
 var mkfsCommand = &cobra.Command{
@@ -31,6 +33,7 @@ func init() {
 	mkfsCommand.Flags().StringVarP(&blockSizeStr, "block-size", "", "512KiB", "size of all data blocks in this filesystem")
 	mkfsCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this filesystem")
 	mkfsCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
+	mkfsCommand.Flags().BoolVar(&noMakeRing, "no-ring", false, "do not create the default ring as part of mkfs")
 }
 
 func mkfsPreRun(cmd *cobra.Command, args []string) {
@@ -60,7 +63,11 @@ func mkfsAction(cmd *cobra.Command, args []string) {
 	cfg := agro.Config{
 		MetadataAddress: etcdAddress,
 	}
-	err = agro.Mkfs("etcd", cfg, md)
+	ringType := ring.Ketama
+	if noMakeRing {
+		ringType = ring.Empty
+	}
+	err = agro.Mkfs("etcd", cfg, md, ringType)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error writing metadata: %s\n", err)
 		os.Exit(1)
