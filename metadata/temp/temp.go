@@ -11,13 +11,13 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/metadata"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
 	"github.com/hashicorp/go-immutable-radix"
-	"github.com/RoaringBitmap/roaring"
 )
 
 func init() {
@@ -38,6 +38,7 @@ type Server struct {
 	newRing    agro.Ring
 	openINodes map[string]map[string]*roaring.Bitmap
 	deadMap    map[string]*roaring.Bitmap
+	chains     map[string]map[agro.INodeRef]agro.INodeRef
 
 	ringListeners []chan agro.Ring
 }
@@ -69,6 +70,7 @@ func NewServer() *Server {
 		ring:       r,
 		inode:      make(map[string]agro.INodeID),
 		openINodes: make(map[string]map[string]*roaring.Bitmap),
+		chains:     make(map[string]map[agro.INodeRef]agro.INodeRef),
 		deadMap:    make(map[string]*roaring.Bitmap),
 	}
 }
@@ -132,7 +134,7 @@ func (t *Client) CreateVolume(volume string) error {
 		t.srv.volIndex[volume] = t.srv.vol
 	}
 
-	// TODO(jzelinskie): maybe raise volume already exists
+	t.srv.chains[volume] = make(map[agro.INodeRef]agro.INodeRef)
 	return nil
 }
 
@@ -164,7 +166,7 @@ func (t *Client) Mkdir(p agro.Path, md *models.Metadata) error {
 	}
 	tx.Insert(k, &models.Directory{
 		Metadata: md,
-		Files:    make(map[string]uint64),
+		Files:    make(map[string]*models.FileEntry),
 	})
 
 	for {
@@ -228,14 +230,10 @@ func (t *Client) debugPrintTree() {
 	}
 }
 
-func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, error) {
-	old := agro.INodeID(0)
+func (t *Client) SetFileEntry(p agro.Path, ent *models.FileEntry) error {
 	vid, err := t.GetVolumeID(p.Volume)
 	if err != nil {
-		return old, err
-	}
-	if vid != ref.Volume() {
-		return old, errors.New("temp: inodeRef volume not for given path volume")
+		return err
 	}
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
@@ -245,7 +243,7 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, err
 	)
 	v, ok := tx.Get(k)
 	if !ok {
-		return old, &os.PathError{
+		return &os.PathError{
 			Op:   "stat",
 			Path: p.Path,
 			Err:  os.ErrNotExist,
@@ -256,19 +254,38 @@ func (t *Client) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, err
 		dir = &models.Directory{}
 	}
 	if dir.Files == nil {
-		dir.Files = make(map[string]uint64)
+		dir.Files = make(map[string]*models.FileEntry)
 	}
-	if v, ok := dir.Files[p.Filename()]; ok {
-		old = agro.INodeID(v)
-	}
-	if ref.Volume() == 0 && ref.INode == 0 {
+	if ent.Chain == 0 && ent.Sympath == "" {
 		delete(dir.Files, p.Filename())
 	} else {
-		dir.Files[p.Filename()] = uint64(ref.INode)
+		dir.Files[p.Filename()] = ent
 	}
 	tx.Insert(k, dir)
 	t.srv.tree = tx.Commit()
-	return old, nil
+	return nil
+}
+
+func (t *Client) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRef, error) {
+	vid, err := t.GetVolumeID(volume)
+	if err != nil {
+		return agro.INodeRef{}, err
+	}
+	if base.Volume() != vid {
+		return agro.INodeRef{}, errors.New("mismatched volume")
+	}
+	return t.srv.chains[volume][base], nil
+}
+
+func (t *Client) SetChainINode(volume string, base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	cur := t.srv.chains[volume][base]
+	if cur != was {
+		return errors.New("Failed comparison")
+	}
+	t.srv.chains[volume][base] = new
+	return nil
 }
 
 func (t *Client) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {

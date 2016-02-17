@@ -32,8 +32,16 @@ message BlockLayer {
 message Directory {
   Metadata metadata = 1;
   // key is the filename without the path
-  map<string, uint64> files = 2;
-  // TODO(barakmich) Soft Link
+  map<string, FileEntry> files = 2;
+}
+
+message FileEntry {
+  uint64 chain = 1;
+  string sympath = 2; 
+}
+
+message FileChainSet {
+  map<uint64, uint64> chains = 1;
 }
 
 message PeerInfo {

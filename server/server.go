@@ -138,24 +138,6 @@ func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
 	return entries, nil
 }
 
-func (s *server) Rename(from, to agro.Path) error {
-	//TODO(barakmich): Handle hard links
-	ref, err := s.inodeRefForPath(from)
-	if err != nil {
-		return err
-	}
-	clog.Debugf("renaming %s %s %#v", from, to, ref)
-	_, err = s.mds.SetFileINode(from, agro.NewINodeRef(0, 0))
-	if err != nil {
-		return err
-	}
-	_, err = s.mds.SetFileINode(to, ref)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *server) Mkdir(path agro.Path) error {
 	if !path.IsDir() {
 		return os.ErrInvalid
@@ -277,7 +259,7 @@ func (s *server) removeFile(p agro.Path) error {
 		return err
 	}
 	live := bs.GetLiveINodes()
-	_, err = s.mds.SetFileINode(p, agro.NewINodeRef(ref.Volume(), 0))
+	_, err = s.mds.SetFileEntry(p, agro.NewINodeRef(ref.Volume(), 0))
 	if err != nil {
 		return err
 	}

@@ -15,6 +15,8 @@ type Server interface {
 	OpenFile(p Path, flag int, perm os.FileMode) (File, error)
 	OpenFileMetadata(p Path, flag int, md *models.Metadata) (File, error)
 	Rename(p Path, new Path) error
+	Link(p Path, new Path) error
+	Symlink(p Path, new Path) error
 	Lstat(Path) (os.FileInfo, error)
 	Readdir(Path) ([]Path, error)
 	Remove(Path) error

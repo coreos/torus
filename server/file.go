@@ -8,9 +8,9 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/RoaringBitmap/roaring"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
@@ -362,7 +362,7 @@ func (f *file) sync(closing bool) error {
 	// until I know better how these work together. Once it becomes clear, the
 	// optimization/bugfix can be made.
 
-	replaced, err := f.srv.mds.SetFileINode(f.path, f.writeINodeRef)
+	replaced, err := f.srv.mds.SetFileEntry(f.path, f.writeINodeRef)
 	if err != nil {
 		clog.Error("sync: couldn't set file inode")
 		return err

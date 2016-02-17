@@ -14,6 +14,8 @@
 		INode
 		BlockLayer
 		Directory
+		FileEntry
+		FileChainSet
 		PeerInfo
 		Ring
 		BlockRef
@@ -32,6 +34,8 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/protobuf/gogoproto"
+
+import errors "errors"
 
 import io "io"
 
@@ -101,7 +105,7 @@ func (*BlockLayer) ProtoMessage()    {}
 type Directory struct {
 	Metadata *Metadata `protobuf:"bytes,1,opt,name=metadata" json:"metadata,omitempty"`
 	// key is the filename without the path
-	Files map[string]uint64 `protobuf:"bytes,2,rep,name=files" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	Files map[string]*FileEntry `protobuf:"bytes,2,rep,name=files" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value"`
 }
 
 func (m *Directory) Reset()         { *m = Directory{} }
@@ -115,9 +119,33 @@ func (m *Directory) GetMetadata() *Metadata {
 	return nil
 }
 
-func (m *Directory) GetFiles() map[string]uint64 {
+func (m *Directory) GetFiles() map[string]*FileEntry {
 	if m != nil {
 		return m.Files
+	}
+	return nil
+}
+
+type FileEntry struct {
+	Chain   uint64 `protobuf:"varint,1,opt,name=chain,proto3" json:"chain,omitempty"`
+	Sympath string `protobuf:"bytes,2,opt,name=sympath,proto3" json:"sympath,omitempty"`
+}
+
+func (m *FileEntry) Reset()         { *m = FileEntry{} }
+func (m *FileEntry) String() string { return proto.CompactTextString(m) }
+func (*FileEntry) ProtoMessage()    {}
+
+type FileChainSet struct {
+	Chains map[uint64]uint64 `protobuf:"bytes,1,rep,name=chains" json:"chains,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+}
+
+func (m *FileChainSet) Reset()         { *m = FileChainSet{} }
+func (m *FileChainSet) String() string { return proto.CompactTextString(m) }
+func (*FileChainSet) ProtoMessage()    {}
+
+func (m *FileChainSet) GetChains() map[uint64]uint64 {
+	if m != nil {
+		return m.Chains
 	}
 	return nil
 }
@@ -187,6 +215,8 @@ func init() {
 	proto.RegisterType((*INode)(nil), "models.INode")
 	proto.RegisterType((*BlockLayer)(nil), "models.BlockLayer")
 	proto.RegisterType((*Directory)(nil), "models.Directory")
+	proto.RegisterType((*FileEntry)(nil), "models.FileEntry")
+	proto.RegisterType((*FileChainSet)(nil), "models.FileChainSet")
 	proto.RegisterType((*PeerInfo)(nil), "models.PeerInfo")
 	proto.RegisterType((*Ring)(nil), "models.Ring")
 	proto.RegisterType((*BlockRef)(nil), "models.BlockRef")
@@ -393,12 +423,83 @@ func (m *Directory) MarshalTo(data []byte) (int, error) {
 			data[i] = 0x12
 			i++
 			v := m.Files[k]
-			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + sovAgro(uint64(v))
+			if v == nil {
+				return 0, errors.New("proto: map has nil element")
+			}
+			msgSize := v.Size()
+			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + msgSize + sovAgro(uint64(msgSize))
 			i = encodeVarintAgro(data, i, uint64(mapSize))
 			data[i] = 0xa
 			i++
 			i = encodeVarintAgro(data, i, uint64(len(k)))
 			i += copy(data[i:], k)
+			data[i] = 0x12
+			i++
+			i = encodeVarintAgro(data, i, uint64(v.Size()))
+			n3, err := v.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n3
+		}
+	}
+	return i, nil
+}
+
+func (m *FileEntry) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *FileEntry) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Chain != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Chain))
+	}
+	if len(m.Sympath) > 0 {
+		data[i] = 0x12
+		i++
+		i = encodeVarintAgro(data, i, uint64(len(m.Sympath)))
+		i += copy(data[i:], m.Sympath)
+	}
+	return i, nil
+}
+
+func (m *FileChainSet) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *FileChainSet) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Chains) > 0 {
+		for k, _ := range m.Chains {
+			data[i] = 0xa
+			i++
+			v := m.Chains[k]
+			mapSize := 1 + sovAgro(uint64(k)) + 1 + sovAgro(uint64(v))
+			i = encodeVarintAgro(data, i, uint64(mapSize))
+			data[i] = 0x8
+			i++
+			i = encodeVarintAgro(data, i, uint64(k))
 			data[i] = 0x10
 			i++
 			i = encodeVarintAgro(data, i, uint64(v))
@@ -714,7 +815,38 @@ func (m *Directory) Size() (n int) {
 		for k, v := range m.Files {
 			_ = k
 			_ = v
-			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + sovAgro(uint64(v))
+			l = 0
+			if v != nil {
+				l = v.Size()
+			}
+			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + l + sovAgro(uint64(l))
+			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
+		}
+	}
+	return n
+}
+
+func (m *FileEntry) Size() (n int) {
+	var l int
+	_ = l
+	if m.Chain != 0 {
+		n += 1 + sovAgro(uint64(m.Chain))
+	}
+	l = len(m.Sympath)
+	if l > 0 {
+		n += 1 + l + sovAgro(uint64(l))
+	}
+	return n
+}
+
+func (m *FileChainSet) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.Chains) > 0 {
+		for k, v := range m.Chains {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + sovAgro(uint64(k)) + 1 + sovAgro(uint64(v))
 			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
 		}
 	}
@@ -1556,6 +1688,260 @@ func (m *Directory) Unmarshal(data []byte) error {
 					break
 				}
 			}
+			var mapmsglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				mapmsglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if mapmsglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postmsgIndex := iNdEx + mapmsglen
+			if mapmsglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if postmsgIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			mapvalue := &FileEntry{}
+			if err := mapvalue.Unmarshal(data[iNdEx:postmsgIndex]); err != nil {
+				return err
+			}
+			iNdEx = postmsgIndex
+			if m.Files == nil {
+				m.Files = make(map[string]*FileEntry)
+			}
+			m.Files[mapkey] = mapvalue
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *FileEntry) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: FileEntry: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: FileEntry: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Chain", wireType)
+			}
+			m.Chain = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Chain |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sympath", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Sympath = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *FileChainSet) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: FileChainSet: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: FileChainSet: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Chains", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var keykey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				keykey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var mapkey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				mapkey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var valuekey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				valuekey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 			var mapvalue uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
@@ -1571,10 +1957,10 @@ func (m *Directory) Unmarshal(data []byte) error {
 					break
 				}
 			}
-			if m.Files == nil {
-				m.Files = make(map[string]uint64)
+			if m.Chains == nil {
+				m.Chains = make(map[uint64]uint64)
 			}
-			m.Files[mapkey] = mapvalue
+			m.Chains[mapkey] = mapvalue
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

@@ -105,7 +105,10 @@ type MetadataService interface {
 	Mkdir(path Path, dir *models.Metadata) error
 	Getdir(path Path) (*models.Directory, []Path, error)
 	Rmdir(path Path) error
-	SetFileINode(path Path, ref INodeRef) (INodeID, error)
+	SetFileEntry(path Path, ent *models.FileEntry) error
+
+	GetChainINode(volume string, base INodeRef) (INodeRef, error)
+	SetChainINode(volume string, base INodeRef, was INodeRef, new INodeRef) error
 
 	GlobalMetadata() (GlobalMetadata, error)
 
