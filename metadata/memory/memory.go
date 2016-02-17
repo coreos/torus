@@ -286,7 +286,7 @@ func (s *memory) SetChainINode(volume string, base agro.INodeRef, was agro.INode
 	defer s.mut.Unlock()
 	cur := s.chains[volume][base]
 	if cur != was {
-		return errors.New("Failed comparison")
+		return agro.ErrCompareFailed
 	}
 	s.chains[volume][base] = new
 	return nil

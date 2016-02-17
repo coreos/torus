@@ -4,17 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/metadata"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
-	"github.com/RoaringBitmap/roaring"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
@@ -36,6 +37,7 @@ var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "etcd")
 const (
 	keyPrefix      = "/github.com/coreos/agro/"
 	peerTimeoutMax = 50 * time.Second
+	chainPageSize  = 1000
 )
 
 var (
@@ -453,12 +455,12 @@ func (c *etcdCtx) getdir(p agro.Path) (*models.Directory, []agro.Path, int64, er
 	return outdir, outpaths, dirkv.Version, nil
 }
 
-func (c *etcdCtx) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, error) {
-	v, err := c.atomicModifyKey(mkKey("dirs", p.Key()), trySetFileINode(p, ref))
-	return v.(agro.INodeID), err
+func (c *etcdCtx) SetFileEntry(p agro.Path, ent *models.FileEntry) error {
+	_, err := c.atomicModifyKey(mkKey("dirs", p.Key()), trySetFileEntry(p, ent))
+	return err
 }
 
-func trySetFileINode(p agro.Path, ref agro.INodeRef) AtomicModifyFunc {
+func trySetFileEntry(p agro.Path, ent *models.FileEntry) AtomicModifyFunc {
 	return func(in []byte) ([]byte, interface{}, error) {
 		dir := &models.Directory{}
 		err := dir.Unmarshal(in)
@@ -466,20 +468,64 @@ func trySetFileINode(p agro.Path, ref agro.INodeRef) AtomicModifyFunc {
 			return nil, agro.INodeID(0), err
 		}
 		if dir.Files == nil {
-			dir.Files = make(map[string]uint64)
+			dir.Files = make(map[string]*models.FileEntry)
 		}
-		old := agro.INodeID(0)
+		old := &models.FileEntry{}
 		if v, ok := dir.Files[p.Filename()]; ok {
-			old = agro.INodeID(v)
+			old = v
 		}
-		if ref.INode == 0 && ref.Volume() == 0 {
+		if ent.Chain == 0 && ent.Sympath == "" {
 			delete(dir.Files, p.Filename())
 		} else {
-			dir.Files[p.Filename()] = uint64(ref.INode)
+			dir.Files[p.Filename()] = ent
 		}
 		bytes, err := dir.Marshal()
 		return bytes, old, err
 	}
+}
+
+func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRef, error) {
+	pageID := fmt.Sprintf("%x", base.INode/chainPageSize)
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", volume, pageID)))
+	if len(resp.Kvs) == 0 {
+		return agro.INodeRef{}, nil
+	}
+	var set *models.FileChainSet
+	err = set.Unmarshal(resp.Kvs[0].Value)
+	if err != nil {
+		return agro.INodeRef{}, err
+	}
+	v, ok := set.Chains[uint64(base.INode)]
+	if !ok {
+		return agro.INodeRef{}, err
+	}
+	return agro.NewINodeRef(base.Volume(), agro.INodeID(v)), nil
+}
+
+func (c *etcdCtx) SetChainINode(volume string, base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
+	pageID := fmt.Sprintf("%x", base.INode/chainPageSize)
+	_, err := c.atomicModifyKey(mkKey("volumemeta", volume, pageID), func(b []byte) ([]byte, interface{}, error) {
+		var set *models.FileChainSet
+		if len(b) == 0 {
+			set.Chains = make(map[uint64]uint64)
+		} else {
+			err := set.Unmarshal(b)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		v, ok := set.Chains[uint64(base.INode)]
+		if !ok {
+			v = 0
+		}
+		if v != uint64(was.INode) {
+			return nil, nil, agro.ErrCompareFailed
+		}
+		set.Chains[uint64(base.INode)] = uint64(new.INode)
+		b, err := set.Marshal()
+		return b, was.INode, err
+	})
+	return err
 }
 
 func (c *etcdCtx) GetRing() (agro.Ring, error) {

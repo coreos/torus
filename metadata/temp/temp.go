@@ -231,10 +231,6 @@ func (t *Client) debugPrintTree() {
 }
 
 func (t *Client) SetFileEntry(p agro.Path, ent *models.FileEntry) error {
-	vid, err := t.GetVolumeID(p.Volume)
-	if err != nil {
-		return err
-	}
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	var (
@@ -282,7 +278,7 @@ func (t *Client) SetChainINode(volume string, base agro.INodeRef, was agro.INode
 	defer t.srv.mut.Unlock()
 	cur := t.srv.chains[volume][base]
 	if cur != was {
-		return errors.New("Failed comparison")
+		return agro.ErrCompareFailed
 	}
 	t.srv.chains[volume][base] = new
 	return nil

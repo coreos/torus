@@ -5,9 +5,9 @@ import (
 	"encoding/binary"
 	"path"
 
+	"github.com/RoaringBitmap/roaring"
 	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 	"github.com/coreos/agro/models"
-	"github.com/RoaringBitmap/roaring"
 )
 
 func mkKey(s ...string) []byte {
@@ -182,7 +182,7 @@ func getPrefix(key []byte) *etcdpb.RangeRequest {
 func newDirProto(md *models.Metadata) []byte {
 	a := models.Directory{
 		Metadata: md,
-		Files:    make(map[string]uint64),
+		Files:    make(map[string]*models.FileEntry),
 	}
 	b, err := a.Marshal()
 	if err != nil {
