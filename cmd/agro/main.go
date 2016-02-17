@@ -12,6 +12,7 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/internal/http"
+	"github.com/coreos/agro/ring"
 	"github.com/coreos/agro/server"
 	agrofuse "github.com/coreos/agro/server/fuse"
 
@@ -115,7 +116,7 @@ func runServer(cmd *cobra.Command, args []string) {
 			BlockSize:        8 * 1024,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 			INodeReplication: 3,
-		})
+		}, ring.Ketama)
 		if err != nil {
 			if err == agro.ErrExists {
 				fmt.Println("debug-mkfs: Already exists")

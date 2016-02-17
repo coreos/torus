@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
-	"github.com/RoaringBitmap/roaring"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "agro")
@@ -175,7 +175,7 @@ func CreateMetadataService(name string, cfg Config) (MetadataService, error) {
 }
 
 // MkfsFunc is the signature of a function which preformats a metadata service.
-type MkfsFunc func(cfg Config, gmd GlobalMetadata) error
+type MkfsFunc func(cfg Config, gmd GlobalMetadata, ringType RingType) error
 
 var mkfsFuncs map[string]MkfsFunc
 
@@ -194,9 +194,9 @@ func RegisterMkfs(name string, newFunc MkfsFunc) {
 }
 
 // Mkfs calls the specific Mkfs function provided by a metadata package.
-func Mkfs(name string, cfg Config, gmd GlobalMetadata) error {
+func Mkfs(name string, cfg Config, gmd GlobalMetadata, ringType RingType) error {
 	clog.Debugf("running mkfs for service type: %s", name)
-	return mkfsFuncs[name](cfg, gmd)
+	return mkfsFuncs[name](cfg, gmd, ringType)
 }
 
 type SetRingFunc func(cfg Config, r Ring) error

@@ -26,6 +26,7 @@ func init() {
 	rootCommand.AddCommand(listPeersCommand)
 	rootCommand.AddCommand(ringCommand)
 	rootCommand.AddCommand(peerCommand)
+	rootCommand.AddCommand(volumeCommand)
 }
 
 func main() {

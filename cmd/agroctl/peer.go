@@ -10,6 +10,7 @@ import (
 
 var (
 	newPeers agro.PeerInfoList
+	allPeers bool
 )
 
 var peerCommand = &cobra.Command{
@@ -34,6 +35,7 @@ var peerRemoveCommand = &cobra.Command{
 
 func init() {
 	peerCommand.AddCommand(peerAddCommand, peerRemoveCommand)
+	peerAddCommand.Flags().BoolVar(&allPeers, "all-peers", false, "add all peers")
 }
 
 func peerAction(cmd *cobra.Command, args []string) {
@@ -42,11 +44,14 @@ func peerAction(cmd *cobra.Command, args []string) {
 }
 
 func peerChangePreRun(cmd *cobra.Command, args []string) {
-	fmt.Println(args)
 	mds = mustConnectToMDS()
 	peers, err := mds.GetPeers()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't get peer list: %s\n", err)
+		os.Exit(1)
+	}
+	if allPeers && len(args) > 0 {
+		fmt.Fprintf(os.Stderr, "can't have both --all-peers and a list of peers")
 		os.Exit(1)
 	}
 	var out agro.PeerInfoList
@@ -66,6 +71,13 @@ func peerChangePreRun(cmd *cobra.Command, args []string) {
 		if !found {
 			fmt.Fprintf(os.Stderr, "peer %s not currently healthy\n", err)
 			os.Exit(1)
+		}
+	}
+	if allPeers {
+		for _, p := range peers {
+			if p.Address != "" {
+				out = out.Union(agro.PeerInfoList{p})
+			}
 		}
 	}
 	newPeers = out
