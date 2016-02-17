@@ -18,8 +18,9 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) erro
 		return err
 	}
 	emptyRing, err := ring.CreateRing(&models.Ring{
-		Type:    uint32(ringType),
-		Version: 1,
+		Type:              uint32(ringType),
+		Version:           1,
+		ReplicationFactor: 2,
 	})
 	if err != nil {
 		return err
