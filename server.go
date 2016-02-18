@@ -16,12 +16,14 @@ type Server interface {
 	OpenFileMetadata(p Path, flag int, md *models.Metadata) (File, error)
 	Rename(p Path, new Path) error
 	Link(p Path, new Path) error
-	Symlink(p Path, new Path) error
+	Symlink(to string, new Path) error
 	Lstat(Path) (os.FileInfo, error)
 	Readdir(Path) ([]Path, error)
 	Remove(Path) error
 	Mkdir(Path) error
 
+	Chmod(name Path, mode os.FileMode) error
+	Chown(name Path, uid, gid int) error
 	// Some server metacalls.
 	CreateVolume(string) error
 	GetVolumes() ([]string, error)
