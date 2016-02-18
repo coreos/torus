@@ -110,6 +110,9 @@ func (f *file) openWrite() error {
 	if f.inode != nil {
 		f.replaces = f.inode.INode
 		f.inode.INode = uint64(newINode)
+		if f.inode.Chain == 0 {
+			f.inode.Chain = uint64(newINode)
+		}
 	}
 	f.writeOpen = true
 	return nil
@@ -370,6 +373,10 @@ func (f *file) sync(closing bool) error {
 					// Otherwise, nothing to do here.
 					return nil, agro.NewINodeRef(vol, agro.INodeID(0)), writingToDeleted
 				}
+				if inode.Chain != f.inode.Chain {
+					// We're starting a new chain, go ahead and replace
+					return f.inode, f.writeINodeRef, nil
+				}
 				switch f.replaces {
 				case 0:
 					// We're writing a completely new file on this chain.
@@ -411,6 +418,10 @@ func (f *file) sync(closing bool) error {
 		f.initialINodes = bs.GetLiveINodes()
 		f.updateHeldINodes(false)
 	}
+
+	err = f.srv.mds.SetFileEntry(f.path, &models.FileEntry{
+		Chain: f.inode.Chain,
+	})
 
 	newLive := f.blocks.GetLiveINodes()
 	var dead *roaring.Bitmap

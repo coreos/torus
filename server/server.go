@@ -265,12 +265,11 @@ func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INo
 			return nil, ref, err
 		}
 		notExist = true
-	}
-	if entry.Sympath != "" {
-		return nil, ref, agro.ErrIsSymlink
-	}
-	if entry.Chain == 0 {
-		return nil, ref, agro.ErrNotExist
+		entry = &models.FileEntry{}
+	} else {
+		if entry.Sympath != "" {
+			return nil, ref, agro.ErrIsSymlink
+		}
 	}
 	chainRef := agro.NewINodeRef(vol, agro.INodeID(entry.Chain))
 	for {
@@ -289,7 +288,11 @@ func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INo
 		if err != nil {
 			return nil, ref, err
 		}
-		err = s.mds.SetChainINode(p.Volume, chainRef, ref, newRef)
+		if chainRef.INode == 0 {
+			err = s.mds.SetChainINode(p.Volume, newRef, chainRef, newRef)
+		} else {
+			err = s.mds.SetChainINode(p.Volume, chainRef, ref, newRef)
+		}
 		if err == nil {
 			return newINode, ref, s.inodes.WriteINode(context.TODO(), newRef, newINode)
 		}

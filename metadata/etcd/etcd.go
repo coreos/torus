@@ -231,17 +231,23 @@ func (c *etcdCtx) atomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, 
 	if err != nil {
 		return nil, err
 	}
+	var version int64
+	var value []byte
 	if len(resp.Kvs) != 1 {
-		return nil, agro.ErrAgain
+		version = 0
+		value = []byte{}
+	} else {
+		kv := resp.Kvs[0]
+		version = kv.Version
+		value = kv.Value
 	}
-	kv := resp.Kvs[0]
 	for {
-		newBytes, fval, err := f(kv.Value)
+		newBytes, fval, err := f(value)
 		if err != nil {
 			return nil, err
 		}
 		tx := tx().If(
-			keyIsVersion(key, kv.Version),
+			keyIsVersion(key, version),
 		).Then(
 			setKey(key, newBytes),
 		).Else(
@@ -255,7 +261,9 @@ func (c *etcdCtx) atomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, 
 			return fval, nil
 		}
 		promAtomicRetries.WithLabelValues(string(key)).Inc()
-		kv = resp.Responses[0].GetResponseRange().Kvs[0]
+		kv := resp.Responses[0].GetResponseRange().Kvs[0]
+		version = kv.Version
+		value = kv.Value
 	}
 }
 
@@ -490,7 +498,7 @@ func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRe
 	if len(resp.Kvs) == 0 {
 		return agro.INodeRef{}, nil
 	}
-	var set *models.FileChainSet
+	set := &models.FileChainSet{}
 	err = set.Unmarshal(resp.Kvs[0].Value)
 	if err != nil {
 		return agro.INodeRef{}, err
@@ -505,7 +513,7 @@ func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRe
 func (c *etcdCtx) SetChainINode(volume string, base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
 	pageID := fmt.Sprintf("%x", base.INode/chainPageSize)
 	_, err := c.atomicModifyKey(mkKey("volumemeta", volume, pageID), func(b []byte) ([]byte, interface{}, error) {
-		var set *models.FileChainSet
+		set := &models.FileChainSet{}
 		if len(b) == 0 {
 			set.Chains = make(map[uint64]uint64)
 		} else {
