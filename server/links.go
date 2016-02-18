@@ -4,20 +4,37 @@ import (
 	"errors"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 )
 
 func (s *server) Rename(from, to agro.Path) error {
-	//TODO(barakmich): Handle hard links
-	ref, err := s.inodeRefForPath(from)
+	if from.Volume != to.Volume {
+		return agro.ErrInvalid
+	}
+	newINodeID, err := s.mds.CommitINodeIndex(from.Volume)
 	if err != nil {
 		return err
 	}
-	clog.Debugf("renaming %s %s %#v", from, to, ref)
-	_, err = s.mds.SetFileEntry(from, agro.NewINodeRef(0, 0))
+	inode, err := s.updateINodeChain(from, func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
+		inode.INode = uint64(newINodeID)
+		var newFilenames []string
+		for _, x := range inode.Filenames {
+			if x == from.Path {
+				newFilenames = append(newFilenames, to.Path)
+				continue
+			}
+			newFilenames = append(newFilenames, x)
+		}
+		inode.Filenames = newFilenames
+		return inode, agro.NewINodeRef(vol, newINodeID), nil
+	})
+	err = s.mds.SetFileEntry(from, &models.FileEntry{})
 	if err != nil {
 		return err
 	}
-	_, err = s.mds.SetFileEntry(to, ref)
+	err = s.mds.SetFileEntry(to, &models.FileEntry{
+		Chain: inode.Chain,
+	})
 	if err != nil {
 		return err
 	}

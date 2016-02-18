@@ -44,6 +44,9 @@ var (
 	// ErrNoPeer is returned if the peer can't be found.
 	ErrNoPeer = errors.New("agro: no such peer")
 
-	// ErrCompareFailed is returned if the CAS operation failed to compare
+	// ErrCompareFailed is returned if the CAS operation failed to compare.
 	ErrCompareFailed = errors.New("agro: compare failed")
+
+	// ErrIsSymlink is returned if we're trying to modify a symlink incorrectly.
+	ErrIsSymlink = errors.New("agro: is symlink")
 )

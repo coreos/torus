@@ -16,7 +16,7 @@ message Metadata {
 message INode {
   uint64 volume = 1;
   uint64 inode = 2 [(gogoproto.customname) = "INode"];
-  uint64 replaces = 3;
+  uint64 chain = 3;
   uint64 filesize = 4;
   repeated string filenames = 5; // Should always be length at least 1, includes hard links
   Metadata permissions = 6;

@@ -40,25 +40,36 @@ type server struct {
 	gc              gc.GC
 }
 
-func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
+func (s *server) fileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry, error) {
 	dirname, filename := path.Split(p.Path)
 	dirpath := agro.Path{p.Volume, dirname}
 	dir, _, err := s.mds.Getdir(dirpath)
 	if err != nil {
-		return agro.INodeRef{}, err
+		return agro.VolumeID(0), nil, err
 	}
 
 	volID, err := s.mds.GetVolumeID(p.Volume)
 	if err != nil {
+		return volID, nil, err
+	}
+
+	ent, ok := dir.Files[filename]
+	if !ok {
+		return volID, nil, os.ErrNotExist
+	}
+
+	return volID, ent, nil
+}
+
+func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
+	vol, ent, err := s.fileEntryForPath(p)
+	if err != nil {
 		return agro.INodeRef{}, err
 	}
-
-	inodeID, ok := dir.Files[filename]
-	if !ok {
-		return agro.INodeRef{}, os.ErrNotExist
+	if ent.Sympath != "" {
+		return s.inodeRefForPath(agro.Path{p.Volume, ent.Sympath})
 	}
-
-	return agro.NewINodeRef(volID, agro.INodeID(inodeID)), nil
+	return s.mds.GetChainINode(p.Volume, agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 }
 
 type FileInfo struct {
@@ -245,6 +256,42 @@ func (s *server) Remove(path agro.Path) error {
 	return s.removeFile(path)
 }
 
+func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, error) {
+	vol, entry, err := s.fileEntryForPath(p)
+	if err != nil {
+		return nil, err
+	}
+	if entry.Sympath != "" {
+		return nil, agro.ErrIsSymlink
+	}
+	if entry.Chain == 0 {
+		return nil, agro.ErrNotExist
+	}
+	chainRef := agro.NewINodeRef(vol, agro.INodeID(entry.Chain))
+	for {
+		ref, err := s.mds.GetChainINode(p.Volume, chainRef)
+		if err != nil {
+			return nil, err
+		}
+		inode, err := s.inodes.GetINode(context.TODO(), ref)
+		if err != nil {
+			return nil, err
+		}
+		newINode, newRef, err := modFunc(inode, vol)
+		if err != nil {
+			return nil, err
+		}
+		err = s.mds.SetChainINode(p.Volume, chainRef, ref, newRef)
+		if err == nil {
+			return newINode, s.inodes.WriteINode(context.TODO(), newRef, newINode)
+		}
+		if err == agro.ErrCompareFailed {
+			continue
+		}
+		return nil, err
+	}
+}
+
 func (s *server) removeFile(p agro.Path) error {
 	ref, err := s.inodeRefForPath(p)
 	if err != nil {
@@ -254,18 +301,46 @@ func (s *server) removeFile(p agro.Path) error {
 	if err != nil {
 		return err
 	}
-	bs, err := blockset.UnmarshalFromProto(inode.Blocks, s.blocks)
+
+	var newFilenames []string
+	for _, x := range inode.Filenames {
+		if x != p.Path {
+			newFilenames = append(newFilenames, x)
+		}
+	}
+	// If we're not completely deleting it, and this is not a symlink
+	if len(newFilenames) != 0 && len(newFilenames) != len(inode.Filenames) {
+		// Version the INode, move the chain forward, but leave the data.
+		newINode, err := s.mds.CommitINodeIndex(p.Volume)
+		if err != nil {
+			return err
+		}
+		_, err = s.updateINodeChain(p, func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
+			inode.INode = uint64(newINode)
+			inode.Filenames = newFilenames
+			return inode, agro.NewINodeRef(vol, newINode), nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	err = s.mds.SetFileEntry(p, &models.FileEntry{})
 	if err != nil {
 		return err
 	}
-	live := bs.GetLiveINodes()
-	_, err = s.mds.SetFileEntry(p, agro.NewINodeRef(ref.Volume(), 0))
-	if err != nil {
-		return err
+
+	if len(newFilenames) == 0 {
+		// Clean up after ourselves.
+		bs, err := blockset.UnmarshalFromProto(inode.Blocks, s.blocks)
+		if err != nil {
+			return err
+		}
+		live := bs.GetLiveINodes()
+		// Anybody who had it open still does, and a write/sync will bring it back,
+		// as expected. So this is safe to modify.
+		return s.mds.ModifyDeadMap(p.Volume, roaring.NewBitmap(), live)
 	}
-	// Anybody who had it open still does, and a write/sync will bring it back,
-	// as expected. So this is safe to modify.
-	return s.mds.ModifyDeadMap(p.Volume, roaring.NewBitmap(), live)
+	return nil
 }
 
 func (s *server) removeDir(path agro.Path) error {
