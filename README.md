@@ -31,7 +31,7 @@ Either way you'll find the binaries `agro` and `agroctl`.
 
 ### 1) Get etcd
 You need a *recent* [etcd](https://github.com/coreos/etcd), as agro uses the v3 API natively and depends on some fixes therein. 
-etcd v2.3-alpha1 or above should suffice. If alpha1 isn't out yet, feel free to build etcd from master.
+[etcd v2.3.0-alpha1](https://github.com/coreos/etcd/releases/tag/v2.3.0-alpha.1) or above is required. 
 
 Make sure to run etcd with the v3 API turned on:
 ```
