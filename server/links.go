@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"os"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
@@ -15,7 +16,10 @@ func (s *server) Rename(from, to agro.Path) error {
 	if err != nil {
 		return err
 	}
-	inode, err := s.updateINodeChain(from, func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
+	inode, _, err := s.updateINodeChain(from, func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
+		if inode == nil {
+			return nil, agro.NewINodeRef(vol, newINodeID), os.ErrNotExist
+		}
 		inode.INode = uint64(newINodeID)
 		var newFilenames []string
 		for _, x := range inode.Filenames {
@@ -28,6 +32,9 @@ func (s *server) Rename(from, to agro.Path) error {
 		inode.Filenames = newFilenames
 		return inode, agro.NewINodeRef(vol, newINodeID), nil
 	})
+	if err != nil {
+		return err
+	}
 	err = s.mds.SetFileEntry(from, &models.FileEntry{})
 	if err != nil {
 		return err
@@ -46,5 +53,16 @@ func (s *server) Link(p agro.Path, new agro.Path) error {
 }
 
 func (s *server) Symlink(p agro.Path, new agro.Path) error {
-	return errors.New("unimplemented")
+	_, ent, err := s.fileEntryForPath(new)
+	if err != nil && err != os.ErrNotExist {
+		return err
+	}
+	if err != os.ErrNotExist {
+		if ent.Chain != 0 {
+			return agro.ErrExists
+		}
+	}
+	return s.mds.SetFileEntry(new, &models.FileEntry{
+		Sympath: p.Path,
+	})
 }

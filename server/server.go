@@ -256,39 +256,47 @@ func (s *server) Remove(path agro.Path) error {
 	return s.removeFile(path)
 }
 
-func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, error) {
+func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, agro.INodeRef, error) {
+	notExist := false
 	vol, entry, err := s.fileEntryForPath(p)
+	ref := agro.NewINodeRef(vol, agro.INodeID(0))
 	if err != nil {
-		return nil, err
+		if err != os.ErrNotExist {
+			return nil, ref, err
+		}
+		notExist = true
 	}
 	if entry.Sympath != "" {
-		return nil, agro.ErrIsSymlink
+		return nil, ref, agro.ErrIsSymlink
 	}
 	if entry.Chain == 0 {
-		return nil, agro.ErrNotExist
+		return nil, ref, agro.ErrNotExist
 	}
 	chainRef := agro.NewINodeRef(vol, agro.INodeID(entry.Chain))
 	for {
-		ref, err := s.mds.GetChainINode(p.Volume, chainRef)
-		if err != nil {
-			return nil, err
-		}
-		inode, err := s.inodes.GetINode(context.TODO(), ref)
-		if err != nil {
-			return nil, err
+		var inode *models.INode
+		if !notExist {
+			ref, err = s.mds.GetChainINode(p.Volume, chainRef)
+			if err != nil {
+				return nil, ref, err
+			}
+			inode, err = s.inodes.GetINode(context.TODO(), ref)
+			if err != nil {
+				return nil, ref, err
+			}
 		}
 		newINode, newRef, err := modFunc(inode, vol)
 		if err != nil {
-			return nil, err
+			return nil, ref, err
 		}
 		err = s.mds.SetChainINode(p.Volume, chainRef, ref, newRef)
 		if err == nil {
-			return newINode, s.inodes.WriteINode(context.TODO(), newRef, newINode)
+			return newINode, ref, s.inodes.WriteINode(context.TODO(), newRef, newINode)
 		}
 		if err == agro.ErrCompareFailed {
 			continue
 		}
-		return nil, err
+		return nil, ref, err
 	}
 }
 
@@ -315,7 +323,10 @@ func (s *server) removeFile(p agro.Path) error {
 		if err != nil {
 			return err
 		}
-		_, err = s.updateINodeChain(p, func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
+		_, _, err = s.updateINodeChain(p, func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
+			if inode == nil {
+				return nil, agro.NewINodeRef(vol, newINode), os.ErrNotExist
+			}
 			inode.INode = uint64(newINode)
 			inode.Filenames = newFilenames
 			return inode, agro.NewINodeRef(vol, newINode), nil
