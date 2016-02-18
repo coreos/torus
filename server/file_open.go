@@ -4,10 +4,10 @@ import (
 	"errors"
 	"os"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
-	"github.com/RoaringBitmap/roaring"
 	"golang.org/x/net/context"
 )
 
@@ -49,6 +49,7 @@ func (s *server) create(path agro.Path, flag int, md *models.Metadata) (f agro.F
 		readOnly:      rdOnly,
 		writeOnly:     wrOnly,
 		writeLevel:    agro.WriteOne,
+		changed:       make(map[string]bool),
 	}
 	s.addOpenFile(file)
 	// Fake a write, to open up the created file
@@ -76,6 +77,16 @@ func (s *server) OpenFileMetadata(p agro.Path, flag int, md *models.Metadata) (a
 func (s *server) openFile(p agro.Path, flag int, md *models.Metadata) (agro.File, error) {
 	if flag&os.O_CREATE != 0 && (flag&os.O_EXCL) == 0 {
 		return s.create(p, flag, md)
+	}
+	for _, x := range s.openFiles {
+		if x.path.Equals(p) {
+			if x.writeOpen {
+				err := x.Sync()
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 	}
 	ref, err := s.inodeRefForPath(p)
 	if (flag&os.O_CREATE) != 0 && flag&os.O_EXCL != 0 {
@@ -153,6 +164,7 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 		readOnly:      rdOnly,
 		writeOnly:     wrOnly,
 		writeLevel:    agro.WriteOne,
+		changed:       make(map[string]bool),
 	}
 	s.addOpenFile(f)
 	if flag&os.O_TRUNC != 0 {

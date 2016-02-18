@@ -31,6 +31,15 @@ func (s *server) Chmod(name agro.Path, mode os.FileMode) error {
 	if name.IsDir() {
 		return errors.New("unimplemented")
 	}
+	for _, x := range s.openFiles {
+		if x.path.Equals(name) {
+			if x.writeOpen {
+				x.inode.Permissions.Mode = uint32(mode)
+				x.changed["mode"] = true
+				return nil
+			}
+		}
+	}
 	return s.modFileMetadata(name, func(inode *models.INode) error {
 		inode.Permissions.Mode = uint32(mode)
 		return nil

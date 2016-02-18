@@ -402,16 +402,20 @@ func (c *etcdCtx) Mkdir(path agro.Path, md *models.Metadata) error {
 
 func (c *etcdCtx) Rmdir(path agro.Path) error {
 	if !path.IsDir() {
+		clog.Error("rmdir: not a directory", path)
 		return errors.New("etcd: not a directory")
 	}
 	if path.Path == "/" {
+		clog.Error("rmdir: cannot delete root")
 		return errors.New("etcd: cannot delete root directory")
 	}
 	dir, subdirs, version, err := c.getdir(path)
 	if err != nil {
+		clog.Error("rmdir: getdir err", err)
 		return err
 	}
-	if len(dir.Files) == 0 || len(subdirs) != 0 {
+	if len(dir.Files) != 0 || len(subdirs) != 0 {
+		clog.Error("rmdir: dir not empty", dir, subdirs)
 		return errors.New("etcd: directory not empty")
 	}
 	tx := tx().If(
@@ -421,6 +425,7 @@ func (c *etcdCtx) Rmdir(path agro.Path) error {
 	).Tx()
 	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if !resp.Succeeded {
+		clog.Error("rmdir: txn failed")
 		return os.ErrInvalid
 	}
 	return nil

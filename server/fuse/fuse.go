@@ -34,7 +34,7 @@ func MustMount(mountpoint, volume string, srv agro.Server) {
 	defer c.Close()
 
 	cfg := &fs.Config{}
-	if clog.LevelAt(capnslog.TRACE) {
+	if clog.LevelAt(capnslog.DEBUG) {
 		cfg.Debug = func(msg interface{}) {
 			clog.Trace(msg)
 		}
@@ -318,11 +318,11 @@ func (f *File) ChangePath(p agro.Path) {
 	f.path = p
 }
 func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	clog.Debugf("opening %d %s", req.Node, req.Flags)
+	clog.Debugf("open: %d %s", req.Node, req.Flags)
 	var err error
 	file, err := f.dfs.OpenFile(f.path, int(req.Flags), 0)
 	if err != nil {
-		clog.Error("open", err)
+		clog.Error("open:", f.path, err)
 		return nil, err
 	}
 	out := FileHandle{
@@ -337,7 +337,7 @@ func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRe
 func (f File) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
 	fileInfo, err := f.dfs.Lstat(f.path)
 	if err != nil {
-		clog.Error("setattr", err)
+		clog.Error("setattr:", f.path, err)
 		return err
 	}
 	fi := fileInfo.(server.FileInfo)
@@ -358,6 +358,7 @@ func (f File) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
 	file := syncRefs[req.Handle]
 	err := file.Sync()
 	if err != nil {
+		clog.Error("fsync:", f.path, err)
 		return err
 	}
 	delete(syncRefs, req.Handle)
@@ -377,6 +378,7 @@ func (f File) Readlink(ctx context.Context, req *fuse.ReadlinkRequest) (string, 
 func (fh FileHandle) Flush(ctx context.Context, req *fuse.FlushRequest) error {
 	err := fh.file.Sync()
 	if err != nil {
+		clog.Error("flush:", fh.path, err)
 		return err
 	}
 	delete(syncRefs, req.Handle)
@@ -391,7 +393,7 @@ func (fh FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse
 	data := make([]byte, req.Size)
 	n, err := fh.file.ReadAt(data, req.Offset)
 	if err != nil && err != io.EOF {
-		clog.Println(err)
+		clog.Error("read:", fh.path, err)
 		return err
 	}
 	resp.Data = data[:n]
@@ -402,7 +404,7 @@ func (fh FileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fu
 	syncRefs[req.Handle] = fh.file
 	n, err := fh.file.WriteAt(req.Data, req.Offset)
 	if err != nil && err != io.EOF {
-		clog.Println(err)
+		clog.Error("write:", fh.path, err)
 		return err
 	}
 	resp.Size = n
@@ -412,13 +414,17 @@ func (fh FileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fu
 func (fh FileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	clog.Debugf("closing %d nicely", req.Node)
 	delete(syncRefs, req.Handle)
-	return fh.file.Close()
+	err := fh.file.Close()
+	if err != nil {
+		clog.Error("release:", fh.path, err)
+	}
+	return err
 }
 
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 	fileInfo, err := f.dfs.Lstat(f.path)
 	if err != nil {
-		clog.Error("attr", err)
+		clog.Error("attr:", f.path, err)
 		return err
 	}
 	// TODO(jzelinskie): enable this when metadata is being utilized.

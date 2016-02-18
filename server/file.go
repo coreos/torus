@@ -67,6 +67,7 @@ type file struct {
 	offset   int64
 	blocks   agro.Blockset
 	replaces uint64
+	changed  map[string]bool
 
 	// during write
 	initialINodes *roaring.Bitmap
@@ -340,6 +341,7 @@ func (f *file) Sync() error {
 
 func (f *file) sync(closing bool) error {
 	// Here there be dragons.
+	clog.Debugf("Syncing file: %s", f.path)
 	if !f.writeOpen {
 		f.updateHeldINodes(closing)
 		return nil
@@ -409,6 +411,13 @@ func (f *file) sync(closing bool) error {
 		f.inode.INode = oldINode.INode
 		f.inode.Blocks = oldINode.Blocks
 		f.inode.Filesize = oldINode.Filesize
+
+		for k, _ := range f.changed {
+			switch k {
+			case "mode":
+				f.inode.Permissions.Mode = oldINode.Permissions.Mode
+			}
+		}
 		bs, err := blockset.UnmarshalFromProto(f.inode.Blocks, nil)
 		if err != nil {
 			// If it's corrupt we're in another world of hurt. But this one we can't fix.
@@ -445,6 +454,7 @@ func (f *file) sync(closing bool) error {
 	f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
 
 	// Critical section over.
+	f.changed = make(map[string]bool)
 	f.updateHeldINodes(closing)
 	// SHANTIH.
 	f.writeOpen = false
