@@ -40,7 +40,7 @@ type server struct {
 	gc              gc.GC
 }
 
-func (s *server) fileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry, error) {
+func (s *server) FileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry, error) {
 	dirname, filename := path.Split(p.Path)
 	dirpath := agro.Path{p.Volume, dirname}
 	dir, _, err := s.mds.Getdir(dirpath)
@@ -62,7 +62,7 @@ func (s *server) fileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry
 }
 
 func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
-	vol, ent, err := s.fileEntryForPath(p)
+	vol, ent, err := s.FileEntryForPath(p)
 	if err != nil {
 		return agro.INodeRef{}, err
 	}
@@ -258,7 +258,7 @@ func (s *server) Remove(path agro.Path) error {
 
 func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, agro.INodeRef, error) {
 	notExist := false
-	vol, entry, err := s.fileEntryForPath(p)
+	vol, entry, err := s.FileEntryForPath(p)
 	ref := agro.NewINodeRef(vol, agro.INodeID(0))
 	if err != nil {
 		if err != os.ErrNotExist {

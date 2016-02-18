@@ -53,7 +53,7 @@ func (s *server) Link(p agro.Path, new agro.Path) error {
 }
 
 func (s *server) Symlink(p agro.Path, new agro.Path) error {
-	_, ent, err := s.fileEntryForPath(new)
+	_, ent, err := s.FileEntryForPath(new)
 	if err != nil && err != os.ErrNotExist {
 		return err
 	}
