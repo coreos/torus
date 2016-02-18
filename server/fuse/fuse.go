@@ -57,7 +57,10 @@ type FS struct {
 }
 
 func (fs FS) Root() (fs.Node, error) {
-	return Dir{dfs: fs.dfs, path: agro.Path{fs.volume, "/"}}, nil
+	return &Dir{
+		dfs:  fs.dfs,
+		path: agro.Path{fs.volume, "/"},
+	}, nil
 }
 
 type Dir struct {
@@ -69,9 +72,14 @@ type Dir struct {
 type DirHandle struct {
 	dfs  agro.Server
 	path agro.Path
+	dir  *Dir
 }
 
 var _ fs.HandleReadDirAller = DirHandle{}
+
+func (d *Dir) ChangePath(p agro.Path) {
+	d.path = p
+}
 
 func (d Dir) Attr(ctx context.Context, a *fuse.Attr) error {
 	// TODO(jzelinskie): enable this when metadata is being utilized.
@@ -105,12 +113,20 @@ func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		return Dir{dfs: d.dfs, path: newPath}, nil
+
+		d := &Dir{dfs: d.dfs, path: newPath}
+		pathRefs[newPath] = d
+		return d, nil
 	} else if err != nil {
 		return nil, err
 	}
 
-	return File{dfs: d.dfs, path: newPath}, nil
+	file := &File{
+		dfs:  d.dfs,
+		path: newPath,
+	}
+	pathRefs[newPath] = file
+	return file, nil
 }
 
 func (d Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
@@ -134,7 +150,9 @@ func (d Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error)
 	if err != nil {
 		return nil, err
 	}
-	return Dir{dfs: d.dfs, path: newPath}, nil
+	newd := &Dir{dfs: d.dfs, path: newPath}
+	pathRefs[newPath] = newd
+	return newd, nil
 }
 
 func (d Dir) Rename(ctx context.Context, req *fuse.RenameRequest, n fs.Node) error {
@@ -142,12 +160,18 @@ func (d Dir) Rename(ctx context.Context, req *fuse.RenameRequest, n fs.Node) err
 	if !ok {
 		return errors.New("fuse: path is a directory")
 	}
-	ndir := n.(Dir)
+	ndir := n.(*Dir)
 	newpath, ok := ndir.path.Child(req.NewName)
 	if !ok {
 		return errors.New("fuse: path is a directory")
 	}
 	err := d.dfs.Rename(oldpath, newpath)
+	if err != nil {
+		return err
+	}
+	pathRefs[newpath] = pathRefs[oldpath]
+	delete(pathRefs, oldpath)
+	pathRefs[newpath].ChangePath(newpath)
 	d.handle = nil
 	ndir.handle = nil
 	fuseSrv.InvalidateNodeData(d)
@@ -194,15 +218,16 @@ func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cre
 		return nil, nil, err
 	}
 	clog.Debugf("path %s", newPath)
-	node := File{
+	node := &File{
 		dfs:  d.dfs,
 		path: newPath,
 	}
+	pathRefs[newPath] = node
 	fh := FileHandle{
 		dfs:  d.dfs,
 		path: newPath,
 		file: f,
-		node: &node,
+		node: node,
 	}
 	return node, fh, nil
 }
@@ -212,6 +237,7 @@ func (d Dir) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRes
 		d.handle = &DirHandle{
 			dfs:  d.dfs,
 			path: d.path,
+			dir:  &d,
 		}
 	}
 	return *d.handle, nil
@@ -230,12 +256,21 @@ type FileHandle struct {
 }
 
 var (
-	_        fs.Node         = File{}
+	_        fs.Node         = &File{}
 	_        fs.Handle       = FileHandle{}
 	_        fs.HandleReader = FileHandle{}
 	syncRefs                 = make(map[fuse.HandleID]agro.File)
+	pathRefs                 = make(map[agro.Path]pathChanger)
 )
 
+type pathChanger interface {
+	fs.Node
+	ChangePath(p agro.Path)
+}
+
+func (f *File) ChangePath(p agro.Path) {
+	f.path = p
+}
 func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	clog.Debugf("opening %d %s", req.Node, req.Flags)
 	var err error
