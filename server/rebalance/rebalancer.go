@@ -2,6 +2,7 @@ package rebalance
 
 import (
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/server/gc"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 )
@@ -16,6 +17,7 @@ type Ringer interface {
 type Rebalancer interface {
 	Tick() (int, error)
 	VersionStart() int
+	UseVolume(agro.VolumeID) error
 }
 
 type CheckAndSender interface {
@@ -23,11 +25,13 @@ type CheckAndSender interface {
 	PutBlock(ctx context.Context, peer string, ref agro.BlockRef, data []byte) error
 }
 
-func NewRebalancer(r Ringer, bs agro.BlockStore, cs CheckAndSender) Rebalancer {
+func NewRebalancer(r Ringer, bs agro.BlockStore, cs CheckAndSender, gc gc.GC) Rebalancer {
 	return &rebalancer{
 		r:       r,
 		bs:      bs,
 		cs:      cs,
+		gc:      gc,
+		vol:     agro.VolumeID(0),
 		version: 0,
 	}
 }
@@ -37,6 +41,8 @@ type rebalancer struct {
 	bs      agro.BlockStore
 	cs      CheckAndSender
 	it      agro.BlockIterator
+	gc      gc.GC
+	vol     agro.VolumeID
 	version int
 }
 
@@ -45,4 +51,10 @@ func (r *rebalancer) VersionStart() int {
 		return r.r.Ring().Version()
 	}
 	return r.version
+}
+
+func (r *rebalancer) UseVolume(vol agro.VolumeID) error {
+	r.vol = vol
+	r.gc.Clear()
+	return r.gc.PrepVolume(vol)
 }

@@ -71,10 +71,6 @@ func (d *distributor) RebalanceCheck(ctx context.Context, req *models.RebalanceC
 	defer d.mut.Unlock()
 	for i, x := range req.BlockRefs {
 		p := agro.BlockFromProto(x)
-		if d.srv.gc.RecentlyGCed(p) {
-			out[i] = true
-			continue
-		}
 		ok, err := d.blocks.HasBlock(ctx, p)
 		if err != nil {
 			clog.Error(err)
