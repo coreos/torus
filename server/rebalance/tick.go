@@ -60,7 +60,10 @@ func (r *rebalancer) Tick() (int, error) {
 			if !ok {
 				data, err := r.bs.GetBlock(context.TODO(), v[i])
 				if err != nil {
-					return n, err
+					clog.Debug("couldn't get local block")
+					// The GC came around underneath us. It's okay
+					// to keep working as normal.
+					continue
 				}
 				n++
 				err = r.cs.PutBlock(context.TODO(), k, v[i], data)
@@ -77,6 +80,7 @@ func (r *rebalancer) Tick() (int, error) {
 		if v {
 			err := r.bs.DeleteBlock(context.TODO(), k)
 			if err != nil {
+				clog.Error("couldn't delete local block")
 				return n, err
 			}
 		}

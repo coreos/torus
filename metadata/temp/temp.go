@@ -396,14 +396,16 @@ func (t *Client) Close() error {
 	return nil
 }
 
-func (t *Client) ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error {
+func (t *Client) ClaimVolumeINodes(vol agro.VolumeID, inodes *roaring.Bitmap) error {
+	volume, _ := t.GetVolumeName(vol)
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	t.srv.openINodes[t.uuid][volume] = inodes
 	return nil
 }
 
-func (t *Client) ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roaring.Bitmap) error {
+func (t *Client) ModifyDeadMap(vol agro.VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error {
+	volume, _ := t.GetVolumeName(vol)
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	x, ok := t.srv.deadMap[volume]
@@ -416,7 +418,8 @@ func (t *Client) ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roarin
 	return nil
 }
 
-func (t *Client) GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.Bitmap, error) {
+func (t *Client) GetVolumeLiveness(vol agro.VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error) {
+	volume, _ := t.GetVolumeName(vol)
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	x, ok := t.srv.deadMap[volume]

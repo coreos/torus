@@ -397,12 +397,14 @@ func (s *memory) SetRing(newring agro.Ring) error {
 	return nil
 }
 
-func (s *memory) ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error {
+func (s *memory) ClaimVolumeINodes(vol agro.VolumeID, inodes *roaring.Bitmap) error {
+	volume, _ := s.GetVolumeName(vol)
 	s.openINodes[volume] = inodes
 	return nil
 }
 
-func (s *memory) ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roaring.Bitmap) error {
+func (s *memory) ModifyDeadMap(vol agro.VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error {
+	volume, _ := s.GetVolumeName(vol)
 	x, ok := s.deadMap[volume]
 	if !ok {
 		x = roaring.NewBitmap()
@@ -413,7 +415,8 @@ func (s *memory) ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roarin
 	return nil
 }
 
-func (s *memory) GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.Bitmap, error) {
+func (s *memory) GetVolumeLiveness(vol agro.VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error) {
+	volume, _ := s.GetVolumeName(vol)
 	x, ok := s.deadMap[volume]
 	if !ok {
 		x = roaring.NewBitmap()

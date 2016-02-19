@@ -116,6 +116,11 @@ func (f *file) openWrite() error {
 		}
 	}
 	f.writeOpen = true
+	f.updateHeldINodes(false)
+	bm := roaring.NewBitmap()
+	bm.Add(uint32(newINode))
+	// Kill the open inode; we'll reopen it if we use it.
+	f.srv.mds.ModifyDeadMap(vid, roaring.NewBitmap(), bm)
 	return nil
 }
 
@@ -425,6 +430,7 @@ func (f *file) sync(closing bool) error {
 			panic("sync: couldn't unmarshal blockset")
 		}
 		f.initialINodes = bs.GetLiveINodes()
+		f.initialINodes.Add(uint32(f.inode.INode))
 		f.updateHeldINodes(false)
 	}
 
@@ -451,20 +457,29 @@ func (f *file) sync(closing bool) error {
 		}
 		dead = roaring.AndNot(bs.GetLiveINodes(), newLive)
 	}
-	f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
+	f.srv.mds.ModifyDeadMap(f.writeINodeRef.Volume(), newLive, dead)
 
 	// Critical section over.
 	f.changed = make(map[string]bool)
+	f.writeOpen = false
 	f.updateHeldINodes(closing)
 	// SHANTIH.
-	f.writeOpen = false
 	return nil
 }
 
+func (f *file) getLiveINodes() *roaring.Bitmap {
+	bm := f.blocks.GetLiveINodes()
+	if f.writeOpen {
+		bm.Add(uint32(f.inode.INode))
+	}
+	return bm
+}
+
 func (f *file) updateHeldINodes(closing bool) {
+	vid, _ := f.srv.mds.GetVolumeID(f.path.Volume)
 	f.srv.decRef(f.path.Volume, f.initialINodes)
 	if !closing {
-		f.initialINodes = f.blocks.GetLiveINodes()
+		f.initialINodes = f.getLiveINodes()
 		f.srv.incRef(f.path.Volume, f.initialINodes)
 	}
 	bm, _ := f.srv.getBitmap(f.path.Volume)
@@ -473,7 +488,7 @@ func (f *file) updateHeldINodes(closing bool) {
 		card = bm.GetCardinality()
 	}
 	promOpenINodes.WithLabelValues(f.path.Volume).Set(float64(card))
-	err := f.srv.mds.ClaimVolumeINodes(f.path.Volume, bm)
+	err := f.srv.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
 		clog.Error("file: TODO: Can't re-claim")
 	}

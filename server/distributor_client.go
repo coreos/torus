@@ -73,9 +73,7 @@ func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef)
 	if conn == nil {
 		return nil, agro.ErrNoPeer
 	}
-	newctx, cancel := context.WithTimeout(ctx, clientTimeout)
-	defer cancel()
-	resp, err := conn.Block(newctx, &models.BlockRequest{
+	resp, err := conn.Block(ctx, &models.BlockRequest{
 		BlockRefs: []*models.BlockRef{b.ToProto()},
 	})
 	if err != nil {

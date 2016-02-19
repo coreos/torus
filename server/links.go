@@ -143,7 +143,11 @@ func (s *server) removeFile(p agro.Path) error {
 		live := bs.GetLiveINodes()
 		// Anybody who had it open still does, and a write/sync will bring it back,
 		// as expected. So this is safe to modify.
-		return s.mds.ModifyDeadMap(p.Volume, roaring.NewBitmap(), live)
+		err = s.mds.SetChainINode(p.Volume, agro.NewINodeRef(ref.Volume(), agro.INodeID(inode.Chain)), ref, agro.NewINodeRef(0, 0))
+		if err != nil {
+			return err
+		}
+		return s.mds.ModifyDeadMap(ref.Volume(), roaring.NewBitmap(), live)
 	}
 	return nil
 }

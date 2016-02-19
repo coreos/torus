@@ -3,6 +3,7 @@ package etcd
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"path"
 
 	"github.com/RoaringBitmap/roaring"
@@ -51,6 +52,10 @@ func bytesToUint64(b []byte) uint64 {
 		panic(err)
 	}
 	return out
+}
+
+func uint64ToHex(x uint64) string {
+	return fmt.Sprintf("%x", x)
 }
 
 type transact struct {

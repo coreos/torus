@@ -137,11 +137,15 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 	if err != nil {
 		return nil, err
 	}
+	vid, err := s.mds.GetVolumeID(path.Volume)
+	if err != nil {
+		return nil, err
+	}
 
 	set := bs.GetLiveINodes()
 	s.incRef(path.Volume, set)
 	bm, ok := s.getBitmap(path.Volume)
-	err = s.mds.ClaimVolumeINodes(path.Volume, bm)
+	err = s.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
 		s.decRef(path.Volume, set)
 		return nil, err

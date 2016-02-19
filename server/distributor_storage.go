@@ -61,32 +61,62 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 			break
 		}
 	}
-	for _, p := range peers.Peers {
-		if p == d.UUID() {
-			b, err := d.blocks.GetBlock(ctx, i)
+	quick := true
+	for {
+		for _, p := range peers.Peers {
+			// If it's local, just try to get it.
+			if p == d.UUID() {
+				b, err := d.blocks.GetBlock(ctx, i)
+				if err == nil {
+					promDistBlockLocalHits.Inc()
+					return b, nil
+				}
+				promDistBlockLocalFailures.Inc()
+				continue
+			}
+			// Fetch block from remote. First pass through peers
+			// with a timeout, then through the list without.
+			var getctx context.Context
+			var cancel context.CancelFunc
+			if quick {
+				getctx, cancel = context.WithTimeout(ctx, clientTimeout)
+			} else {
+				getctx = ctx
+			}
+			blk, err := d.client.GetBlock(getctx, p, i)
+			if quick {
+				cancel()
+			}
+
+			// If we're successful, store that.
 			if err == nil {
-				promDistBlockLocalHits.Inc()
-				return b, nil
+				if d.readCache != nil {
+					d.readCache.Add(string(i.ToBytes()), blk)
+				}
+				promDistBlockPeerHits.WithLabelValues(p).Inc()
+				return blk, nil
 			}
-			promDistBlockLocalFailures.Inc()
-			continue
-		}
-		blk, err := d.client.GetBlock(ctx, p, i)
-		if err == nil {
-			if d.readCache != nil {
-				d.readCache.Add(string(i.ToBytes()), blk)
+
+			// If this peer didn't have it, continue
+			if err == agro.ErrBlockUnavailable {
+				clog.Warningf("block from %s failed, trying next peer", p)
+				promDistBlockPeerFailures.WithLabelValues(p).Inc()
+				continue
 			}
-			promDistBlockPeerHits.WithLabelValues(p).Inc()
-			return blk, nil
+
+			// If there was a more significant error, fail hard.
+			promDistBlockFailures.Inc()
+			return nil, err
 		}
-		if err == agro.ErrBlockUnavailable {
-			clog.Debugf("block from %s failed, trying next peer", p)
-			promDistBlockPeerFailures.WithLabelValues(p).Inc()
-			continue
+		// Well, we couldn't find it with timeouts, but perhaps all timeouts failed.
+		// Let's go back through the list, without timeouts, and if we can't hit it
+		// then we know we've failed.
+		if !quick {
+			break
 		}
-		promDistBlockFailures.Inc()
-		return nil, err
+		quick = false
 	}
+	// We completely failed!
 	promDistBlockFailures.Inc()
 	return nil, ErrNoPeersBlock
 }

@@ -80,7 +80,7 @@ func (b *blocksByINode) gc(volume string) {
 	if err != nil {
 		clog.Errorf("bbi: got error getting volume ID for %s %v", volume, err)
 	}
-	deadmap, held, err := b.mds.GetVolumeLiveness(volume)
+	deadmap, held, err := b.mds.GetVolumeLiveness(vid)
 	if err != nil {
 		clog.Errorf("bbi: got error gcing volume %s %v", volume, err)
 	}

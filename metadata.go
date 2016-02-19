@@ -127,11 +127,11 @@ type MetadataService interface {
 
 	// TODO(barakmich): THESE NEED A LEASE ID
 	RegisterPeer(*models.PeerInfo) error
-	ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error
+	ClaimVolumeINodes(vol VolumeID, inodes *roaring.Bitmap) error
 	// ^^^^^^^
 
-	ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roaring.Bitmap) error
-	GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.Bitmap, error)
+	ModifyDeadMap(vol VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error
+	GetVolumeLiveness(vol VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error)
 
 	// TODO(barakmich): Extend with GC interaction, et al
 	Close() error
