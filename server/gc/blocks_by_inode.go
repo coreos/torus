@@ -23,7 +23,7 @@ type blocksByINode struct {
 	bloomCount uint
 }
 
-const bbiBloomGCSize = 100 * 1024 * 1024 * 1024 //100GiB
+const bbiBloomGCSize = 300 * 1024 * 1024 * 1024 //100GiB
 
 func NewBlocksByINodeGC(mds agro.MetadataService, blocks agro.BlockStore) GC {
 	size := uint(bbiBloomGCSize / blocks.BlockSize())
@@ -72,7 +72,22 @@ func (b *blocksByINode) LastComplete() time.Time {
 }
 
 func (b *blocksByINode) RecentlyGCed(ref agro.BlockRef) bool {
-	return b.gcBloom.Test(ref.ToBytes())
+	ok := b.gcBloom.Test(ref.ToBytes())
+	if ok {
+		return true
+	}
+	deadmap, held, err := b.mds.GetVolumeLiveness(ref.Volume())
+	if err != nil {
+		return false
+	}
+	for _, x := range held {
+		deadmap.AndNot(x)
+	}
+	if deadmap.Contains(uint32(ref.INode)) {
+		b.gcBloom.Add(ref.ToBytes())
+		return true
+	}
+	return false
 }
 
 func (b *blocksByINode) gc(volume string) {
