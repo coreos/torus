@@ -3,11 +3,12 @@ package etcd
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"path"
 
+	"github.com/RoaringBitmap/roaring"
 	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 	"github.com/coreos/agro/models"
-	"github.com/RoaringBitmap/roaring"
 )
 
 func mkKey(s ...string) []byte {
@@ -51,6 +52,10 @@ func bytesToUint64(b []byte) uint64 {
 		panic(err)
 	}
 	return out
+}
+
+func uint64ToHex(x uint64) string {
+	return fmt.Sprintf("%x", x)
 }
 
 type transact struct {
@@ -182,7 +187,7 @@ func getPrefix(key []byte) *etcdpb.RangeRequest {
 func newDirProto(md *models.Metadata) []byte {
 	a := models.Directory{
 		Metadata: md,
-		Files:    make(map[string]uint64),
+		Files:    make(map[string]*models.FileEntry),
 	}
 	b, err := a.Marshal()
 	if err != nil {

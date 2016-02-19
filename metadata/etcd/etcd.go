@@ -14,8 +14,8 @@ import (
 	"github.com/coreos/agro/metadata"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
-	"github.com/RoaringBitmap/roaring"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
@@ -36,6 +36,7 @@ var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "etcd")
 const (
 	keyPrefix      = "/github.com/coreos/agro/"
 	peerTimeoutMax = 50 * time.Second
+	chainPageSize  = 1000
 )
 
 var (
@@ -229,17 +230,23 @@ func (c *etcdCtx) atomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, 
 	if err != nil {
 		return nil, err
 	}
+	var version int64
+	var value []byte
 	if len(resp.Kvs) != 1 {
-		return nil, agro.ErrAgain
+		version = 0
+		value = []byte{}
+	} else {
+		kv := resp.Kvs[0]
+		version = kv.Version
+		value = kv.Value
 	}
-	kv := resp.Kvs[0]
 	for {
-		newBytes, fval, err := f(kv.Value)
+		newBytes, fval, err := f(value)
 		if err != nil {
 			return nil, err
 		}
 		tx := tx().If(
-			keyIsVersion(key, kv.Version),
+			keyIsVersion(key, version),
 		).Then(
 			setKey(key, newBytes),
 		).Else(
@@ -253,7 +260,9 @@ func (c *etcdCtx) atomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, 
 			return fval, nil
 		}
 		promAtomicRetries.WithLabelValues(string(key)).Inc()
-		kv = resp.Responses[0].GetResponseRange().Kvs[0]
+		kv := resp.Responses[0].GetResponseRange().Kvs[0]
+		version = kv.Version
+		value = kv.Value
 	}
 }
 
@@ -266,16 +275,17 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
 	key := agro.Path{Volume: volume, Path: "/"}
-	newID, err := c.atomicModifyKey(mkKey("meta", "volumeminter"), bytesAddOne)
+	new, err := c.atomicModifyKey(mkKey("meta", "volumeminter"), bytesAddOne)
+	newID := new.(uint64)
 	if err != nil {
 		return err
 	}
-	sID := strconv.FormatUint(newID.(uint64), 10)
+	sID := strconv.FormatUint(newID, 10)
 	do := tx().Do(
-		setKey(mkKey("volumes", volume), uint64ToBytes(newID.(uint64))),
+		setKey(mkKey("volumes", volume), uint64ToBytes(newID)),
 		setKey(mkKey("volumeid", sID), []byte(volume)),
 		setKey(mkKey("volumemeta", "inode", volume), uint64ToBytes(1)),
-		setKey(mkKey("volumemeta", "deadmap", volume), roaringToBytes(roaring.NewBitmap())),
+		setKey(mkKey("volumemeta", "deadmap", uint64ToHex(uint64(newID))), roaringToBytes(roaring.NewBitmap())),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
 	).Tx()
 	_, err = c.etcd.kv.Txn(c.getContext(), do)
@@ -392,16 +402,20 @@ func (c *etcdCtx) Mkdir(path agro.Path, md *models.Metadata) error {
 
 func (c *etcdCtx) Rmdir(path agro.Path) error {
 	if !path.IsDir() {
+		clog.Error("rmdir: not a directory", path)
 		return errors.New("etcd: not a directory")
 	}
 	if path.Path == "/" {
+		clog.Error("rmdir: cannot delete root")
 		return errors.New("etcd: cannot delete root directory")
 	}
 	dir, subdirs, version, err := c.getdir(path)
 	if err != nil {
+		clog.Error("rmdir: getdir err", err)
 		return err
 	}
-	if len(dir.Files) == 0 || len(subdirs) != 0 {
+	if len(dir.Files) != 0 || len(subdirs) != 0 {
+		clog.Error("rmdir: dir not empty", dir, subdirs)
 		return errors.New("etcd: directory not empty")
 	}
 	tx := tx().If(
@@ -411,6 +425,7 @@ func (c *etcdCtx) Rmdir(path agro.Path) error {
 	).Tx()
 	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
 	if !resp.Succeeded {
+		clog.Error("rmdir: txn failed")
 		return os.ErrInvalid
 	}
 	return nil
@@ -453,12 +468,12 @@ func (c *etcdCtx) getdir(p agro.Path) (*models.Directory, []agro.Path, int64, er
 	return outdir, outpaths, dirkv.Version, nil
 }
 
-func (c *etcdCtx) SetFileINode(p agro.Path, ref agro.INodeRef) (agro.INodeID, error) {
-	v, err := c.atomicModifyKey(mkKey("dirs", p.Key()), trySetFileINode(p, ref))
-	return v.(agro.INodeID), err
+func (c *etcdCtx) SetFileEntry(p agro.Path, ent *models.FileEntry) error {
+	_, err := c.atomicModifyKey(mkKey("dirs", p.Key()), trySetFileEntry(p, ent))
+	return err
 }
 
-func trySetFileINode(p agro.Path, ref agro.INodeRef) AtomicModifyFunc {
+func trySetFileEntry(p agro.Path, ent *models.FileEntry) AtomicModifyFunc {
 	return func(in []byte) ([]byte, interface{}, error) {
 		dir := &models.Directory{}
 		err := dir.Unmarshal(in)
@@ -466,20 +481,68 @@ func trySetFileINode(p agro.Path, ref agro.INodeRef) AtomicModifyFunc {
 			return nil, agro.INodeID(0), err
 		}
 		if dir.Files == nil {
-			dir.Files = make(map[string]uint64)
+			dir.Files = make(map[string]*models.FileEntry)
 		}
-		old := agro.INodeID(0)
+		old := &models.FileEntry{}
 		if v, ok := dir.Files[p.Filename()]; ok {
-			old = agro.INodeID(v)
+			old = v
 		}
-		if ref.INode == 0 && ref.Volume() == 0 {
+		if ent.Chain == 0 && ent.Sympath == "" {
 			delete(dir.Files, p.Filename())
 		} else {
-			dir.Files[p.Filename()] = uint64(ref.INode)
+			dir.Files[p.Filename()] = ent
 		}
 		bytes, err := dir.Marshal()
 		return bytes, old, err
 	}
+}
+
+func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRef, error) {
+	pageID := uint64ToHex(uint64(base.INode / chainPageSize))
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", volume, pageID)))
+	if len(resp.Kvs) == 0 {
+		return agro.INodeRef{}, nil
+	}
+	set := &models.FileChainSet{}
+	err = set.Unmarshal(resp.Kvs[0].Value)
+	if err != nil {
+		return agro.INodeRef{}, err
+	}
+	v, ok := set.Chains[uint64(base.INode)]
+	if !ok {
+		return agro.INodeRef{}, err
+	}
+	return agro.NewINodeRef(base.Volume(), agro.INodeID(v)), nil
+}
+
+func (c *etcdCtx) SetChainINode(volume string, base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
+	pageID := uint64ToHex(uint64(base.INode / chainPageSize))
+	_, err := c.atomicModifyKey(mkKey("volumemeta", volume, pageID), func(b []byte) ([]byte, interface{}, error) {
+		set := &models.FileChainSet{}
+		if len(b) == 0 {
+			set.Chains = make(map[uint64]uint64)
+		} else {
+			err := set.Unmarshal(b)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		v, ok := set.Chains[uint64(base.INode)]
+		if !ok {
+			v = 0
+		}
+		if v != uint64(was.INode) {
+			return nil, nil, agro.ErrCompareFailed
+		}
+		if new.INode != 0 {
+			set.Chains[uint64(base.INode)] = uint64(new.INode)
+		} else {
+			delete(set.Chains, uint64(base.INode))
+		}
+		b, err := set.Marshal()
+		return b, was.INode, err
+	})
+	return err
 }
 
 func (c *etcdCtx) GetRing() (agro.Ring, error) {
@@ -498,7 +561,8 @@ func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
 	c.etcd.UnsubscribeNewRings(ch)
 }
 
-func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.Bitmap, error) {
+func (c *etcdCtx) GetVolumeLiveness(volumeID agro.VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error) {
+	volume := uint64ToHex(uint64(volumeID))
 	tx := tx().Do(
 		getKey(mkKey("volumemeta", "deadmap", volume)),
 		getPrefix(mkKey("volumemeta", "open", volume)),
@@ -515,8 +579,9 @@ func (c *etcdCtx) GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.
 	return deadmap, l, nil
 }
 
-func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error {
+func (c *etcdCtx) ClaimVolumeINodes(volumeID agro.VolumeID, inodes *roaring.Bitmap) error {
 	// TODO(barakmich): LEASE
+	volume := uint64ToHex(uint64(volumeID))
 	key := mkKey("volumemeta", "open", volume, c.UUID())
 	if inodes == nil {
 		_, err := c.etcd.kv.DeleteRange(c.getContext(), deleteKey(key))
@@ -529,7 +594,8 @@ func (c *etcdCtx) ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error
 	return err
 }
 
-func (c *etcdCtx) ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roaring.Bitmap) error {
+func (c *etcdCtx) ModifyDeadMap(volumeID agro.VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error {
+	volume := uint64ToHex(uint64(volumeID))
 	_, err := c.atomicModifyKey(mkKey("volumemeta", "deadmap", volume), func(b []byte) ([]byte, interface{}, error) {
 		bm := bytesToRoaring(b)
 		bm.Or(dead)

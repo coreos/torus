@@ -9,6 +9,7 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/server"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 
@@ -33,7 +34,7 @@ func MustMount(mountpoint, volume string, srv agro.Server) {
 	defer c.Close()
 
 	cfg := &fs.Config{}
-	if clog.LevelAt(capnslog.TRACE) {
+	if clog.LevelAt(capnslog.DEBUG) {
 		cfg.Debug = func(msg interface{}) {
 			clog.Trace(msg)
 		}
@@ -57,7 +58,10 @@ type FS struct {
 }
 
 func (fs FS) Root() (fs.Node, error) {
-	return Dir{dfs: fs.dfs, path: agro.Path{fs.volume, "/"}}, nil
+	return &Dir{
+		dfs:  fs.dfs,
+		path: agro.Path{fs.volume, "/"},
+	}, nil
 }
 
 type Dir struct {
@@ -69,9 +73,14 @@ type Dir struct {
 type DirHandle struct {
 	dfs  agro.Server
 	path agro.Path
+	dir  *Dir
 }
 
 var _ fs.HandleReadDirAller = DirHandle{}
+
+func (d *Dir) ChangePath(p agro.Path) {
+	d.path = p
+}
 
 func (d Dir) Attr(ctx context.Context, a *fuse.Attr) error {
 	// TODO(jzelinskie): enable this when metadata is being utilized.
@@ -105,12 +114,20 @@ func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		return Dir{dfs: d.dfs, path: newPath}, nil
+
+		d := &Dir{dfs: d.dfs, path: newPath}
+		pathRefs[newPath] = d
+		return d, nil
 	} else if err != nil {
 		return nil, err
 	}
 
-	return File{dfs: d.dfs, path: newPath}, nil
+	file := &File{
+		dfs:  d.dfs,
+		path: newPath,
+	}
+	pathRefs[newPath] = file
+	return file, nil
 }
 
 func (d Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
@@ -134,7 +151,9 @@ func (d Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error)
 	if err != nil {
 		return nil, err
 	}
-	return Dir{dfs: d.dfs, path: newPath}, nil
+	newd := &Dir{dfs: d.dfs, path: newPath}
+	pathRefs[newPath] = newd
+	return newd, nil
 }
 
 func (d Dir) Rename(ctx context.Context, req *fuse.RenameRequest, n fs.Node) error {
@@ -142,16 +161,67 @@ func (d Dir) Rename(ctx context.Context, req *fuse.RenameRequest, n fs.Node) err
 	if !ok {
 		return errors.New("fuse: path is a directory")
 	}
-	ndir := n.(Dir)
+	ndir := n.(*Dir)
 	newpath, ok := ndir.path.Child(req.NewName)
 	if !ok {
 		return errors.New("fuse: path is a directory")
 	}
 	err := d.dfs.Rename(oldpath, newpath)
+	if err != nil {
+		return err
+	}
+	pathRefs[newpath] = pathRefs[oldpath]
+	delete(pathRefs, oldpath)
+	pathRefs[newpath].ChangePath(newpath)
 	d.handle = nil
 	ndir.handle = nil
 	fuseSrv.InvalidateNodeData(d)
 	return err
+}
+
+func (d Dir) Link(ctx context.Context, req *fuse.LinkRequest, old fs.Node) (fs.Node, error) {
+	newpath, ok := d.path.Child(req.NewName)
+	if !ok {
+		clog.Error("not a dir")
+		return nil, errors.New("fuse: path is a directory")
+	}
+	if _, ok := old.(*Dir); ok {
+		clog.Error("can't hardlink a dir")
+		return nil, errors.New("fuse: can't hardlink directory")
+	}
+	v := old.(*File)
+	err := d.dfs.Link(v.path, newpath)
+	if err != nil {
+		clog.Error(err)
+		return nil, err
+	}
+
+	f := &File{
+		dfs:  d.dfs,
+		path: newpath,
+	}
+	pathRefs[newpath] = f
+	return f, nil
+}
+
+func (d Dir) Symlink(ctx context.Context, req *fuse.SymlinkRequest) (fs.Node, error) {
+	newpath, ok := d.path.Child(req.NewName)
+	if !ok {
+		clog.Error("not a dir")
+		return nil, errors.New("fuse: path is a directory")
+	}
+	err := d.dfs.Symlink(req.Target, newpath)
+	if err != nil {
+		clog.Error(err)
+		return nil, err
+	}
+
+	f := &File{
+		dfs:  d.dfs,
+		path: newpath,
+	}
+	pathRefs[newpath] = f
+	return f, nil
 }
 
 func (d DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
@@ -194,15 +264,16 @@ func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cre
 		return nil, nil, err
 	}
 	clog.Debugf("path %s", newPath)
-	node := File{
+	node := &File{
 		dfs:  d.dfs,
 		path: newPath,
 	}
+	pathRefs[newPath] = node
 	fh := FileHandle{
 		dfs:  d.dfs,
 		path: newPath,
 		file: f,
-		node: &node,
+		node: node,
 	}
 	return node, fh, nil
 }
@@ -212,6 +283,7 @@ func (d Dir) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRes
 		d.handle = &DirHandle{
 			dfs:  d.dfs,
 			path: d.path,
+			dir:  &d,
 		}
 	}
 	return *d.handle, nil
@@ -230,18 +302,27 @@ type FileHandle struct {
 }
 
 var (
-	_        fs.Node         = File{}
+	_        fs.Node         = &File{}
 	_        fs.Handle       = FileHandle{}
 	_        fs.HandleReader = FileHandle{}
 	syncRefs                 = make(map[fuse.HandleID]agro.File)
+	pathRefs                 = make(map[agro.Path]pathChanger)
 )
 
+type pathChanger interface {
+	fs.Node
+	ChangePath(p agro.Path)
+}
+
+func (f *File) ChangePath(p agro.Path) {
+	f.path = p
+}
 func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	clog.Debugf("opening %d %s", req.Node, req.Flags)
+	clog.Debugf("open: %d %s", req.Node, req.Flags)
 	var err error
 	file, err := f.dfs.OpenFile(f.path, int(req.Flags), 0)
 	if err != nil {
-		clog.Error(err)
+		clog.Error("open:", f.path, err)
 		return nil, err
 	}
 	out := FileHandle{
@@ -253,10 +334,31 @@ func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRe
 	return out, nil
 }
 
+func (f File) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	fileInfo, err := f.dfs.Lstat(f.path)
+	if err != nil {
+		clog.Error("setattr:", f.path, err)
+		return err
+	}
+	fi := fileInfo.(server.FileInfo)
+	if req.Valid.Mode() {
+		if fi.INode == nil {
+			return errors.New("can't modify symlink")
+		}
+		err := f.dfs.Chmod(f.path, req.Mode)
+		if err != nil {
+			return err
+		}
+		resp.Attr.Mode = req.Mode
+	}
+	return nil
+}
+
 func (f File) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
 	file := syncRefs[req.Handle]
 	err := file.Sync()
 	if err != nil {
+		clog.Error("fsync:", f.path, err)
 		return err
 	}
 	delete(syncRefs, req.Handle)
@@ -264,9 +366,19 @@ func (f File) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
 	return nil
 }
 
+func (f File) Readlink(ctx context.Context, req *fuse.ReadlinkRequest) (string, error) {
+	fileInfo, err := f.dfs.Lstat(f.path)
+	if err != nil {
+		return "", err
+	}
+	fi := fileInfo.(server.FileInfo)
+	return fi.Symlink, nil
+}
+
 func (fh FileHandle) Flush(ctx context.Context, req *fuse.FlushRequest) error {
 	err := fh.file.Sync()
 	if err != nil {
+		clog.Error("flush:", fh.path, err)
 		return err
 	}
 	delete(syncRefs, req.Handle)
@@ -281,7 +393,7 @@ func (fh FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse
 	data := make([]byte, req.Size)
 	n, err := fh.file.ReadAt(data, req.Offset)
 	if err != nil && err != io.EOF {
-		clog.Println(err)
+		clog.Error("read:", fh.path, err)
 		return err
 	}
 	resp.Data = data[:n]
@@ -292,7 +404,7 @@ func (fh FileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fu
 	syncRefs[req.Handle] = fh.file
 	n, err := fh.file.WriteAt(req.Data, req.Offset)
 	if err != nil && err != io.EOF {
-		clog.Println(err)
+		clog.Error("write:", fh.path, err)
 		return err
 	}
 	resp.Size = n
@@ -302,12 +414,17 @@ func (fh FileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fu
 func (fh FileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	clog.Debugf("closing %d nicely", req.Node)
 	delete(syncRefs, req.Handle)
-	return fh.file.Close()
+	err := fh.file.Close()
+	if err != nil {
+		clog.Error("release:", fh.path, err)
+	}
+	return err
 }
 
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 	fileInfo, err := f.dfs.Lstat(f.path)
 	if err != nil {
+		clog.Error("attr:", f.path, err)
 		return err
 	}
 	// TODO(jzelinskie): enable this when metadata is being utilized.

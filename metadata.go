@@ -105,7 +105,10 @@ type MetadataService interface {
 	Mkdir(path Path, dir *models.Metadata) error
 	Getdir(path Path) (*models.Directory, []Path, error)
 	Rmdir(path Path) error
-	SetFileINode(path Path, ref INodeRef) (INodeID, error)
+	SetFileEntry(path Path, ent *models.FileEntry) error
+
+	GetChainINode(volume string, base INodeRef) (INodeRef, error)
+	SetChainINode(volume string, base INodeRef, was INodeRef, new INodeRef) error
 
 	GlobalMetadata() (GlobalMetadata, error)
 
@@ -124,11 +127,11 @@ type MetadataService interface {
 
 	// TODO(barakmich): THESE NEED A LEASE ID
 	RegisterPeer(*models.PeerInfo) error
-	ClaimVolumeINodes(volume string, inodes *roaring.Bitmap) error
+	ClaimVolumeINodes(vol VolumeID, inodes *roaring.Bitmap) error
 	// ^^^^^^^
 
-	ModifyDeadMap(volume string, live *roaring.Bitmap, dead *roaring.Bitmap) error
-	GetVolumeLiveness(volume string) (*roaring.Bitmap, []*roaring.Bitmap, error)
+	ModifyDeadMap(vol VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error
+	GetVolumeLiveness(vol VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error)
 
 	// TODO(barakmich): Extend with GC interaction, et al
 	Close() error

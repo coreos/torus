@@ -8,16 +8,20 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/RoaringBitmap/roaring"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "server")
+var (
+	clog             = capnslog.NewPackageLogger("github.com/coreos/agro", "server")
+	aborter          = errors.New("abort update")
+	writingToDeleted = errors.New("writing to deleted file")
+)
 
 var (
 	promOpenINodes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -57,11 +61,13 @@ type file struct {
 	blkSize int64
 
 	// file metadata
-	path   agro.Path
-	inode  *models.INode
-	flags  int
-	offset int64
-	blocks agro.Blockset
+	path     agro.Path
+	inode    *models.INode
+	flags    int
+	offset   int64
+	blocks   agro.Blockset
+	replaces uint64
+	changed  map[string]bool
 
 	// during write
 	initialINodes *roaring.Bitmap
@@ -103,10 +109,18 @@ func (f *file) openWrite() error {
 	}
 	f.writeINodeRef = agro.NewINodeRef(vid, newINode)
 	if f.inode != nil {
-		f.inode.Replaces = f.inode.INode
+		f.replaces = f.inode.INode
 		f.inode.INode = uint64(newINode)
+		if f.inode.Chain == 0 {
+			f.inode.Chain = uint64(newINode)
+		}
 	}
 	f.writeOpen = true
+	f.updateHeldINodes(false)
+	bm := roaring.NewBitmap()
+	bm.Add(uint32(newINode))
+	// Kill the open inode; we'll reopen it if we use it.
+	f.srv.mds.ModifyDeadMap(vid, roaring.NewBitmap(), bm)
 	return nil
 }
 
@@ -332,6 +346,7 @@ func (f *file) Sync() error {
 
 func (f *file) sync(closing bool) error {
 	// Here there be dragons.
+	clog.Debugf("Syncing file: %s", f.path)
 	if !f.writeOpen {
 		f.updateHeldINodes(closing)
 		return nil
@@ -348,77 +363,123 @@ func (f *file) sync(closing bool) error {
 		return err
 	}
 	f.inode.Blocks = blkdata
-	err = f.srv.inodes.WriteINode(context.TODO(), f.writeINodeRef, f.inode)
-	if err != nil {
-		clog.Error("sync: couldn't write inode")
-		return err
-	}
 
-	// TODO(barakmich): Starting with SetFileINode, there's currently a problem in
-	// that, if the following bookkeeping is interrupted (eg, the machine we're on
-	// dies in the middle of the rest of this function) there could be an unknown
-	// garbage state. Ideally, it needs to be "the mother of all transactions",
-	// which is totally possible, but I'm holding off on doing that right now
-	// until I know better how these work together. Once it becomes clear, the
-	// optimization/bugfix can be made.
+	// Here we begin the critical transaction section
 
-	replaced, err := f.srv.mds.SetFileINode(f.path, f.writeINodeRef)
-	if err != nil {
-		clog.Error("sync: couldn't set file inode")
-		return err
-	}
-	newLive := f.blocks.GetLiveINodes()
-	switch replaced {
-	case agro.INodeID(0):
-		// Easy. We're creating or replacing a deleted file.
-		// TODO(barakmich): Correct behavior depending on O_CREAT
-		dead := roaring.NewBitmap()
-		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
-	case agro.INodeID(f.inode.Replaces):
-		// Easy. We're replacing the inode we opened. This is the happy case.
-		newLive := f.blocks.GetLiveINodes()
-		dead := roaring.AndNot(f.initialINodes, newLive)
-		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
-	default:
-		// Dammit. Somebody changed the file underneath us. We can write a smarter
-		// merge function -- O_APPEND for example, doing the right thing, by keeping
-		// some state in the file and actually appending it.
-		//
-		// Today, however, we're going to go with the technically correct but perhaps
-		// suboptimal one: last write wins the good news is, we're that last write.
-		promFileChangedSyncs.WithLabelValues(f.path.Volume).Inc()
-		var newINode *models.INode
-		for {
-			newINode, err = f.srv.inodes.GetINode(context.TODO(), agro.NewINodeRef(f.writeINodeRef.Volume(), replaced))
-			if err == nil {
-				break
-			}
-			// We can't go back, and we can't go forward, which is why this is a
-			// critical section of doom. See the above TODO. In a full transaction,
-			// we can safely bail.
-			clog.Error("sync: can't get inode we replaced")
+	var replaced agro.INodeRef
+	for {
+		_, replaced, err = f.srv.updateINodeChain(
+			f.path,
+			func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
+				if inode == nil {
+					// We're unilaterally overwriting a file. If that was the intent, go ahead.
+					if f.replaces == 0 {
+						// Replace away.
+						return f.inode, f.writeINodeRef, nil
+					}
+					// Otherwise, nothing to do here.
+					return nil, agro.NewINodeRef(vol, agro.INodeID(0)), writingToDeleted
+				}
+				if inode.Chain != f.inode.Chain {
+					// We're starting a new chain, go ahead and replace
+					return f.inode, f.writeINodeRef, nil
+				}
+				switch f.replaces {
+				case 0:
+					// We're writing a completely new file on this chain.
+					return f.inode, f.writeINodeRef, nil
+				case inode.INode:
+					// We're replacing exactly what we expected to replace. Go for it.
+					return f.inode, f.writeINodeRef, nil
+				default:
+					// Dammit. Somebody changed the file underneath us.
+					// Abort transaction, we'll figure out what to do.
+					return nil, agro.NewINodeRef(vol, agro.INodeID(inode.INode)), aborter
+				}
+			})
+		if err == nil {
+			break
 		}
-		bs, err := blockset.UnmarshalFromProto(newINode.Blocks, nil)
+		if err != aborter {
+			return err
+		}
+		// We can write a smarter merge function -- O_APPEND for example, doing the
+		// right thing, by keeping some state in the file and actually appending it.
+		// Today, it's Last Write Wins.
+		promFileChangedSyncs.WithLabelValues(f.path.Volume).Inc()
+		oldINode := f.inode
+		f.inode, err = f.srv.inodes.GetINode(context.TODO(), replaced)
+		if err != nil {
+			return err
+		}
+		f.replaces = f.inode.INode
+		f.inode.INode = oldINode.INode
+		f.inode.Blocks = oldINode.Blocks
+		f.inode.Filesize = oldINode.Filesize
+
+		for k, _ := range f.changed {
+			switch k {
+			case "mode":
+				f.inode.Permissions.Mode = oldINode.Permissions.Mode
+			}
+		}
+		bs, err := blockset.UnmarshalFromProto(f.inode.Blocks, nil)
 		if err != nil {
 			// If it's corrupt we're in another world of hurt. But this one we can't fix.
 			// Again, safer in transaction.
 			panic("sync: couldn't unmarshal blockset")
 		}
-		oldLive := bs.GetLiveINodes()
-		dead := roaring.AndNot(oldLive, newLive)
-		f.srv.mds.ModifyDeadMap(f.path.Volume, newLive, dead)
+		f.initialINodes = bs.GetLiveINodes()
+		f.initialINodes.Add(uint32(f.inode.INode))
+		f.updateHeldINodes(false)
 	}
+
+	err = f.srv.mds.SetFileEntry(f.path, &models.FileEntry{
+		Chain: f.inode.Chain,
+	})
+
+	newLive := f.blocks.GetLiveINodes()
+	var dead *roaring.Bitmap
+	// Cleanup.
+
+	// TODO(barakmich): Correct behavior depending on O_CREAT
+	dead = roaring.AndNot(f.initialINodes, newLive)
+	if replaced.INode != 0 && f.replaces == 0 {
+		deadinode, err := f.srv.inodes.GetINode(context.TODO(), replaced)
+		if err != nil {
+			return err
+		}
+		bs, err := blockset.UnmarshalFromProto(deadinode.Blocks, nil)
+		if err != nil {
+			// If it's corrupt we're in another world of hurt. But this one we can't fix.
+			// Again, safer in transaction.
+			panic("sync: couldn't unmarshal blockset")
+		}
+		dead = roaring.AndNot(bs.GetLiveINodes(), newLive)
+	}
+	f.srv.mds.ModifyDeadMap(f.writeINodeRef.Volume(), newLive, dead)
+
 	// Critical section over.
+	f.changed = make(map[string]bool)
+	f.writeOpen = false
 	f.updateHeldINodes(closing)
 	// SHANTIH.
-	f.writeOpen = false
 	return nil
 }
 
+func (f *file) getLiveINodes() *roaring.Bitmap {
+	bm := f.blocks.GetLiveINodes()
+	if f.writeOpen {
+		bm.Add(uint32(f.inode.INode))
+	}
+	return bm
+}
+
 func (f *file) updateHeldINodes(closing bool) {
+	vid, _ := f.srv.mds.GetVolumeID(f.path.Volume)
 	f.srv.decRef(f.path.Volume, f.initialINodes)
 	if !closing {
-		f.initialINodes = f.blocks.GetLiveINodes()
+		f.initialINodes = f.getLiveINodes()
 		f.srv.incRef(f.path.Volume, f.initialINodes)
 	}
 	bm, _ := f.srv.getBitmap(f.path.Volume)
@@ -427,7 +488,7 @@ func (f *file) updateHeldINodes(closing bool) {
 		card = bm.GetCardinality()
 	}
 	promOpenINodes.WithLabelValues(f.path.Volume).Set(float64(card))
-	err := f.srv.mds.ClaimVolumeINodes(f.path.Volume, bm)
+	err := f.srv.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
 		clog.Error("file: TODO: Can't re-claim")
 	}

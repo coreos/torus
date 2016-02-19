@@ -16,7 +16,7 @@ message Metadata {
 message INode {
   uint64 volume = 1;
   uint64 inode = 2 [(gogoproto.customname) = "INode"];
-  uint64 replaces = 3;
+  uint64 chain = 3;
   uint64 filesize = 4;
   repeated string filenames = 5; // Should always be length at least 1, includes hard links
   Metadata permissions = 6;
@@ -32,8 +32,16 @@ message BlockLayer {
 message Directory {
   Metadata metadata = 1;
   // key is the filename without the path
-  map<string, uint64> files = 2;
-  // TODO(barakmich) Soft Link
+  map<string, FileEntry> files = 2;
+}
+
+message FileEntry {
+  uint64 chain = 1;
+  string sympath = 2; 
+}
+
+message FileChainSet {
+  map<uint64, uint64> chains = 1;
 }
 
 message PeerInfo {

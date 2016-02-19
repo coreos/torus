@@ -11,7 +11,6 @@ import (
 
 	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/server/gc"
 
@@ -40,31 +39,43 @@ type server struct {
 	gc              gc.GC
 }
 
-func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
+func (s *server) FileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry, error) {
 	dirname, filename := path.Split(p.Path)
 	dirpath := agro.Path{p.Volume, dirname}
 	dir, _, err := s.mds.Getdir(dirpath)
 	if err != nil {
-		return agro.INodeRef{}, err
+		return agro.VolumeID(0), nil, err
 	}
 
 	volID, err := s.mds.GetVolumeID(p.Volume)
 	if err != nil {
+		return volID, nil, err
+	}
+
+	ent, ok := dir.Files[filename]
+	if !ok {
+		return volID, nil, os.ErrNotExist
+	}
+
+	return volID, ent, nil
+}
+
+func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
+	vol, ent, err := s.FileEntryForPath(p)
+	if err != nil {
 		return agro.INodeRef{}, err
 	}
-
-	inodeID, ok := dir.Files[filename]
-	if !ok {
-		return agro.INodeRef{}, os.ErrNotExist
+	if ent.Sympath != "" {
+		return s.inodeRefForPath(agro.Path{p.Volume, path.Clean(p.Base() + "/" + ent.Sympath)})
 	}
-
-	return agro.NewINodeRef(volID, agro.INodeID(inodeID)), nil
+	return s.mds.GetChainINode(p.Volume, agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 }
 
 type FileInfo struct {
-	INode *models.INode
-	Path  agro.Path
-	Ref   agro.INodeRef
+	INode   *models.INode
+	Path    agro.Path
+	Ref     agro.INodeRef
+	Symlink string
 }
 
 func (fi FileInfo) Name() string {
@@ -72,14 +83,23 @@ func (fi FileInfo) Name() string {
 }
 
 func (fi FileInfo) Size() int64 {
+	if fi.Symlink != "" {
+		return 0
+	}
 	return int64(fi.INode.Filesize)
 }
 
 func (fi FileInfo) Mode() os.FileMode {
+	if fi.Symlink != "" {
+		return 0777 | os.ModeSymlink
+	}
 	return os.FileMode(fi.INode.Permissions.Mode)
 }
 
 func (fi FileInfo) ModTime() time.Time {
+	if fi.Symlink != "" {
+		return time.Unix(0, 0)
+	}
 	return time.Unix(0, int64(fi.INode.Permissions.Mtime))
 }
 
@@ -100,7 +120,14 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 			return x.Stat()
 		}
 	}
-	ref, err := s.inodeRefForPath(path)
+	vol, ent, err := s.FileEntryForPath(path)
+	if err != nil {
+		return nil, err
+	}
+	if ent.Sympath != "" {
+		return FileInfo{nil, path, agro.NewINodeRef(vol, agro.INodeID(0)), ent.Sympath}, nil
+	}
+	ref, err := s.mds.GetChainINode(path.Volume, agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +137,7 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 		return nil, err
 	}
 
-	return FileInfo{inode, path, ref}, nil
+	return FileInfo{inode, path, ref, ""}, nil
 }
 
 func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
@@ -136,24 +163,6 @@ func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
 	}
 
 	return entries, nil
-}
-
-func (s *server) Rename(from, to agro.Path) error {
-	//TODO(barakmich): Handle hard links
-	ref, err := s.inodeRefForPath(from)
-	if err != nil {
-		return err
-	}
-	clog.Debugf("renaming %s %s %#v", from, to, ref)
-	_, err = s.mds.SetFileINode(from, agro.NewINodeRef(0, 0))
-	if err != nil {
-		return err
-	}
-	_, err = s.mds.SetFileINode(to, ref)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *server) Mkdir(path agro.Path) error {
@@ -263,27 +272,51 @@ func (s *server) Remove(path agro.Path) error {
 	return s.removeFile(path)
 }
 
-func (s *server) removeFile(p agro.Path) error {
-	ref, err := s.inodeRefForPath(p)
+func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, agro.INodeRef, error) {
+	notExist := false
+	vol, entry, err := s.FileEntryForPath(p)
+	ref := agro.NewINodeRef(vol, agro.INodeID(0))
 	if err != nil {
-		return err
+		if err != os.ErrNotExist {
+			return nil, ref, err
+		}
+		notExist = true
+		entry = &models.FileEntry{}
+	} else {
+		if entry.Sympath != "" {
+			return nil, ref, agro.ErrIsSymlink
+		}
 	}
-	inode, err := s.inodes.GetINode(context.TODO(), ref)
-	if err != nil {
-		return err
+	chainRef := agro.NewINodeRef(vol, agro.INodeID(entry.Chain))
+	for {
+		var inode *models.INode
+		if !notExist {
+			ref, err = s.mds.GetChainINode(p.Volume, chainRef)
+			if err != nil {
+				return nil, ref, err
+			}
+			inode, err = s.inodes.GetINode(context.TODO(), ref)
+			if err != nil {
+				return nil, ref, err
+			}
+		}
+		newINode, newRef, err := modFunc(inode, vol)
+		if err != nil {
+			return nil, ref, err
+		}
+		if chainRef.INode == 0 {
+			err = s.mds.SetChainINode(p.Volume, newRef, chainRef, newRef)
+		} else {
+			err = s.mds.SetChainINode(p.Volume, chainRef, ref, newRef)
+		}
+		if err == nil {
+			return newINode, ref, s.inodes.WriteINode(context.TODO(), newRef, newINode)
+		}
+		if err == agro.ErrCompareFailed {
+			continue
+		}
+		return nil, ref, err
 	}
-	bs, err := blockset.UnmarshalFromProto(inode.Blocks, s.blocks)
-	if err != nil {
-		return err
-	}
-	live := bs.GetLiveINodes()
-	_, err = s.mds.SetFileINode(p, agro.NewINodeRef(ref.Volume(), 0))
-	if err != nil {
-		return err
-	}
-	// Anybody who had it open still does, and a write/sync will bring it back,
-	// as expected. So this is safe to modify.
-	return s.mds.ModifyDeadMap(p.Volume, roaring.NewBitmap(), live)
 }
 
 func (s *server) removeDir(path agro.Path) error {
