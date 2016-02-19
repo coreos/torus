@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/metadata"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
