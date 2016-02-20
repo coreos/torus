@@ -60,7 +60,7 @@ func (s *server) Link(p agro.Path, new agro.Path) error {
 			return nil, agro.NewINodeRef(vol, newINodeID), os.ErrNotExist
 		}
 		inode.INode = uint64(newINodeID)
-		inode.Filenames = append(inode.Filenames, p.Path)
+		inode.Filenames = append(inode.Filenames, new.Path)
 		return inode, agro.NewINodeRef(vol, newINodeID), nil
 	})
 	if err != nil {
