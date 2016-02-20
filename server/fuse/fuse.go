@@ -475,7 +475,7 @@ func (fh FileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fu
 }
 
 func (fh FileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
-	clog.Debugf("closing %d nicely", req.Node)
+	clog.Tracef("closing %d nicely", req.Node)
 	delete(syncRefs, req.Handle)
 	err := fh.file.Close()
 	if err != nil {

@@ -95,10 +95,10 @@ outer:
 				clog.Error("couldn't delete local block")
 				return n, err
 			}
-			err = r.bs.Flush()
-			if err != nil {
-				clog.Error("error on flush")
-			}
+		}
+		err := r.bs.Flush()
+		if err != nil {
+			clog.Error("error on flush")
 		}
 	}
 

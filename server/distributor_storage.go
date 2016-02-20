@@ -35,7 +35,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	promDistBlockRequests.Inc()
-	if d.readCache != nil {
+	if false {
 		bcache, ok := d.readCache.Get(string(i.ToBytes()))
 		if ok {
 			promDistBlockCacheHits.Inc()
@@ -93,7 +93,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 
 			// If we're successful, store that.
 			if err == nil {
-				if d.readCache != nil {
+				if false {
 					d.readCache.Put(string(i.ToBytes()), blk)
 				}
 				promDistBlockPeerHits.WithLabelValues(p).Inc()
@@ -118,7 +118,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		if !quick {
 			break
 		}
-		clog.Warning("trying slow method")
+		clog.Warningf("trying slow method %s", i)
 		quick = false
 	}
 	// We completely failed!

@@ -496,6 +496,7 @@ func (f *file) updateHeldINodes(closing bool) {
 		card = bm.GetCardinality()
 	}
 	promOpenINodes.WithLabelValues(f.path.Volume).Set(float64(card))
+	clog.Debugf("updating claim %s %s", f.path.Volume, bm)
 	err := f.srv.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
 		clog.Error("file: TODO: Can't re-claim")
