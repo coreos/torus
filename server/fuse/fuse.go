@@ -19,6 +19,7 @@ import (
 
 var (
 	clog = capnslog.NewPackageLogger("github.com/coreos/agro", "fuse")
+	flog = capnslog.NewPackageLogger("github.com/coreos/agro", "fusedbg")
 )
 
 var fuseSrv *fs.Server
@@ -37,9 +38,9 @@ func MustMount(mountpoint, volume string, srv agro.Server) {
 	defer c.Close()
 
 	cfg := &fs.Config{}
-	if clog.LevelAt(capnslog.TRACE) {
+	if flog.LevelAt(capnslog.TRACE) {
 		cfg.Debug = func(msg interface{}) {
-			clog.Debug(msg)
+			flog.Trace(msg)
 		}
 	}
 	fuseSrv = fs.New(c, cfg)
@@ -336,7 +337,6 @@ func (d Dir) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRes
 			dir:  &d,
 		}
 	}
-	resp.Flags |= fuse.OpenDirectIO
 	return *d.handle, nil
 }
 

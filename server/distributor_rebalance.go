@@ -67,7 +67,7 @@ exit:
 			clog.Error(err)
 			continue
 		}
-		clog.Debugf("starting rebalance/gc for %s", volset[volIdx])
+		clog.Tracef("starting rebalance/gc for %s", volset[volIdx])
 	volume:
 		for {
 			timeout := 10 * time.Duration(n+1) * time.Millisecond

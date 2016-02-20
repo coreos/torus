@@ -36,6 +36,7 @@ var (
 	host             string
 	port             int
 	mkfs             bool
+	logpkg           string
 
 	debug bool
 	trace bool
@@ -62,6 +63,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&fuseVolume, "fuse-volume", "", "", "Volume to be mounted as a FUSE filesystem")
 	rootCommand.PersistentFlags().StringVarP(&sizeStr, "size", "", "1GiB", "Amount of memory to use for read cache")
 	rootCommand.PersistentFlags().StringVarP(&readCacheSizeStr, "read-cache-size", "", "20MiB", "Amount of memory to use for read cache")
+	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
 }
 
 func main() {
@@ -79,6 +81,16 @@ func configureServer(cmd *cobra.Command, args []string) {
 		capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	default:
 		capnslog.SetGlobalLogLevel(capnslog.INFO)
+	}
+	if logpkg != "" {
+		capnslog.SetGlobalLogLevel(capnslog.NOTICE)
+		rl := capnslog.MustRepoLogger("github.com/coreos/agro")
+		llc, err := rl.ParseLogLevelConfig(logpkg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing logpkg: %s\n", err)
+			os.Exit(1)
+		}
+		rl.SetLogLevel(llc)
 	}
 
 	httpAddress = fmt.Sprintf("%s:%d", host, port)

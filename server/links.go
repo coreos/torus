@@ -55,7 +55,8 @@ func (s *server) Link(p agro.Path, new agro.Path) error {
 	if err != nil {
 		return err
 	}
-	inode, _, err := s.updateINodeChain(p, func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
+	clog.Debugf("link %s to %s", p, new)
+	inode, replaced, err := s.updateINodeChain(p, func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
 		if inode == nil {
 			return nil, agro.NewINodeRef(vol, newINodeID), os.ErrNotExist
 		}
@@ -66,6 +67,7 @@ func (s *server) Link(p agro.Path, new agro.Path) error {
 	if err != nil {
 		return err
 	}
+	clog.Debugf("newinode %s replaced %s", inode, replaced)
 	return s.mds.SetFileEntry(new, &models.FileEntry{
 		Chain: inode.Chain,
 	})

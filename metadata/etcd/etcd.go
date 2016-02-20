@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path"
 	"strconv"
@@ -512,7 +513,7 @@ func trySetFileEntry(p agro.Path, ent *models.FileEntry) AtomicModifyFunc {
 
 func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRef, error) {
 	pageID := uint64ToHex(uint64(base.INode / chainPageSize))
-	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", volume, pageID)))
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "chain", volume, pageID)))
 	if len(resp.Kvs) == 0 {
 		return agro.INodeRef{}, nil
 	}
@@ -531,7 +532,7 @@ func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRe
 func (c *etcdCtx) SetChainINode(volume string, base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
 	promOps.WithLabelValues("set-chain-inode").Inc()
 	pageID := uint64ToHex(uint64(base.INode / chainPageSize))
-	_, err := c.atomicModifyKey(mkKey("volumemeta", volume, pageID), func(b []byte) ([]byte, interface{}, error) {
+	_, err := c.atomicModifyKey(mkKey("volumemeta", "chain", volume, pageID), func(b []byte) ([]byte, interface{}, error) {
 		set := &models.FileChainSet{}
 		if len(b) == 0 {
 			set.Chains = make(map[uint64]uint64)
@@ -642,4 +643,54 @@ func (c *etcdCtx) SetRing(ring agro.Ring) error {
 	}
 	return nil
 
+}
+
+func (c *etcdCtx) DumpMetadata(w io.Writer) error {
+	io.WriteString(w, "## Deadmaps\n")
+	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "deadmap")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		bm := bytesToRoaring(x.Value)
+		io.WriteString(w, bm.String())
+		io.WriteString(w, "\n")
+	}
+	io.WriteString(w, "## Open\n")
+	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "open")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		bm := bytesToRoaring(x.Value)
+		io.WriteString(w, bm.String())
+		io.WriteString(w, "\n")
+	}
+	io.WriteString(w, "## Dirs\n")
+	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("dirs")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		dir := &models.Directory{}
+		dir.Unmarshal(x.Value)
+		io.WriteString(w, dir.String())
+		io.WriteString(w, "\n")
+	}
+	io.WriteString(w, "## Chains\n")
+	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "chain")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		chains := &models.FileChainSet{}
+		chains.Unmarshal(x.Value)
+		io.WriteString(w, chains.String())
+		io.WriteString(w, "\n")
+	}
+	return nil
 }

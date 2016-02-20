@@ -8,7 +8,12 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
+	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
+)
+
+var (
+	mlog = capnslog.NewPackageLogger("github.com/coreos/agro", "map")
 )
 
 func (s *server) Create(path agro.Path) (agro.File, error) {
@@ -65,6 +70,7 @@ func (s *server) Open(p agro.Path) (agro.File, error) {
 }
 
 func (s *server) OpenFile(p agro.Path, flag int, perm os.FileMode) (agro.File, error) {
+	clog.Debugf("opening file %s", p)
 	return s.openFile(p, flag, &models.Metadata{
 		Mode: uint32(perm),
 	})
@@ -145,7 +151,7 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 	set := bs.GetLiveINodes()
 	s.incRef(path.Volume, set)
 	bm, ok := s.getBitmap(path.Volume)
-	clog.Debugf("updating claim %s %s", path.Volume, bm)
+	mlog.Debugf("updating claim %s %s", path.Volume, bm)
 	err = s.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
 		s.decRef(path.Volume, set)

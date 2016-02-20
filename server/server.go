@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path"
 	"sync"
@@ -360,4 +361,12 @@ func (s *server) Statfs() (agro.ServerStats, error) {
 	return agro.ServerStats{
 		BlockSize: gmd.BlockSize,
 	}, nil
+}
+
+func (s *server) Debug(w io.Writer) error {
+	if v, ok := s.mds.(agro.DebugMetadataService); ok {
+		io.WriteString(w, "# MDS\n")
+		return v.DumpMetadata(w)
+	}
+	return nil
 }
