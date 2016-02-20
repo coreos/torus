@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/coreos/agro"
@@ -23,6 +24,7 @@ type distClient struct {
 	//TODO(barakmich): Better connection pooling
 	openConns   map[string]*grpc.ClientConn
 	openClients map[string]models.AgroStorageClient
+	mut         sync.Mutex
 }
 
 func newDistClient(d *distributor) *distClient {
@@ -34,14 +36,20 @@ func newDistClient(d *distributor) *distClient {
 }
 
 func (d *distClient) getConn(uuid string) models.AgroStorageClient {
+	d.mut.Lock()
+	defer d.mut.Unlock()
 	if conn, ok := d.openClients[uuid]; ok {
 		return conn
 	}
+	d.dist.srv.mut.RLock()
 	pi := d.dist.srv.peersMap[uuid]
+	d.dist.srv.mut.RUnlock()
 	if pi == nil {
 		// We know this UUID exists, we don't have an address for it, let's refresh now.
 		d.dist.srv.updatePeerMap()
+		d.dist.srv.mut.RLock()
 		pi = d.dist.srv.peersMap[uuid]
+		d.dist.srv.mut.RUnlock()
 		if pi == nil {
 			// Not much more we can try
 			return nil

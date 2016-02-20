@@ -13,6 +13,7 @@ var (
 
 const (
 	ctxWriteLevel int = iota
+	ctxReadLevel
 )
 
 func getRepFromContext(ctx context.Context) int {
@@ -50,8 +51,9 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		promDistBlockFailures.Inc()
 		return nil, ErrNoPeersBlock
 	}
+	writeLevel := getWriteFromContext(ctx)
 	for _, p := range peers.Peers[:peers.Replication] {
-		if p == d.UUID() {
+		if p == d.UUID() || writeLevel == agro.WriteLocal {
 			b, err := d.blocks.GetBlock(ctx, i)
 			if err == nil {
 				promDistBlockLocalHits.Inc()
@@ -72,6 +74,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 					return b, nil
 				}
 				promDistBlockLocalFailures.Inc()
+				clog.Debug("failed local peer (again)")
 				continue
 			}
 			// Fetch block from remote. First pass through peers
@@ -81,7 +84,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 			if quick {
 				getctx, cancel = context.WithTimeout(ctx, clientTimeout)
 			} else {
-				getctx = ctx
+				getctx = context.TODO()
 			}
 			blk, err := d.client.GetBlock(getctx, p, i)
 			if quick {
@@ -91,7 +94,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 			// If we're successful, store that.
 			if err == nil {
 				if d.readCache != nil {
-					d.readCache.Add(string(i.ToBytes()), blk)
+					d.readCache.Put(string(i.ToBytes()), blk)
 				}
 				promDistBlockPeerHits.WithLabelValues(p).Inc()
 				return blk, nil
@@ -106,6 +109,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 
 			// If there was a more significant error, fail hard.
 			promDistBlockFailures.Inc()
+			clog.Errorf("failed remote peer %v %s %s %#v", quick, p, err, err)
 			return nil, err
 		}
 		// Well, we couldn't find it with timeouts, but perhaps all timeouts failed.
@@ -114,10 +118,12 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		if !quick {
 			break
 		}
+		clog.Warning("trying slow method")
 		quick = false
 	}
 	// We completely failed!
 	promDistBlockFailures.Inc()
+	clog.Error("no peers for block")
 	return nil, ErrNoPeersBlock
 }
 
@@ -127,6 +133,14 @@ func getWriteFromContext(ctx context.Context) agro.WriteLevel {
 		return v
 	}
 	return agro.WriteAll
+}
+
+func getReadFromContext(ctx context.Context) agro.ReadLevel {
+	v, ok := ctx.Value(ctxReadLevel).(agro.ReadLevel)
+	if ok {
+		return v
+	}
+	return agro.ReadBlock
 }
 
 func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {

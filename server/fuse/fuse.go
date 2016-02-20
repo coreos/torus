@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"sync"
 	"syscall"
 
 	"bazil.org/fuse"
@@ -16,7 +17,9 @@ import (
 	"github.com/coreos/agro"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "fuse")
+var (
+	clog = capnslog.NewPackageLogger("github.com/coreos/agro", "fuse")
+)
 
 var fuseSrv *fs.Server
 
@@ -34,9 +37,9 @@ func MustMount(mountpoint, volume string, srv agro.Server) {
 	defer c.Close()
 
 	cfg := &fs.Config{}
-	if clog.LevelAt(capnslog.DEBUG) {
+	if clog.LevelAt(capnslog.TRACE) {
 		cfg.Debug = func(msg interface{}) {
-			clog.Trace(msg)
+			clog.Debug(msg)
 		}
 	}
 	fuseSrv = fs.New(c, cfg)
@@ -76,7 +79,30 @@ type DirHandle struct {
 	dir  *Dir
 }
 
-var _ fs.HandleReadDirAller = DirHandle{}
+var (
+	_         fs.HandleReadDirAller = DirHandle{}
+	cacheMut  sync.Mutex
+	dirExists = make(map[agro.Path]error)
+)
+
+func readDirExists(dfs agro.Server, p agro.Path) ([]agro.Path, error) {
+	if v, ok := dirExists[p]; ok {
+		return nil, v
+	}
+	_, err := dfs.Readdir(p)
+	dirExists[p] = err
+	return nil, err
+}
+
+func (d *Dir) Statfs(ctx context.Context, req *fuse.StatfsRequest, resp *fuse.StatfsResponse) error {
+	stats, err := d.dfs.Statfs()
+	if err != nil {
+		return err
+	}
+	clog.Debug(stats)
+	resp.Bsize = uint32(stats.BlockSize)
+	return nil
+}
 
 func (d *Dir) ChangePath(p agro.Path) {
 	d.path = p
@@ -105,10 +131,10 @@ func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 		return nil, errors.New("fuse: path is not a directory")
 	}
 
-	_, err := d.dfs.Lstat(newPath)
+	_, err := readLstatExists(d.dfs, newPath)
 	if err == os.ErrNotExist {
 		newPath.Path = newPath.Path + "/"
-		_, err := d.dfs.Readdir(newPath)
+		_, err := readDirExists(d.dfs, newPath)
 		if err == os.ErrNotExist {
 			return nil, fuse.ENOENT
 		} else if err != nil {
@@ -139,6 +165,11 @@ func (d Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	if !ok {
 		return errors.New("fuse: path is not a directory")
 	}
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
+	delete(dirExists, d.path)
+	delete(dirExists, newPath)
+	delete(lstatExists, newPath)
 	return d.dfs.Remove(newPath)
 }
 
@@ -153,6 +184,10 @@ func (d Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error)
 	}
 	newd := &Dir{dfs: d.dfs, path: newPath}
 	pathRefs[newPath] = newd
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
+	delete(dirExists, d.path)
+	delete(dirExists, newPath)
 	return newd, nil
 }
 
@@ -176,6 +211,10 @@ func (d Dir) Rename(ctx context.Context, req *fuse.RenameRequest, n fs.Node) err
 	d.handle = nil
 	ndir.handle = nil
 	fuseSrv.InvalidateNodeData(d)
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
+	delete(dirExists, newpath)
+	delete(lstatExists, newpath)
 	return err
 }
 
@@ -192,7 +231,7 @@ func (d Dir) Link(ctx context.Context, req *fuse.LinkRequest, old fs.Node) (fs.N
 	v := old.(*File)
 	err := d.dfs.Link(v.path, newpath)
 	if err != nil {
-		clog.Error(err)
+		clog.Error("link", err)
 		return nil, err
 	}
 
@@ -201,6 +240,9 @@ func (d Dir) Link(ctx context.Context, req *fuse.LinkRequest, old fs.Node) (fs.N
 		path: newpath,
 	}
 	pathRefs[newpath] = f
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
+	delete(lstatExists, newpath)
 	return f, nil
 }
 
@@ -212,7 +254,7 @@ func (d Dir) Symlink(ctx context.Context, req *fuse.SymlinkRequest) (fs.Node, er
 	}
 	err := d.dfs.Symlink(req.Target, newpath)
 	if err != nil {
-		clog.Error(err)
+		clog.Error("symlink", err)
 		return nil, err
 	}
 
@@ -221,6 +263,9 @@ func (d Dir) Symlink(ctx context.Context, req *fuse.SymlinkRequest) (fs.Node, er
 		path: newpath,
 	}
 	pathRefs[newpath] = f
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
+	delete(lstatExists, newpath)
 	return f, nil
 }
 
@@ -231,7 +276,7 @@ func (d DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 	paths, err := d.dfs.Readdir(d.path)
 	if err != nil {
-		clog.Error(err)
+		clog.Error("readdirall", err)
 		return nil, err
 	}
 
@@ -260,7 +305,7 @@ func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cre
 		Mode: uint32(req.Mode),
 	})
 	if err != nil {
-		clog.Error(err)
+		clog.Error("create", err)
 		return nil, nil, err
 	}
 	clog.Debugf("path %s", newPath)
@@ -269,12 +314,17 @@ func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cre
 		path: newPath,
 	}
 	pathRefs[newPath] = node
+	delete(lstatExists, newPath)
+
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
 	fh := FileHandle{
 		dfs:  d.dfs,
 		path: newPath,
 		file: f,
 		node: node,
 	}
+	resp.Flags |= fuse.OpenDirectIO
 	return node, fh, nil
 }
 
@@ -286,6 +336,7 @@ func (d Dir) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRes
 			dir:  &d,
 		}
 	}
+	resp.Flags |= fuse.OpenDirectIO
 	return *d.handle, nil
 }
 
@@ -302,12 +353,22 @@ type FileHandle struct {
 }
 
 var (
-	_        fs.Node         = &File{}
-	_        fs.Handle       = FileHandle{}
-	_        fs.HandleReader = FileHandle{}
-	syncRefs                 = make(map[fuse.HandleID]agro.File)
-	pathRefs                 = make(map[agro.Path]pathChanger)
+	_           fs.Node         = &File{}
+	_           fs.Handle       = FileHandle{}
+	_           fs.HandleReader = FileHandle{}
+	syncRefs                    = make(map[fuse.HandleID]agro.File)
+	pathRefs                    = make(map[agro.Path]pathChanger)
+	lstatExists                 = make(map[agro.Path]error)
 )
+
+func readLstatExists(dfs agro.Server, p agro.Path) (os.FileInfo, error) {
+	if v, ok := lstatExists[p]; ok {
+		return nil, v
+	}
+	_, err := dfs.Lstat(p)
+	lstatExists[p] = err
+	return nil, err
+}
 
 type pathChanger interface {
 	fs.Node
@@ -317,6 +378,7 @@ type pathChanger interface {
 func (f *File) ChangePath(p agro.Path) {
 	f.path = p
 }
+
 func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	clog.Debugf("open: %d %s", req.Node, req.Flags)
 	var err error
@@ -331,6 +393,7 @@ func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRe
 		file: file,
 		node: &f,
 	}
+	resp.Flags |= fuse.OpenDirectIO
 	return out, nil
 }
 
@@ -435,6 +498,7 @@ func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 
 	a.Size = uint64(fileInfo.Size())
 	a.Mode = fileInfo.Mode()
+	a.BlockSize = 128 * 1024
 
 	return nil
 }

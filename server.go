@@ -30,6 +30,8 @@ type Server interface {
 
 	Close() error
 
+	Statfs() (ServerStats, error)
+
 	// BeginHeartbeat spawns a goroutine for heartbeats. Non-blocking.
 	BeginHeartbeat() error
 
@@ -37,4 +39,8 @@ type Server interface {
 	ListenReplication(addr string) error
 	// OpenReplication connects to the cluster without opening the internal networking.
 	OpenReplication() error
+}
+
+type ServerStats struct {
+	BlockSize uint64
 }

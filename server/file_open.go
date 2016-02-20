@@ -48,7 +48,7 @@ func (s *server) create(path agro.Path, flag int, md *models.Metadata) (f agro.F
 		initialINodes: roaring.NewBitmap(),
 		readOnly:      rdOnly,
 		writeOnly:     wrOnly,
-		writeLevel:    agro.WriteOne,
+		writeLevel:    agro.WriteLocal,
 		changed:       make(map[string]bool),
 	}
 	s.addOpenFile(file)
@@ -167,7 +167,7 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 		blkSize:       int64(md.BlockSize),
 		readOnly:      rdOnly,
 		writeOnly:     wrOnly,
-		writeLevel:    agro.WriteOne,
+		writeLevel:    agro.WriteLocal,
 		changed:       make(map[string]bool),
 	}
 	s.addOpenFile(f)

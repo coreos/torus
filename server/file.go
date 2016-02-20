@@ -117,6 +117,9 @@ func (f *file) openWrite() error {
 	}
 	f.writeOpen = true
 	f.updateHeldINodes(false)
+	if !f.initialINodes.Contains(uint32(newINode)) {
+		panic("wat")
+	}
 	bm := roaring.NewBitmap()
 	bm.Add(uint32(newINode))
 	// Kill the open inode; we'll reopen it if we use it.
@@ -139,7 +142,7 @@ func (f *file) openBlock(i int) error {
 		f.openIdx = i
 		return nil
 	}
-	d, err := f.blocks.GetBlock(context.TODO(), i)
+	d, err := f.blocks.GetBlock(f.getContext(), i)
 	if err != nil {
 		return err
 	}
@@ -357,6 +360,10 @@ func (f *file) sync(closing bool) error {
 		clog.Error("sync: couldn't sync block")
 		return err
 	}
+	err = f.srv.blocks.Flush()
+	if err != nil {
+		return err
+	}
 	blkdata, err := blockset.MarshalToProto(f.blocks)
 	if err != nil {
 		clog.Error("sync: couldn't marshal proto")
@@ -432,13 +439,14 @@ func (f *file) sync(closing bool) error {
 		f.initialINodes = bs.GetLiveINodes()
 		f.initialINodes.Add(uint32(f.inode.INode))
 		f.updateHeldINodes(false)
+		clog.Debugf("retrying critical transaction section")
 	}
 
 	err = f.srv.mds.SetFileEntry(f.path, &models.FileEntry{
 		Chain: f.inode.Chain,
 	})
 
-	newLive := f.blocks.GetLiveINodes()
+	newLive := f.getLiveINodes()
 	var dead *roaring.Bitmap
 	// Cleanup.
 
@@ -455,7 +463,9 @@ func (f *file) sync(closing bool) error {
 			// Again, safer in transaction.
 			panic("sync: couldn't unmarshal blockset")
 		}
-		dead = roaring.AndNot(bs.GetLiveINodes(), newLive)
+		dead.Or(bs.GetLiveINodes())
+		dead.Add(uint32(replaced.INode))
+		dead.AndNot(newLive)
 	}
 	f.srv.mds.ModifyDeadMap(f.writeINodeRef.Volume(), newLive, dead)
 
@@ -469,9 +479,7 @@ func (f *file) sync(closing bool) error {
 
 func (f *file) getLiveINodes() *roaring.Bitmap {
 	bm := f.blocks.GetLiveINodes()
-	if f.writeOpen {
-		bm.Add(uint32(f.inode.INode))
-	}
+	bm.Add(uint32(f.inode.INode))
 	return bm
 }
 

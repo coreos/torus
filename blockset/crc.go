@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
 	"github.com/RoaringBitmap/roaring"
+	"github.com/coreos/agro"
 )
 
 type crcBlockset struct {
@@ -55,7 +55,8 @@ func (b *crcBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	}
 	crc := crc32.ChecksumIEEE(data)
 	if crc != b.crcs[i] {
-		clog.Debugf("crc: block %d did not pass crc", i)
+		clog.Warningf("crc: block %d did not pass crc", i)
+		clog.Debugf("crc: %x should be %x\ndata : %v\n\n", crc, b.crcs[i], data[:10])
 		promCRCFail.Inc()
 		return nil, agro.ErrBlockUnavailable
 	}

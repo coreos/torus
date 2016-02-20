@@ -60,6 +60,7 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 		}
 		d.blocks.WriteBlock(ctx, ref, req.Blocks[i])
 	}
+	d.Flush()
 	return &models.PutResponse{
 		Ok: true,
 	}, nil

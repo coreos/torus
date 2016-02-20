@@ -10,7 +10,6 @@ import (
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/server/gc"
 	"github.com/coreos/agro/server/rebalance"
-	"github.com/dgryski/go-tinylfu"
 )
 
 const (
@@ -23,7 +22,7 @@ type distributor struct {
 	srv       *server
 	client    *distClient
 	grpcSrv   *grpc.Server
-	readCache *tinylfu.T
+	readCache *cache
 
 	ring            agro.Ring
 	closed          bool
@@ -57,7 +56,7 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 		if size < 100 {
 			size = 100
 		}
-		d.readCache = tinylfu.New(int(size), 10*int(size))
+		d.readCache = newCache(int(size))
 	}
 
 	// Set up the rebalancer

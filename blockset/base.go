@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
 	"github.com/RoaringBitmap/roaring"
+	"github.com/coreos/agro"
 )
 
 type baseBlockset struct {
@@ -46,7 +46,12 @@ func (b *baseBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 		return nil, agro.ErrBlockNotExist
 	}
 	clog.Tracef("base: getting block at BlockID %s", b.blocks[i])
-	return b.store.GetBlock(ctx, b.blocks[i])
+	bytes, err := b.store.GetBlock(ctx, b.blocks[i])
+	if err != nil {
+		promBaseFail.Inc()
+		return nil, err
+	}
+	return bytes, err
 }
 
 func (b *baseBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, data []byte) error {

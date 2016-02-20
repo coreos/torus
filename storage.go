@@ -164,12 +164,19 @@ func ZeroBlock() BlockRef {
 	return BlockRef{}
 }
 
+type ReadLevel int
 type WriteLevel int
 
 const (
 	WriteLocal WriteLevel = iota
 	WriteOne
 	WriteAll
+)
+
+const (
+	ReadBlock ReadLevel = iota
+	ReadSequential
+	ReadSpread
 )
 
 // BlockStore is the interface representing the standardized methods to
