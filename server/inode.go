@@ -43,6 +43,9 @@ func (b *INodeStore) Close() error {
 }
 
 func (b *INodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *models.INode) error {
+	if i.INode == 0 {
+		panic("Writing zero inode")
+	}
 	inodedata, err := inode.Marshal()
 	if err != nil {
 		return err
@@ -74,6 +77,9 @@ func (b *INodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *mod
 }
 
 func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
+	if i.INode == 0 {
+		panic("Fetching zero inode")
+	}
 	promINodeRequests.Inc()
 	index := 1
 	ref := agro.BlockRef{
@@ -118,6 +124,9 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 }
 
 func (b *INodeStore) DeleteINode(ctx context.Context, i agro.INodeRef) error {
+	if i.INode == 0 {
+		panic("Deleting zero inode")
+	}
 	ref := agro.BlockRef{
 		INodeRef: i,
 		Index:    agro.IndexID(1),

@@ -201,10 +201,6 @@ func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error
 		promBlocksFailed.WithLabelValues(m.name).Inc()
 		return nil, agro.ErrBlockNotExist
 	}
-	refb := m.blockMap.GetBlock(uint64(index))
-	if !bytes.Equal(refb, s.ToBytes()) {
-		clog.Error("underlying index has been rewritten?")
-	}
 	clog.Tracef("mfile: getting block at index %d", index)
 	promBlocksRetrieved.WithLabelValues(m.name).Inc()
 	return m.data.GetBlock(uint64(index)), nil

@@ -121,7 +121,7 @@ func (d Dir) Attr(ctx context.Context, a *fuse.Attr) error {
 		a.Mode = fileInfo.Mode()
 	*/
 
-	a.Mode = os.ModeDir | 0555
+	a.Mode = os.ModeDir | 0755
 
 	return nil
 }
@@ -289,7 +289,7 @@ func (d DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 		}
 		fuseEntries = append(fuseEntries, fuse.Dirent{Name: path.Filename(), Type: fuse.DT_File})
 	}
-	clog.Debugf("returning dirents: %s %#v", d.path, fuseEntries)
+	clog.Tracef("returning dirents: %s %#v", d.path, fuseEntries)
 	return fuseEntries, nil
 }
 
@@ -498,7 +498,7 @@ func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 
 	a.Size = uint64(fileInfo.Size())
 	a.Mode = fileInfo.Mode()
-	a.BlockSize = 128 * 1024
+	a.BlockSize = 32 * 1024
 
 	return nil
 }

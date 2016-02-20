@@ -151,7 +151,7 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 	set := bs.GetLiveINodes()
 	s.incRef(path.Volume, set)
 	bm, ok := s.getBitmap(path.Volume)
-	mlog.Debugf("updating claim %s %s", path.Volume, bm)
+	mlog.Tracef("updating claim %s %s", path.Volume, bm)
 	err = s.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
 		s.decRef(path.Volume, set)

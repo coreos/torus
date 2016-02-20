@@ -117,9 +117,6 @@ func (f *file) openWrite() error {
 	}
 	f.writeOpen = true
 	f.updateHeldINodes(false)
-	if !f.initialINodes.Contains(uint32(newINode)) {
-		panic("wat")
-	}
 	bm := roaring.NewBitmap()
 	bm.Add(uint32(newINode))
 	// Kill the open inode; we'll reopen it if we use it.
@@ -496,7 +493,7 @@ func (f *file) updateHeldINodes(closing bool) {
 		card = bm.GetCardinality()
 	}
 	promOpenINodes.WithLabelValues(f.path.Volume).Set(float64(card))
-	mlog.Debugf("updating claim %s %s", f.path.Volume, bm)
+	mlog.Tracef("updating claim %s %s", f.path.Volume, bm)
 	err := f.srv.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
 		mlog.Error("file: TODO: Can't re-claim")

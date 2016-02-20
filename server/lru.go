@@ -2,6 +2,7 @@ package server
 
 import (
 	"container/list"
+	"sync"
 )
 
 // cache implements an LRU cache.
@@ -9,6 +10,7 @@ type cache struct {
 	cache    map[string]*list.Element
 	priority *list.List
 	maxSize  int
+	mut      sync.Mutex
 }
 
 type kv struct {
@@ -25,7 +27,9 @@ func newCache(size int) *cache {
 }
 
 func (lru *cache) Put(key string, value interface{}) {
-	if _, ok := lru.Get(key); ok {
+	lru.mut.Lock()
+	defer lru.mut.Unlock()
+	if _, ok := lru.get(key); ok {
 		return
 	}
 	if len(lru.cache) == lru.maxSize {
@@ -36,6 +40,12 @@ func (lru *cache) Put(key string, value interface{}) {
 }
 
 func (lru *cache) Get(key string) (interface{}, bool) {
+	lru.mut.Lock()
+	defer lru.mut.Unlock()
+	return lru.get(key)
+}
+
+func (lru *cache) get(key string) (interface{}, bool) {
 	if element, ok := lru.cache[key]; ok {
 		lru.priority.MoveToFront(element)
 		return element.Value.(kv).value, true
