@@ -37,6 +37,8 @@ var (
 	port             int
 	mkfs             bool
 	logpkg           string
+	readLevel        string
+	cfg              agro.Config
 
 	debug bool
 	trace bool
@@ -64,6 +66,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&sizeStr, "size", "", "1GiB", "Amount of memory to use for read cache")
 	rootCommand.PersistentFlags().StringVarP(&readCacheSizeStr, "read-cache-size", "", "20MiB", "Amount of memory to use for read cache")
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
+	rootCommand.PersistentFlags().StringVarP(&readLevel, "readlevel", "", "block", "Specific package logging")
 }
 
 func main() {
@@ -106,15 +109,30 @@ func configureServer(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
 		os.Exit(1)
 	}
-}
 
-func runServer(cmd *cobra.Command, args []string) {
-	cfg := agro.Config{
+	var rl agro.ReadLevel
+	switch readLevel {
+	case "spread":
+		rl = agro.ReadSpread
+	case "seq":
+		rl = agro.ReadSequential
+	case "block":
+		rl = agro.ReadBlock
+	default:
+		fmt.Fprintf(os.Stderr, "invalid readlevel; use one of 'spread', 'seq', or 'block'")
+		os.Exit(1)
+	}
+	cfg = agro.Config{
 		DataDir:         dataDir,
 		StorageSize:     size,
 		MetadataAddress: etcdAddress,
 		ReadCacheSize:   readCacheSize,
+		WriteLevel:      agro.WriteOne,
+		ReadLevel:       rl,
 	}
+}
+
+func runServer(cmd *cobra.Command, args []string) {
 
 	var (
 		srv agro.Server

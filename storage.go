@@ -168,9 +168,9 @@ type ReadLevel int
 type WriteLevel int
 
 const (
-	WriteLocal WriteLevel = iota
+	WriteAll WriteLevel = iota
 	WriteOne
-	WriteAll
+	WriteLocal
 )
 
 const (

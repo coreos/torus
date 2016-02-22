@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -44,6 +45,16 @@ var (
 		Name: "agro_server_file_written_bytes",
 		Help: "Number of bytes written to a file on this server",
 	}, []string{"volume"})
+	promFileBlockRead = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "agro_server_file_block_read_us",
+		Help:    "Histogram of ms taken to read a block through the layers and into the file abstraction",
+		Buckets: prometheus.ExponentialBuckets(50.0, 2, 20),
+	})
+	promFileBlockWrite = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "agro_server_file_block_write_us",
+		Help:    "Histogram of ms taken to write a block through the layers and into the file abstraction",
+		Buckets: prometheus.ExponentialBuckets(50.0, 2, 20),
+	})
 )
 
 func init() {
@@ -52,6 +63,8 @@ func init() {
 	prometheus.MustRegister(promFileSyncs)
 	prometheus.MustRegister(promFileChangedSyncs)
 	prometheus.MustRegister(promFileWrittenBytes)
+	prometheus.MustRegister(promFileBlockRead)
+	prometheus.MustRegister(promFileBlockWrite)
 }
 
 type file struct {
@@ -73,7 +86,6 @@ type file struct {
 	initialINodes *roaring.Bitmap
 	writeINodeRef agro.INodeRef
 	writeOpen     bool
-	writeLevel    agro.WriteLevel
 
 	// half-finished blocks
 	openIdx   int
@@ -139,10 +151,13 @@ func (f *file) openBlock(i int) error {
 		f.openIdx = i
 		return nil
 	}
+	start := time.Now()
 	d, err := f.blocks.GetBlock(f.getContext(), i)
 	if err != nil {
 		return err
 	}
+	delta := time.Now().Sub(start)
+	promFileBlockRead.Observe(float64(delta.Nanoseconds()) / 1000)
 	f.openData = d
 	f.openIdx = i
 	return nil
@@ -163,7 +178,10 @@ func (f *file) syncBlock() error {
 	if f.openData == nil || !f.openWrote {
 		return nil
 	}
+	start := time.Now()
 	err := f.blocks.PutBlock(f.getContext(), f.writeINodeRef, f.openIdx, f.openData)
+	delta := time.Now().Sub(start)
+	promFileBlockWrite.Observe(float64(delta.Nanoseconds()) / 1000)
 	f.openIdx = -1
 	f.openData = nil
 	f.openWrote = false
@@ -171,7 +189,9 @@ func (f *file) syncBlock() error {
 }
 
 func (f *file) getContext() context.Context {
-	return context.WithValue(context.TODO(), ctxWriteLevel, f.writeLevel)
+	wl := context.WithValue(context.TODO(), ctxWriteLevel, f.srv.cfg.WriteLevel)
+	rl := context.WithValue(wl, ctxReadLevel, f.srv.cfg.ReadLevel)
+	return rl
 }
 
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
@@ -240,11 +260,14 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	for toWrite >= int(f.blkSize) {
 		blkIndex := int(off / f.blkSize)
 		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
+		start := time.Now()
 		err = f.blocks.PutBlock(f.getContext(), f.writeINodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
 			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 			return n, err
 		}
+		delta := time.Now().Sub(start)
+		promFileBlockWrite.Observe(float64(delta.Nanoseconds()) / 1000)
 		b = b[f.blkSize:]
 		n += int(f.blkSize)
 		off += int64(f.blkSize)

@@ -70,7 +70,7 @@ exit:
 		clog.Tracef("starting rebalance/gc for %s", volset[volIdx])
 	volume:
 		for {
-			timeout := 10 * time.Duration(n+1) * time.Millisecond
+			timeout := 1 * time.Duration(n+1) * time.Millisecond
 			select {
 			case <-closer:
 				break exit
@@ -101,7 +101,7 @@ exit:
 				d.srv.infoMut.Unlock()
 			}
 		}
-		time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+		time.Sleep(time.Duration(rand.Intn(3)) * time.Second)
 		volIdx++
 	}
 }
