@@ -314,11 +314,11 @@ func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cre
 		dfs:  d.dfs,
 		path: newPath,
 	}
-	pathRefs[newPath] = node
-	delete(lstatExists, newPath)
 
 	cacheMut.Lock()
 	defer cacheMut.Unlock()
+	delete(lstatExists, newPath)
+	pathRefs[newPath] = node
 	fh := FileHandle{
 		dfs:  d.dfs,
 		path: newPath,
@@ -353,12 +353,14 @@ type FileHandle struct {
 }
 
 var (
-	_           fs.Node         = &File{}
-	_           fs.Handle       = FileHandle{}
-	_           fs.HandleReader = FileHandle{}
-	syncRefs                    = make(map[fuse.HandleID]agro.File)
-	pathRefs                    = make(map[agro.Path]pathChanger)
-	lstatExists                 = make(map[agro.Path]error)
+	_ fs.Node         = &File{}
+	_ fs.Handle       = FileHandle{}
+	_ fs.HandleReader = FileHandle{}
+
+	syncMut     sync.Mutex
+	syncRefs    = make(map[fuse.HandleID]agro.File)
+	pathRefs    = make(map[agro.Path]pathChanger)
+	lstatExists = make(map[agro.Path]error)
 )
 
 func readLstatExists(dfs agro.Server, p agro.Path) (os.FileInfo, error) {
@@ -382,6 +384,9 @@ func (f *File) ChangePath(p agro.Path) {
 func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	clog.Debugf("open: %d %s", req.Node, req.Flags)
 	var err error
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
+	delete(lstatExists, f.path)
 	file, err := f.dfs.OpenFile(f.path, int(req.Flags), 0)
 	if err != nil {
 		clog.Error("open:", f.path, err)
@@ -418,13 +423,21 @@ func (f File) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.
 }
 
 func (f File) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
-	file := syncRefs[req.Handle]
+	syncMut.Lock()
+	defer syncMut.Unlock()
+	file, ok := syncRefs[req.Handle]
+	if !ok {
+		return nil
+	}
 	err := file.Sync()
 	if err != nil {
 		clog.Error("fsync:", f.path, err)
 		return err
 	}
 	delete(syncRefs, req.Handle)
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
+	delete(lstatExists, f.path)
 	fuseSrv.InvalidateNodeAttr(f)
 	return nil
 }
@@ -444,6 +457,8 @@ func (fh FileHandle) Flush(ctx context.Context, req *fuse.FlushRequest) error {
 		clog.Error("flush:", fh.path, err)
 		return err
 	}
+	syncMut.Lock()
+	defer syncMut.Unlock()
 	delete(syncRefs, req.Handle)
 	fuseSrv.InvalidateNodeAttr(fh.node)
 	return nil
@@ -464,6 +479,8 @@ func (fh FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse
 }
 
 func (fh FileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+	syncMut.Lock()
+	defer syncMut.Unlock()
 	syncRefs[req.Handle] = fh.file
 	n, err := fh.file.WriteAt(req.Data, req.Offset)
 	if err != nil && err != io.EOF {
@@ -476,6 +493,8 @@ func (fh FileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fu
 
 func (fh FileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	clog.Tracef("closing %d nicely", req.Node)
+	syncMut.Lock()
+	defer syncMut.Unlock()
 	delete(syncRefs, req.Handle)
 	err := fh.file.Close()
 	if err != nil {

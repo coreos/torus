@@ -220,7 +220,11 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		clog.Debug("begin write: offset ", off, " size ", len(b))
 		clog.Debug("end of file ", f.blocks.Length(), " blkIndex ", blkIndex)
 		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
-		return n, errors.New("Can't write past the end of a file")
+		err := f.Truncate(off)
+		if err != nil {
+			return n, err
+		}
+		//return n, errors.New("Can't write past the end of a file")
 	}
 
 	blkOff := off - int64(int(f.blkSize)*blkIndex)
