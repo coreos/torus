@@ -1,74 +1,49 @@
 package gc
 
 import (
-	"time"
-
 	"github.com/coreos/agro"
 	"github.com/coreos/pkg/capnslog"
-)
-
-const (
-	DefaultGCWait = 5 * time.Second
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "gc")
 
 type controller struct {
-	blocks agro.BlockStore
-	mds    agro.MetadataService
-	gcs    []GC
+	gcs []GC
 }
 
 type GC interface {
-	Start()
-	Stop()
-	Force()
-	LastComplete() time.Time
-	RecentlyGCed(agro.BlockRef) bool
+	PrepVolume(agro.VolumeID) error
+	IsDead(agro.BlockRef) bool
+	Clear()
 }
 
-func NewGCController(mds agro.MetadataService, blocks agro.BlockStore) GC {
+func NewGCController(mds agro.MetadataService) GC {
 	return &controller{
-		blocks: blocks,
-		mds:    mds,
-		gcs:    []GC{NewBlocksByINodeGC(mds, blocks)},
+		gcs: []GC{NewBlocksByINodeGC(mds)},
 	}
 }
 
-func (c *controller) Start() {
+func (c *controller) PrepVolume(vid agro.VolumeID) error {
 	for _, x := range c.gcs {
-		x.Start()
-	}
-}
-
-func (c *controller) Stop() {
-	for _, x := range c.gcs {
-		x.Stop()
-	}
-}
-
-func (c *controller) Force() {
-	for _, x := range c.gcs {
-		x.Force()
-	}
-}
-
-func (c *controller) LastComplete() time.Time {
-	earliest := time.Unix(0, 0)
-	for _, x := range c.gcs {
-		n := x.LastComplete()
-		if n.Before(earliest) {
-			earliest = n
+		err := x.PrepVolume(vid)
+		if err != nil {
+			return err
 		}
 	}
-	return earliest
+	return nil
 }
 
-func (c *controller) RecentlyGCed(b agro.BlockRef) bool {
+func (c *controller) IsDead(ref agro.BlockRef) bool {
 	for _, x := range c.gcs {
-		if x.RecentlyGCed(b) {
+		if x.IsDead(ref) {
 			return true
 		}
 	}
 	return false
+}
+
+func (c *controller) Clear() {
+	for _, x := range c.gcs {
+		x.Clear()
+	}
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/server/gc"
 	"github.com/coreos/agro/server/rebalance"
 	"github.com/dgryski/go-tinylfu"
 )
@@ -67,7 +68,8 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 	d.ringWatcherChan = make(chan struct{})
 	go d.ringWatcher(d.rebalancerChan)
 	d.client = newDistClient(d)
-	d.rebalancer = rebalance.NewRebalancer(d, d.blocks, d.client)
+	g := gc.NewGCController(d.srv.mds)
+	d.rebalancer = rebalance.NewRebalancer(d, d.blocks, d.client, g)
 	d.rebalancerChan = make(chan struct{})
 	go d.rebalanceTicker(d.rebalancerChan)
 	return d, nil

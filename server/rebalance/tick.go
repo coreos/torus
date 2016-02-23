@@ -8,7 +8,7 @@ import (
 	"github.com/coreos/agro"
 )
 
-const maxIters = 1
+const maxIters = 20
 
 func (r *rebalancer) Tick() (int, error) {
 	if r.it == nil {
@@ -18,17 +18,29 @@ func (r *rebalancer) Tick() (int, error) {
 	m := make(map[string][]agro.BlockRef)
 	toDelete := make(map[agro.BlockRef]bool)
 	ring := r.r.Ring()
+
+outer:
 	for i := 0; i < maxIters; i++ {
-		ok := r.it.Next()
-		if !ok {
-			err := r.it.Err()
-			if err != nil {
-				return 0, err
+		var ref agro.BlockRef
+		for {
+			ok := r.it.Next()
+			if !ok {
+				err := r.it.Err()
+				if err != nil {
+					return 0, err
+				}
+				r.it = nil
+				break outer
 			}
-			r.it = nil
-			break
+			ref = r.it.BlockRef()
+			if r.vol != 0 && ref.Volume() == r.vol {
+				break
+			}
 		}
-		ref := r.it.BlockRef()
+		if r.gc.IsDead(ref) {
+			toDelete[ref] = true
+			continue
+		}
 		perm, err := ring.GetPeers(ref)
 		if err != nil {
 			return 0, err

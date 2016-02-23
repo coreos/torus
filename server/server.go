@@ -12,7 +12,6 @@ import (
 	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/server/gc"
 
 	// Register drivers
 	_ "github.com/coreos/agro/metadata/memory"
@@ -36,7 +35,6 @@ type server struct {
 
 	heartbeating    bool
 	replicationOpen bool
-	gc              gc.GC
 }
 
 func (s *server) FileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry, error) {
@@ -186,9 +184,6 @@ func (s *server) GetVolumes() ([]string, error) {
 func (s *server) Close() error {
 	for _, c := range s.closeChans {
 		close(c)
-	}
-	if s.gc != nil {
-		s.gc.Stop()
 	}
 	err := s.mds.Close()
 	if err != nil {
