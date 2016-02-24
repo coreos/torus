@@ -180,6 +180,8 @@ func (m *mfileBlock) findEmpty() int {
 }
 
 func (m *mfileBlock) HasBlock(_ context.Context, s agro.BlockRef) (bool, error) {
+	m.mut.RLock()
+	defer m.mut.RUnlock()
 	index := m.findIndex(s)
 	if index == -1 {
 		return false, nil
@@ -228,11 +230,15 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
-
 	tx := m.blockTrie.Txn()
-	_, exists := tx.Insert(s.ToBytes(), index)
+	old, exists := tx.Insert(s.ToBytes(), index)
 	if exists {
 		clog.Debug("block already exists", s.ToBytes())
+		olddata := m.data.GetBlock(uint64(old.(int)))
+		if !bytes.Equal(olddata, data) {
+			clog.Error("getting wrong data for block", s.ToBytes())
+			return agro.ErrExists
+		}
 		// Not an error, if we already have it
 		return nil
 	}

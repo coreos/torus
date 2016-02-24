@@ -13,17 +13,20 @@ func (s *server) modFileMetadata(p agro.Path, f func(inode *models.INode) error)
 	if err != nil {
 		return err
 	}
-	_, _, err = s.updateINodeChain(p, func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
-		if inode == nil {
-			return nil, agro.NewINodeRef(vol, newINodeID), os.ErrNotExist
-		}
-		err := f(inode)
-		if err != nil {
-			return nil, agro.NewINodeRef(vol, newINodeID), err
-		}
-		inode.INode = uint64(newINodeID)
-		return inode, agro.NewINodeRef(vol, newINodeID), nil
-	})
+	_, _, err = s.updateINodeChain(
+		s.getContext(),
+		p,
+		func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
+			if inode == nil {
+				return nil, agro.NewINodeRef(vol, newINodeID), os.ErrNotExist
+			}
+			err := f(inode)
+			if err != nil {
+				return nil, agro.NewINodeRef(vol, newINodeID), err
+			}
+			inode.INode = uint64(newINodeID)
+			return inode, agro.NewINodeRef(vol, newINodeID), nil
+		})
 	return err
 }
 

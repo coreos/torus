@@ -67,15 +67,16 @@ exit:
 			clog.Error(err)
 			continue
 		}
-		clog.Debugf("starting rebalance/gc for %s", volset[volIdx])
+		clog.Tracef("starting rebalance/gc for %s", volset[volIdx])
 	volume:
 		for {
-			timeout := 10 * time.Duration(n+1) * time.Millisecond
+			timeout := 1 * time.Duration(n+1) * time.Millisecond
 			select {
 			case <-closer:
 				break exit
 			case <-time.After(timeout):
 				written, err := d.rebalancer.Tick()
+				d.srv.infoMut.Lock()
 				if d.ring.Version() != d.rebalancer.VersionStart() {
 					// Something is changed -- we are now rebalancing
 					d.srv.peerInfo.Rebalancing = true
@@ -90,15 +91,17 @@ exit:
 					if finishver == d.ring.Version() {
 						d.srv.peerInfo.Rebalancing = false
 					}
+					d.srv.infoMut.Unlock()
 					break volume
 				} else if err != nil {
 					// This is usually really bad
 					clog.Error(err)
 				}
 				n = written
+				d.srv.infoMut.Unlock()
 			}
 		}
-		time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+		time.Sleep(time.Duration(rand.Intn(3)) * time.Second)
 		volIdx++
 	}
 }

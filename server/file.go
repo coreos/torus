@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -44,6 +45,16 @@ var (
 		Name: "agro_server_file_written_bytes",
 		Help: "Number of bytes written to a file on this server",
 	}, []string{"volume"})
+	promFileBlockRead = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "agro_server_file_block_read_us",
+		Help:    "Histogram of ms taken to read a block through the layers and into the file abstraction",
+		Buckets: prometheus.ExponentialBuckets(50.0, 2, 20),
+	})
+	promFileBlockWrite = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "agro_server_file_block_write_us",
+		Help:    "Histogram of ms taken to write a block through the layers and into the file abstraction",
+		Buckets: prometheus.ExponentialBuckets(50.0, 2, 20),
+	})
 )
 
 func init() {
@@ -52,6 +63,8 @@ func init() {
 	prometheus.MustRegister(promFileSyncs)
 	prometheus.MustRegister(promFileChangedSyncs)
 	prometheus.MustRegister(promFileWrittenBytes)
+	prometheus.MustRegister(promFileBlockRead)
+	prometheus.MustRegister(promFileBlockWrite)
 }
 
 type file struct {
@@ -73,7 +86,6 @@ type file struct {
 	initialINodes *roaring.Bitmap
 	writeINodeRef agro.INodeRef
 	writeOpen     bool
-	writeLevel    agro.WriteLevel
 
 	// half-finished blocks
 	openIdx   int
@@ -139,10 +151,13 @@ func (f *file) openBlock(i int) error {
 		f.openIdx = i
 		return nil
 	}
-	d, err := f.blocks.GetBlock(context.TODO(), i)
+	start := time.Now()
+	d, err := f.blocks.GetBlock(f.getContext(), i)
 	if err != nil {
 		return err
 	}
+	delta := time.Now().Sub(start)
+	promFileBlockRead.Observe(float64(delta.Nanoseconds()) / 1000)
 	f.openData = d
 	f.openIdx = i
 	return nil
@@ -163,7 +178,10 @@ func (f *file) syncBlock() error {
 	if f.openData == nil || !f.openWrote {
 		return nil
 	}
+	start := time.Now()
 	err := f.blocks.PutBlock(f.getContext(), f.writeINodeRef, f.openIdx, f.openData)
+	delta := time.Now().Sub(start)
+	promFileBlockWrite.Observe(float64(delta.Nanoseconds()) / 1000)
 	f.openIdx = -1
 	f.openData = nil
 	f.openWrote = false
@@ -171,7 +189,7 @@ func (f *file) syncBlock() error {
 }
 
 func (f *file) getContext() context.Context {
-	return context.WithValue(context.TODO(), ctxWriteLevel, f.writeLevel)
+	return f.srv.getContext()
 }
 
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
@@ -200,7 +218,11 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		clog.Debug("begin write: offset ", off, " size ", len(b))
 		clog.Debug("end of file ", f.blocks.Length(), " blkIndex ", blkIndex)
 		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
-		return n, errors.New("Can't write past the end of a file")
+		err := f.Truncate(off)
+		if err != nil {
+			return n, err
+		}
+		//return n, errors.New("Can't write past the end of a file")
 	}
 
 	blkOff := off - int64(int(f.blkSize)*blkIndex)
@@ -240,11 +262,14 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	for toWrite >= int(f.blkSize) {
 		blkIndex := int(off / f.blkSize)
 		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
+		start := time.Now()
 		err = f.blocks.PutBlock(f.getContext(), f.writeINodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
 			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
 			return n, err
 		}
+		delta := time.Now().Sub(start)
+		promFileBlockWrite.Observe(float64(delta.Nanoseconds()) / 1000)
 		b = b[f.blkSize:]
 		n += int(f.blkSize)
 		off += int64(f.blkSize)
@@ -357,6 +382,10 @@ func (f *file) sync(closing bool) error {
 		clog.Error("sync: couldn't sync block")
 		return err
 	}
+	err = f.srv.blocks.Flush()
+	if err != nil {
+		return err
+	}
 	blkdata, err := blockset.MarshalToProto(f.blocks)
 	if err != nil {
 		clog.Error("sync: couldn't marshal proto")
@@ -369,6 +398,7 @@ func (f *file) sync(closing bool) error {
 	var replaced agro.INodeRef
 	for {
 		_, replaced, err = f.srv.updateINodeChain(
+			f.getContext(),
 			f.path,
 			func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
 				if inode == nil {
@@ -432,13 +462,14 @@ func (f *file) sync(closing bool) error {
 		f.initialINodes = bs.GetLiveINodes()
 		f.initialINodes.Add(uint32(f.inode.INode))
 		f.updateHeldINodes(false)
+		clog.Debugf("retrying critical transaction section")
 	}
 
 	err = f.srv.mds.SetFileEntry(f.path, &models.FileEntry{
 		Chain: f.inode.Chain,
 	})
 
-	newLive := f.blocks.GetLiveINodes()
+	newLive := f.getLiveINodes()
 	var dead *roaring.Bitmap
 	// Cleanup.
 
@@ -455,7 +486,9 @@ func (f *file) sync(closing bool) error {
 			// Again, safer in transaction.
 			panic("sync: couldn't unmarshal blockset")
 		}
-		dead = roaring.AndNot(bs.GetLiveINodes(), newLive)
+		dead.Or(bs.GetLiveINodes())
+		dead.Add(uint32(replaced.INode))
+		dead.AndNot(newLive)
 	}
 	f.srv.mds.ModifyDeadMap(f.writeINodeRef.Volume(), newLive, dead)
 
@@ -469,9 +502,7 @@ func (f *file) sync(closing bool) error {
 
 func (f *file) getLiveINodes() *roaring.Bitmap {
 	bm := f.blocks.GetLiveINodes()
-	if f.writeOpen {
-		bm.Add(uint32(f.inode.INode))
-	}
+	bm.Add(uint32(f.inode.INode))
 	return bm
 }
 
@@ -488,9 +519,10 @@ func (f *file) updateHeldINodes(closing bool) {
 		card = bm.GetCardinality()
 	}
 	promOpenINodes.WithLabelValues(f.path.Volume).Set(float64(card))
+	mlog.Tracef("updating claim %s %s", f.path.Volume, bm)
 	err := f.srv.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
-		clog.Error("file: TODO: Can't re-claim")
+		mlog.Error("file: TODO: Can't re-claim")
 	}
 }
 

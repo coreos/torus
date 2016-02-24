@@ -39,6 +39,7 @@ outer:
 		}
 		if r.gc.IsDead(ref) {
 			toDelete[ref] = true
+			i--
 			continue
 		}
 		perm, err := ring.GetPeers(ref)

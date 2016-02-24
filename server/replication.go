@@ -20,12 +20,14 @@ func (s *server) openReplication(addr string, listen bool) error {
 	if s.replicationOpen {
 		return agro.ErrExists
 	}
-	ipaddr, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return err
+	if addr != "" {
+		ipaddr, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return err
+		}
+		ipaddr = autodetectIP(ipaddr)
+		s.peerInfo.Address = fmt.Sprintf("%s:%s", ipaddr, port)
 	}
-	ipaddr = autodetectIP(ipaddr)
-	s.peerInfo.Address = fmt.Sprintf("%s:%s", ipaddr, port)
 	dist, err := newDistributor(s, addr, listen)
 	if err != nil {
 		return err

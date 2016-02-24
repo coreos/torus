@@ -18,10 +18,15 @@ var (
 		Name: "agro_blockset_crc_failed_blocks",
 		Help: "Number of blocks that failed due to CRC mismatch",
 	})
+	promBaseFail = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "agro_blockset_base_failed_blocks",
+		Help: "Number of blocks that failed",
+	})
 )
 
 func init() {
 	prometheus.MustRegister(promCRCFail)
+	prometheus.MustRegister(promBaseFail)
 }
 
 type blockset interface {

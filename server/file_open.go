@@ -8,7 +8,12 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
+	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
+)
+
+var (
+	mlog = capnslog.NewPackageLogger("github.com/coreos/agro", "map")
 )
 
 func (s *server) Create(path agro.Path) (agro.File, error) {
@@ -48,7 +53,6 @@ func (s *server) create(path agro.Path, flag int, md *models.Metadata) (f agro.F
 		initialINodes: roaring.NewBitmap(),
 		readOnly:      rdOnly,
 		writeOnly:     wrOnly,
-		writeLevel:    agro.WriteOne,
 		changed:       make(map[string]bool),
 	}
 	s.addOpenFile(file)
@@ -65,6 +69,7 @@ func (s *server) Open(p agro.Path) (agro.File, error) {
 }
 
 func (s *server) OpenFile(p agro.Path, flag int, perm os.FileMode) (agro.File, error) {
+	clog.Debugf("opening file %s", p)
 	return s.openFile(p, flag, &models.Metadata{
 		Mode: uint32(perm),
 	})
@@ -145,6 +150,7 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 	set := bs.GetLiveINodes()
 	s.incRef(path.Volume, set)
 	bm, ok := s.getBitmap(path.Volume)
+	mlog.Tracef("updating claim %s %s", path.Volume, bm)
 	err = s.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
 		s.decRef(path.Volume, set)
@@ -167,7 +173,6 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 		blkSize:       int64(md.BlockSize),
 		readOnly:      rdOnly,
 		writeOnly:     wrOnly,
-		writeLevel:    agro.WriteOne,
 		changed:       make(map[string]bool),
 	}
 	s.addOpenFile(f)

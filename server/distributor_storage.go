@@ -2,6 +2,8 @@ package server
 
 import (
 	"errors"
+	"sync"
+	"time"
 
 	"github.com/coreos/agro"
 	"golang.org/x/net/context"
@@ -13,6 +15,7 @@ var (
 
 const (
 	ctxWriteLevel int = iota
+	ctxReadLevel
 )
 
 func getRepFromContext(ctx context.Context) int {
@@ -50,8 +53,9 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		promDistBlockFailures.Inc()
 		return nil, ErrNoPeersBlock
 	}
+	writeLevel := getWriteFromContext(ctx)
 	for _, p := range peers.Peers[:peers.Replication] {
-		if p == d.UUID() {
+		if p == d.UUID() || writeLevel == agro.WriteLocal {
 			b, err := d.blocks.GetBlock(ctx, i)
 			if err == nil {
 				promDistBlockLocalHits.Inc()
@@ -61,64 +65,125 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 			break
 		}
 	}
-	quick := true
-	for {
-		for _, p := range peers.Peers {
-			// If it's local, just try to get it.
-			if p == d.UUID() {
-				b, err := d.blocks.GetBlock(ctx, i)
-				if err == nil {
-					promDistBlockLocalHits.Inc()
-					return b, nil
-				}
-				promDistBlockLocalFailures.Inc()
-				continue
-			}
-			// Fetch block from remote. First pass through peers
-			// with a timeout, then through the list without.
-			var getctx context.Context
-			var cancel context.CancelFunc
-			if quick {
-				getctx, cancel = context.WithTimeout(ctx, clientTimeout)
-			} else {
-				getctx = ctx
-			}
-			blk, err := d.client.GetBlock(getctx, p, i)
-			if quick {
-				cancel()
-			}
-
-			// If we're successful, store that.
-			if err == nil {
-				if d.readCache != nil {
-					d.readCache.Add(string(i.ToBytes()), blk)
-				}
-				promDistBlockPeerHits.WithLabelValues(p).Inc()
-				return blk, nil
-			}
-
-			// If this peer didn't have it, continue
-			if err == agro.ErrBlockUnavailable {
-				clog.Warningf("block from %s failed, trying next peer", p)
-				promDistBlockPeerFailures.WithLabelValues(p).Inc()
-				continue
-			}
-
-			// If there was a more significant error, fail hard.
-			promDistBlockFailures.Inc()
-			return nil, err
-		}
-		// Well, we couldn't find it with timeouts, but perhaps all timeouts failed.
-		// Let's go back through the list, without timeouts, and if we can't hit it
-		// then we know we've failed.
-		if !quick {
-			break
-		}
-		quick = false
+	var blk []byte
+	readLevel := getReadFromContext(ctx)
+	switch readLevel {
+	case agro.ReadBlock:
+		blk, err = d.readWithBackoff(ctx, i, peers)
+	case agro.ReadSequential:
+		blk, err = d.readSequential(ctx, i, peers, clientTimeout)
+	case agro.ReadSpread:
+		blk, err = d.readSpread(ctx, i, peers)
+	default:
+		panic("unhandled read level")
 	}
-	// We completely failed!
-	promDistBlockFailures.Inc()
+	if err != nil {
+		// We completely failed!
+		promDistBlockFailures.Inc()
+		clog.Error("no peers for block")
+	}
+	return blk, err
+}
+
+func (d *distributor) readWithBackoff(ctx context.Context, ref agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
+	for i := uint(0); i < 10; i++ {
+		timeout := clientTimeout * (1 << i)
+		blk, err := d.readSequential(ctx, ref, peers, timeout)
+		if err == nil {
+			return blk, err
+		}
+	}
 	return nil, ErrNoPeersBlock
+}
+
+func (d *distributor) readSequential(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation, timeout time.Duration) ([]byte, error) {
+	for _, p := range peers.Peers {
+		// If it's local, just try to get it.
+		if p == d.UUID() {
+			b, err := d.blocks.GetBlock(ctx, i)
+			if err == nil {
+				promDistBlockLocalHits.Inc()
+				return b, nil
+			}
+			promDistBlockLocalFailures.Inc()
+			clog.Debug("failed local peer (again)")
+			continue
+		}
+		// Fetch block from remote. First pass through peers
+		// with a timeout, then through the list without.
+		getctx, cancel := context.WithTimeout(ctx, timeout)
+		blk, err := d.readFromPeer(getctx, i, p)
+		cancel()
+
+		if err == nil {
+			return blk, nil
+		}
+
+		// If this peer didn't have it, continue
+		if err == agro.ErrBlockUnavailable {
+			clog.Warningf("block from %s failed, trying next peer", p)
+			promDistBlockPeerFailures.WithLabelValues(p).Inc()
+			continue
+		}
+
+		// If there was a more significant error, fail hard.
+		promDistBlockFailures.Inc()
+		clog.Errorf("failed remote peer %s %s %#v", p, err, err)
+		return nil, err
+	}
+	return nil, ErrNoPeersBlock
+}
+
+func (d *distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
+	resch := make(chan []byte)
+	errch := make(chan error, peers.Replication)
+	var once sync.Once
+	count := 0
+	for _, p := range peers.Peers[:peers.Replication] {
+		if p == d.UUID() {
+			continue
+		}
+		go func(peer string) {
+			getctx, cancel := context.WithTimeout(ctx, clientTimeout)
+			blk, err := d.readFromPeer(getctx, i, peer)
+			cancel()
+			if err == nil {
+				once.Do(func() {
+					resch <- blk
+					close(resch)
+				})
+				return
+			}
+			errch <- err
+		}(p)
+		count++
+	}
+
+	for {
+		select {
+		case blk := <-resch:
+			return blk, nil
+		case err := <-errch:
+			clog.Debugf("spread-read: %s, %s", err, i)
+			count--
+			if count == 0 {
+				return nil, ErrNoPeersBlock
+			}
+		}
+	}
+}
+
+func (d *distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer string) ([]byte, error) {
+	blk, err := d.client.GetBlock(ctx, peer, i)
+	// If we're successful, store that.
+	if err == nil {
+		if d.readCache != nil {
+			d.readCache.Put(string(i.ToBytes()), blk)
+		}
+		promDistBlockPeerHits.WithLabelValues(peer).Inc()
+		return blk, nil
+	}
+	return nil, err
 }
 
 func getWriteFromContext(ctx context.Context) agro.WriteLevel {
@@ -127,6 +192,14 @@ func getWriteFromContext(ctx context.Context) agro.WriteLevel {
 		return v
 	}
 	return agro.WriteAll
+}
+
+func getReadFromContext(ctx context.Context) agro.ReadLevel {
+	v, ok := ctx.Value(ctxReadLevel).(agro.ReadLevel)
+	if ok {
+		return v
+	}
+	return agro.ReadBlock
 }
 
 func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {

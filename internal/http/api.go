@@ -21,8 +21,10 @@ type Server struct {
 }
 
 func NewServer(dfs agro.Server) *Server {
+	engine := gin.New()
+	engine.Use(gin.Recovery())
 	s := &Server{
-		router:      gin.Default(),
+		router:      engine,
 		dfs:         dfs,
 		promHandler: prometheus.Handler(),
 	}
@@ -38,6 +40,7 @@ func (s *Server) setupRoutes() {
 		v0.PUT("/volume/:volume/file/:filename", s.putFile)
 		v0.GET("/volume/:volume/file/:filename", s.getFile)
 		v0.DELETE("/volume/:volume/file/:filename", s.deleteFile)
+		v0.GET("/dumpmetadata", s.dumpMDS)
 	}
 	s.router.GET("/metrics", s.prometheus)
 	ginpprof.Wrapper(s.router)
@@ -55,6 +58,14 @@ func (s *Server) createVolume(c *gin.Context) {
 
 func (s *Server) prometheus(c *gin.Context) {
 	s.promHandler.ServeHTTP(c.Writer, c.Request)
+}
+
+func (s *Server) dumpMDS(c *gin.Context) {
+	err := s.dfs.Debug(c.Writer)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		c.Writer.Write([]byte(err.Error()))
+	}
 }
 
 func (s *Server) getVolumes(c *gin.Context) {

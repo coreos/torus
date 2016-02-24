@@ -55,6 +55,8 @@ func (s *server) heartbeat(cl chan interface{}) {
 
 func (s *server) oneHeartbeat() {
 	promHeartbeats.Inc()
+	s.infoMut.Lock()
+	defer s.infoMut.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), heartbeatTimeout)
 	defer cancel()
 	s.peerInfo.TotalBlocks = s.blocks.NumBlocks()

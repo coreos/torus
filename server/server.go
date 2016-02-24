@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path"
 	"sync"
@@ -12,17 +13,29 @@ import (
 	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
+	"github.com/prometheus/client_golang/prometheus"
 
 	// Register drivers
 	_ "github.com/coreos/agro/metadata/memory"
 	_ "github.com/coreos/agro/storage/block"
 )
 
-var _ agro.Server = &server{}
+var (
+	_       agro.Server = &server{}
+	promOps             = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "agro_server_ops_total",
+		Help: "Number of times an atomic update failed and needed to be retried",
+	}, []string{"kind"})
+)
+
+func init() {
+	prometheus.MustRegister(promOps)
+}
 
 type server struct {
 	mut           sync.RWMutex
 	writeableLock sync.RWMutex
+	infoMut       sync.Mutex
 	blocks        agro.BlockStore
 	mds           agro.MetadataService
 	inodes        *INodeStore
@@ -38,6 +51,7 @@ type server struct {
 }
 
 func (s *server) FileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry, error) {
+	promOps.WithLabelValues("file-entry-for-path").Inc()
 	dirname, filename := path.Split(p.Path)
 	dirpath := agro.Path{p.Volume, dirname}
 	dir, _, err := s.mds.Getdir(dirpath)
@@ -110,14 +124,15 @@ func (fi FileInfo) Sys() interface{} {
 }
 
 func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
+	promOps.WithLabelValues("lstat").Inc()
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	clog.Debugf("lstat %s", path)
 	for _, x := range s.openFiles {
 		if x.path.Equals(path) {
 			return x.Stat()
 		}
 	}
+	clog.Tracef("lstat %s", path)
 	vol, ent, err := s.FileEntryForPath(path)
 	if err != nil {
 		return nil, err
@@ -139,6 +154,7 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 }
 
 func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
+	promOps.WithLabelValues("readdir").Inc()
 	if !path.IsDir() {
 		return nil, errors.New("ENOTDIR")
 	}
@@ -164,6 +180,7 @@ func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
 }
 
 func (s *server) Mkdir(path agro.Path) error {
+	promOps.WithLabelValues("mkdir").Inc()
 	if !path.IsDir() {
 		return os.ErrInvalid
 	}
@@ -261,13 +278,14 @@ func (s *server) getBitmap(vol string) (*roaring.Bitmap, bool) {
 }
 
 func (s *server) Remove(path agro.Path) error {
+	promOps.WithLabelValues("remove").Inc()
 	if path.IsDir() {
 		return s.removeDir(path)
 	}
 	return s.removeFile(path)
 }
 
-func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, agro.INodeRef, error) {
+func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, agro.INodeRef, error) {
 	notExist := false
 	vol, entry, err := s.FileEntryForPath(p)
 	ref := agro.NewINodeRef(vol, agro.INodeID(0))
@@ -290,7 +308,7 @@ func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INo
 			if err != nil {
 				return nil, ref, err
 			}
-			inode, err = s.inodes.GetINode(context.TODO(), ref)
+			inode, err = s.inodes.GetINode(ctx, ref)
 			if err != nil {
 				return nil, ref, err
 			}
@@ -305,7 +323,7 @@ func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INo
 			err = s.mds.SetChainINode(p.Volume, chainRef, ref, newRef)
 		}
 		if err == nil {
-			return newINode, ref, s.inodes.WriteINode(context.TODO(), newRef, newINode)
+			return newINode, ref, s.inodes.WriteINode(ctx, newRef, newINode)
 		}
 		if err == agro.ErrCompareFailed {
 			continue
@@ -333,4 +351,28 @@ func (s *server) removeOpenFile(f *file) {
 			return
 		}
 	}
+}
+
+func (s *server) Statfs() (agro.ServerStats, error) {
+	gmd, err := s.mds.GlobalMetadata()
+	if err != nil {
+		return agro.ServerStats{}, err
+	}
+	return agro.ServerStats{
+		BlockSize: gmd.BlockSize,
+	}, nil
+}
+
+func (s *server) Debug(w io.Writer) error {
+	if v, ok := s.mds.(agro.DebugMetadataService); ok {
+		io.WriteString(w, "# MDS\n")
+		return v.DumpMetadata(w)
+	}
+	return nil
+}
+
+func (s *server) getContext() context.Context {
+	wl := context.WithValue(context.TODO(), ctxWriteLevel, s.cfg.WriteLevel)
+	rl := context.WithValue(wl, ctxReadLevel, s.cfg.ReadLevel)
+	return rl
 }

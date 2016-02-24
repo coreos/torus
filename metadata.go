@@ -2,6 +2,7 @@ package agro
 
 import (
 	"fmt"
+	"io"
 	"path"
 	"strings"
 
@@ -135,6 +136,10 @@ type MetadataService interface {
 
 	// TODO(barakmich): Extend with GC interaction, et al
 	Close() error
+}
+
+type DebugMetadataService interface {
+	DumpMetadata(io.Writer) error
 }
 
 type GlobalMetadata struct {

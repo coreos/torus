@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path"
 	"strconv"
@@ -44,6 +45,10 @@ var (
 		Name: "agro_etcd_atomic_retries",
 		Help: "Number of times an atomic update failed and needed to be retried",
 	}, []string{"key"})
+	promOps = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "agro_etcd_ops_total",
+		Help: "Number of times an atomic update failed and needed to be retried",
+	}, []string{"kind"})
 )
 
 func init() {
@@ -52,6 +57,7 @@ func init() {
 	agro.RegisterSetRing("etcd", setRing)
 
 	prometheus.MustRegister(promAtomicRetries)
+	prometheus.MustRegister(promOps)
 }
 
 type etcdCtx struct {
@@ -183,6 +189,7 @@ func (c *etcdCtx) UUID() string {
 }
 
 func (c *etcdCtx) RegisterPeer(p *models.PeerInfo) error {
+	promOps.WithLabelValues("register-peer").Inc()
 	p.LastSeen = time.Now().UnixNano()
 	data, err := p.Marshal()
 	if err != nil {
@@ -195,6 +202,7 @@ func (c *etcdCtx) RegisterPeer(p *models.PeerInfo) error {
 }
 
 func (c *etcdCtx) GetPeers() (agro.PeerInfoList, error) {
+	promOps.WithLabelValues("get-peers").Inc()
 	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("nodes")))
 	if err != nil {
 		return nil, err
@@ -296,6 +304,7 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 }
 
 func (c *etcdCtx) GetVolumes() ([]string, error) {
+	promOps.WithLabelValues("get-volumes").Inc()
 	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumes")))
 	if err != nil {
 		return nil, err
@@ -345,6 +354,7 @@ func (c *etcdCtx) GetVolumeName(vid agro.VolumeID) (string, error) {
 }
 
 func (c *etcdCtx) CommitINodeIndex(volume string) (agro.INodeID, error) {
+	promOps.WithLabelValues("commit-inode-index").Inc()
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
 	newID, err := c.atomicModifyKey(mkKey("volumemeta", "inode", volume), bytesAddOne)
@@ -381,6 +391,7 @@ func (c *etcdCtx) GetINodeIndexes() (map[string]agro.INodeID, error) {
 }
 
 func (c *etcdCtx) Mkdir(path agro.Path, md *models.Metadata) error {
+	promOps.WithLabelValues("mkdir").Inc()
 	parent, ok := path.Parent()
 	if !ok {
 		return errors.New("etcd: not a directory")
@@ -401,6 +412,7 @@ func (c *etcdCtx) Mkdir(path agro.Path, md *models.Metadata) error {
 }
 
 func (c *etcdCtx) Rmdir(path agro.Path) error {
+	promOps.WithLabelValues("rmdir").Inc()
 	if !path.IsDir() {
 		clog.Error("rmdir: not a directory", path)
 		return errors.New("etcd: not a directory")
@@ -437,6 +449,7 @@ func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 }
 
 func (c *etcdCtx) getdir(p agro.Path) (*models.Directory, []agro.Path, int64, error) {
+	promOps.WithLabelValues("getdir").Inc()
 	tx := tx().If(
 		keyExists(mkKey("dirs", p.Key())),
 	).Then(
@@ -469,6 +482,7 @@ func (c *etcdCtx) getdir(p agro.Path) (*models.Directory, []agro.Path, int64, er
 }
 
 func (c *etcdCtx) SetFileEntry(p agro.Path, ent *models.FileEntry) error {
+	promOps.WithLabelValues("set-file-entry").Inc()
 	_, err := c.atomicModifyKey(mkKey("dirs", p.Key()), trySetFileEntry(p, ent))
 	return err
 }
@@ -499,7 +513,7 @@ func trySetFileEntry(p agro.Path, ent *models.FileEntry) AtomicModifyFunc {
 
 func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRef, error) {
 	pageID := uint64ToHex(uint64(base.INode / chainPageSize))
-	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", volume, pageID)))
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "chain", volume, pageID)))
 	if len(resp.Kvs) == 0 {
 		return agro.INodeRef{}, nil
 	}
@@ -516,8 +530,9 @@ func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRe
 }
 
 func (c *etcdCtx) SetChainINode(volume string, base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
+	promOps.WithLabelValues("set-chain-inode").Inc()
 	pageID := uint64ToHex(uint64(base.INode / chainPageSize))
-	_, err := c.atomicModifyKey(mkKey("volumemeta", volume, pageID), func(b []byte) ([]byte, interface{}, error) {
+	_, err := c.atomicModifyKey(mkKey("volumemeta", "chain", volume, pageID), func(b []byte) ([]byte, interface{}, error) {
 		set := &models.FileChainSet{}
 		if len(b) == 0 {
 			set.Chains = make(map[uint64]uint64)
@@ -546,6 +561,7 @@ func (c *etcdCtx) SetChainINode(volume string, base agro.INodeRef, was agro.INod
 }
 
 func (c *etcdCtx) GetRing() (agro.Ring, error) {
+	promOps.WithLabelValues("get-ring").Inc()
 	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("meta", "the-one-ring")))
 	if err != nil {
 		return nil, err
@@ -562,6 +578,7 @@ func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
 }
 
 func (c *etcdCtx) GetVolumeLiveness(volumeID agro.VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error) {
+	promOps.WithLabelValues("get-volume-liveness").Inc()
 	volume := uint64ToHex(uint64(volumeID))
 	tx := tx().Do(
 		getKey(mkKey("volumemeta", "deadmap", volume)),
@@ -581,6 +598,7 @@ func (c *etcdCtx) GetVolumeLiveness(volumeID agro.VolumeID) (*roaring.Bitmap, []
 
 func (c *etcdCtx) ClaimVolumeINodes(volumeID agro.VolumeID, inodes *roaring.Bitmap) error {
 	// TODO(barakmich): LEASE
+	promOps.WithLabelValues("claim-volume-inodes").Inc()
 	volume := uint64ToHex(uint64(volumeID))
 	key := mkKey("volumemeta", "open", volume, c.UUID())
 	if inodes == nil {
@@ -595,6 +613,13 @@ func (c *etcdCtx) ClaimVolumeINodes(volumeID agro.VolumeID, inodes *roaring.Bitm
 }
 
 func (c *etcdCtx) ModifyDeadMap(volumeID agro.VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error {
+	promOps.WithLabelValues("modify-deadmap").Inc()
+	if clog.LevelAt(capnslog.DEBUG) {
+		newdead := roaring.AndNot(dead, live)
+		clog.Debugf("killing %s", newdead.String())
+		revive := roaring.AndNot(live, dead)
+		clog.Debugf("reviving %s", revive.String())
+	}
 	volume := uint64ToHex(uint64(volumeID))
 	_, err := c.atomicModifyKey(mkKey("volumemeta", "deadmap", volume), func(b []byte) ([]byte, interface{}, error) {
 		bm := bytesToRoaring(b)
@@ -618,4 +643,54 @@ func (c *etcdCtx) SetRing(ring agro.Ring) error {
 	}
 	return nil
 
+}
+
+func (c *etcdCtx) DumpMetadata(w io.Writer) error {
+	io.WriteString(w, "## Deadmaps\n")
+	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "deadmap")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		bm := bytesToRoaring(x.Value)
+		io.WriteString(w, bm.String())
+		io.WriteString(w, "\n")
+	}
+	io.WriteString(w, "## Open\n")
+	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "open")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		bm := bytesToRoaring(x.Value)
+		io.WriteString(w, bm.String())
+		io.WriteString(w, "\n")
+	}
+	io.WriteString(w, "## Dirs\n")
+	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("dirs")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		dir := &models.Directory{}
+		dir.Unmarshal(x.Value)
+		io.WriteString(w, dir.String())
+		io.WriteString(w, "\n")
+	}
+	io.WriteString(w, "## Chains\n")
+	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "chain")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		chains := &models.FileChainSet{}
+		chains.Unmarshal(x.Value)
+		io.WriteString(w, chains.String())
+		io.WriteString(w, "\n")
+	}
+	return nil
 }
