@@ -616,9 +616,9 @@ func (c *etcdCtx) ModifyDeadMap(volumeID agro.VolumeID, live *roaring.Bitmap, de
 	promOps.WithLabelValues("modify-deadmap").Inc()
 	if clog.LevelAt(capnslog.DEBUG) {
 		newdead := roaring.AndNot(dead, live)
-		clog.Debugf("killing %s", newdead.String())
+		clog.Tracef("killing %s", newdead.String())
 		revive := roaring.AndNot(live, dead)
-		clog.Debugf("reviving %s", revive.String())
+		clog.Tracef("reviving %s", revive.String())
 	}
 	volume := uint64ToHex(uint64(volumeID))
 	_, err := c.atomicModifyKey(mkKey("volumemeta", "deadmap", volume), func(b []byte) ([]byte, interface{}, error) {

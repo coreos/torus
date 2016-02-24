@@ -173,6 +173,7 @@ func (d Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	delete(dirExists, d.path)
 	delete(dirExists, newPath)
 	delete(lstatExists, newPath)
+	delete(lstatExists, d.path)
 	return d.dfs.Remove(newPath)
 }
 
@@ -192,6 +193,7 @@ func (d Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error)
 	delete(dirExists, d.path)
 	delete(dirExists, newPath)
 	delete(lstatExists, newPath)
+	delete(dirExists, d.path)
 	return newd, nil
 }
 

@@ -32,19 +32,24 @@ func init() {
 	prometheus.MustRegister(promOps)
 }
 
+type openFileCount struct {
+	fh    *fileHandle
+	count int
+}
+
 type server struct {
-	mut           sync.RWMutex
-	writeableLock sync.RWMutex
-	infoMut       sync.Mutex
-	blocks        agro.BlockStore
-	mds           agro.MetadataService
-	inodes        *INodeStore
-	peersMap      map[string]*models.PeerInfo
-	closeChans    []chan interface{}
-	openINodeRefs map[string]map[agro.INodeID]int
-	openFiles     []*file
-	cfg           agro.Config
-	peerInfo      *models.PeerInfo
+	mut            sync.RWMutex
+	writeableLock  sync.RWMutex
+	infoMut        sync.Mutex
+	blocks         agro.BlockStore
+	mds            agro.MetadataService
+	inodes         *INodeStore
+	peersMap       map[string]*models.PeerInfo
+	closeChans     []chan interface{}
+	openINodeRefs  map[string]map[agro.INodeID]int
+	openFileChains map[uint64]openFileCount
+	cfg            agro.Config
+	peerInfo       *models.PeerInfo
 
 	heartbeating    bool
 	replicationOpen bool
@@ -127,9 +132,15 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 	promOps.WithLabelValues("lstat").Inc()
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	for _, x := range s.openFiles {
-		if x.path.Equals(path) {
-			return x.Stat()
+	for _, v := range s.openFileChains {
+		for _, x := range v.fh.inode.Filenames {
+			if path.Path == x {
+				return FileInfo{
+					INode: v.fh.inode,
+					Path:  path,
+					Ref:   agro.NewINodeRef(agro.VolumeID(v.fh.inode.Volume), agro.INodeID(v.fh.inode.INode)),
+				}, nil
+			}
 		}
 	}
 	clog.Tracef("lstat %s", path)
@@ -285,9 +296,11 @@ func (s *server) Remove(path agro.Path) error {
 	return s.removeFile(path)
 }
 
+// TODO(barakmich): Split into two functions, one for chain ID and one for path.
 func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, agro.INodeRef, error) {
 	notExist := false
 	vol, entry, err := s.FileEntryForPath(p)
+	clog.Tracef("vol: %v, entry, %v, err %s", vol, entry, err)
 	ref := agro.NewINodeRef(vol, agro.INodeID(0))
 	if err != nil {
 		if err != os.ErrNotExist {
@@ -300,11 +313,13 @@ func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func
 			return nil, ref, agro.ErrIsSymlink
 		}
 	}
+	clog.Tracef("notexist: %v", notExist)
 	chainRef := agro.NewINodeRef(vol, agro.INodeID(entry.Chain))
 	for {
 		var inode *models.INode
 		if !notExist {
 			ref, err = s.mds.GetChainINode(p.Volume, chainRef)
+			clog.Tracef("ref: %s", ref)
 			if err != nil {
 				return nil, ref, err
 			}
@@ -336,21 +351,46 @@ func (s *server) removeDir(path agro.Path) error {
 	return s.mds.Rmdir(path)
 }
 
-func (s *server) addOpenFile(f *file) {
+func (s *server) addOpenFile(chainID uint64, fh *fileHandle) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	s.openFiles = append(s.openFiles, f)
+	if v, ok := s.openFileChains[chainID]; ok {
+		v.count++
+		if fh != v.fh {
+			panic("different pointers?")
+		}
+		s.openFileChains[chainID] = v
+	} else {
+		s.openFileChains[chainID] = openFileCount{fh, 1}
+	}
+	clog.Tracef("addOpenFile %#v", s.openFileChains)
 }
 
-func (s *server) removeOpenFile(f *file) {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-	for i, x := range s.openFiles {
-		if x == f {
-			s.openFiles = append(s.openFiles[:i], s.openFiles[i+1:]...)
-			return
-		}
+func (s *server) getOpenFile(chainID uint64) (fh *fileHandle) {
+	if v, ok := s.openFileChains[chainID]; ok {
+		clog.Tracef("got open file %v", s.openFileChains)
+		return v.fh
 	}
+	clog.Tracef("did not get open file")
+	return nil
+}
+
+func (s *server) removeOpenFile(chainID uint64) {
+	s.mut.Lock()
+	v, ok := s.openFileChains[chainID]
+	if !ok {
+		panic("removing unopened handle")
+	}
+	v.count--
+	if v.count != 0 {
+		s.openFileChains[chainID] = v
+		s.mut.Unlock()
+		return
+	}
+	delete(s.openFileChains, chainID)
+	s.mut.Unlock()
+	v.fh.updateHeldINodes(true)
+	clog.Tracef("removeOpenFile %#v", s.openFileChains)
 }
 
 func (s *server) Statfs() (agro.ServerStats, error) {

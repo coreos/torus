@@ -96,6 +96,7 @@ func (s *server) Symlink(to string, new agro.Path) error {
 }
 
 func (s *server) removeFile(p agro.Path) error {
+	clog.Debugf("removing file %s", p)
 	vol, ent, err := s.FileEntryForPath(p)
 	if err != nil {
 		return err
