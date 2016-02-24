@@ -215,32 +215,35 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 	switch getWriteFromContext(ctx) {
 	case agro.WriteLocal:
 		err = d.blocks.WriteBlock(ctx, i, data)
-		return err
+		if err == nil {
+			return nil
+		}
+		clog.Noticef("Couldn't write locally; writing to cluster")
+		// fallthrough is evil
+		return d.WriteBlock(context.WithValue(ctx, ctxWriteLevel, agro.WriteOne), i, data)
 	case agro.WriteOne:
 		for _, p := range peers.Peers[:peers.Replication] {
 			// If we're one of the desired peers, we count, write here first.
 			if p == d.srv.mds.UUID() {
 				err = d.blocks.WriteBlock(ctx, i, data)
 				if err != nil {
-					clog.Errorf("WriteOne error, local: %s", err)
+					clog.Noticef("WriteOne error, local: %s", err)
 				} else {
 					return nil
 				}
 			}
 		}
-		for _, p := range peers.Peers[:peers.Replication] {
-			if p == d.srv.mds.UUID() {
-				continue
-			}
+		for _, p := range peers.Peers {
 			err = d.client.PutBlock(ctx, p, i, data)
 			if err == nil {
 				return nil
 			}
-			clog.Errorf("WriteOne error, remote: %s", err)
+			clog.Noticef("WriteOne error, remote: %s", err)
 		}
 		return agro.ErrNoPeer
 	case agro.WriteAll:
-		for _, p := range peers.Peers[:peers.Replication] {
+		toWrite := peers.Replication
+		for _, p := range peers.Peers {
 			var err error
 			if p == d.srv.mds.UUID() {
 				err = d.blocks.WriteBlock(ctx, i, data)
@@ -248,9 +251,18 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 				err = d.client.PutBlock(ctx, p, i, data)
 			}
 			if err != nil {
-				return err
+				clog.Noticef("error WriteAll to peer %s: %s", p, err)
+			} else {
+				toWrite--
+			}
+			if toWrite == 0 {
+				return nil
 			}
 		}
+		if toWrite == peers.Replication {
+			return err
+		}
+		clog.Warningf("only wrote block to %d/%d peers", toWrite, peers.Replication)
 	}
 	return nil
 }
