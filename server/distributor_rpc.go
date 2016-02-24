@@ -68,8 +68,6 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 
 func (d *distributor) RebalanceCheck(ctx context.Context, req *models.RebalanceCheckRequest) (*models.RebalanceCheckResponse, error) {
 	out := make([]bool, len(req.BlockRefs))
-	d.mut.Lock()
-	defer d.mut.Unlock()
 	for i, x := range req.BlockRefs {
 		p := agro.BlockFromProto(x)
 		ok, err := d.blocks.HasBlock(ctx, p)

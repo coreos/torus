@@ -189,9 +189,7 @@ func (f *file) syncBlock() error {
 }
 
 func (f *file) getContext() context.Context {
-	wl := context.WithValue(context.TODO(), ctxWriteLevel, f.srv.cfg.WriteLevel)
-	rl := context.WithValue(wl, ctxReadLevel, f.srv.cfg.ReadLevel)
-	return rl
+	return f.srv.getContext()
 }
 
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
@@ -400,6 +398,7 @@ func (f *file) sync(closing bool) error {
 	var replaced agro.INodeRef
 	for {
 		_, replaced, err = f.srv.updateINodeChain(
+			f.getContext(),
 			f.path,
 			func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
 				if inode == nil {

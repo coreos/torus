@@ -87,6 +87,8 @@ var (
 )
 
 func readDirExists(dfs agro.Server, p agro.Path) ([]agro.Path, error) {
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
 	if v, ok := dirExists[p]; ok {
 		return nil, v
 	}
@@ -189,6 +191,7 @@ func (d Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error)
 	defer cacheMut.Unlock()
 	delete(dirExists, d.path)
 	delete(dirExists, newPath)
+	delete(lstatExists, newPath)
 	return newd, nil
 }
 
@@ -364,6 +367,8 @@ var (
 )
 
 func readLstatExists(dfs agro.Server, p agro.Path) (os.FileInfo, error) {
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
 	if v, ok := lstatExists[p]; ok {
 		return nil, v
 	}

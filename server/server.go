@@ -285,7 +285,7 @@ func (s *server) Remove(path agro.Path) error {
 	return s.removeFile(path)
 }
 
-func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, agro.INodeRef, error) {
+func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func(oldINode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error)) (*models.INode, agro.INodeRef, error) {
 	notExist := false
 	vol, entry, err := s.FileEntryForPath(p)
 	ref := agro.NewINodeRef(vol, agro.INodeID(0))
@@ -308,7 +308,7 @@ func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INo
 			if err != nil {
 				return nil, ref, err
 			}
-			inode, err = s.inodes.GetINode(context.TODO(), ref)
+			inode, err = s.inodes.GetINode(ctx, ref)
 			if err != nil {
 				return nil, ref, err
 			}
@@ -323,7 +323,7 @@ func (s *server) updateINodeChain(p agro.Path, modFunc func(oldINode *models.INo
 			err = s.mds.SetChainINode(p.Volume, chainRef, ref, newRef)
 		}
 		if err == nil {
-			return newINode, ref, s.inodes.WriteINode(context.TODO(), newRef, newINode)
+			return newINode, ref, s.inodes.WriteINode(ctx, newRef, newINode)
 		}
 		if err == agro.ErrCompareFailed {
 			continue
@@ -369,4 +369,10 @@ func (s *server) Debug(w io.Writer) error {
 		return v.DumpMetadata(w)
 	}
 	return nil
+}
+
+func (s *server) getContext() context.Context {
+	wl := context.WithValue(context.TODO(), ctxWriteLevel, s.cfg.WriteLevel)
+	rl := context.WithValue(wl, ctxReadLevel, s.cfg.ReadLevel)
+	return rl
 }
