@@ -21,7 +21,7 @@ type Server interface {
 	Lstat(Path) (os.FileInfo, error)
 	Readdir(Path) ([]Path, error)
 	Remove(Path) error
-	Mkdir(Path) error
+	Mkdir(Path, *models.Metadata) error
 
 	Chmod(name Path, mode os.FileMode) error
 	Chown(name Path, uid, gid int) error

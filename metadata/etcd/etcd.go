@@ -289,12 +289,17 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 		return err
 	}
 	sID := strconv.FormatUint(newID, 10)
+	t := uint64(time.Now().UnixNano())
 	do := tx().Do(
 		setKey(mkKey("volumes", volume), uint64ToBytes(newID)),
 		setKey(mkKey("volumeid", sID), []byte(volume)),
 		setKey(mkKey("volumemeta", "inode", volume), uint64ToBytes(1)),
 		setKey(mkKey("volumemeta", "deadmap", uint64ToHex(uint64(newID))), roaringToBytes(roaring.NewBitmap())),
-		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{})),
+		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{
+			Ctime: t,
+			Mtime: t,
+			Mode:  uint32(os.ModeDir | 0755),
+		})),
 	).Tx()
 	_, err = c.etcd.kv.Txn(c.getContext(), do)
 	if err != nil {
@@ -411,6 +416,20 @@ func (c *etcdCtx) Mkdir(path agro.Path, md *models.Metadata) error {
 	return nil
 }
 
+func (c *etcdCtx) ChangeDirMetadata(p agro.Path, md *models.Metadata) error {
+	promOps.WithLabelValues("change-dir-metadata").Inc()
+	_, err := c.atomicModifyKey(
+		mkKey("dirs", p.Key()),
+		func(in []byte) ([]byte, interface{}, error) {
+			dir := &models.Directory{}
+			dir.Unmarshal(in)
+			dir.Metadata = md
+			b, err := dir.Marshal()
+			return b, nil, err
+		})
+	return err
+}
+
 func (c *etcdCtx) Rmdir(path agro.Path) error {
 	promOps.WithLabelValues("rmdir").Inc()
 	if !path.IsDir() {
@@ -450,6 +469,7 @@ func (c *etcdCtx) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 
 func (c *etcdCtx) getdir(p agro.Path) (*models.Directory, []agro.Path, int64, error) {
 	promOps.WithLabelValues("getdir").Inc()
+	clog.Tracef("getdir: %s", p.Key())
 	tx := tx().If(
 		keyExists(mkKey("dirs", p.Key())),
 	).Then(

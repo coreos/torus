@@ -89,9 +89,14 @@ func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
 }
 
 type FileInfo struct {
-	INode   *models.INode
-	Path    agro.Path
-	Ref     agro.INodeRef
+	Path agro.Path
+
+	// And one of
+	Ref   agro.INodeRef
+	INode *models.INode
+
+	Dir *models.Directory
+
 	Symlink string
 }
 
@@ -100,6 +105,9 @@ func (fi FileInfo) Name() string {
 }
 
 func (fi FileInfo) Size() int64 {
+	if fi.IsDir() {
+		return int64(len(fi.Dir.Files))
+	}
 	if fi.Symlink != "" {
 		return 0
 	}
@@ -107,6 +115,9 @@ func (fi FileInfo) Size() int64 {
 }
 
 func (fi FileInfo) Mode() os.FileMode {
+	if fi.IsDir() {
+		return os.FileMode(fi.Dir.Metadata.Mode)
+	}
 	if fi.Symlink != "" {
 		return 0777 | os.ModeSymlink
 	}
@@ -114,6 +125,9 @@ func (fi FileInfo) Mode() os.FileMode {
 }
 
 func (fi FileInfo) ModTime() time.Time {
+	if fi.IsDir() {
+		return time.Unix(0, int64(fi.Dir.Metadata.Mtime))
+	}
 	if fi.Symlink != "" {
 		return time.Unix(0, 0)
 	}
@@ -144,12 +158,24 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 		}
 	}
 	clog.Tracef("lstat %s", path)
+	if path.IsDir() {
+		clog.Tracef("is dir")
+		d, _, err := s.mds.Getdir(path)
+		return FileInfo{
+			Path: path,
+			Dir:  d,
+		}, err
+	}
 	vol, ent, err := s.FileEntryForPath(path)
 	if err != nil {
 		return nil, err
 	}
 	if ent.Sympath != "" {
-		return FileInfo{nil, path, agro.NewINodeRef(vol, agro.INodeID(0)), ent.Sympath}, nil
+		return FileInfo{
+			Path:    path,
+			Ref:     agro.NewINodeRef(vol, agro.INodeID(0)),
+			Symlink: ent.Sympath,
+		}, nil
 	}
 	ref, err := s.mds.GetChainINode(path.Volume, agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 	if err != nil {
@@ -161,7 +187,11 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 		return nil, err
 	}
 
-	return FileInfo{inode, path, ref, ""}, nil
+	return FileInfo{
+		INode: inode,
+		Path:  path,
+		Ref:   ref,
+	}, nil
 }
 
 func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
@@ -190,12 +220,12 @@ func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
 	return entries, nil
 }
 
-func (s *server) Mkdir(path agro.Path) error {
+func (s *server) Mkdir(path agro.Path, md *models.Metadata) error {
 	promOps.WithLabelValues("mkdir").Inc()
 	if !path.IsDir() {
 		return os.ErrInvalid
 	}
-	return s.mds.Mkdir(path, &models.Metadata{})
+	return s.mds.Mkdir(path, md)
 }
 func (s *server) CreateVolume(vol string) error {
 	err := s.mds.CreateVolume(vol)

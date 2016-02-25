@@ -40,6 +40,7 @@ var (
 	readLevel        string
 	writeLevel       string
 	cfg              agro.Config
+	rootMount        bool
 
 	debug bool
 	trace bool
@@ -69,6 +70,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
 	rootCommand.PersistentFlags().StringVarP(&readLevel, "readlevel", "", "block", "Specific package logging")
 	rootCommand.PersistentFlags().StringVarP(&writeLevel, "writelevel", "", "one", "Specific package logging")
+	rootCommand.PersistentFlags().BoolVarP(&rootMount, "root-mount", "", false, "Mount FUSE with options to allow other users (must be root)")
 }
 
 func main() {
@@ -200,7 +202,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		if httpAddress != "" {
 			go http.ServeHTTP(httpAddress, srv)
 		}
-		agrofuse.MustMount(fuseMountpoint, fuseVolume, srv)
+		agrofuse.MustMount(fuseMountpoint, fuseVolume, srv, rootMount)
 	} else {
 		http.ServeHTTP(httpAddress, srv)
 	}

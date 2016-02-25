@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"os"
 
 	"github.com/coreos/agro"
@@ -30,9 +29,24 @@ func (s *server) modFileMetadata(p agro.Path, f func(inode *models.INode) error)
 	return err
 }
 
+func (s *server) modDirMetadata(p agro.Path, f func(md *models.Metadata) error) error {
+	dir, _, err := s.mds.Getdir(p)
+	if err != nil {
+		return err
+	}
+	err = f(dir.Metadata)
+	if err != nil {
+		return err
+	}
+	return s.mds.ChangeDirMetadata(p, dir.Metadata)
+}
+
 func (s *server) Chmod(name agro.Path, mode os.FileMode) error {
 	if name.IsDir() {
-		return errors.New("unimplemented")
+		return s.modDirMetadata(name, func(md *models.Metadata) error {
+			md.Mode = uint32(mode)
+			return nil
+		})
 	}
 	// TODO(barakmich): Fix this hack
 	for _, v := range s.openFileChains {
@@ -54,11 +68,23 @@ func (s *server) Chmod(name agro.Path, mode os.FileMode) error {
 
 func (s *server) Chown(name agro.Path, uid, gid int) error {
 	if name.IsDir() {
-		return errors.New("unimplemented")
+		return s.modDirMetadata(name, func(md *models.Metadata) error {
+			if uid >= 0 {
+				md.Uid = uint32(uid)
+			}
+			if gid >= 0 {
+				md.Gid = uint32(gid)
+			}
+			return nil
+		})
 	}
 	return s.modFileMetadata(name, func(inode *models.INode) error {
-		inode.Permissions.Uid = uint32(uid)
-		inode.Permissions.Gid = uint32(gid)
+		if uid >= 0 {
+			inode.Permissions.Uid = uint32(uid)
+		}
+		if gid >= 0 {
+			inode.Permissions.Gid = uint32(gid)
+		}
 		return nil
 	})
 }

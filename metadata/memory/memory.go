@@ -321,6 +321,28 @@ func (s *memory) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	return dir, subdirs, nil
 }
 
+func (s *memory) ChangeDirMetadata(p agro.Path, md *models.Metadata) error {
+	if !p.IsDir() {
+		return agro.ErrNotDir
+	}
+
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
+	tx := s.tree.Txn()
+
+	k := []byte(p.Key())
+	v, ok := tx.Get(k)
+	if !ok {
+		return agro.ErrNotExist
+	}
+	dir := v.(*models.Directory)
+	dir.Metadata = md
+	tx.Insert(k, dir)
+	s.tree = tx.Commit()
+	return nil
+}
+
 func (s *memory) GetVolumes() ([]string, error) {
 	s.mut.Lock()
 	defer s.mut.Unlock()

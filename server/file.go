@@ -216,6 +216,7 @@ func (f *fileHandle) WriteAt(b []byte, off int64) (n int, err error) {
 
 	defer func() {
 		if off > int64(f.inode.Filesize) {
+			clog.Tracef("updating filesize: %d", off)
 			f.inode.Filesize = uint64(off)
 		}
 	}()
@@ -325,7 +326,7 @@ func (f *fileHandle) ReadAt(b []byte, off int64) (n int, ferr error) {
 	defer f.mut.RUnlock()
 	toRead := len(b)
 	if clog.LevelAt(capnslog.TRACE) {
-		clog.Tracef("begin read of size %d", toRead)
+		clog.Tracef("begin read @ %x of size %d", off, toRead)
 	}
 	n = 0
 	if int64(toRead)+off > int64(f.inode.Filesize) {
@@ -335,10 +336,6 @@ func (f *fileHandle) ReadAt(b []byte, off int64) (n int, ferr error) {
 	}
 	for toRead > n {
 		blkIndex := int(off / f.blkSize)
-		if f.blocks.Length() <= blkIndex {
-			// TODO(barakmich) Support truncate in the block abstraction, fill/return 0s
-			return n, io.EOF
-		}
 		blkOff := off - int64(int(f.blkSize)*blkIndex)
 		if clog.LevelAt(capnslog.TRACE) {
 			clog.Tracef("getting block index %d", blkIndex)
