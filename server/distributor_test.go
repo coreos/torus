@@ -19,12 +19,13 @@ func newServer(md *temp.Server) *server {
 	gmd, _ := mds.GlobalMetadata()
 	blocks, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
 	return &server{
-		blocks:        blocks,
-		mds:           mds,
-		inodes:        NewINodeStore(blocks),
-		peersMap:      make(map[string]*models.PeerInfo),
-		openINodeRefs: make(map[string]map[agro.INodeID]int),
-		peerInfo:      &models.PeerInfo{UUID: mds.UUID()},
+		blocks:         blocks,
+		mds:            mds,
+		inodes:         NewINodeStore(blocks),
+		peersMap:       make(map[string]*models.PeerInfo),
+		openINodeRefs:  make(map[string]map[agro.INodeID]int),
+		peerInfo:       &models.PeerInfo{UUID: mds.UUID()},
+		openFileChains: make(map[uint64]openFileCount),
 	}
 }
 

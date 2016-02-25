@@ -34,12 +34,15 @@ func (s *server) Chmod(name agro.Path, mode os.FileMode) error {
 	if name.IsDir() {
 		return errors.New("unimplemented")
 	}
-	for _, x := range s.openFiles {
-		if x.path.Equals(name) {
-			if x.writeOpen {
-				x.inode.Permissions.Mode = uint32(mode)
-				x.changed["mode"] = true
-				return nil
+	// TODO(barakmich): Fix this hack
+	for _, v := range s.openFileChains {
+		for _, x := range v.fh.inode.Filenames {
+			if x == name.Path {
+				if v.fh.writeOpen {
+					v.fh.inode.Permissions.Mode = uint32(mode)
+					v.fh.changed["mode"] = true
+					return nil
+				}
 			}
 		}
 	}

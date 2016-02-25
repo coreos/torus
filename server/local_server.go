@@ -49,12 +49,13 @@ func NewServer(cfg agro.Config, metadataServiceKind, blockStoreKind string) (agr
 	}
 
 	s := &server{
-		blocks:        blocks,
-		mds:           mds,
-		inodes:        NewINodeStore(blocks),
-		peersMap:      make(map[string]*models.PeerInfo),
-		openINodeRefs: make(map[string]map[agro.INodeID]int),
-		cfg:           cfg,
+		blocks:         blocks,
+		mds:            mds,
+		inodes:         NewINodeStore(blocks),
+		peersMap:       make(map[string]*models.PeerInfo),
+		openINodeRefs:  make(map[string]map[agro.INodeID]int),
+		cfg:            cfg,
+		openFileChains: make(map[uint64]openFileCount),
 		peerInfo: &models.PeerInfo{
 			UUID: mds.UUID(),
 		},

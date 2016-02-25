@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"hash/crc32"
+	"sync"
 
 	"golang.org/x/net/context"
 
@@ -14,6 +15,7 @@ import (
 type crcBlockset struct {
 	sub  blockset
 	crcs []uint32
+	mut  sync.RWMutex
 }
 
 var _ blockset = &crcBlockset{}
@@ -33,6 +35,8 @@ func newCRCBlockset(sub blockset) *crcBlockset {
 }
 
 func (b *crcBlockset) Length() int {
+	b.mut.RLock()
+	defer b.mut.RUnlock()
 	if b.sub.Length() != len(b.crcs) {
 		panic("crcs should always be as long as the sub blockset")
 	}
@@ -44,6 +48,8 @@ func (b *crcBlockset) Kind() uint32 {
 }
 
 func (b *crcBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
+	b.mut.RLock()
+	defer b.mut.RUnlock()
 	if i >= len(b.crcs) {
 		clog.Trace("crc: requesting block off the edge of known blocks")
 		return nil, agro.ErrBlockNotExist
@@ -64,6 +70,8 @@ func (b *crcBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 }
 
 func (b *crcBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, data []byte) error {
+	b.mut.Lock()
+	defer b.mut.Unlock()
 	if i > len(b.crcs) {
 		return agro.ErrBlockNotExist
 	}
@@ -77,6 +85,7 @@ func (b *crcBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, 
 	} else {
 		b.crcs[i] = crc
 	}
+	clog.Tracef("crc: setting crc %x at index %d", crc, i)
 	return nil
 }
 
@@ -93,6 +102,8 @@ func (b *crcBlockset) getStore() agro.BlockStore {
 }
 
 func (b *crcBlockset) Marshal() ([]byte, error) {
+	b.mut.RLock()
+	defer b.mut.RUnlock()
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, int32(len(b.crcs)))
 	if err != nil {
@@ -108,6 +119,8 @@ func (b *crcBlockset) Marshal() ([]byte, error) {
 }
 
 func (b *crcBlockset) Unmarshal(data []byte) error {
+	b.mut.Lock()
+	defer b.mut.Unlock()
 	r := bytes.NewReader(data)
 	var l int32
 	err := binary.Read(r, binary.LittleEndian, &l)
@@ -126,10 +139,14 @@ func (b *crcBlockset) Unmarshal(data []byte) error {
 func (b *crcBlockset) GetSubBlockset() agro.Blockset { return b.sub }
 
 func (b *crcBlockset) GetLiveINodes() *roaring.Bitmap {
+	b.mut.RLock()
+	defer b.mut.RUnlock()
 	return b.sub.GetLiveINodes()
 }
 
 func (b *crcBlockset) Truncate(lastIndex int) error {
+	b.mut.Lock()
+	defer b.mut.Unlock()
 	err := b.sub.Truncate(lastIndex)
 	if err != nil {
 		return err

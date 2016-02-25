@@ -67,17 +67,15 @@ func init() {
 	prometheus.MustRegister(promFileBlockWrite)
 }
 
-type file struct {
+type fileHandle struct {
 	// globals
 	mut     sync.RWMutex
 	srv     *server
 	blkSize int64
 
 	// file metadata
-	path     agro.Path
+	volume   string
 	inode    *models.INode
-	flags    int
-	offset   int64
 	blocks   agro.Blockset
 	replaces uint64
 	changed  map[string]bool
@@ -91,6 +89,13 @@ type file struct {
 	openIdx   int
 	openData  []byte
 	openWrote bool
+}
+
+type file struct {
+	*fileHandle
+	flags  int
+	offset int64
+	path   agro.Path
 
 	readOnly  bool
 	writeOnly bool
@@ -102,17 +107,17 @@ func (f *file) Write(b []byte) (n int, err error) {
 	return
 }
 
-func (f *file) openWrite() error {
+func (f *fileHandle) openWrite() error {
 	if f.writeOpen {
 		return nil
 	}
 	f.srv.writeableLock.RLock()
 	defer f.srv.writeableLock.RUnlock()
-	vid, err := f.srv.mds.GetVolumeID(f.path.Volume)
+	vid, err := f.srv.mds.GetVolumeID(f.volume)
 	if err != nil {
 		return err
 	}
-	newINode, err := f.srv.mds.CommitINodeIndex(f.path.Volume)
+	newINode, err := f.srv.mds.CommitINodeIndex(f.volume)
 	if err != nil {
 		if err == agro.ErrAgain {
 			return f.openWrite()
@@ -136,7 +141,7 @@ func (f *file) openWrite() error {
 	return nil
 }
 
-func (f *file) openBlock(i int) error {
+func (f *fileHandle) openBlock(i int) error {
 	if f.openIdx == i && f.openData != nil {
 		return nil
 	}
@@ -163,7 +168,7 @@ func (f *file) openBlock(i int) error {
 	return nil
 }
 
-func (f *file) writeToBlock(from, to int, data []byte) int {
+func (f *fileHandle) writeToBlock(from, to int, data []byte) int {
 	f.openWrote = true
 	if f.openData == nil {
 		panic("server: file data not open")
@@ -174,7 +179,7 @@ func (f *file) writeToBlock(from, to int, data []byte) int {
 	return copy(f.openData[from:to], data)
 }
 
-func (f *file) syncBlock() error {
+func (f *fileHandle) syncBlock() error {
 	if f.openData == nil || !f.openWrote {
 		return nil
 	}
@@ -188,17 +193,21 @@ func (f *file) syncBlock() error {
 	return err
 }
 
-func (f *file) getContext() context.Context {
+func (f *fileHandle) getContext() context.Context {
 	return f.srv.getContext()
 }
 
 func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
-	f.mut.Lock()
-	defer f.mut.Unlock()
-	clog.Trace("begin write: offset ", off, " size ", len(b))
 	if f.writeOnly {
 		f.Truncate(off)
 	}
+	return f.fileHandle.WriteAt(b, off)
+}
+
+func (f *fileHandle) WriteAt(b []byte, off int64) (n int, err error) {
+	f.mut.Lock()
+	defer f.mut.Unlock()
+	clog.Trace("begin write: offset ", off, " size ", len(b))
 	toWrite := len(b)
 	err = f.openWrite()
 	if err != nil {
@@ -217,7 +226,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	if f.blocks.Length() < blkIndex && blkIndex != f.openIdx+1 {
 		clog.Debug("begin write: offset ", off, " size ", len(b))
 		clog.Debug("end of file ", f.blocks.Length(), " blkIndex ", blkIndex)
-		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
+		promFileWrittenBytes.WithLabelValues(f.volume).Add(float64(n))
 		err := f.Truncate(off)
 		if err != nil {
 			return n, err
@@ -233,13 +242,13 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		}
 		err := f.openBlock(blkIndex)
 		if err != nil {
-			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
+			promFileWrittenBytes.WithLabelValues(f.volume).Add(float64(n))
 			return n, err
 		}
 		wrote := f.writeToBlock(int(blkOff), int(blkOff)+frontlen, b[:frontlen])
 		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 		if wrote != frontlen {
-			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
+			promFileWrittenBytes.WithLabelValues(f.volume).Add(float64(n))
 			return n, errors.New("Couldn't write all of the first block at the offset")
 		}
 		b = b[frontlen:]
@@ -250,7 +259,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	toWrite = len(b)
 	if toWrite == 0 {
 		// We're done
-		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
+		promFileWrittenBytes.WithLabelValues(f.volume).Add(float64(n))
 		return n, nil
 	}
 
@@ -265,7 +274,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 		start := time.Now()
 		err = f.blocks.PutBlock(f.getContext(), f.writeINodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {
-			promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
+			promFileWrittenBytes.WithLabelValues(f.volume).Add(float64(n))
 			return n, err
 		}
 		delta := time.Now().Sub(start)
@@ -278,7 +287,7 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 
 	if toWrite == 0 {
 		// We're done
-		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
+		promFileWrittenBytes.WithLabelValues(f.volume).Add(float64(n))
 		return n, nil
 	}
 
@@ -289,19 +298,19 @@ func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
 	blkIndex = int(off / f.blkSize)
 	err = f.openBlock(blkIndex)
 	if err != nil {
-		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
+		promFileWrittenBytes.WithLabelValues(f.volume).Add(float64(n))
 		return n, err
 	}
 	wrote := f.writeToBlock(0, toWrite, b)
 	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 	if wrote != toWrite {
-		promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
+		promFileWrittenBytes.WithLabelValues(f.volume).Add(float64(n))
 		return n, errors.New("Couldn't write all of the last block")
 	}
 	b = b[wrote:]
 	n += wrote
 	off += int64(wrote)
-	promFileWrittenBytes.WithLabelValues(f.path.Volume).Add(float64(n))
+	promFileWrittenBytes.WithLabelValues(f.volume).Add(float64(n))
 	return n, nil
 }
 
@@ -311,7 +320,7 @@ func (f *file) Read(b []byte) (n int, err error) {
 	return
 }
 
-func (f *file) ReadAt(b []byte, off int64) (n int, ferr error) {
+func (f *fileHandle) ReadAt(b []byte, off int64) (n int, ferr error) {
 	f.mut.RLock()
 	defer f.mut.RUnlock()
 	toRead := len(b)
@@ -356,27 +365,33 @@ func (f *file) Close() error {
 	if f == nil {
 		return agro.ErrInvalid
 	}
-	err := f.sync(true)
+	if f.fileHandle == nil {
+		return nil
+	}
+	c := f.inode.Chain
+	err := f.Sync()
 	if err != nil {
 		clog.Error(err)
 	}
-	f.srv.removeOpenFile(f)
-	promOpenFiles.WithLabelValues(f.path.Volume).Dec()
+	f.srv.removeOpenFile(c)
+	promOpenFiles.WithLabelValues(f.volume).Dec()
+	f.fileHandle = nil
 	return err
 }
 
 func (f *file) Sync() error {
-	return f.sync(false)
-}
-
-func (f *file) sync(closing bool) error {
+	f.mut.Lock()
+	defer f.mut.Unlock()
 	// Here there be dragons.
-	clog.Debugf("Syncing file: %s", f.path)
 	if !f.writeOpen {
-		f.updateHeldINodes(closing)
+		f.updateHeldINodes(false)
 		return nil
 	}
-	promFileSyncs.WithLabelValues(f.path.Volume).Inc()
+	clog.Debugf("Syncing file: %v", f.inode.Filenames)
+	clog.Tracef("inode: %s", f.inode)
+	clog.Tracef("replaces: %x, ref: %s", f.replaces, f.writeINodeRef)
+
+	promFileSyncs.WithLabelValues(f.volume).Inc()
 	err := f.syncBlock()
 	if err != nil {
 		clog.Error("sync: couldn't sync block")
@@ -402,13 +417,14 @@ func (f *file) sync(closing bool) error {
 			f.path,
 			func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
 				if inode == nil {
-					// We're unilaterally overwriting a file. If that was the intent, go ahead.
+					// We're unilaterally overwriting a file, or starting a new chain. If that was the intent, go ahead.
 					if f.replaces == 0 {
 						// Replace away.
 						return f.inode, f.writeINodeRef, nil
 					}
-					// Otherwise, nothing to do here.
-					return nil, agro.NewINodeRef(vol, agro.INodeID(0)), writingToDeleted
+					// Update the chain
+					f.inode.Chain = f.inode.INode
+					return f.inode, f.writeINodeRef, nil
 				}
 				if inode.Chain != f.inode.Chain {
 					// We're starting a new chain, go ahead and replace
@@ -436,7 +452,7 @@ func (f *file) sync(closing bool) error {
 		// We can write a smarter merge function -- O_APPEND for example, doing the
 		// right thing, by keeping some state in the file and actually appending it.
 		// Today, it's Last Write Wins.
-		promFileChangedSyncs.WithLabelValues(f.path.Volume).Inc()
+		promFileChangedSyncs.WithLabelValues(f.volume).Inc()
 		oldINode := f.inode
 		f.inode, err = f.srv.inodes.GetINode(context.TODO(), replaced)
 		if err != nil {
@@ -495,31 +511,31 @@ func (f *file) sync(closing bool) error {
 	// Critical section over.
 	f.changed = make(map[string]bool)
 	f.writeOpen = false
-	f.updateHeldINodes(closing)
+	f.updateHeldINodes(false)
 	// SHANTIH.
 	return nil
 }
 
-func (f *file) getLiveINodes() *roaring.Bitmap {
+func (f *fileHandle) getLiveINodes() *roaring.Bitmap {
 	bm := f.blocks.GetLiveINodes()
 	bm.Add(uint32(f.inode.INode))
 	return bm
 }
 
-func (f *file) updateHeldINodes(closing bool) {
-	vid, _ := f.srv.mds.GetVolumeID(f.path.Volume)
-	f.srv.decRef(f.path.Volume, f.initialINodes)
+func (f *fileHandle) updateHeldINodes(closing bool) {
+	vid, _ := f.srv.mds.GetVolumeID(f.volume)
+	f.srv.decRef(f.volume, f.initialINodes)
 	if !closing {
 		f.initialINodes = f.getLiveINodes()
-		f.srv.incRef(f.path.Volume, f.initialINodes)
+		f.srv.incRef(f.volume, f.initialINodes)
 	}
-	bm, _ := f.srv.getBitmap(f.path.Volume)
+	bm, _ := f.srv.getBitmap(f.volume)
 	card := uint64(0)
 	if bm != nil {
 		card = bm.GetCardinality()
 	}
-	promOpenINodes.WithLabelValues(f.path.Volume).Set(float64(card))
-	mlog.Tracef("updating claim %s %s", f.path.Volume, bm)
+	promOpenINodes.WithLabelValues(f.volume).Set(float64(card))
+	mlog.Tracef("updating claim %s %s", f.volume, bm)
 	err := f.srv.mds.ClaimVolumeINodes(vid, bm)
 	if err != nil {
 		mlog.Error("file: TODO: Can't re-claim")
@@ -538,6 +554,10 @@ func (f *file) Truncate(size int64) error {
 	if f.readOnly {
 		return os.ErrPermission
 	}
+	return f.fileHandle.Truncate(size)
+}
+
+func (f *fileHandle) Truncate(size int64) error {
 	err := f.openWrite()
 	if err != nil {
 		return err

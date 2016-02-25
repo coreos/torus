@@ -44,23 +44,27 @@ func (s *server) create(path agro.Path, flag int, md *models.Metadata) (f agro.F
 		return nil, err
 	}
 	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.INode, bs.Length())
-	file := &file{
-		path:          path,
+	fh := &fileHandle{
+		volume:        path.Volume,
 		inode:         n,
 		srv:           s,
 		blocks:        bs,
 		blkSize:       int64(globals.BlockSize),
 		initialINodes: roaring.NewBitmap(),
-		readOnly:      rdOnly,
-		writeOnly:     wrOnly,
 		changed:       make(map[string]bool),
 	}
-	s.addOpenFile(file)
+	file := &file{
+		fileHandle: fh,
+		path:       path,
+		readOnly:   rdOnly,
+		writeOnly:  wrOnly,
+	}
 	// Fake a write, to open up the created file
 	written, err := file.Write([]byte{})
 	if written != 0 || err != nil {
 		return nil, errors.New("couldn't write empty data to the file")
 	}
+	s.addOpenFile(fh.inode.Chain, fh)
 	return file, nil
 }
 
@@ -83,16 +87,6 @@ func (s *server) openFile(p agro.Path, flag int, md *models.Metadata) (agro.File
 	if flag&os.O_CREATE != 0 && (flag&os.O_EXCL) == 0 {
 		return s.create(p, flag, md)
 	}
-	for _, x := range s.openFiles {
-		if x.path.Equals(p) {
-			if x.writeOpen {
-				err := x.Sync()
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-	}
 	ref, err := s.inodeRefForPath(p)
 	if (flag&os.O_CREATE) != 0 && flag&os.O_EXCL != 0 {
 		perr, ok := err.(*os.PathError)
@@ -108,6 +102,21 @@ func (s *server) openFile(p agro.Path, flag int, md *models.Metadata) (agro.File
 	inode, err := s.inodes.GetINode(context.TODO(), ref)
 	if err != nil {
 		return nil, err
+	}
+
+	fh := s.getOpenFile(inode.Chain)
+	if fh != nil {
+		s.addOpenFile(inode.Chain, fh)
+		rdOnly, wrOnly, err := onlys(flag)
+		if err != nil {
+			return nil, err
+		}
+		return &file{
+			fileHandle: fh,
+			path:       p,
+			readOnly:   rdOnly,
+			writeOnly:  wrOnly,
+		}, nil
 	}
 
 	// TODO(jzelinskie): check metadata for permission
@@ -163,19 +172,22 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 	}
 
 	clog.Debugf("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
-	f := &file{
-		path:          path,
+	fh := &fileHandle{
+		volume:        path.Volume,
 		inode:         inode,
 		srv:           s,
-		offset:        0,
 		blocks:        bs,
 		initialINodes: set,
 		blkSize:       int64(md.BlockSize),
-		readOnly:      rdOnly,
-		writeOnly:     wrOnly,
 		changed:       make(map[string]bool),
 	}
-	s.addOpenFile(f)
+	f := &file{
+		fileHandle: fh,
+		path:       path,
+		readOnly:   rdOnly,
+		writeOnly:  wrOnly,
+	}
+	s.addOpenFile(inode.Chain, fh)
 	if flag&os.O_TRUNC != 0 {
 		f.Truncate(0)
 	}
