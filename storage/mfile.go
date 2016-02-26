@@ -78,8 +78,14 @@ func (m *MFile) NumBlocks() uint64 {
 
 // WriteBlock writes data to the n-th block in the file.
 func (m *MFile) WriteBlock(n uint64, data []byte) error {
-	if uint64(len(data)) > m.blkSize {
+	size := uint64(len(data))
+	if size > m.blkSize {
 		return errors.New("Data block too large")
+	}
+	if size == m.blkSize {
+		offset := n * m.blkSize
+		copy(m.mmap[offset:], data)
+		return nil
 	}
 
 	blk := m.GetBlock(n)
