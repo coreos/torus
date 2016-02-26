@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 	"syscall"
+	"time"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -24,13 +25,22 @@ var (
 
 var fuseSrv *fs.Server
 
-func MustMount(mountpoint, volume string, srv agro.Server) {
-	c, err := fuse.Mount(
-		mountpoint,
+func MustMount(mountpoint, volume string, srv agro.Server, rootMount bool) {
+	options := []fuse.MountOption{
 		fuse.FSName("agro"),
 		fuse.Subtype("agrofs"),
 		fuse.LocalVolume(),
 		fuse.VolumeName(volume),
+	}
+	if rootMount {
+		options = append(options, []fuse.MountOption{
+			fuse.DefaultPermissions(),
+			fuse.AllowOther(),
+		}...)
+	}
+	c, err := fuse.Mount(
+		mountpoint,
+		options...,
 	)
 	if err != nil {
 		clog.Fatal(err)
@@ -112,20 +122,22 @@ func (d *Dir) ChangePath(p agro.Path) {
 }
 
 func (d Dir) Attr(ctx context.Context, a *fuse.Attr) error {
-	// TODO(jzelinskie): enable this when metadata is being utilized.
-	/*
-		fileInfo, err := d.dfs.Lstat(d.path)
-		if err != nil {
-			return err
-		}
+	fileInfo, err := d.dfs.Lstat(d.path)
+	if err != nil {
+		clog.Errorf("dir attr: %s", err)
+		return err
+	}
 
-		a.Mtime = fileInfo.ModTime()
-		a.Mode = fileInfo.Mode()
-	*/
-
-	a.Mode = os.ModeDir | 0755
-
+	fi := fileInfo.(server.FileInfo)
+	a.Uid = fi.Dir.Metadata.Uid
+	a.Gid = fi.Dir.Metadata.Gid
+	a.Mtime = fileInfo.ModTime()
+	a.Mode = os.ModeDir | fileInfo.Mode()
 	return nil
+}
+
+func (d Dir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	return setattrHelper(ctx, req, resp, d.path, d.dfs)
 }
 
 func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
@@ -182,7 +194,14 @@ func (d Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error)
 	if !ok {
 		return nil, errors.New("fuse: path is not a directory")
 	}
-	err := d.dfs.Mkdir(newPath)
+	t := uint64(time.Now().UnixNano())
+	err := d.dfs.Mkdir(newPath, &models.Metadata{
+		Uid:   req.Uid,
+		Gid:   req.Gid,
+		Mode:  uint32(req.Mode | os.ModeDir),
+		Ctime: t,
+		Mtime: t,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -305,10 +324,13 @@ func (d Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cre
 		clog.Error("not a dir")
 		return nil, nil, errors.New("fuse: path is not a directory")
 	}
+	t := uint64(time.Now().UnixNano())
 	f, err := d.dfs.OpenFileMetadata(newPath, int(req.Flags)|os.O_CREATE, &models.Metadata{
-		Uid:  req.Uid,
-		Gid:  req.Gid,
-		Mode: uint32(req.Mode),
+		Uid:   req.Uid,
+		Gid:   req.Gid,
+		Mode:  uint32(req.Mode),
+		Ctime: t,
+		Mtime: t,
 	})
 	if err != nil {
 		clog.Error("create", err)
@@ -343,6 +365,13 @@ func (d Dir) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRes
 		}
 	}
 	return *d.handle, nil
+}
+
+func (d Dir) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	cacheMut.Lock()
+	defer cacheMut.Unlock()
+	delete(lstatExists, d.path)
+	return nil
 }
 
 type File struct {
@@ -410,21 +439,38 @@ func (f File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRe
 }
 
 func (f File) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	fileInfo, err := f.dfs.Lstat(f.path)
+	return setattrHelper(ctx, req, resp, f.path, f.dfs)
+}
+
+func setattrHelper(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse, p agro.Path, srv agro.Server) error {
+	fileInfo, err := srv.Lstat(p)
 	if err != nil {
-		clog.Error("setattr:", f.path, err)
+		clog.Error("setattr:", p, err)
 		return err
 	}
 	fi := fileInfo.(server.FileInfo)
 	if req.Valid.Mode() {
-		if fi.INode == nil {
+		if fi.Symlink != "" {
 			return errors.New("can't modify symlink")
 		}
-		err := f.dfs.Chmod(f.path, req.Mode)
+		err := srv.Chmod(p, req.Mode)
 		if err != nil {
 			return err
 		}
 		resp.Attr.Mode = req.Mode
+	}
+	if req.Valid.Uid() || req.Valid.Gid() {
+		uid := -1
+		gid := -1
+		if req.Valid.Uid() {
+			uid = int(req.Uid)
+			resp.Attr.Uid = req.Uid
+		}
+		if req.Valid.Gid() {
+			gid = int(req.Gid)
+			resp.Attr.Gid = req.Gid
+		}
+		srv.Chown(p, uid, gid)
 	}
 	return nil
 }
@@ -521,7 +567,9 @@ func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 
 		a.Mtime = fileInfo.ModTime()
 	*/
-
+	fi := fileInfo.(server.FileInfo)
+	a.Uid = fi.INode.Permissions.Uid
+	a.Gid = fi.INode.Permissions.Gid
 	a.Size = uint64(fileInfo.Size())
 	a.Mode = fileInfo.Mode()
 	a.BlockSize = 32 * 1024

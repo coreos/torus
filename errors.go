@@ -49,4 +49,7 @@ var (
 
 	// ErrIsSymlink is returned if we're trying to modify a symlink incorrectly.
 	ErrIsSymlink = errors.New("agro: is symlink")
+
+	// ErrNotDir is returned if we're trying a directory operation on a non-directory path.
+	ErrNotDir = errors.New("agro: not a directory")
 )

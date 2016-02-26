@@ -104,6 +104,7 @@ type MetadataService interface {
 	GetINodeIndexes() (map[string]INodeID, error)
 
 	Mkdir(path Path, dir *models.Metadata) error
+	ChangeDirMetadata(path Path, dir *models.Metadata) error
 	Getdir(path Path) (*models.Directory, []Path, error)
 	Rmdir(path Path) error
 	SetFileEntry(path Path, ent *models.FileEntry) error

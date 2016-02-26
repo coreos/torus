@@ -188,6 +188,28 @@ func (t *Client) Mkdir(p agro.Path, md *models.Metadata) error {
 	return nil
 }
 
+func (t *Client) ChangeDirMetadata(p agro.Path, md *models.Metadata) error {
+	if !p.IsDir() {
+		return agro.ErrNotDir
+	}
+
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+
+	tx := t.srv.tree.Txn()
+
+	k := []byte(p.Key())
+	v, ok := tx.Get(k)
+	if !ok {
+		return agro.ErrNotExist
+	}
+	dir := v.(*models.Directory)
+	dir.Metadata = md
+	tx.Insert(k, dir)
+	t.srv.tree = tx.Commit()
+	return nil
+}
+
 func (t *Client) Rmdir(p agro.Path) error {
 	if p.Path == "/" {
 		return errors.New("can't delete the root directory")
