@@ -76,22 +76,30 @@ func (d *distClient) Close() error {
 	return nil
 }
 
-func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef) ([]byte, error) {
+func (d *distClient) GetBlocks(ctx context.Context, uuid string, bs []agro.BlockRef) ([][]byte, error) {
 	conn := d.getConn(uuid)
 	if conn == nil {
 		return nil, agro.ErrNoPeer
 	}
+	refs := make([]*models.BlockRef, len(bs))
+	for i, x := range bs {
+		refs[i] = x.ToProto()
+	}
 	resp, err := conn.Block(ctx, &models.BlockRequest{
-		BlockRefs: []*models.BlockRef{b.ToProto()},
+		BlockRefs: refs,
 	})
 	if err != nil {
 		clog.Debug(err)
 		return nil, agro.ErrBlockUnavailable
 	}
-	if !resp.Blocks[0].Ok {
-		return nil, agro.ErrBlockUnavailable
+	out := make([][]byte, len(resp.Blocks))
+	for i, b := range resp.Blocks {
+		if !b.Ok {
+			return nil, agro.ErrBlockUnavailable
+		}
+		out[i] = b.Data
 	}
-	return resp.Blocks[0].Data, nil
+	return out, nil
 }
 
 func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef, data []byte) error {

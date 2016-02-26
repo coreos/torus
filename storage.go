@@ -194,6 +194,12 @@ type BlockStore interface {
 	// TODO(barakmich) FreeBlocks()
 }
 
+type MultiBlockStore interface {
+	BlockStore
+	GetBlocks(ctx context.Context, bs []BlockRef) ([][]byte, error)
+	WriteBlocks(ctx context.Context, bs []BlockRef, data [][]byte) error
+}
+
 type BlockIterator interface {
 	Err() error
 	Next() bool

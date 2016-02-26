@@ -22,11 +22,16 @@ var (
 		Name: "agro_blockset_base_failed_blocks",
 		Help: "Number of blocks that failed",
 	})
+	promBaseCache = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "agro_blockset_base_cached_blocks",
+		Help: "Number of blocks that were cached by readahead",
+	})
 )
 
 func init() {
 	prometheus.MustRegister(promCRCFail)
 	prometheus.MustRegister(promBaseFail)
+	prometheus.MustRegister(promBaseCache)
 }
 
 type blockset interface {

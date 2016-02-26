@@ -174,14 +174,14 @@ func (d *distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agr
 }
 
 func (d *distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer string) ([]byte, error) {
-	blk, err := d.client.GetBlock(ctx, peer, i)
+	blks, err := d.client.GetBlocks(ctx, peer, []agro.BlockRef{i})
 	// If we're successful, store that.
 	if err == nil {
 		if d.readCache != nil {
-			d.readCache.Put(string(i.ToBytes()), blk)
+			d.readCache.Put(string(i.ToBytes()), blks[0])
 		}
 		promDistBlockPeerHits.WithLabelValues(peer).Inc()
-		return blk, nil
+		return blks[0], nil
 	}
 	return nil, err
 }

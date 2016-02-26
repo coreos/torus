@@ -15,9 +15,15 @@ type baseBlockset struct {
 	ids    uint64
 	blocks []agro.BlockRef
 	store  agro.BlockStore
+	lru    *cache
 }
 
 var _ blockset = &baseBlockset{}
+
+const (
+	readAhead = 5
+	cacheSize = 40
+)
 
 func init() {
 	RegisterBlockset(Base, func(_ string, store agro.BlockStore, _ blockset) (blockset, error) {
@@ -29,6 +35,7 @@ func newBaseBlockset(store agro.BlockStore) *baseBlockset {
 	b := &baseBlockset{
 		blocks: make([]agro.BlockRef, 0),
 		store:  store,
+		lru:    newCache(cacheSize),
 	}
 	return b
 }
@@ -48,12 +55,37 @@ func (b *baseBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	if b.blocks[i].IsZero() {
 		return make([]byte, b.store.BlockSize()), nil
 	}
+	cache, ok := b.lru.Get(string(b.blocks[i].ToBytes()))
+	if ok {
+		promBaseCache.Inc()
+		return cache.([]byte), nil
+	}
 	clog.Tracef("base: getting block %d at BlockID %s", i, b.blocks[i])
+	// If we can read-ahead...
+	if v, ok := b.store.(agro.MultiBlockStore); ok {
+		toGet := []agro.BlockRef{
+			b.blocks[i],
+		}
+		for j := 1; j <= readAhead && i+j < len(b.blocks); j++ {
+			toGet = append(toGet, b.blocks[i+j])
+		}
+		data, err := v.GetBlocks(ctx, toGet)
+		if err != nil {
+			promBaseFail.Inc()
+			return nil, err
+		}
+		for i, x := range data {
+			b.lru.Put(string(toGet[i].ToBytes()), x)
+		}
+		return data[0], nil
+	}
+	// One block at a time, then.
 	bytes, err := b.store.GetBlock(ctx, b.blocks[i])
 	if err != nil {
 		promBaseFail.Inc()
 		return nil, err
 	}
+	b.lru.Put(string(b.blocks[i].ToBytes()), bytes)
 	return bytes, err
 }
 
