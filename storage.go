@@ -196,7 +196,7 @@ type BlockStore interface {
 
 type MultiBlockStore interface {
 	BlockStore
-	GetBlocks(ctx context.Context, bs []BlockRef) ([][]byte, error)
+	GetBlocks(ctx context.Context, ref BlockRef, bs []BlockRef) ([]byte, error)
 	WriteBlocks(ctx context.Context, bs []BlockRef, data [][]byte) error
 }
 

@@ -32,6 +32,8 @@ func (*Block) ProtoMessage()    {}
 
 type BlockRequest struct {
 	BlockRefs []*BlockRef `protobuf:"bytes,1,rep,name=block_refs" json:"block_refs,omitempty"`
+	Peer      string      `protobuf:"bytes,2,opt,name=peer,proto3" json:"peer,omitempty"`
+	Readahead []*BlockRef `protobuf:"bytes,3,rep,name=readahead" json:"readahead,omitempty"`
 }
 
 func (m *BlockRequest) Reset()         { *m = BlockRequest{} }
@@ -41,6 +43,13 @@ func (*BlockRequest) ProtoMessage()    {}
 func (m *BlockRequest) GetBlockRefs() []*BlockRef {
 	if m != nil {
 		return m.BlockRefs
+	}
+	return nil
+}
+
+func (m *BlockRequest) GetReadahead() []*BlockRef {
+	if m != nil {
+		return m.Readahead
 	}
 	return nil
 }
@@ -109,6 +118,13 @@ func (m *RebalanceCheckResponse) Reset()         { *m = RebalanceCheckResponse{}
 func (m *RebalanceCheckResponse) String() string { return proto.CompactTextString(m) }
 func (*RebalanceCheckResponse) ProtoMessage()    {}
 
+type EmptyResponse struct {
+}
+
+func (m *EmptyResponse) Reset()         { *m = EmptyResponse{} }
+func (m *EmptyResponse) String() string { return proto.CompactTextString(m) }
+func (*EmptyResponse) ProtoMessage()    {}
+
 func init() {
 	proto.RegisterType((*Block)(nil), "models.Block")
 	proto.RegisterType((*BlockRequest)(nil), "models.BlockRequest")
@@ -117,6 +133,7 @@ func init() {
 	proto.RegisterType((*PutResponse)(nil), "models.PutResponse")
 	proto.RegisterType((*RebalanceCheckRequest)(nil), "models.RebalanceCheckRequest")
 	proto.RegisterType((*RebalanceCheckResponse)(nil), "models.RebalanceCheckResponse")
+	proto.RegisterType((*EmptyResponse)(nil), "models.EmptyResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -129,6 +146,7 @@ type AgroStorageClient interface {
 	Block(ctx context.Context, in *BlockRequest, opts ...grpc.CallOption) (*BlockResponse, error)
 	PutBlock(ctx context.Context, in *PutBlockRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	RebalanceCheck(ctx context.Context, in *RebalanceCheckRequest, opts ...grpc.CallOption) (*RebalanceCheckResponse, error)
+	ReadAheadBlock(ctx context.Context, in *PutBlockRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
 }
 
 type agroStorageClient struct {
@@ -166,12 +184,22 @@ func (c *agroStorageClient) RebalanceCheck(ctx context.Context, in *RebalanceChe
 	return out, nil
 }
 
+func (c *agroStorageClient) ReadAheadBlock(ctx context.Context, in *PutBlockRequest, opts ...grpc.CallOption) (*EmptyResponse, error) {
+	out := new(EmptyResponse)
+	err := grpc.Invoke(ctx, "/models.AgroStorage/ReadAheadBlock", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for AgroStorage service
 
 type AgroStorageServer interface {
 	Block(context.Context, *BlockRequest) (*BlockResponse, error)
 	PutBlock(context.Context, *PutBlockRequest) (*PutResponse, error)
 	RebalanceCheck(context.Context, *RebalanceCheckRequest) (*RebalanceCheckResponse, error)
+	ReadAheadBlock(context.Context, *PutBlockRequest) (*EmptyResponse, error)
 }
 
 func RegisterAgroStorageServer(s *grpc.Server, srv AgroStorageServer) {
@@ -214,6 +242,18 @@ func _AgroStorage_RebalanceCheck_Handler(srv interface{}, ctx context.Context, d
 	return out, nil
 }
 
+func _AgroStorage_ReadAheadBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+	in := new(PutBlockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	out, err := srv.(AgroStorageServer).ReadAheadBlock(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 var _AgroStorage_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "models.AgroStorage",
 	HandlerType: (*AgroStorageServer)(nil),
@@ -229,6 +269,10 @@ var _AgroStorage_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RebalanceCheck",
 			Handler:    _AgroStorage_RebalanceCheck_Handler,
+		},
+		{
+			MethodName: "ReadAheadBlock",
+			Handler:    _AgroStorage_ReadAheadBlock_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{},
@@ -288,6 +332,24 @@ func (m *BlockRequest) MarshalTo(data []byte) (int, error) {
 	if len(m.BlockRefs) > 0 {
 		for _, msg := range m.BlockRefs {
 			data[i] = 0xa
+			i++
+			i = encodeVarintRpc(data, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	if len(m.Peer) > 0 {
+		data[i] = 0x12
+		i++
+		i = encodeVarintRpc(data, i, uint64(len(m.Peer)))
+		i += copy(data[i:], m.Peer)
+	}
+	if len(m.Readahead) > 0 {
+		for _, msg := range m.Readahead {
+			data[i] = 0x1a
 			i++
 			i = encodeVarintRpc(data, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(data[i:])
@@ -467,6 +529,24 @@ func (m *RebalanceCheckResponse) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
+func (m *EmptyResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *EmptyResponse) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	return i, nil
+}
+
 func encodeFixed64Rpc(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -514,6 +594,16 @@ func (m *BlockRequest) Size() (n int) {
 	_ = l
 	if len(m.BlockRefs) > 0 {
 		for _, e := range m.BlockRefs {
+			l = e.Size()
+			n += 1 + l + sovRpc(uint64(l))
+		}
+	}
+	l = len(m.Peer)
+	if l > 0 {
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	if len(m.Readahead) > 0 {
+		for _, e := range m.Readahead {
 			l = e.Size()
 			n += 1 + l + sovRpc(uint64(l))
 		}
@@ -585,6 +675,12 @@ func (m *RebalanceCheckResponse) Size() (n int) {
 	if m.Status != 0 {
 		n += 1 + sovRpc(uint64(m.Status))
 	}
+	return n
+}
+
+func (m *EmptyResponse) Size() (n int) {
+	var l int
+	_ = l
 	return n
 }
 
@@ -756,6 +852,66 @@ func (m *BlockRequest) Unmarshal(data []byte) error {
 			}
 			m.BlockRefs = append(m.BlockRefs, &BlockRef{})
 			if err := m.BlockRefs[len(m.BlockRefs)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Peer", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Peer = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Readahead", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Readahead = append(m.Readahead, &BlockRef{})
+			if err := m.Readahead[len(m.Readahead)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1219,6 +1375,56 @@ func (m *RebalanceCheckResponse) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *EmptyResponse) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: EmptyResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: EmptyResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRpc(data[iNdEx:])

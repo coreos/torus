@@ -9,6 +9,7 @@ service AgroStorage {
 	rpc Block (BlockRequest) returns (BlockResponse);
 	rpc PutBlock (PutBlockRequest) returns (PutResponse);
 	rpc RebalanceCheck (RebalanceCheckRequest) returns (RebalanceCheckResponse);
+  rpc ReadAheadBlock (PutBlockRequest) returns (EmptyResponse); 
 }
 
 message Block {
@@ -18,6 +19,8 @@ message Block {
 
 message BlockRequest {
 	repeated BlockRef block_refs = 1;
+  string peer = 2;
+  repeated BlockRef readahead = 3;
 }
 
 message BlockResponse {
@@ -42,3 +45,5 @@ message RebalanceCheckResponse {
   repeated bool valid = 1;
   int32 status = 2;
 }
+
+message EmptyResponse {}

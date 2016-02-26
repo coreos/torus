@@ -57,6 +57,15 @@ var (
 		Name: "agro_distributor_rebalance_rpc_failures",
 		Help: "Number of Rebalance RPCs with errors",
 	})
+	promDistReadaheadRPCs = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "agro_distributor_readahead_rpcs_total",
+		Help: "Number of Readahead RPCs made to this node",
+	})
+	promDistReadaheadBlocks = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "agro_distributor_readahead_blocks",
+		Help:    "Histogram of number of blocks optimistically sent from peers",
+		Buckets: prometheus.LinearBuckets(1, 1, 20),
+	})
 )
 
 func init() {
@@ -75,4 +84,5 @@ func init() {
 	prometheus.MustRegister(promDistBlockRPCFailures)
 	prometheus.MustRegister(promDistRebalanceRPCs)
 	prometheus.MustRegister(promDistRebalanceRPCFailures)
+	prometheus.MustRegister(promDistReadaheadBlocks)
 }

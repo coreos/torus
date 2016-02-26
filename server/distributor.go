@@ -56,6 +56,7 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 		if size < 100 {
 			size = 100
 		}
+		clog.Debug("setting up cache, size %d", size)
 		d.readCache = newCache(int(size))
 	}
 

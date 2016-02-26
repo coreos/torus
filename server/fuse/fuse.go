@@ -572,7 +572,11 @@ func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Gid = fi.INode.Permissions.Gid
 	a.Size = uint64(fileInfo.Size())
 	a.Mode = fileInfo.Mode()
-	a.BlockSize = 32 * 1024
+	stats, err := f.dfs.Statfs()
+	if err != nil {
+		return err
+	}
+	a.BlockSize = uint32(stats.BlockSize)
 
 	return nil
 }

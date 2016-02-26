@@ -10,6 +10,7 @@ func (d *distributor) Block(ctx context.Context, req *models.BlockRequest) (*mod
 	promDistBlockRPCs.Inc()
 	out := &models.BlockResponse{}
 	fail := false
+	go d.client.SendAhead(req.Peer, req.GetReadahead())
 	for _, b := range req.BlockRefs {
 		ref := agro.BlockFromProto(b)
 		data, err := d.blocks.GetBlock(ctx, ref)
@@ -79,4 +80,14 @@ func (d *distributor) RebalanceCheck(ctx context.Context, req *models.RebalanceC
 	return &models.RebalanceCheckResponse{
 		Valid: out,
 	}, nil
+}
+
+func (d *distributor) ReadAheadBlock(ctx context.Context, req *models.PutBlockRequest) (*models.EmptyResponse, error) {
+	promDistReadaheadRPCs.Inc()
+	promDistReadaheadBlocks.Observe(float64(len(req.Refs)))
+	for i, x := range req.Refs {
+		ref := agro.BlockFromProto(x)
+		d.readCache.Put(string(ref.ToBytes()), req.Blocks[i])
+	}
+	return &models.EmptyResponse{}, nil
 }

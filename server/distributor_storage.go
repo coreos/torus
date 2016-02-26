@@ -34,6 +34,10 @@ func getRepFromContext(ctx context.Context) int {
 }
 
 func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
+	return d.getBlockReadAhead(ctx, i, nil)
+}
+
+func (d *distributor) getBlockReadAhead(ctx context.Context, i agro.BlockRef, ahead []agro.BlockRef) ([]byte, error) {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	promDistBlockRequests.Inc()
@@ -69,11 +73,11 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	readLevel := getReadFromContext(ctx)
 	switch readLevel {
 	case agro.ReadBlock:
-		blk, err = d.readWithBackoff(ctx, i, peers)
+		blk, err = d.readWithBackoff(ctx, i, peers, ahead)
 	case agro.ReadSequential:
-		blk, err = d.readSequential(ctx, i, peers, clientTimeout)
+		blk, err = d.readSequential(ctx, i, peers, clientTimeout, ahead)
 	case agro.ReadSpread:
-		blk, err = d.readSpread(ctx, i, peers)
+		blk, err = d.readSpread(ctx, i, peers, ahead)
 	default:
 		panic("unhandled read level")
 	}
@@ -85,10 +89,10 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	return blk, err
 }
 
-func (d *distributor) readWithBackoff(ctx context.Context, ref agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
+func (d *distributor) readWithBackoff(ctx context.Context, ref agro.BlockRef, peers agro.PeerPermutation, ahead []agro.BlockRef) ([]byte, error) {
 	for i := uint(0); i < 10; i++ {
 		timeout := clientTimeout * (1 << i)
-		blk, err := d.readSequential(ctx, ref, peers, timeout)
+		blk, err := d.readSequential(ctx, ref, peers, timeout, ahead)
 		if err == nil {
 			return blk, err
 		}
@@ -96,7 +100,7 @@ func (d *distributor) readWithBackoff(ctx context.Context, ref agro.BlockRef, pe
 	return nil, ErrNoPeersBlock
 }
 
-func (d *distributor) readSequential(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation, timeout time.Duration) ([]byte, error) {
+func (d *distributor) readSequential(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation, timeout time.Duration, ahead []agro.BlockRef) ([]byte, error) {
 	for _, p := range peers.Peers {
 		// If it's local, just try to get it.
 		if p == d.UUID() {
@@ -112,7 +116,7 @@ func (d *distributor) readSequential(ctx context.Context, i agro.BlockRef, peers
 		// Fetch block from remote. First pass through peers
 		// with a timeout, then through the list without.
 		getctx, cancel := context.WithTimeout(ctx, timeout)
-		blk, err := d.readFromPeer(getctx, i, p)
+		blk, err := d.readFromPeer(getctx, i, p, ahead)
 		cancel()
 
 		if err == nil {
@@ -134,7 +138,7 @@ func (d *distributor) readSequential(ctx context.Context, i agro.BlockRef, peers
 	return nil, ErrNoPeersBlock
 }
 
-func (d *distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
+func (d *distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation, ahead []agro.BlockRef) ([]byte, error) {
 	resch := make(chan []byte)
 	errch := make(chan error, peers.Replication)
 	var once sync.Once
@@ -145,7 +149,7 @@ func (d *distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agr
 		}
 		go func(peer string) {
 			getctx, cancel := context.WithTimeout(ctx, clientTimeout)
-			blk, err := d.readFromPeer(getctx, i, peer)
+			blk, err := d.readFromPeer(getctx, i, peer, ahead)
 			cancel()
 			if err == nil {
 				once.Do(func() {
@@ -173,15 +177,15 @@ func (d *distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agr
 	}
 }
 
-func (d *distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer string) ([]byte, error) {
-	blks, err := d.client.GetBlocks(ctx, peer, []agro.BlockRef{i})
+func (d *distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer string, ahead []agro.BlockRef) ([]byte, error) {
+	blk, err := d.client.GetBlocks(ctx, peer, i, ahead)
 	// If we're successful, store that.
 	if err == nil {
 		if d.readCache != nil {
-			d.readCache.Put(string(i.ToBytes()), blks[0])
+			d.readCache.Put(string(i.ToBytes()), blk)
 		}
 		promDistBlockPeerHits.WithLabelValues(peer).Inc()
-		return blks[0], nil
+		return blk, nil
 	}
 	return nil, err
 }
