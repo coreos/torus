@@ -34,9 +34,8 @@ import math_rand "math/rand"
 import time "time"
 import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 import github_com_gogo_protobuf_jsonpb "github.com/gogo/protobuf/jsonpb"
-import fmt "fmt"
-import go_parser "go/parser"
 import proto "github.com/gogo/protobuf/proto"
+import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/protobuf/gogoproto"
 
@@ -1763,136 +1762,6 @@ func TestINodeRefVerboseEqual(t *testing.T) {
 	}
 	if err := p.VerboseEqual(msg); err != nil {
 		t.Fatalf("%#v !VerboseEqual %#v, since %v", msg, p, err)
-	}
-}
-func TestMetadataGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedMetadata(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
-	}
-}
-func TestINodeGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedINode(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
-	}
-}
-func TestBlockLayerGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedBlockLayer(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
-	}
-}
-func TestDirectoryGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedDirectory(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
-	}
-}
-func TestFileEntryGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedFileEntry(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
-	}
-}
-func TestFileChainSetGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedFileChainSet(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
-	}
-}
-func TestPeerInfoGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedPeerInfo(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
-	}
-}
-func TestRingGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedRing(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
-	}
-}
-func TestBlockRefGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedBlockRef(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
-	}
-}
-func TestINodeRefGoString(t *testing.T) {
-	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedINodeRef(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := go_parser.ParseExpr(s1)
-	if err != nil {
-		panic(err)
 	}
 }
 func TestMetadataSize(t *testing.T) {

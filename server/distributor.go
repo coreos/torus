@@ -10,7 +10,6 @@ import (
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/server/gc"
 	"github.com/coreos/agro/server/rebalance"
-	"github.com/gogo/protobuf/codec"
 )
 
 const (
@@ -43,7 +42,7 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 		if err != nil {
 			return nil, err
 		}
-		d.grpcSrv = grpc.NewServer(grpc.CustomCodec(codec.New(2 * 1024 * 1024)))
+		d.grpcSrv = grpc.NewServer()
 		models.RegisterAgroStorageServer(d.grpcSrv, d)
 		go d.grpcSrv.Serve(lis)
 		srv.BeginHeartbeat()

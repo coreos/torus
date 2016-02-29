@@ -7,7 +7,6 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
-	"github.com/gogo/protobuf/codec"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -56,7 +55,7 @@ func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 			return nil
 		}
 	}
-	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure(), grpc.WithCodec(codec.New(2*1024*1024)))
+	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure())
 	if err != nil {
 		clog.Errorf("couldn't dial: %v", err)
 		return nil

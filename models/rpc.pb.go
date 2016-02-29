@@ -11,12 +11,6 @@ import _ "github.com/gogo/protobuf/gogoproto"
 
 import bytes "bytes"
 
-import strings "strings"
-import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
-import sort "sort"
-import strconv "strconv"
-import reflect "reflect"
-
 import (
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
@@ -533,101 +527,6 @@ func (this *RebalanceCheckResponse) Equal(that interface{}) bool {
 		return false
 	}
 	return true
-}
-func (this *BlockRequest) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 5)
-	s = append(s, "&models.BlockRequest{")
-	if this.BlockRef != nil {
-		s = append(s, "BlockRef: "+fmt.Sprintf("%#v", this.BlockRef)+",\n")
-	}
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *BlockResponse) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 6)
-	s = append(s, "&models.BlockResponse{")
-	s = append(s, "Ok: "+fmt.Sprintf("%#v", this.Ok)+",\n")
-	s = append(s, "Data: "+fmt.Sprintf("%#v", this.Data)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *PutBlockRequest) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 6)
-	s = append(s, "&models.PutBlockRequest{")
-	if this.Refs != nil {
-		s = append(s, "Refs: "+fmt.Sprintf("%#v", this.Refs)+",\n")
-	}
-	s = append(s, "Blocks: "+fmt.Sprintf("%#v", this.Blocks)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *PutResponse) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 6)
-	s = append(s, "&models.PutResponse{")
-	s = append(s, "Ok: "+fmt.Sprintf("%#v", this.Ok)+",\n")
-	s = append(s, "Err: "+fmt.Sprintf("%#v", this.Err)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *RebalanceCheckRequest) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 5)
-	s = append(s, "&models.RebalanceCheckRequest{")
-	if this.BlockRefs != nil {
-		s = append(s, "BlockRefs: "+fmt.Sprintf("%#v", this.BlockRefs)+",\n")
-	}
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *RebalanceCheckResponse) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 6)
-	s = append(s, "&models.RebalanceCheckResponse{")
-	s = append(s, "Valid: "+fmt.Sprintf("%#v", this.Valid)+",\n")
-	s = append(s, "Status: "+fmt.Sprintf("%#v", this.Status)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func valueToGoStringRpc(v interface{}, typ string) string {
-	rv := reflect.ValueOf(v)
-	if rv.IsNil() {
-		return "nil"
-	}
-	pv := reflect.Indirect(rv).Interface()
-	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
-}
-func extensionToGoStringRpc(e map[int32]github_com_gogo_protobuf_proto.Extension) string {
-	if e == nil {
-		return "nil"
-	}
-	s := "map[int32]proto.Extension{"
-	keys := make([]int, 0, len(e))
-	for k := range e {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-	ss := []string{}
-	for _, k := range keys {
-		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
-	}
-	s += strings.Join(ss, ",") + "}"
-	return s
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
