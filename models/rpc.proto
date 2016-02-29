@@ -1,9 +1,21 @@
 syntax = "proto3";
 
+package models;
+
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "agro.proto";
 
-package models;
+option (gogoproto.equal_all) = true;
+option (gogoproto.verbose_equal_all) = true;
+option (gogoproto.gostring_all) = true;
+
+
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.populate_all) = true;
 
 service AgroStorage {
 	rpc Block (BlockRequest) returns (BlockResponse);
@@ -11,17 +23,13 @@ service AgroStorage {
 	rpc RebalanceCheck (RebalanceCheckRequest) returns (RebalanceCheckResponse);
 }
 
-message Block {
-	bool ok = 1;
-	bytes data = 2;
-}
-
 message BlockRequest {
-	repeated BlockRef block_refs = 1;
+	BlockRef block_ref = 1;
 }
 
 message BlockResponse {
-	repeated Block blocks = 1;
+	bool ok = 1;
+	bytes data = 2;
 }
 
 message PutBlockRequest {

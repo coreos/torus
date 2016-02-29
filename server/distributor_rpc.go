@@ -4,30 +4,35 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"golang.org/x/net/context"
+	"golang.org/x/net/trace"
 )
 
 func (d *distributor) Block(ctx context.Context, req *models.BlockRequest) (*models.BlockResponse, error) {
 	promDistBlockRPCs.Inc()
+	t, tok := trace.FromContext(ctx)
 	out := &models.BlockResponse{}
 	fail := false
-	for _, b := range req.BlockRefs {
-		ref := agro.BlockFromProto(b)
-		data, err := d.blocks.GetBlock(ctx, ref)
-		if err != nil {
-			clog.Warningf("remote asking for non-existent block")
-			out.Blocks = append(out.Blocks, &models.Block{
-				Ok: false,
-			})
-			fail = true
-			continue
-		}
-		out.Blocks = append(out.Blocks, &models.Block{
-			Ok:   true,
-			Data: data,
-		})
+	ref := agro.BlockFromProto(req.BlockRef)
+	if tok {
+		t.LazyPrintf("got ref")
+	}
+	data, err := d.blocks.GetBlock(ctx, ref)
+	if tok {
+		t.LazyPrintf("got block")
+	}
+	if err != nil {
+		clog.Warningf("remote asking for non-existent block")
+		out.Ok = false
+		fail = true
+	} else {
+		out.Ok = true
+		out.Data = data
 	}
 	if fail {
 		promDistBlockRPCFailures.Inc()
+	}
+	if tok {
+		t.LazyPrintf("returning")
 	}
 	return out, nil
 }

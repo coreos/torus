@@ -3,6 +3,7 @@ package http
 import (
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 
 	"github.com/DeanThompson/ginpprof"
@@ -10,6 +11,8 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"golang.org/x/net/trace"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "http")
@@ -42,8 +45,22 @@ func (s *Server) setupRoutes() {
 		v0.DELETE("/volume/:volume/file/:filename", s.deleteFile)
 		v0.GET("/dumpmetadata", s.dumpMDS)
 	}
+	trace := s.router.Group("/trace")
+	{
+		trace.Any("/requests", traceRequests)
+		trace.Any("/events", traceEvents)
+	}
 	s.router.GET("/metrics", s.prometheus)
+	runtime.SetBlockProfileRate(1)
 	ginpprof.Wrapper(s.router)
+}
+
+func traceRequests(c *gin.Context) {
+	trace.Render(c.Writer, c.Request, true)
+}
+
+func traceEvents(c *gin.Context) {
+	trace.RenderEvents(c.Writer, c.Request, true)
 }
 
 func (s *Server) createVolume(c *gin.Context) {
@@ -113,7 +130,10 @@ func (s *Server) getFile(c *gin.Context) {
 		return
 	}
 	defer f.Close()
-	_, err = io.Copy(c.Writer, f)
+	stat, _ := s.dfs.Statfs()
+	bs := stat.BlockSize
+	buf := make([]byte, bs)
+	_, err = io.CopyBuffer(c.Writer, f, buf)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))

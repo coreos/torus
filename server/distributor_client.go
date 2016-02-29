@@ -7,6 +7,7 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
+	"github.com/gogo/protobuf/codec"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -55,7 +56,7 @@ func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 			return nil
 		}
 	}
-	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure())
+	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure(), grpc.WithCodec(codec.New(2*1024*1024)))
 	if err != nil {
 		clog.Errorf("couldn't dial: %v", err)
 		return nil
@@ -82,16 +83,16 @@ func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef)
 		return nil, agro.ErrNoPeer
 	}
 	resp, err := conn.Block(ctx, &models.BlockRequest{
-		BlockRefs: []*models.BlockRef{b.ToProto()},
+		BlockRef: b.ToProto(),
 	})
 	if err != nil {
 		clog.Debug(err)
 		return nil, agro.ErrBlockUnavailable
 	}
-	if !resp.Blocks[0].Ok {
+	if !resp.Ok {
 		return nil, agro.ErrBlockUnavailable
 	}
-	return resp.Blocks[0].Data, nil
+	return resp.Data, nil
 }
 
 func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef, data []byte) error {

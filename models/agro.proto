@@ -1,8 +1,19 @@
 syntax = "proto3";
 
+package models;
+
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
-package models;
+option (gogoproto.equal_all) = true;
+option (gogoproto.verbose_equal_all) = true;
+option (gogoproto.gostring_all) = true;
+
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.populate_all) = true;
 
 message Metadata {
   uint32 uid = 1;

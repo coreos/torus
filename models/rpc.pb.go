@@ -9,6 +9,14 @@ import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/protobuf/gogoproto"
 
+import bytes "bytes"
+
+import strings "strings"
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
+import sort "sort"
+import strconv "strconv"
+import reflect "reflect"
+
 import (
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
@@ -21,44 +29,29 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
-type Block struct {
-	Ok   bool   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
-	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-}
-
-func (m *Block) Reset()         { *m = Block{} }
-func (m *Block) String() string { return proto.CompactTextString(m) }
-func (*Block) ProtoMessage()    {}
-
 type BlockRequest struct {
-	BlockRefs []*BlockRef `protobuf:"bytes,1,rep,name=block_refs" json:"block_refs,omitempty"`
+	BlockRef *BlockRef `protobuf:"bytes,1,opt,name=block_ref" json:"block_ref,omitempty"`
 }
 
 func (m *BlockRequest) Reset()         { *m = BlockRequest{} }
 func (m *BlockRequest) String() string { return proto.CompactTextString(m) }
 func (*BlockRequest) ProtoMessage()    {}
 
-func (m *BlockRequest) GetBlockRefs() []*BlockRef {
+func (m *BlockRequest) GetBlockRef() *BlockRef {
 	if m != nil {
-		return m.BlockRefs
+		return m.BlockRef
 	}
 	return nil
 }
 
 type BlockResponse struct {
-	Blocks []*Block `protobuf:"bytes,1,rep,name=blocks" json:"blocks,omitempty"`
+	Ok   bool   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 }
 
 func (m *BlockResponse) Reset()         { *m = BlockResponse{} }
 func (m *BlockResponse) String() string { return proto.CompactTextString(m) }
 func (*BlockResponse) ProtoMessage()    {}
-
-func (m *BlockResponse) GetBlocks() []*Block {
-	if m != nil {
-		return m.Blocks
-	}
-	return nil
-}
 
 type PutBlockRequest struct {
 	Refs   []*BlockRef `protobuf:"bytes,1,rep,name=refs" json:"refs,omitempty"`
@@ -110,13 +103,531 @@ func (m *RebalanceCheckResponse) String() string { return proto.CompactTextStrin
 func (*RebalanceCheckResponse) ProtoMessage()    {}
 
 func init() {
-	proto.RegisterType((*Block)(nil), "models.Block")
 	proto.RegisterType((*BlockRequest)(nil), "models.BlockRequest")
 	proto.RegisterType((*BlockResponse)(nil), "models.BlockResponse")
 	proto.RegisterType((*PutBlockRequest)(nil), "models.PutBlockRequest")
 	proto.RegisterType((*PutResponse)(nil), "models.PutResponse")
 	proto.RegisterType((*RebalanceCheckRequest)(nil), "models.RebalanceCheckRequest")
 	proto.RegisterType((*RebalanceCheckResponse)(nil), "models.RebalanceCheckResponse")
+}
+func (this *BlockRequest) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*BlockRequest)
+	if !ok {
+		that2, ok := that.(BlockRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *BlockRequest")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *BlockRequest but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *BlockRequest but is not nil && this == nil")
+	}
+	if !this.BlockRef.Equal(that1.BlockRef) {
+		return fmt.Errorf("BlockRef this(%v) Not Equal that(%v)", this.BlockRef, that1.BlockRef)
+	}
+	return nil
+}
+func (this *BlockRequest) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*BlockRequest)
+	if !ok {
+		that2, ok := that.(BlockRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if !this.BlockRef.Equal(that1.BlockRef) {
+		return false
+	}
+	return true
+}
+func (this *BlockResponse) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*BlockResponse)
+	if !ok {
+		that2, ok := that.(BlockResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *BlockResponse")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *BlockResponse but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *BlockResponse but is not nil && this == nil")
+	}
+	if this.Ok != that1.Ok {
+		return fmt.Errorf("Ok this(%v) Not Equal that(%v)", this.Ok, that1.Ok)
+	}
+	if !bytes.Equal(this.Data, that1.Data) {
+		return fmt.Errorf("Data this(%v) Not Equal that(%v)", this.Data, that1.Data)
+	}
+	return nil
+}
+func (this *BlockResponse) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*BlockResponse)
+	if !ok {
+		that2, ok := that.(BlockResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Ok != that1.Ok {
+		return false
+	}
+	if !bytes.Equal(this.Data, that1.Data) {
+		return false
+	}
+	return true
+}
+func (this *PutBlockRequest) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*PutBlockRequest)
+	if !ok {
+		that2, ok := that.(PutBlockRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *PutBlockRequest")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *PutBlockRequest but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *PutBlockRequest but is not nil && this == nil")
+	}
+	if len(this.Refs) != len(that1.Refs) {
+		return fmt.Errorf("Refs this(%v) Not Equal that(%v)", len(this.Refs), len(that1.Refs))
+	}
+	for i := range this.Refs {
+		if !this.Refs[i].Equal(that1.Refs[i]) {
+			return fmt.Errorf("Refs this[%v](%v) Not Equal that[%v](%v)", i, this.Refs[i], i, that1.Refs[i])
+		}
+	}
+	if len(this.Blocks) != len(that1.Blocks) {
+		return fmt.Errorf("Blocks this(%v) Not Equal that(%v)", len(this.Blocks), len(that1.Blocks))
+	}
+	for i := range this.Blocks {
+		if !bytes.Equal(this.Blocks[i], that1.Blocks[i]) {
+			return fmt.Errorf("Blocks this[%v](%v) Not Equal that[%v](%v)", i, this.Blocks[i], i, that1.Blocks[i])
+		}
+	}
+	return nil
+}
+func (this *PutBlockRequest) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*PutBlockRequest)
+	if !ok {
+		that2, ok := that.(PutBlockRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if len(this.Refs) != len(that1.Refs) {
+		return false
+	}
+	for i := range this.Refs {
+		if !this.Refs[i].Equal(that1.Refs[i]) {
+			return false
+		}
+	}
+	if len(this.Blocks) != len(that1.Blocks) {
+		return false
+	}
+	for i := range this.Blocks {
+		if !bytes.Equal(this.Blocks[i], that1.Blocks[i]) {
+			return false
+		}
+	}
+	return true
+}
+func (this *PutResponse) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*PutResponse)
+	if !ok {
+		that2, ok := that.(PutResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *PutResponse")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *PutResponse but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *PutResponse but is not nil && this == nil")
+	}
+	if this.Ok != that1.Ok {
+		return fmt.Errorf("Ok this(%v) Not Equal that(%v)", this.Ok, that1.Ok)
+	}
+	if this.Err != that1.Err {
+		return fmt.Errorf("Err this(%v) Not Equal that(%v)", this.Err, that1.Err)
+	}
+	return nil
+}
+func (this *PutResponse) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*PutResponse)
+	if !ok {
+		that2, ok := that.(PutResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Ok != that1.Ok {
+		return false
+	}
+	if this.Err != that1.Err {
+		return false
+	}
+	return true
+}
+func (this *RebalanceCheckRequest) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*RebalanceCheckRequest)
+	if !ok {
+		that2, ok := that.(RebalanceCheckRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *RebalanceCheckRequest")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *RebalanceCheckRequest but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *RebalanceCheckRequest but is not nil && this == nil")
+	}
+	if len(this.BlockRefs) != len(that1.BlockRefs) {
+		return fmt.Errorf("BlockRefs this(%v) Not Equal that(%v)", len(this.BlockRefs), len(that1.BlockRefs))
+	}
+	for i := range this.BlockRefs {
+		if !this.BlockRefs[i].Equal(that1.BlockRefs[i]) {
+			return fmt.Errorf("BlockRefs this[%v](%v) Not Equal that[%v](%v)", i, this.BlockRefs[i], i, that1.BlockRefs[i])
+		}
+	}
+	return nil
+}
+func (this *RebalanceCheckRequest) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*RebalanceCheckRequest)
+	if !ok {
+		that2, ok := that.(RebalanceCheckRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if len(this.BlockRefs) != len(that1.BlockRefs) {
+		return false
+	}
+	for i := range this.BlockRefs {
+		if !this.BlockRefs[i].Equal(that1.BlockRefs[i]) {
+			return false
+		}
+	}
+	return true
+}
+func (this *RebalanceCheckResponse) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*RebalanceCheckResponse)
+	if !ok {
+		that2, ok := that.(RebalanceCheckResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *RebalanceCheckResponse")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *RebalanceCheckResponse but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *RebalanceCheckResponse but is not nil && this == nil")
+	}
+	if len(this.Valid) != len(that1.Valid) {
+		return fmt.Errorf("Valid this(%v) Not Equal that(%v)", len(this.Valid), len(that1.Valid))
+	}
+	for i := range this.Valid {
+		if this.Valid[i] != that1.Valid[i] {
+			return fmt.Errorf("Valid this[%v](%v) Not Equal that[%v](%v)", i, this.Valid[i], i, that1.Valid[i])
+		}
+	}
+	if this.Status != that1.Status {
+		return fmt.Errorf("Status this(%v) Not Equal that(%v)", this.Status, that1.Status)
+	}
+	return nil
+}
+func (this *RebalanceCheckResponse) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*RebalanceCheckResponse)
+	if !ok {
+		that2, ok := that.(RebalanceCheckResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if len(this.Valid) != len(that1.Valid) {
+		return false
+	}
+	for i := range this.Valid {
+		if this.Valid[i] != that1.Valid[i] {
+			return false
+		}
+	}
+	if this.Status != that1.Status {
+		return false
+	}
+	return true
+}
+func (this *BlockRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&models.BlockRequest{")
+	if this.BlockRef != nil {
+		s = append(s, "BlockRef: "+fmt.Sprintf("%#v", this.BlockRef)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *BlockResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 6)
+	s = append(s, "&models.BlockResponse{")
+	s = append(s, "Ok: "+fmt.Sprintf("%#v", this.Ok)+",\n")
+	s = append(s, "Data: "+fmt.Sprintf("%#v", this.Data)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *PutBlockRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 6)
+	s = append(s, "&models.PutBlockRequest{")
+	if this.Refs != nil {
+		s = append(s, "Refs: "+fmt.Sprintf("%#v", this.Refs)+",\n")
+	}
+	s = append(s, "Blocks: "+fmt.Sprintf("%#v", this.Blocks)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *PutResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 6)
+	s = append(s, "&models.PutResponse{")
+	s = append(s, "Ok: "+fmt.Sprintf("%#v", this.Ok)+",\n")
+	s = append(s, "Err: "+fmt.Sprintf("%#v", this.Err)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *RebalanceCheckRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&models.RebalanceCheckRequest{")
+	if this.BlockRefs != nil {
+		s = append(s, "BlockRefs: "+fmt.Sprintf("%#v", this.BlockRefs)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *RebalanceCheckResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 6)
+	s = append(s, "&models.RebalanceCheckResponse{")
+	s = append(s, "Valid: "+fmt.Sprintf("%#v", this.Valid)+",\n")
+	s = append(s, "Status: "+fmt.Sprintf("%#v", this.Status)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func valueToGoStringRpc(v interface{}, typ string) string {
+	rv := reflect.ValueOf(v)
+	if rv.IsNil() {
+		return "nil"
+	}
+	pv := reflect.Indirect(rv).Interface()
+	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
+}
+func extensionToGoStringRpc(e map[int32]github_com_gogo_protobuf_proto.Extension) string {
+	if e == nil {
+		return "nil"
+	}
+	s := "map[int32]proto.Extension{"
+	keys := make([]int, 0, len(e))
+	for k := range e {
+		keys = append(keys, int(k))
+	}
+	sort.Ints(keys)
+	ss := []string{}
+	for _, k := range keys {
+		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
+	}
+	s += strings.Join(ss, ",") + "}"
+	return s
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -234,7 +745,7 @@ var _AgroStorage_serviceDesc = grpc.ServiceDesc{
 	Streams: []grpc.StreamDesc{},
 }
 
-func (m *Block) Marshal() (data []byte, err error) {
+func (m *BlockRequest) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
 	n, err := m.MarshalTo(data)
@@ -244,7 +755,35 @@ func (m *Block) Marshal() (data []byte, err error) {
 	return data[:n], nil
 }
 
-func (m *Block) MarshalTo(data []byte) (int, error) {
+func (m *BlockRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.BlockRef != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintRpc(data, i, uint64(m.BlockRef.Size()))
+		n1, err := m.BlockRef.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n1
+	}
+	return i, nil
+}
+
+func (m *BlockResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *BlockResponse) MarshalTo(data []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -265,66 +804,6 @@ func (m *Block) MarshalTo(data []byte) (int, error) {
 			i++
 			i = encodeVarintRpc(data, i, uint64(len(m.Data)))
 			i += copy(data[i:], m.Data)
-		}
-	}
-	return i, nil
-}
-
-func (m *BlockRequest) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *BlockRequest) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if len(m.BlockRefs) > 0 {
-		for _, msg := range m.BlockRefs {
-			data[i] = 0xa
-			i++
-			i = encodeVarintRpc(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	return i, nil
-}
-
-func (m *BlockResponse) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *BlockResponse) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if len(m.Blocks) > 0 {
-		for _, msg := range m.Blocks {
-			data[i] = 0xa
-			i++
-			i = encodeVarintRpc(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
 		}
 	}
 	return i, nil
@@ -494,7 +973,174 @@ func encodeVarintRpc(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	return offset + 1
 }
-func (m *Block) Size() (n int) {
+func NewPopulatedBlockRequest(r randyRpc, easy bool) *BlockRequest {
+	this := &BlockRequest{}
+	if r.Intn(10) != 0 {
+		this.BlockRef = NewPopulatedBlockRef(r, easy)
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedBlockResponse(r randyRpc, easy bool) *BlockResponse {
+	this := &BlockResponse{}
+	this.Ok = bool(bool(r.Intn(2) == 0))
+	v1 := r.Intn(100)
+	this.Data = make([]byte, v1)
+	for i := 0; i < v1; i++ {
+		this.Data[i] = byte(r.Intn(256))
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedPutBlockRequest(r randyRpc, easy bool) *PutBlockRequest {
+	this := &PutBlockRequest{}
+	if r.Intn(10) != 0 {
+		v2 := r.Intn(5)
+		this.Refs = make([]*BlockRef, v2)
+		for i := 0; i < v2; i++ {
+			this.Refs[i] = NewPopulatedBlockRef(r, easy)
+		}
+	}
+	v3 := r.Intn(10)
+	this.Blocks = make([][]byte, v3)
+	for i := 0; i < v3; i++ {
+		v4 := r.Intn(100)
+		this.Blocks[i] = make([]byte, v4)
+		for j := 0; j < v4; j++ {
+			this.Blocks[i][j] = byte(r.Intn(256))
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedPutResponse(r randyRpc, easy bool) *PutResponse {
+	this := &PutResponse{}
+	this.Ok = bool(bool(r.Intn(2) == 0))
+	this.Err = randStringRpc(r)
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedRebalanceCheckRequest(r randyRpc, easy bool) *RebalanceCheckRequest {
+	this := &RebalanceCheckRequest{}
+	if r.Intn(10) != 0 {
+		v5 := r.Intn(5)
+		this.BlockRefs = make([]*BlockRef, v5)
+		for i := 0; i < v5; i++ {
+			this.BlockRefs[i] = NewPopulatedBlockRef(r, easy)
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedRebalanceCheckResponse(r randyRpc, easy bool) *RebalanceCheckResponse {
+	this := &RebalanceCheckResponse{}
+	v6 := r.Intn(10)
+	this.Valid = make([]bool, v6)
+	for i := 0; i < v6; i++ {
+		this.Valid[i] = bool(bool(r.Intn(2) == 0))
+	}
+	this.Status = int32(r.Int31())
+	if r.Intn(2) == 0 {
+		this.Status *= -1
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+type randyRpc interface {
+	Float32() float32
+	Float64() float64
+	Int63() int64
+	Int31() int32
+	Uint32() uint32
+	Intn(n int) int
+}
+
+func randUTF8RuneRpc(r randyRpc) rune {
+	ru := r.Intn(62)
+	if ru < 10 {
+		return rune(ru + 48)
+	} else if ru < 36 {
+		return rune(ru + 55)
+	}
+	return rune(ru + 61)
+}
+func randStringRpc(r randyRpc) string {
+	v7 := r.Intn(100)
+	tmps := make([]rune, v7)
+	for i := 0; i < v7; i++ {
+		tmps[i] = randUTF8RuneRpc(r)
+	}
+	return string(tmps)
+}
+func randUnrecognizedRpc(r randyRpc, maxFieldNumber int) (data []byte) {
+	l := r.Intn(5)
+	for i := 0; i < l; i++ {
+		wire := r.Intn(4)
+		if wire == 3 {
+			wire = 5
+		}
+		fieldNumber := maxFieldNumber + r.Intn(100)
+		data = randFieldRpc(data, r, fieldNumber, wire)
+	}
+	return data
+}
+func randFieldRpc(data []byte, r randyRpc, fieldNumber int, wire int) []byte {
+	key := uint32(fieldNumber)<<3 | uint32(wire)
+	switch wire {
+	case 0:
+		data = encodeVarintPopulateRpc(data, uint64(key))
+		v8 := r.Int63()
+		if r.Intn(2) == 0 {
+			v8 *= -1
+		}
+		data = encodeVarintPopulateRpc(data, uint64(v8))
+	case 1:
+		data = encodeVarintPopulateRpc(data, uint64(key))
+		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
+	case 2:
+		data = encodeVarintPopulateRpc(data, uint64(key))
+		ll := r.Intn(100)
+		data = encodeVarintPopulateRpc(data, uint64(ll))
+		for j := 0; j < ll; j++ {
+			data = append(data, byte(r.Intn(256)))
+		}
+	default:
+		data = encodeVarintPopulateRpc(data, uint64(key))
+		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
+	}
+	return data
+}
+func encodeVarintPopulateRpc(data []byte, v uint64) []byte {
+	for v >= 1<<7 {
+		data = append(data, uint8(uint64(v)&0x7f|0x80))
+		v >>= 7
+	}
+	data = append(data, uint8(v))
+	return data
+}
+func (m *BlockRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.BlockRef != nil {
+		l = m.BlockRef.Size()
+		n += 1 + l + sovRpc(uint64(l))
+	}
+	return n
+}
+
+func (m *BlockResponse) Size() (n int) {
 	var l int
 	_ = l
 	if m.Ok {
@@ -503,30 +1149,6 @@ func (m *Block) Size() (n int) {
 	if m.Data != nil {
 		l = len(m.Data)
 		if l > 0 {
-			n += 1 + l + sovRpc(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *BlockRequest) Size() (n int) {
-	var l int
-	_ = l
-	if len(m.BlockRefs) > 0 {
-		for _, e := range m.BlockRefs {
-			l = e.Size()
-			n += 1 + l + sovRpc(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *BlockResponse) Size() (n int) {
-	var l int
-	_ = l
-	if len(m.Blocks) > 0 {
-		for _, e := range m.Blocks {
-			l = e.Size()
 			n += 1 + l + sovRpc(uint64(l))
 		}
 	}
@@ -601,104 +1223,6 @@ func sovRpc(x uint64) (n int) {
 func sozRpc(x uint64) (n int) {
 	return sovRpc(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *Block) Unmarshal(data []byte) error {
-	l := len(data)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRpc
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := data[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: Block: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Block: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ok", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRpc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				v |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.Ok = bool(v != 0)
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRpc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				byteLen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthRpc
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Data = append([]byte{}, data[iNdEx:postIndex]...)
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRpc(data[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthRpc
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *BlockRequest) Unmarshal(data []byte) error {
 	l := len(data)
 	iNdEx := 0
@@ -730,7 +1254,7 @@ func (m *BlockRequest) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BlockRefs", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field BlockRef", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -754,8 +1278,10 @@ func (m *BlockRequest) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.BlockRefs = append(m.BlockRefs, &BlockRef{})
-			if err := m.BlockRefs[len(m.BlockRefs)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if m.BlockRef == nil {
+				m.BlockRef = &BlockRef{}
+			}
+			if err := m.BlockRef.Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -810,10 +1336,10 @@ func (m *BlockResponse) Unmarshal(data []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Blocks", wireType)
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Ok", wireType)
 			}
-			var msglen int
+			var v int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowRpc
@@ -823,21 +1349,41 @@ func (m *BlockResponse) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				v |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if msglen < 0 {
+			m.Ok = bool(v != 0)
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
 				return ErrInvalidLengthRpc
 			}
-			postIndex := iNdEx + msglen
+			postIndex := iNdEx + byteLen
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Blocks = append(m.Blocks, &Block{})
-			if err := m.Blocks[len(m.Blocks)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
-				return err
+			m.Data = append(m.Data[:0], data[iNdEx:postIndex]...)
+			if m.Data == nil {
+				m.Data = []byte{}
 			}
 			iNdEx = postIndex
 		default:
