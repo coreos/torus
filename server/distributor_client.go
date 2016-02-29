@@ -82,16 +82,16 @@ func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef)
 		return nil, agro.ErrNoPeer
 	}
 	resp, err := conn.Block(ctx, &models.BlockRequest{
-		BlockRefs: []*models.BlockRef{b.ToProto()},
+		BlockRef: b.ToProto(),
 	})
 	if err != nil {
 		clog.Debug(err)
 		return nil, agro.ErrBlockUnavailable
 	}
-	if !resp.Blocks[0].Ok {
+	if !resp.Ok {
 		return nil, agro.ErrBlockUnavailable
 	}
-	return resp.Blocks[0].Data, nil
+	return resp.Data, nil
 }
 
 func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef, data []byte) error {

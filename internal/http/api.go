@@ -113,7 +113,10 @@ func (s *Server) getFile(c *gin.Context) {
 		return
 	}
 	defer f.Close()
-	_, err = io.Copy(c.Writer, f)
+	stat, _ := s.dfs.Statfs()
+	bs := stat.BlockSize
+	buf := make([]byte, bs)
+	_, err = io.CopyBuffer(c.Writer, f, buf)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))

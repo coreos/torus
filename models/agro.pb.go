@@ -20,7 +20,6 @@
 		Ring
 		BlockRef
 		INodeRef
-		Block
 		BlockRequest
 		BlockResponse
 		PutBlockRequest
@@ -34,6 +33,8 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/protobuf/gogoproto"
+
+import bytes "bytes"
 
 import errors "errors"
 
@@ -221,6 +222,850 @@ func init() {
 	proto.RegisterType((*Ring)(nil), "models.Ring")
 	proto.RegisterType((*BlockRef)(nil), "models.BlockRef")
 	proto.RegisterType((*INodeRef)(nil), "models.INodeRef")
+}
+func (this *Metadata) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*Metadata)
+	if !ok {
+		that2, ok := that.(Metadata)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *Metadata")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *Metadata but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *Metadata but is not nil && this == nil")
+	}
+	if this.Uid != that1.Uid {
+		return fmt.Errorf("Uid this(%v) Not Equal that(%v)", this.Uid, that1.Uid)
+	}
+	if this.Gid != that1.Gid {
+		return fmt.Errorf("Gid this(%v) Not Equal that(%v)", this.Gid, that1.Gid)
+	}
+	if this.Mode != that1.Mode {
+		return fmt.Errorf("Mode this(%v) Not Equal that(%v)", this.Mode, that1.Mode)
+	}
+	if this.Flags != that1.Flags {
+		return fmt.Errorf("Flags this(%v) Not Equal that(%v)", this.Flags, that1.Flags)
+	}
+	if this.Ctime != that1.Ctime {
+		return fmt.Errorf("Ctime this(%v) Not Equal that(%v)", this.Ctime, that1.Ctime)
+	}
+	if this.Mtime != that1.Mtime {
+		return fmt.Errorf("Mtime this(%v) Not Equal that(%v)", this.Mtime, that1.Mtime)
+	}
+	return nil
+}
+func (this *Metadata) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*Metadata)
+	if !ok {
+		that2, ok := that.(Metadata)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Uid != that1.Uid {
+		return false
+	}
+	if this.Gid != that1.Gid {
+		return false
+	}
+	if this.Mode != that1.Mode {
+		return false
+	}
+	if this.Flags != that1.Flags {
+		return false
+	}
+	if this.Ctime != that1.Ctime {
+		return false
+	}
+	if this.Mtime != that1.Mtime {
+		return false
+	}
+	return true
+}
+func (this *INode) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*INode)
+	if !ok {
+		that2, ok := that.(INode)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *INode")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *INode but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *INode but is not nil && this == nil")
+	}
+	if this.Volume != that1.Volume {
+		return fmt.Errorf("Volume this(%v) Not Equal that(%v)", this.Volume, that1.Volume)
+	}
+	if this.INode != that1.INode {
+		return fmt.Errorf("INode this(%v) Not Equal that(%v)", this.INode, that1.INode)
+	}
+	if this.Chain != that1.Chain {
+		return fmt.Errorf("Chain this(%v) Not Equal that(%v)", this.Chain, that1.Chain)
+	}
+	if this.Filesize != that1.Filesize {
+		return fmt.Errorf("Filesize this(%v) Not Equal that(%v)", this.Filesize, that1.Filesize)
+	}
+	if len(this.Filenames) != len(that1.Filenames) {
+		return fmt.Errorf("Filenames this(%v) Not Equal that(%v)", len(this.Filenames), len(that1.Filenames))
+	}
+	for i := range this.Filenames {
+		if this.Filenames[i] != that1.Filenames[i] {
+			return fmt.Errorf("Filenames this[%v](%v) Not Equal that[%v](%v)", i, this.Filenames[i], i, that1.Filenames[i])
+		}
+	}
+	if !this.Permissions.Equal(that1.Permissions) {
+		return fmt.Errorf("Permissions this(%v) Not Equal that(%v)", this.Permissions, that1.Permissions)
+	}
+	if len(this.Attrs) != len(that1.Attrs) {
+		return fmt.Errorf("Attrs this(%v) Not Equal that(%v)", len(this.Attrs), len(that1.Attrs))
+	}
+	for i := range this.Attrs {
+		if this.Attrs[i] != that1.Attrs[i] {
+			return fmt.Errorf("Attrs this[%v](%v) Not Equal that[%v](%v)", i, this.Attrs[i], i, that1.Attrs[i])
+		}
+	}
+	if len(this.Blocks) != len(that1.Blocks) {
+		return fmt.Errorf("Blocks this(%v) Not Equal that(%v)", len(this.Blocks), len(that1.Blocks))
+	}
+	for i := range this.Blocks {
+		if !this.Blocks[i].Equal(that1.Blocks[i]) {
+			return fmt.Errorf("Blocks this[%v](%v) Not Equal that[%v](%v)", i, this.Blocks[i], i, that1.Blocks[i])
+		}
+	}
+	return nil
+}
+func (this *INode) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*INode)
+	if !ok {
+		that2, ok := that.(INode)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Volume != that1.Volume {
+		return false
+	}
+	if this.INode != that1.INode {
+		return false
+	}
+	if this.Chain != that1.Chain {
+		return false
+	}
+	if this.Filesize != that1.Filesize {
+		return false
+	}
+	if len(this.Filenames) != len(that1.Filenames) {
+		return false
+	}
+	for i := range this.Filenames {
+		if this.Filenames[i] != that1.Filenames[i] {
+			return false
+		}
+	}
+	if !this.Permissions.Equal(that1.Permissions) {
+		return false
+	}
+	if len(this.Attrs) != len(that1.Attrs) {
+		return false
+	}
+	for i := range this.Attrs {
+		if this.Attrs[i] != that1.Attrs[i] {
+			return false
+		}
+	}
+	if len(this.Blocks) != len(that1.Blocks) {
+		return false
+	}
+	for i := range this.Blocks {
+		if !this.Blocks[i].Equal(that1.Blocks[i]) {
+			return false
+		}
+	}
+	return true
+}
+func (this *BlockLayer) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*BlockLayer)
+	if !ok {
+		that2, ok := that.(BlockLayer)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *BlockLayer")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *BlockLayer but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *BlockLayer but is not nil && this == nil")
+	}
+	if this.Type != that1.Type {
+		return fmt.Errorf("Type this(%v) Not Equal that(%v)", this.Type, that1.Type)
+	}
+	if !bytes.Equal(this.Content, that1.Content) {
+		return fmt.Errorf("Content this(%v) Not Equal that(%v)", this.Content, that1.Content)
+	}
+	return nil
+}
+func (this *BlockLayer) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*BlockLayer)
+	if !ok {
+		that2, ok := that.(BlockLayer)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Type != that1.Type {
+		return false
+	}
+	if !bytes.Equal(this.Content, that1.Content) {
+		return false
+	}
+	return true
+}
+func (this *Directory) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*Directory)
+	if !ok {
+		that2, ok := that.(Directory)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *Directory")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *Directory but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *Directory but is not nil && this == nil")
+	}
+	if !this.Metadata.Equal(that1.Metadata) {
+		return fmt.Errorf("Metadata this(%v) Not Equal that(%v)", this.Metadata, that1.Metadata)
+	}
+	if len(this.Files) != len(that1.Files) {
+		return fmt.Errorf("Files this(%v) Not Equal that(%v)", len(this.Files), len(that1.Files))
+	}
+	for i := range this.Files {
+		if !this.Files[i].Equal(that1.Files[i]) {
+			return fmt.Errorf("Files this[%v](%v) Not Equal that[%v](%v)", i, this.Files[i], i, that1.Files[i])
+		}
+	}
+	return nil
+}
+func (this *Directory) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*Directory)
+	if !ok {
+		that2, ok := that.(Directory)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if !this.Metadata.Equal(that1.Metadata) {
+		return false
+	}
+	if len(this.Files) != len(that1.Files) {
+		return false
+	}
+	for i := range this.Files {
+		if !this.Files[i].Equal(that1.Files[i]) {
+			return false
+		}
+	}
+	return true
+}
+func (this *FileEntry) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*FileEntry)
+	if !ok {
+		that2, ok := that.(FileEntry)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *FileEntry")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *FileEntry but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *FileEntry but is not nil && this == nil")
+	}
+	if this.Chain != that1.Chain {
+		return fmt.Errorf("Chain this(%v) Not Equal that(%v)", this.Chain, that1.Chain)
+	}
+	if this.Sympath != that1.Sympath {
+		return fmt.Errorf("Sympath this(%v) Not Equal that(%v)", this.Sympath, that1.Sympath)
+	}
+	return nil
+}
+func (this *FileEntry) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*FileEntry)
+	if !ok {
+		that2, ok := that.(FileEntry)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Chain != that1.Chain {
+		return false
+	}
+	if this.Sympath != that1.Sympath {
+		return false
+	}
+	return true
+}
+func (this *FileChainSet) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*FileChainSet)
+	if !ok {
+		that2, ok := that.(FileChainSet)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *FileChainSet")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *FileChainSet but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *FileChainSet but is not nil && this == nil")
+	}
+	if len(this.Chains) != len(that1.Chains) {
+		return fmt.Errorf("Chains this(%v) Not Equal that(%v)", len(this.Chains), len(that1.Chains))
+	}
+	for i := range this.Chains {
+		if this.Chains[i] != that1.Chains[i] {
+			return fmt.Errorf("Chains this[%v](%v) Not Equal that[%v](%v)", i, this.Chains[i], i, that1.Chains[i])
+		}
+	}
+	return nil
+}
+func (this *FileChainSet) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*FileChainSet)
+	if !ok {
+		that2, ok := that.(FileChainSet)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if len(this.Chains) != len(that1.Chains) {
+		return false
+	}
+	for i := range this.Chains {
+		if this.Chains[i] != that1.Chains[i] {
+			return false
+		}
+	}
+	return true
+}
+func (this *PeerInfo) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*PeerInfo)
+	if !ok {
+		that2, ok := that.(PeerInfo)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *PeerInfo")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *PeerInfo but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *PeerInfo but is not nil && this == nil")
+	}
+	if this.UUID != that1.UUID {
+		return fmt.Errorf("UUID this(%v) Not Equal that(%v)", this.UUID, that1.UUID)
+	}
+	if this.Address != that1.Address {
+		return fmt.Errorf("Address this(%v) Not Equal that(%v)", this.Address, that1.Address)
+	}
+	if this.LastSeen != that1.LastSeen {
+		return fmt.Errorf("LastSeen this(%v) Not Equal that(%v)", this.LastSeen, that1.LastSeen)
+	}
+	if this.TotalBlocks != that1.TotalBlocks {
+		return fmt.Errorf("TotalBlocks this(%v) Not Equal that(%v)", this.TotalBlocks, that1.TotalBlocks)
+	}
+	if this.UsedBlocks != that1.UsedBlocks {
+		return fmt.Errorf("UsedBlocks this(%v) Not Equal that(%v)", this.UsedBlocks, that1.UsedBlocks)
+	}
+	if this.LastRebalanceFinish != that1.LastRebalanceFinish {
+		return fmt.Errorf("LastRebalanceFinish this(%v) Not Equal that(%v)", this.LastRebalanceFinish, that1.LastRebalanceFinish)
+	}
+	if this.LastRebalanceBlocks != that1.LastRebalanceBlocks {
+		return fmt.Errorf("LastRebalanceBlocks this(%v) Not Equal that(%v)", this.LastRebalanceBlocks, that1.LastRebalanceBlocks)
+	}
+	if this.Rebalancing != that1.Rebalancing {
+		return fmt.Errorf("Rebalancing this(%v) Not Equal that(%v)", this.Rebalancing, that1.Rebalancing)
+	}
+	return nil
+}
+func (this *PeerInfo) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*PeerInfo)
+	if !ok {
+		that2, ok := that.(PeerInfo)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.UUID != that1.UUID {
+		return false
+	}
+	if this.Address != that1.Address {
+		return false
+	}
+	if this.LastSeen != that1.LastSeen {
+		return false
+	}
+	if this.TotalBlocks != that1.TotalBlocks {
+		return false
+	}
+	if this.UsedBlocks != that1.UsedBlocks {
+		return false
+	}
+	if this.LastRebalanceFinish != that1.LastRebalanceFinish {
+		return false
+	}
+	if this.LastRebalanceBlocks != that1.LastRebalanceBlocks {
+		return false
+	}
+	if this.Rebalancing != that1.Rebalancing {
+		return false
+	}
+	return true
+}
+func (this *Ring) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*Ring)
+	if !ok {
+		that2, ok := that.(Ring)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *Ring")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *Ring but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *Ring but is not nil && this == nil")
+	}
+	if this.Type != that1.Type {
+		return fmt.Errorf("Type this(%v) Not Equal that(%v)", this.Type, that1.Type)
+	}
+	if this.Version != that1.Version {
+		return fmt.Errorf("Version this(%v) Not Equal that(%v)", this.Version, that1.Version)
+	}
+	if this.ReplicationFactor != that1.ReplicationFactor {
+		return fmt.Errorf("ReplicationFactor this(%v) Not Equal that(%v)", this.ReplicationFactor, that1.ReplicationFactor)
+	}
+	if len(this.Peers) != len(that1.Peers) {
+		return fmt.Errorf("Peers this(%v) Not Equal that(%v)", len(this.Peers), len(that1.Peers))
+	}
+	for i := range this.Peers {
+		if !this.Peers[i].Equal(that1.Peers[i]) {
+			return fmt.Errorf("Peers this[%v](%v) Not Equal that[%v](%v)", i, this.Peers[i], i, that1.Peers[i])
+		}
+	}
+	if len(this.Attrs) != len(that1.Attrs) {
+		return fmt.Errorf("Attrs this(%v) Not Equal that(%v)", len(this.Attrs), len(that1.Attrs))
+	}
+	for i := range this.Attrs {
+		if !bytes.Equal(this.Attrs[i], that1.Attrs[i]) {
+			return fmt.Errorf("Attrs this[%v](%v) Not Equal that[%v](%v)", i, this.Attrs[i], i, that1.Attrs[i])
+		}
+	}
+	return nil
+}
+func (this *Ring) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*Ring)
+	if !ok {
+		that2, ok := that.(Ring)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Type != that1.Type {
+		return false
+	}
+	if this.Version != that1.Version {
+		return false
+	}
+	if this.ReplicationFactor != that1.ReplicationFactor {
+		return false
+	}
+	if len(this.Peers) != len(that1.Peers) {
+		return false
+	}
+	for i := range this.Peers {
+		if !this.Peers[i].Equal(that1.Peers[i]) {
+			return false
+		}
+	}
+	if len(this.Attrs) != len(that1.Attrs) {
+		return false
+	}
+	for i := range this.Attrs {
+		if !bytes.Equal(this.Attrs[i], that1.Attrs[i]) {
+			return false
+		}
+	}
+	return true
+}
+func (this *BlockRef) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*BlockRef)
+	if !ok {
+		that2, ok := that.(BlockRef)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *BlockRef")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *BlockRef but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *BlockRef but is not nil && this == nil")
+	}
+	if this.Volume != that1.Volume {
+		return fmt.Errorf("Volume this(%v) Not Equal that(%v)", this.Volume, that1.Volume)
+	}
+	if this.INode != that1.INode {
+		return fmt.Errorf("INode this(%v) Not Equal that(%v)", this.INode, that1.INode)
+	}
+	if this.Block != that1.Block {
+		return fmt.Errorf("Block this(%v) Not Equal that(%v)", this.Block, that1.Block)
+	}
+	return nil
+}
+func (this *BlockRef) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*BlockRef)
+	if !ok {
+		that2, ok := that.(BlockRef)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Volume != that1.Volume {
+		return false
+	}
+	if this.INode != that1.INode {
+		return false
+	}
+	if this.Block != that1.Block {
+		return false
+	}
+	return true
+}
+func (this *INodeRef) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*INodeRef)
+	if !ok {
+		that2, ok := that.(INodeRef)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *INodeRef")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *INodeRef but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *INodeRef but is not nil && this == nil")
+	}
+	if this.Volume != that1.Volume {
+		return fmt.Errorf("Volume this(%v) Not Equal that(%v)", this.Volume, that1.Volume)
+	}
+	if this.INode != that1.INode {
+		return fmt.Errorf("INode this(%v) Not Equal that(%v)", this.INode, that1.INode)
+	}
+	return nil
+}
+func (this *INodeRef) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*INodeRef)
+	if !ok {
+		that2, ok := that.(INodeRef)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Volume != that1.Volume {
+		return false
+	}
+	if this.INode != that1.INode {
+		return false
+	}
+	return true
 }
 func (m *Metadata) Marshal() (data []byte, err error) {
 	size := m.Size()
@@ -722,6 +1567,247 @@ func encodeVarintAgro(data []byte, offset int, v uint64) int {
 	}
 	data[offset] = uint8(v)
 	return offset + 1
+}
+func NewPopulatedMetadata(r randyAgro, easy bool) *Metadata {
+	this := &Metadata{}
+	this.Uid = uint32(r.Uint32())
+	this.Gid = uint32(r.Uint32())
+	this.Mode = uint32(r.Uint32())
+	this.Flags = uint32(r.Uint32())
+	this.Ctime = uint64(uint64(r.Uint32()))
+	this.Mtime = uint64(uint64(r.Uint32()))
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedINode(r randyAgro, easy bool) *INode {
+	this := &INode{}
+	this.Volume = uint64(uint64(r.Uint32()))
+	this.INode = uint64(uint64(r.Uint32()))
+	this.Chain = uint64(uint64(r.Uint32()))
+	this.Filesize = uint64(uint64(r.Uint32()))
+	v1 := r.Intn(10)
+	this.Filenames = make([]string, v1)
+	for i := 0; i < v1; i++ {
+		this.Filenames[i] = randStringAgro(r)
+	}
+	if r.Intn(10) != 0 {
+		this.Permissions = NewPopulatedMetadata(r, easy)
+	}
+	if r.Intn(10) != 0 {
+		v2 := r.Intn(10)
+		this.Attrs = make(map[string]string)
+		for i := 0; i < v2; i++ {
+			this.Attrs[randStringAgro(r)] = randStringAgro(r)
+		}
+	}
+	if r.Intn(10) != 0 {
+		v3 := r.Intn(5)
+		this.Blocks = make([]*BlockLayer, v3)
+		for i := 0; i < v3; i++ {
+			this.Blocks[i] = NewPopulatedBlockLayer(r, easy)
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedBlockLayer(r randyAgro, easy bool) *BlockLayer {
+	this := &BlockLayer{}
+	this.Type = uint32(r.Uint32())
+	v4 := r.Intn(100)
+	this.Content = make([]byte, v4)
+	for i := 0; i < v4; i++ {
+		this.Content[i] = byte(r.Intn(256))
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedDirectory(r randyAgro, easy bool) *Directory {
+	this := &Directory{}
+	if r.Intn(10) != 0 {
+		this.Metadata = NewPopulatedMetadata(r, easy)
+	}
+	if r.Intn(10) != 0 {
+		v5 := r.Intn(10)
+		this.Files = make(map[string]*FileEntry)
+		for i := 0; i < v5; i++ {
+			this.Files[randStringAgro(r)] = NewPopulatedFileEntry(r, easy)
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedFileEntry(r randyAgro, easy bool) *FileEntry {
+	this := &FileEntry{}
+	this.Chain = uint64(uint64(r.Uint32()))
+	this.Sympath = randStringAgro(r)
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedFileChainSet(r randyAgro, easy bool) *FileChainSet {
+	this := &FileChainSet{}
+	if r.Intn(10) != 0 {
+		v6 := r.Intn(10)
+		this.Chains = make(map[uint64]uint64)
+		for i := 0; i < v6; i++ {
+			v7 := uint64(uint64(r.Uint32()))
+			this.Chains[v7] = uint64(uint64(r.Uint32()))
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedPeerInfo(r randyAgro, easy bool) *PeerInfo {
+	this := &PeerInfo{}
+	this.UUID = randStringAgro(r)
+	this.Address = randStringAgro(r)
+	this.LastSeen = int64(r.Int63())
+	if r.Intn(2) == 0 {
+		this.LastSeen *= -1
+	}
+	this.TotalBlocks = uint64(uint64(r.Uint32()))
+	this.UsedBlocks = uint64(uint64(r.Uint32()))
+	this.LastRebalanceFinish = int64(r.Int63())
+	if r.Intn(2) == 0 {
+		this.LastRebalanceFinish *= -1
+	}
+	this.LastRebalanceBlocks = uint64(uint64(r.Uint32()))
+	this.Rebalancing = bool(bool(r.Intn(2) == 0))
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedRing(r randyAgro, easy bool) *Ring {
+	this := &Ring{}
+	this.Type = uint32(r.Uint32())
+	this.Version = uint32(r.Uint32())
+	this.ReplicationFactor = uint32(r.Uint32())
+	if r.Intn(10) != 0 {
+		v8 := r.Intn(5)
+		this.Peers = make([]*PeerInfo, v8)
+		for i := 0; i < v8; i++ {
+			this.Peers[i] = NewPopulatedPeerInfo(r, easy)
+		}
+	}
+	if r.Intn(10) != 0 {
+		v9 := r.Intn(10)
+		this.Attrs = make(map[string][]byte)
+		for i := 0; i < v9; i++ {
+			v10 := r.Intn(100)
+			v11 := randStringAgro(r)
+			this.Attrs[v11] = make([]byte, v10)
+			for i := 0; i < v10; i++ {
+				this.Attrs[v11][i] = byte(r.Intn(256))
+			}
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedBlockRef(r randyAgro, easy bool) *BlockRef {
+	this := &BlockRef{}
+	this.Volume = uint64(uint64(r.Uint32()))
+	this.INode = uint64(uint64(r.Uint32()))
+	this.Block = uint64(uint64(r.Uint32()))
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedINodeRef(r randyAgro, easy bool) *INodeRef {
+	this := &INodeRef{}
+	this.Volume = uint64(uint64(r.Uint32()))
+	this.INode = uint64(uint64(r.Uint32()))
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+type randyAgro interface {
+	Float32() float32
+	Float64() float64
+	Int63() int64
+	Int31() int32
+	Uint32() uint32
+	Intn(n int) int
+}
+
+func randUTF8RuneAgro(r randyAgro) rune {
+	ru := r.Intn(62)
+	if ru < 10 {
+		return rune(ru + 48)
+	} else if ru < 36 {
+		return rune(ru + 55)
+	}
+	return rune(ru + 61)
+}
+func randStringAgro(r randyAgro) string {
+	v12 := r.Intn(100)
+	tmps := make([]rune, v12)
+	for i := 0; i < v12; i++ {
+		tmps[i] = randUTF8RuneAgro(r)
+	}
+	return string(tmps)
+}
+func randUnrecognizedAgro(r randyAgro, maxFieldNumber int) (data []byte) {
+	l := r.Intn(5)
+	for i := 0; i < l; i++ {
+		wire := r.Intn(4)
+		if wire == 3 {
+			wire = 5
+		}
+		fieldNumber := maxFieldNumber + r.Intn(100)
+		data = randFieldAgro(data, r, fieldNumber, wire)
+	}
+	return data
+}
+func randFieldAgro(data []byte, r randyAgro, fieldNumber int, wire int) []byte {
+	key := uint32(fieldNumber)<<3 | uint32(wire)
+	switch wire {
+	case 0:
+		data = encodeVarintPopulateAgro(data, uint64(key))
+		v13 := r.Int63()
+		if r.Intn(2) == 0 {
+			v13 *= -1
+		}
+		data = encodeVarintPopulateAgro(data, uint64(v13))
+	case 1:
+		data = encodeVarintPopulateAgro(data, uint64(key))
+		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
+	case 2:
+		data = encodeVarintPopulateAgro(data, uint64(key))
+		ll := r.Intn(100)
+		data = encodeVarintPopulateAgro(data, uint64(ll))
+		for j := 0; j < ll; j++ {
+			data = append(data, byte(r.Intn(256)))
+		}
+	default:
+		data = encodeVarintPopulateAgro(data, uint64(key))
+		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
+	}
+	return data
+}
+func encodeVarintPopulateAgro(data []byte, v uint64) []byte {
+	for v >= 1<<7 {
+		data = append(data, uint8(uint64(v)&0x7f|0x80))
+		v >>= 7
+	}
+	data = append(data, uint8(v))
+	return data
 }
 func (m *Metadata) Size() (n int) {
 	var l int
@@ -1522,7 +2608,10 @@ func (m *BlockLayer) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Content = append([]byte{}, data[iNdEx:postIndex]...)
+			m.Content = append(m.Content[:0], data[iNdEx:postIndex]...)
+			if m.Content == nil {
+				m.Content = []byte{}
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

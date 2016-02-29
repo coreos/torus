@@ -69,7 +69,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&readCacheSizeStr, "read-cache-size", "", "20MiB", "Amount of memory to use for read cache")
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
 	rootCommand.PersistentFlags().StringVarP(&readLevel, "readlevel", "", "block", "Specific package logging")
-	rootCommand.PersistentFlags().StringVarP(&writeLevel, "writelevel", "", "one", "Specific package logging")
+	rootCommand.PersistentFlags().StringVarP(&writeLevel, "writelevel", "", "all", "Specific package logging")
 	rootCommand.PersistentFlags().BoolVarP(&rootMount, "root-mount", "", false, "Mount FUSE with options to allow other users (must be root)")
 }
 
@@ -129,10 +129,10 @@ func configureServer(cmd *cobra.Command, args []string) {
 
 	var wl agro.WriteLevel
 	switch writeLevel {
-	case "one":
-		wl = agro.WriteOne
 	case "all":
 		wl = agro.WriteAll
+	case "one":
+		wl = agro.WriteOne
 	case "local":
 		wl = agro.WriteLocal
 	default:
