@@ -71,7 +71,6 @@ func (s *server) FileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry
 	if err != nil {
 		return 0, nil, err
 	}
-
 	ent, ok := dir.Files[filename]
 	if !ok {
 		return agro.VolumeID(vol.Id), nil, os.ErrNotExist
@@ -186,6 +185,7 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 	}
 
 	inode, err := s.inodes.GetINode(s.getContext(), ref)
+
 	if err != nil {
 		return nil, err
 	}
@@ -360,9 +360,11 @@ func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func
 			if err != nil {
 				return nil, ref, err
 			}
-			inode, err = s.inodes.GetINode(ctx, ref)
-			if err != nil {
-				return nil, ref, err
+			if ref.INode != 0 {
+				inode, err = s.inodes.GetINode(ctx, ref)
+				if err != nil {
+					return nil, ref, err
+				}
 			}
 		}
 		newINode, newRef, err := modFunc(inode, vol)
