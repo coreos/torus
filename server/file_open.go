@@ -64,6 +64,7 @@ func (s *server) create(path agro.Path, flag int, md *models.Metadata) (f agro.F
 	if written != 0 || err != nil {
 		return nil, errors.New("couldn't write empty data to the file")
 	}
+	file.Sync()
 	s.addOpenFile(fh.inode.Chain, fh)
 	return file, nil
 }
