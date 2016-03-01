@@ -38,7 +38,7 @@ type Server struct {
 	newRing    agro.Ring
 	openINodes map[string]map[string]*roaring.Bitmap
 	deadMap    map[string]*roaring.Bitmap
-	chains     map[string]map[agro.INodeRef]agro.INodeRef
+	chains     map[agro.VolumeID]map[agro.INodeRef]agro.INodeRef
 
 	ringListeners []chan agro.Ring
 }
@@ -70,7 +70,7 @@ func NewServer() *Server {
 		ring:       r,
 		inode:      make(map[string]agro.INodeID),
 		openINodes: make(map[string]map[string]*roaring.Bitmap),
-		chains:     make(map[string]map[agro.INodeRef]agro.INodeRef),
+		chains:     make(map[agro.VolumeID]map[agro.INodeRef]agro.INodeRef),
 		deadMap:    make(map[string]*roaring.Bitmap),
 	}
 }
@@ -137,7 +137,7 @@ func (t *Client) CreateVolume(volume string) error {
 		t.srv.volIndex[volume] = t.srv.vol
 	}
 
-	t.srv.chains[volume] = make(map[agro.INodeRef]agro.INodeRef)
+	t.srv.chains[t.srv.vol] = make(map[agro.INodeRef]agro.INodeRef)
 	return nil
 }
 
@@ -287,28 +287,23 @@ func (t *Client) SetFileEntry(p agro.Path, ent *models.FileEntry) error {
 	return nil
 }
 
-func (t *Client) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRef, error) {
-	vid, err := t.GetVolumeID(volume)
-	if err != nil {
-		return agro.INodeRef{}, err
-	}
-	if base.Volume() != vid {
-		return agro.INodeRef{}, errors.New("mismatched volume")
-	}
-	return t.srv.chains[volume][base], nil
-}
-
-func (t *Client) SetChainINode(volume string, base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
+func (t *Client) GetChainINode(base agro.INodeRef) (agro.INodeRef, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	cur := t.srv.chains[volume][base]
+	return t.srv.chains[base.Volume()][base], nil
+}
+
+func (t *Client) SetChainINode(base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	cur := t.srv.chains[base.Volume()][base]
 	if cur.INode != was.INode {
 		return agro.ErrCompareFailed
 	}
 	if new.INode != 0 {
-		t.srv.chains[volume][base] = new
+		t.srv.chains[base.Volume()][base] = new
 	} else {
-		delete(t.srv.chains[volume], base)
+		delete(t.srv.chains[base.Volume()], base)
 	}
 	return nil
 }
@@ -500,6 +495,19 @@ func (t *Client) GetINodeIndexes() (map[string]agro.INodeID, error) {
 		out[k] = v
 	}
 	return out, nil
+}
+
+func (t *Client) GetINodeChains(vid agro.VolumeID) ([]*models.FileChainSet, error) {
+	if chain, ok := t.srv.chains[vid]; ok {
+		fcs := &models.FileChainSet{
+			Chains: make(map[uint64]uint64),
+		}
+		for k, v := range chain {
+			fcs.Chains[uint64(k.INode)] = uint64(v.INode)
+		}
+		return []*models.FileChainSet{fcs}, nil
+	}
+	return nil, errors.New("invalid volume ID")
 }
 
 func (s *Server) Close() error {

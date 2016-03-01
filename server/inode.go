@@ -65,7 +65,7 @@ func (b *INodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *mod
 			INodeRef: i,
 			Index:    agro.IndexID(index),
 		}
-		ref.SetBlockType(agro.INode)
+		ref.SetBlockType(agro.TypeINode)
 		err := b.bs.WriteBlock(ctx, ref, buf)
 		if err != nil {
 			return err
@@ -86,7 +86,7 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 		INodeRef: i,
 		Index:    agro.IndexID(index),
 	}
-	ref.SetBlockType(agro.INode)
+	ref.SetBlockType(agro.TypeINode)
 	data, err := b.bs.GetBlock(ctx, ref)
 	if err != nil {
 		promINodeFailures.Inc()
@@ -103,7 +103,7 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 				INodeRef: i,
 				Index:    agro.IndexID(index),
 			}
-			ref.SetBlockType(agro.INode)
+			ref.SetBlockType(agro.TypeINode)
 			data, err = b.bs.GetBlock(ctx, ref)
 			if err != nil {
 				promINodeFailures.Inc()
@@ -131,7 +131,7 @@ func (b *INodeStore) DeleteINode(ctx context.Context, i agro.INodeRef) error {
 		INodeRef: i,
 		Index:    agro.IndexID(1),
 	}
-	ref.SetBlockType(agro.INode)
+	ref.SetBlockType(agro.TypeINode)
 	data, err := b.bs.GetBlock(ctx, ref)
 	if err != nil {
 		return err
@@ -143,7 +143,7 @@ func (b *INodeStore) DeleteINode(ctx context.Context, i agro.INodeRef) error {
 			INodeRef: i,
 			Index:    agro.IndexID(j),
 		}
-		ref.SetBlockType(agro.INode)
+		ref.SetBlockType(agro.TypeINode)
 		err := b.bs.DeleteBlock(ctx, ref)
 		if err != nil {
 			return err
@@ -165,7 +165,7 @@ func (i *INodeIterator) Err() error { return i.it.Err() }
 func (i *INodeIterator) Next() bool {
 	for i.it.Next() {
 		ref := i.it.BlockRef()
-		if ref.BlockType() == agro.INode && ref.Index == 1 {
+		if ref.BlockType() == agro.TypeINode && ref.Index == 1 {
 			return true
 		}
 	}

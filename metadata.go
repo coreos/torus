@@ -97,7 +97,6 @@ type MetadataService interface {
 	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
 	GetVolumes() ([]string, error)
 	GetVolumeID(volume string) (VolumeID, error)
-	GetVolumeName(vid VolumeID) (string, error)
 
 	CommitINodeIndex(volume string) (INodeID, error)
 	GetINodeIndex(volume string) (INodeID, error)
@@ -109,8 +108,9 @@ type MetadataService interface {
 	Rmdir(path Path) error
 	SetFileEntry(path Path, ent *models.FileEntry) error
 
-	GetChainINode(volume string, base INodeRef) (INodeRef, error)
-	SetChainINode(volume string, base INodeRef, was INodeRef, new INodeRef) error
+	GetINodeChains(vid VolumeID) ([]*models.FileChainSet, error)
+	GetChainINode(base INodeRef) (INodeRef, error)
+	SetChainINode(base INodeRef, was INodeRef, new INodeRef) error
 
 	GlobalMetadata() (GlobalMetadata, error)
 

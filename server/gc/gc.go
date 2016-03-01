@@ -19,7 +19,7 @@ type GC interface {
 
 func NewGCController(mds agro.MetadataService) GC {
 	return &controller{
-		gcs: []GC{NewBlocksByINodeGC(mds)},
+		gcs: []GC{NewBlocksByINodeGC(mds), NewDeadINodeGC(mds)},
 	}
 }
 

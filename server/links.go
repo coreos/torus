@@ -104,7 +104,7 @@ func (s *server) removeFile(p agro.Path) error {
 	if ent.Sympath != "" {
 		return s.mds.SetFileEntry(p, &models.FileEntry{})
 	}
-	ref, err := s.mds.GetChainINode(p.Volume, agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
+	ref, err := s.mds.GetChainINode(agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func (s *server) removeFile(p agro.Path) error {
 		live := bs.GetLiveINodes()
 		// Anybody who had it open still does, and a write/sync will bring it back,
 		// as expected. So this is safe to modify.
-		err = s.mds.SetChainINode(p.Volume, agro.NewINodeRef(ref.Volume(), agro.INodeID(inode.Chain)), ref, agro.NewINodeRef(0, 0))
+		err = s.mds.SetChainINode(agro.NewINodeRef(ref.Volume(), agro.INodeID(inode.Chain)), ref, agro.NewINodeRef(0, 0))
 		if err != nil {
 			return err
 		}
