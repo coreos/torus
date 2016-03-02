@@ -31,7 +31,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
 		os.Exit(1)
 	}
-	capnslog.SetGlobalLogLevel(capnslog.TRACE)
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	cfg := agro.Config{
 		MetadataAddress: *etcdAddress,
 		ReadCacheSize:   40 * 1024 * 1024,
@@ -74,7 +74,12 @@ func main() {
 	clog.Trace("create")
 	handle := nbd.Create(f, int64(imgsize))
 	dev, err := handle.Connect()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	fmt.Println("*****", dev)
+	err = handle.Serve()
 	f.Close()
-	fmt.Println(dev)
 	fmt.Println(err)
 }

@@ -46,6 +46,11 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 		models.RegisterAgroStorageServer(d.grpcSrv, d)
 		go d.grpcSrv.Serve(lis)
 	}
+	srv.lease, err = srv.mds.GetLease()
+	if err != nil {
+		return nil, err
+	}
+	srv.BeginHeartbeat()
 	gmd, err := d.srv.mds.GlobalMetadata()
 	if err != nil {
 		return nil, err
