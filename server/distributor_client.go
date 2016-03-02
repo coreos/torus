@@ -56,6 +56,9 @@ func (d *distClient) onPeerTimeout(uuid string) {
 func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 	d.mut.Lock()
 	defer d.mut.Unlock()
+	if conn, ok := d.openClients[uuid]; ok {
+		return conn
+	}
 	d.dist.srv.mut.RLock()
 	pi := d.dist.srv.peersMap[uuid]
 	d.dist.srv.mut.RUnlock()
