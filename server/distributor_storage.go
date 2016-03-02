@@ -120,7 +120,7 @@ func (d *distributor) readSequential(ctx context.Context, i agro.BlockRef, peers
 		}
 
 		// If this peer didn't have it, continue
-		if err == agro.ErrBlockUnavailable {
+		if err == agro.ErrBlockUnavailable || err == agro.ErrNoPeer {
 			clog.Warningf("block from %s failed, trying next peer", p)
 			promDistBlockPeerFailures.WithLabelValues(p).Inc()
 			continue
