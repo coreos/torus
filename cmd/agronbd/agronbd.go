@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/internal/nbd"
 	_ "github.com/coreos/agro/metadata/etcd"
 	_ "github.com/coreos/agro/metadata/temp"
 	"github.com/coreos/agro/server"
 	_ "github.com/coreos/agro/storage/block"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/dustin/go-humanize"
-	"github.com/frostschutz/go-nbd"
 )
 
 var etcdAddress = flag.String("etcd", "127.0.0.1:2378", "Etcd")
@@ -43,6 +42,11 @@ func main() {
 	}
 	clog.Trace("open rep")
 	srv.OpenReplication()
+	stats, err := srv.Statfs()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	path := agro.Path{
 		Volume: *volume,
 		Path:   filepath.Clean(filepath.Join("/", *file)),
@@ -65,14 +69,14 @@ func main() {
 	clog.Trace("sync")
 	f.Sync()
 	fmt.Println("Size:", imgsize)
-	go func(f agro.File) {
-		for {
-			time.Sleep(5 * time.Second)
-			f.Sync()
-		}
-	}(f)
+	// go func(f agro.File) {
+	// 	for {
+	// 		time.Sleep(5 * time.Second)
+	// 		f.Sync()
+	// 	}
+	// }(f)
 	clog.Trace("create")
-	handle := nbd.Create(f, int64(imgsize))
+	handle := nbd.Create(f, int64(imgsize), int64(stats.BlockSize))
 	dev, err := handle.Connect()
 	if err != nil {
 		fmt.Println(err)
