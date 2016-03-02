@@ -51,8 +51,10 @@ type server struct {
 	cfg            agro.Config
 	peerInfo       *models.PeerInfo
 
-	heartbeating    bool
-	replicationOpen bool
+	lease            int64
+	heartbeating     bool
+	replicationOpen  bool
+	timeoutCallbacks []func(string)
 }
 
 func (s *server) FileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry, error) {

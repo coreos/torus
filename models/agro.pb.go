@@ -160,6 +160,7 @@ type PeerInfo struct {
 	LastRebalanceFinish int64  `protobuf:"varint,6,opt,name=last_rebalance_finish,proto3" json:"last_rebalance_finish,omitempty"`
 	LastRebalanceBlocks uint64 `protobuf:"varint,7,opt,name=last_rebalance_blocks,proto3" json:"last_rebalance_blocks,omitempty"`
 	Rebalancing         bool   `protobuf:"varint,8,opt,name=rebalancing,proto3" json:"rebalancing,omitempty"`
+	TimedOut            bool   `protobuf:"varint,9,opt,name=timed_out,proto3" json:"timed_out,omitempty"`
 }
 
 func (m *PeerInfo) Reset()         { *m = PeerInfo{} }
@@ -772,6 +773,9 @@ func (this *PeerInfo) VerboseEqual(that interface{}) error {
 	if this.Rebalancing != that1.Rebalancing {
 		return fmt.Errorf("Rebalancing this(%v) Not Equal that(%v)", this.Rebalancing, that1.Rebalancing)
 	}
+	if this.TimedOut != that1.TimedOut {
+		return fmt.Errorf("TimedOut this(%v) Not Equal that(%v)", this.TimedOut, that1.TimedOut)
+	}
 	return nil
 }
 func (this *PeerInfo) Equal(that interface{}) bool {
@@ -821,6 +825,9 @@ func (this *PeerInfo) Equal(that interface{}) bool {
 		return false
 	}
 	if this.Rebalancing != that1.Rebalancing {
+		return false
+	}
+	if this.TimedOut != that1.TimedOut {
 		return false
 	}
 	return true
@@ -1415,6 +1422,16 @@ func (m *PeerInfo) MarshalTo(data []byte) (int, error) {
 		}
 		i++
 	}
+	if m.TimedOut {
+		data[i] = 0x48
+		i++
+		if m.TimedOut {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
 	return i, nil
 }
 
@@ -1684,6 +1701,7 @@ func NewPopulatedPeerInfo(r randyAgro, easy bool) *PeerInfo {
 	}
 	this.LastRebalanceBlocks = uint64(uint64(r.Uint32()))
 	this.Rebalancing = bool(bool(r.Intn(2) == 0))
+	this.TimedOut = bool(bool(r.Intn(2) == 0))
 	if !easy && r.Intn(10) != 0 {
 	}
 	return this
@@ -1966,6 +1984,9 @@ func (m *PeerInfo) Size() (n int) {
 		n += 1 + sovAgro(uint64(m.LastRebalanceBlocks))
 	}
 	if m.Rebalancing {
+		n += 2
+	}
+	if m.TimedOut {
 		n += 2
 	}
 	return n
@@ -3274,6 +3295,26 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 				}
 			}
 			m.Rebalancing = bool(v != 0)
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TimedOut", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.TimedOut = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])

@@ -160,6 +160,14 @@ func setKey(key []byte, value []byte) *etcdpb.PutRequest {
 	}
 }
 
+func setLeasedKey(lease int64, key []byte, value []byte) *etcdpb.PutRequest {
+	return &etcdpb.PutRequest{
+		Key:   key,
+		Value: value,
+		Lease: lease,
+	}
+}
+
 func deleteKey(key []byte) *etcdpb.DeleteRangeRequest {
 	return &etcdpb.DeleteRangeRequest{
 		Key: key,

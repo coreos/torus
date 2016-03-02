@@ -100,11 +100,12 @@ func (t *Client) UUID() string {
 	return t.uuid
 }
 
+func (t *Client) GetLease() (int64, error) { return 1, nil }
 func (t *Client) GetPeers() (agro.PeerInfoList, error) {
 	return t.srv.peers, nil
 }
 
-func (t *Client) RegisterPeer(pi *models.PeerInfo) error {
+func (t *Client) RegisterPeer(_ int64, pi *models.PeerInfo) error {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	for i, p := range t.srv.peers {
@@ -418,7 +419,7 @@ func (t *Client) Close() error {
 	return nil
 }
 
-func (t *Client) ClaimVolumeINodes(vol agro.VolumeID, inodes *roaring.Bitmap) error {
+func (t *Client) ClaimVolumeINodes(_ int64, vol agro.VolumeID, inodes *roaring.Bitmap) error {
 	volume, _ := t.GetVolumeName(vol)
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()

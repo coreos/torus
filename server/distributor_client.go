@@ -28,19 +28,34 @@ type distClient struct {
 }
 
 func newDistClient(d *distributor) *distClient {
-	return &distClient{
+
+	client := &distClient{
 		dist:        d,
 		openConns:   make(map[string]*grpc.ClientConn),
 		openClients: make(map[string]models.AgroStorageClient),
 	}
+	d.srv.addTimeoutCallback(client.onPeerTimeout)
+	return client
 }
 
+func (d *distClient) onPeerTimeout(uuid string) {
+	d.mut.Lock()
+	defer d.mut.Unlock()
+	conn, ok := d.openConns[uuid]
+	if !ok {
+		return
+	}
+	delete(d.openClients, uuid)
+	err := conn.Close()
+	if err != nil {
+		clog.Errorf("peer timeout err on close: %s", err)
+	}
+	delete(d.openConns, uuid)
+
+}
 func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 	d.mut.Lock()
 	defer d.mut.Unlock()
-	if conn, ok := d.openClients[uuid]; ok {
-		return conn
-	}
 	d.dist.srv.mut.RLock()
 	pi := d.dist.srv.peersMap[uuid]
 	d.dist.srv.mut.RUnlock()
@@ -55,7 +70,11 @@ func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 			return nil
 		}
 	}
-	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure())
+	if pi.TimedOut {
+		return nil
+	}
+
+	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure(), grpc.WithTimeout(2*time.Second))
 	if err != nil {
 		clog.Errorf("couldn't dial: %v", err)
 		return nil

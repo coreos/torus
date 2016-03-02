@@ -53,6 +53,10 @@ func (s *server) heartbeat(cl chan interface{}) {
 	}
 }
 
+func (s *server) addTimeoutCallback(f func(uuid string)) {
+	s.timeoutCallbacks = append(s.timeoutCallbacks, f)
+}
+
 func (s *server) oneHeartbeat() {
 	promHeartbeats.Inc()
 	s.infoMut.Lock()
@@ -61,7 +65,7 @@ func (s *server) oneHeartbeat() {
 	defer cancel()
 	s.peerInfo.TotalBlocks = s.blocks.NumBlocks()
 	s.peerInfo.UsedBlocks = s.blocks.UsedBlocks()
-	err := s.mds.WithContext(ctx).RegisterPeer(s.peerInfo)
+	err := s.mds.WithContext(ctx).RegisterPeer(s.lease, s.peerInfo)
 	if err != nil {
 		clog.Warningf("couldn't register heartbeat: %s", err)
 	}
@@ -80,5 +84,20 @@ func (s *server) updatePeerMap() {
 	promServerPeers.Set(float64(len(peers)))
 	for _, p := range peers {
 		s.peersMap[p.UUID] = p
+	}
+	for k := range s.peersMap {
+		found := false
+		for _, p := range peers {
+			if p.UUID == k {
+				found = true
+				break
+			}
+		}
+		if !found {
+			for _, f := range s.timeoutCallbacks {
+				f(k)
+			}
+			s.peersMap[k].TimedOut = true
+		}
 	}
 }
