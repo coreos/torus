@@ -60,9 +60,9 @@ func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 	if conn, ok := d.openClients[uuid]; ok {
 		return conn
 	}
-	d.dist.srv.mut.RLock()
+	d.dist.srv.infoMut.Lock()
 	pi := d.dist.srv.peersMap[uuid]
-	d.dist.srv.mut.RUnlock()
+	d.dist.srv.infoMut.Unlock()
 	if pi == nil {
 		// We know this UUID exists, we don't have an address for it, let's refresh now.
 		d.dist.srv.updatePeerMap()
