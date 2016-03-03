@@ -38,6 +38,10 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 		srv:    srv,
 	}
 	if listen {
+		srv.lease, err = srv.mds.GetLease()
+		if err != nil {
+			return nil, err
+		}
 		lis, err := net.Listen("tcp", addr)
 		if err != nil {
 			return nil, err

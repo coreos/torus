@@ -2,6 +2,7 @@ package rebalance
 
 import (
 	"io"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -9,6 +10,8 @@ import (
 )
 
 const maxIters = 20
+
+var rebalanceTimeout = 5 * time.Second
 
 func (r *rebalancer) Tick() (int, error) {
 	if r.it == nil {
@@ -61,12 +64,16 @@ outer:
 
 	n := 0
 	for k, v := range m {
-		oks, err := r.cs.Check(context.TODO(), k, v)
+		ctx, cancel := context.WithTimeout(context.TODO(), rebalanceTimeout)
+		oks, err := r.cs.Check(ctx, k, v)
+		cancel()
 		if err != nil {
 			for _, blk := range v {
 				toDelete[blk] = false
 			}
-			clog.Error(err)
+			if err != agro.ErrNoPeer {
+				clog.Error(err)
+			}
 			continue
 		}
 		for i, ok := range oks {
@@ -79,7 +86,9 @@ outer:
 					continue
 				}
 				n++
-				err = r.cs.PutBlock(context.TODO(), k, v[i], data)
+				ctx, cancel := context.WithTimeout(context.TODO(), rebalanceTimeout)
+				err = r.cs.PutBlock(ctx, k, v[i], data)
+				cancel()
 				if err != nil {
 					// Continue for now
 					toDelete[v[i]] = false

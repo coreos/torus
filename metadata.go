@@ -127,10 +127,9 @@ type MetadataService interface {
 
 	WithContext(ctx context.Context) MetadataService
 
-	// TODO(barakmich): THESE NEED A LEASE ID
-	RegisterPeer(*models.PeerInfo) error
-	ClaimVolumeINodes(vol VolumeID, inodes *roaring.Bitmap) error
-	// ^^^^^^^
+	GetLease() (int64, error)
+	RegisterPeer(lease int64, pi *models.PeerInfo) error
+	ClaimVolumeINodes(lease int64, vol VolumeID, inodes *roaring.Bitmap) error
 
 	ModifyDeadMap(vol VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error
 	GetVolumeLiveness(vol VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error)

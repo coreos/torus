@@ -76,7 +76,10 @@ type etcd struct {
 
 	conn *grpc.ClientConn
 	kv   etcdpb.KVClient
-	uuid string
+
+	leaseclient etcdpb.LeaseClient
+	leasestream etcdpb.Lease_LeaseKeepAliveClient
+	uuid        string
 }
 
 func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
@@ -188,15 +191,28 @@ func (c *etcdCtx) UUID() string {
 	return c.etcd.uuid
 }
 
-func (c *etcdCtx) RegisterPeer(p *models.PeerInfo) error {
+func (c *etcdCtx) RegisterPeer(lease int64, p *models.PeerInfo) error {
+	if lease == 0 {
+		return errors.New("no lease")
+	}
 	promOps.WithLabelValues("register-peer").Inc()
 	p.LastSeen = time.Now().UnixNano()
 	data, err := p.Marshal()
 	if err != nil {
 		return err
 	}
+	if c.etcd.leasestream != nil {
+		c.etcd.leasestream.Send(&etcdpb.LeaseKeepAliveRequest{
+			ID: lease,
+		})
+		resp, err := c.etcd.leasestream.Recv()
+		if err != nil {
+			return err
+		}
+		clog.Tracef("updated lease for %d, TTL %d", resp.ID, resp.TTL)
+	}
 	_, err = c.etcd.kv.Put(c.getContext(),
-		setKey(mkKey("nodes", p.UUID), data),
+		setLeasedKey(lease, mkKey("nodes", p.UUID), data),
 	)
 	return err
 }
@@ -217,7 +233,7 @@ func (c *etcdCtx) GetPeers() (agro.PeerInfoList, error) {
 			continue
 		}
 		if time.Since(time.Unix(0, p.LastSeen)) > peerTimeoutMax {
-			clog.Tracef("peer at key %s didn't unregister; fixed with leases in etcdv3", string(x.Key))
+			clog.Warningf("peer at key %s didn't unregister; should be fixed with leases in etcdv3", string(x.Key))
 			continue
 		}
 		out = append(out, &p)
@@ -531,6 +547,24 @@ func trySetFileEntry(p agro.Path, ent *models.FileEntry) AtomicModifyFunc {
 	}
 }
 
+func (c *etcdCtx) GetLease() (int64, error) {
+	var err error
+	if c.etcd.leaseclient == nil {
+		c.etcd.leaseclient = etcdpb.NewLeaseClient(c.etcd.conn)
+		c.etcd.leasestream, err = c.etcd.leaseclient.LeaseKeepAlive(context.TODO())
+		if err != nil {
+			return 0, err
+		}
+	}
+	resp, err := c.etcd.leaseclient.LeaseCreate(c.getContext(), &etcdpb.LeaseCreateRequest{
+		TTL: 30,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return resp.ID, nil
+}
+
 func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRef, error) {
 	pageID := uint64ToHex(uint64(base.INode / chainPageSize))
 	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "chain", volume, pageID)))
@@ -616,8 +650,10 @@ func (c *etcdCtx) GetVolumeLiveness(volumeID agro.VolumeID) (*roaring.Bitmap, []
 	return deadmap, l, nil
 }
 
-func (c *etcdCtx) ClaimVolumeINodes(volumeID agro.VolumeID, inodes *roaring.Bitmap) error {
-	// TODO(barakmich): LEASE
+func (c *etcdCtx) ClaimVolumeINodes(lease int64, volumeID agro.VolumeID, inodes *roaring.Bitmap) error {
+	if lease == 0 {
+		return errors.New("no lease")
+	}
 	promOps.WithLabelValues("claim-volume-inodes").Inc()
 	volume := uint64ToHex(uint64(volumeID))
 	key := mkKey("volumemeta", "open", volume, c.UUID())
@@ -627,7 +663,7 @@ func (c *etcdCtx) ClaimVolumeINodes(volumeID agro.VolumeID, inodes *roaring.Bitm
 	}
 	data := roaringToBytes(inodes)
 	_, err := c.etcd.kv.Put(c.getContext(),
-		setKey(key, data),
+		setLeasedKey(lease, key, data),
 	)
 	return err
 }

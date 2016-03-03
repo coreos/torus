@@ -534,7 +534,7 @@ func (f *fileHandle) updateHeldINodes(closing bool) {
 	}
 	promOpenINodes.WithLabelValues(f.volume).Set(float64(card))
 	mlog.Tracef("updating claim %s %s", f.volume, bm)
-	err := f.srv.mds.ClaimVolumeINodes(vid, bm)
+	err := f.srv.mds.ClaimVolumeINodes(f.srv.lease, vid, bm)
 	if err != nil {
 		mlog.Error("file: TODO: Can't re-claim")
 	}

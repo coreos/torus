@@ -109,7 +109,8 @@ func (s *memory) GetPeers() (agro.PeerInfoList, error) {
 	}, nil
 }
 
-func (s *memory) RegisterPeer(_ *models.PeerInfo) error { return nil }
+func (s *memory) GetLease() (int64, error)                       { return 1, nil }
+func (s *memory) RegisterPeer(_ int64, _ *models.PeerInfo) error { return nil }
 
 func (s *memory) CreateVolume(volume string) error {
 	s.mut.Lock()
@@ -432,7 +433,7 @@ func (s *memory) SetRing(newring agro.Ring) error {
 	return nil
 }
 
-func (s *memory) ClaimVolumeINodes(vol agro.VolumeID, inodes *roaring.Bitmap) error {
+func (s *memory) ClaimVolumeINodes(_ int64, vol agro.VolumeID, inodes *roaring.Bitmap) error {
 	volume, _ := s.GetVolumeName(vol)
 	s.openINodes[volume] = inodes
 	return nil
