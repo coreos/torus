@@ -61,6 +61,7 @@ type Device interface {
 	ReadAt(b []byte, off int64) (n int, err error)
 	WriteAt(b []byte, off int64) (n int, err error)
 	Sync() error
+	Trim(off, len int64) error
 }
 
 type request struct {
@@ -157,7 +158,7 @@ func (nbd *NBD) Serve() (err error) {
 	// setup
 	if err = nbd.Size(nbd.size, nbd.blocksize); err != nil {
 		// already set by nbd.Size()
-	} else if err = ioctl(nbd.nbd.Fd(), NBD_SET_FLAGS, uintptr(NBD_FLAG_SEND_FLUSH)); err != nil {
+	} else if err = ioctl(nbd.nbd.Fd(), NBD_SET_FLAGS, uintptr(NBD_FLAG_SEND_FLUSH|NBD_FLAG_SEND_TRIM)); err != nil {
 		err = &os.PathError{nbd.nbd.Name(), "ioctl NBD_SET_FLAGS", err}
 	} else {
 		c := make(chan error)
@@ -226,6 +227,12 @@ func (nbd *NBD) handle() {
 				syscall.Write(nbd.socket, buf[0:16])
 			case NBD_CMD_DISC:
 				panic("Disconnect")
+			case NBD_CMD_TRIM:
+				err := nbd.device.Trim(int64(x.from), int64(x.len))
+				if err != nil {
+					fmt.Println("trim error", err)
+				}
+				fallthrough
 			case NBD_CMD_FLUSH:
 				err := nbd.device.Sync()
 				if err != nil {
@@ -233,10 +240,6 @@ func (nbd *NBD) handle() {
 				}
 				binary.BigEndian.PutUint32(buf[0:4], NBD_REPLY_MAGIC)
 				binary.BigEndian.PutUint32(buf[4:8], 0)
-				syscall.Write(nbd.socket, buf[0:16])
-			case NBD_CMD_TRIM:
-				binary.BigEndian.PutUint32(buf[0:4], NBD_REPLY_MAGIC)
-				binary.BigEndian.PutUint32(buf[4:8], 1)
 				syscall.Write(nbd.socket, buf[0:16])
 			default:
 				panic("unknown command")

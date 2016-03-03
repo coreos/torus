@@ -151,3 +151,16 @@ func (b *baseBlockset) Truncate(lastIndex int) error {
 	}
 	return nil
 }
+
+func (b *baseBlockset) Trim(from, to int) error {
+	if from >= len(b.blocks) {
+		return nil
+	}
+	if to > len(b.blocks) {
+		to = len(b.blocks)
+	}
+	for i := from; i < to; i++ {
+		b.blocks[i] = agro.ZeroBlock()
+	}
+	return nil
+}

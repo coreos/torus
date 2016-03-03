@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
 	"github.com/RoaringBitmap/roaring"
+	"github.com/coreos/agro"
 )
 
 type replicationBlockset struct {
@@ -182,4 +182,24 @@ func (b *replicationBlockset) Truncate(lastIndex int) error {
 		}
 	}
 	return nil
+}
+
+func (b *replicationBlockset) Trim(from, to int) error {
+	err := b.sub.Trim(from, to)
+	if err != nil {
+		return err
+	}
+	if from >= len(b.repBlocks[0]) {
+		return nil
+	}
+	if to > len(b.repBlocks[0]) {
+		to = len(b.repBlocks[0])
+	}
+	for i := from; i < to; i++ {
+		for _, blist := range b.repBlocks {
+			blist[i] = agro.ZeroBlock()
+		}
+	}
+	return nil
+
 }

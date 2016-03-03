@@ -163,3 +163,23 @@ func (b *crcBlockset) Truncate(lastIndex int) error {
 	}
 	return nil
 }
+
+func (b *crcBlockset) Trim(from, to int) error {
+	b.mut.Lock()
+	defer b.mut.Unlock()
+	err := b.sub.Trim(from, to)
+	if err != nil {
+		return err
+	}
+	if from >= len(b.crcs) {
+		return nil
+	}
+	if to > len(b.crcs) {
+		to = len(b.crcs)
+	}
+	crc := crc32.ChecksumIEEE(make([]byte, b.getStore().BlockSize()))
+	for i := from; i < to; i++ {
+		b.crcs[i] = crc
+	}
+	return nil
+}
