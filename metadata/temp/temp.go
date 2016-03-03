@@ -128,7 +128,7 @@ func (t *Client) CreateVolume(volume string) error {
 
 	k := []byte(agro.Path{Volume: volume, Path: "/"}.Key())
 	if _, ok := tx.Get(k); !ok {
-		tx.Insert(k, (*models.Directory)(nil))
+		tx.Insert(k, &models.Directory{})
 		t.srv.tree = tx.Commit()
 		t.srv.vol++
 		t.srv.volIndex[volume] = t.srv.vol
@@ -299,10 +299,14 @@ func (t *Client) SetChainINode(volume string, base agro.INodeRef, was agro.INode
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	cur := t.srv.chains[volume][base]
-	if cur != was {
+	if cur.INode != was.INode {
 		return agro.ErrCompareFailed
 	}
-	t.srv.chains[volume][base] = new
+	if new.INode != 0 {
+		t.srv.chains[volume][base] = new
+	} else {
+		delete(t.srv.chains[volume], base)
+	}
 	return nil
 }
 

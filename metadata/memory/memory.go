@@ -65,7 +65,7 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		Version: 1,
 		Peers: []*models.PeerInfo{
 			&models.PeerInfo{
-				UUID: t.uuid,
+				UUID: uuid,
 			},
 		},
 	})
@@ -118,16 +118,26 @@ func (s *memory) CreateVolume(volume string) error {
 		return agro.ErrExists
 	}
 
+	t := uint64(time.Now().UnixNano())
+	dir := &models.Directory{
+		Metadata: &models.Metadata{
+			Ctime: t,
+			Mtime: t,
+			Mode:  uint32(os.ModeDir | 0755),
+		},
+		Files: make(map[string]*models.FileEntry),
+	}
+
 	tx := s.tree.Txn()
 
 	k := []byte(agro.Path{Volume: volume, Path: "/"}.Key())
 	if _, ok := tx.Get(k); !ok {
-		tx.Insert(k, (*models.Directory)(nil))
+		tx.Insert(k, dir)
 		s.tree = tx.Commit()
 		s.vol++
 		s.volIndex[volume] = s.vol
+		s.chains[volume] = make(map[agro.INodeRef]agro.INodeRef)
 	}
-	s.chains[volume] = make(map[agro.INodeRef]agro.INodeRef)
 	return nil
 }
 
@@ -285,10 +295,14 @@ func (s *memory) SetChainINode(volume string, base agro.INodeRef, was agro.INode
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	cur := s.chains[volume][base]
-	if cur != was {
+	if cur.INode != was.INode {
 		return agro.ErrCompareFailed
 	}
-	s.chains[volume][base] = new
+	if new.INode != 0 {
+		s.chains[volume][base] = new
+	} else {
+		delete(s.chains[volume], base)
+	}
 	return nil
 }
 
@@ -305,7 +319,6 @@ func (s *memory) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 			Err:  os.ErrNotExist,
 		}
 	}
-
 	var (
 		dir     = v.(*models.Directory)
 		prefix  = []byte(p.SubdirsPrefix())

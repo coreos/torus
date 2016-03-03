@@ -108,7 +108,7 @@ func testThreeWrite(t *testing.T) {
 	err = srvs[1].Mkdir(agro.Path{
 		Volume: "vol1",
 		Path:   "/foo/",
-	})
+	}, &models.Metadata{})
 	if err != nil {
 		t.Errorf("couldn't mkdir: %s", err)
 		return
@@ -117,7 +117,6 @@ func testThreeWrite(t *testing.T) {
 		Volume: "vol1",
 		Path:   "/foo/bar",
 	}
-
 	f, err := srvs[2].Create(testPath)
 	if err != nil {
 		t.Errorf("couldn't open: %s", err)

@@ -444,6 +444,7 @@ func (f *file) Sync() error {
 			break
 		}
 		if err != aborter {
+			clog.Errorf("sync: unexpected update error: %s", err)
 			return err
 		}
 		// We can write a smarter merge function -- O_APPEND for example, doing the
