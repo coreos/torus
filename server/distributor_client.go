@@ -90,6 +90,8 @@ func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 }
 
 func (d *distClient) Close() error {
+	d.mut.Lock()
+	defer d.mut.Unlock()
 	for _, c := range d.openConns {
 		err := c.Close()
 		if err != nil {

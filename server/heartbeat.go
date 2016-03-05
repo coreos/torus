@@ -59,12 +59,16 @@ func (s *server) addTimeoutCallback(f func(uuid string)) {
 
 func (s *server) oneHeartbeat() {
 	promHeartbeats.Inc()
+
+	s.mut.Lock()
+	s.peerInfo.TotalBlocks = s.blocks.NumBlocks()
+	s.peerInfo.UsedBlocks = s.blocks.UsedBlocks()
+	s.mut.Unlock()
+
 	s.infoMut.Lock()
 	defer s.infoMut.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), heartbeatTimeout)
 	defer cancel()
-	s.peerInfo.TotalBlocks = s.blocks.NumBlocks()
-	s.peerInfo.UsedBlocks = s.blocks.UsedBlocks()
 	err := s.mds.WithContext(ctx).RegisterPeer(s.lease, s.peerInfo)
 	if err != nil {
 		clog.Warningf("couldn't register heartbeat: %s", err)

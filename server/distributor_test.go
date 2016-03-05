@@ -93,7 +93,7 @@ func testThreeWrite(t *testing.T) {
 		ok := true
 		for i := 0; i < 3; i++ {
 			d := srvs[i].blocks.(*distributor)
-			if d.ring.Version() != 2 {
+			if d.Ring().Version() != 2 {
 				ok = false
 				break
 			}
