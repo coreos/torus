@@ -102,6 +102,8 @@ func (t *Client) UUID() string {
 
 func (t *Client) GetLease() (int64, error) { return 1, nil }
 func (t *Client) GetPeers() (agro.PeerInfoList, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
 	return t.srv.peers, nil
 }
 
@@ -342,10 +344,14 @@ func (t *Client) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 
 func (t *Client) GetVolumes() ([]string, error) {
 	var (
-		iter = t.srv.tree.Root().Iterator()
 		out  []string
 		last string
 	)
+
+	t.srv.mut.Lock()
+	iter := t.srv.tree.Root().Iterator()
+	t.srv.mut.Unlock()
+
 	for {
 		k, _, ok := iter.Next()
 		if !ok {
@@ -419,6 +425,8 @@ func (s *Server) UnsubscribeNewRings(ch chan agro.Ring) {
 }
 
 func (t *Client) Close() error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
 	delete(t.srv.openINodes, t.uuid)
 	return nil
 }
