@@ -41,22 +41,28 @@ func (t *tempBlockStore) BlockSize() uint64 { return 1024 }
 
 func (t *tempBlockStore) Close() error {
 	t.mut.Lock()
+	defer t.mut.Unlock()
 	if t.store != nil {
 		t.store = nil
 	}
-	t.mut.Unlock()
 	return nil
 }
 
 func (t *tempBlockStore) NumBlocks() uint64 {
+	t.mut.Lock()
+	defer t.mut.Unlock()
 	return t.nBlocks
 }
 
 func (t *tempBlockStore) UsedBlocks() uint64 {
+	t.mut.Lock()
+	defer t.mut.Unlock()
 	return uint64(len(t.store))
 }
 
 func (t *tempBlockStore) HasBlock(_ context.Context, s agro.BlockRef) (bool, error) {
+	t.mut.Lock()
+	defer t.mut.Unlock()
 	_, ok := t.store[s]
 	return ok, nil
 }

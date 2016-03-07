@@ -78,7 +78,9 @@ func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 		return nil
 	}
 
+	d.mut.Unlock()
 	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure(), grpc.WithTimeout(connectTimeout))
+	d.mut.Lock()
 	if err != nil {
 		clog.Errorf("couldn't dial: %v", err)
 		return nil
@@ -90,6 +92,8 @@ func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 }
 
 func (d *distClient) Close() error {
+	d.mut.Lock()
+	defer d.mut.Unlock()
 	for _, c := range d.openConns {
 		err := c.Close()
 		if err != nil {
