@@ -47,7 +47,7 @@ type memory struct {
 	deadMap      map[string]*roaring.Bitmap
 	ring         agro.Ring
 	ringWatchers []chan agro.Ring
-	chains       map[string]map[agro.INodeRef]agro.INodeRef
+	chains       map[agro.VolumeID]map[agro.INodeRef]agro.INodeRef
 }
 
 func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
@@ -87,7 +87,7 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		openINodes: make(map[string]*roaring.Bitmap),
 		deadMap:    make(map[string]*roaring.Bitmap),
 		ring:       ring,
-		chains:     make(map[string]map[agro.INodeRef]agro.INodeRef),
+		chains:     make(map[agro.VolumeID]map[agro.INodeRef]agro.INodeRef),
 	}, nil
 }
 
@@ -137,7 +137,7 @@ func (s *memory) CreateVolume(volume string) error {
 		s.tree = tx.Commit()
 		s.vol++
 		s.volIndex[volume] = s.vol
-		s.chains[volume] = make(map[agro.INodeRef]agro.INodeRef)
+		s.chains[s.vol] = make(map[agro.INodeRef]agro.INodeRef)
 	}
 	return nil
 }
@@ -281,28 +281,21 @@ func (s *memory) SetFileEntry(p agro.Path, ent *models.FileEntry) error {
 	return nil
 }
 
-func (s *memory) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRef, error) {
-	vid, err := s.GetVolumeID(volume)
-	if err != nil {
-		return agro.INodeRef{}, err
-	}
-	if base.Volume() != vid {
-		return agro.INodeRef{}, errors.New("mismatched volume")
-	}
-	return s.chains[volume][base], nil
+func (s *memory) GetChainINode(base agro.INodeRef) (agro.INodeRef, error) {
+	return s.chains[base.Volume()][base], nil
 }
 
-func (s *memory) SetChainINode(volume string, base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
+func (s *memory) SetChainINode(base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	cur := s.chains[volume][base]
+	cur := s.chains[base.Volume()][base]
 	if cur.INode != was.INode {
 		return agro.ErrCompareFailed
 	}
 	if new.INode != 0 {
-		s.chains[volume][base] = new
+		s.chains[base.Volume()][base] = new
 	} else {
-		delete(s.chains[volume], base)
+		delete(s.chains[base.Volume()], base)
 	}
 	return nil
 }
@@ -464,6 +457,19 @@ func (s *memory) GetVolumeLiveness(vol agro.VolumeID) (*roaring.Bitmap, []*roari
 		}
 	}
 	return x, l, nil
+}
+
+func (s *memory) GetINodeChains(vid agro.VolumeID) ([]*models.FileChainSet, error) {
+	if chain, ok := s.chains[vid]; ok {
+		fcs := &models.FileChainSet{
+			Chains: make(map[uint64]uint64),
+		}
+		for k, v := range chain {
+			fcs.Chains[uint64(k.INode)] = uint64(v.INode)
+		}
+		return []*models.FileChainSet{fcs}, nil
+	}
+	return nil, errors.New("invalid volume ID")
 }
 
 func (s *memory) write() error {

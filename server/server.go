@@ -87,7 +87,7 @@ func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
 	if ent.Sympath != "" {
 		return s.inodeRefForPath(agro.Path{p.Volume, path.Clean(p.Base() + "/" + ent.Sympath)})
 	}
-	return s.mds.GetChainINode(p.Volume, agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
+	return s.mds.GetChainINode(agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 }
 
 type FileInfo struct {
@@ -179,7 +179,7 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 			Symlink: ent.Sympath,
 		}, nil
 	}
-	ref, err := s.mds.GetChainINode(path.Volume, agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
+	ref, err := s.mds.GetChainINode(agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +350,7 @@ func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func
 	for {
 		var inode *models.INode
 		if !notExist {
-			ref, err = s.mds.GetChainINode(p.Volume, chainRef)
+			ref, err = s.mds.GetChainINode(chainRef)
 			clog.Tracef("ref: %s", ref)
 			if err != nil {
 				return nil, ref, err
@@ -365,9 +365,9 @@ func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func
 			return nil, ref, err
 		}
 		if chainRef.INode == 0 {
-			err = s.mds.SetChainINode(p.Volume, newRef, chainRef, newRef)
+			err = s.mds.SetChainINode(newRef, chainRef, newRef)
 		} else {
-			err = s.mds.SetChainINode(p.Volume, chainRef, ref, newRef)
+			err = s.mds.SetChainINode(chainRef, ref, newRef)
 		}
 		if err == nil {
 			return newINode, ref, s.inodes.WriteINode(ctx, newRef, newINode)
@@ -421,6 +421,8 @@ func (s *server) removeOpenFile(chainID uint64) {
 	}
 	delete(s.openFileChains, chainID)
 	s.mut.Unlock()
+	v.fh.mut.Lock()
+	defer v.fh.mut.Unlock()
 	v.fh.updateHeldINodes(true)
 	clog.Tracef("removeOpenFile %#v", s.openFileChains)
 }

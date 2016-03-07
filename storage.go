@@ -23,8 +23,8 @@ type (
 )
 
 const (
-	Block BlockType = iota
-	INode
+	TypeBlock BlockType = iota
+	TypeINode
 )
 
 const (

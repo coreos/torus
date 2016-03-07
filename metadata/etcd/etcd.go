@@ -565,8 +565,9 @@ func (c *etcdCtx) GetLease() (int64, error) {
 	return resp.ID, nil
 }
 
-func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRef, error) {
+func (c *etcdCtx) GetChainINode(base agro.INodeRef) (agro.INodeRef, error) {
 	pageID := uint64ToHex(uint64(base.INode / chainPageSize))
+	volume := uint64ToHex(uint64(base.Volume()))
 	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "chain", volume, pageID)))
 	if len(resp.Kvs) == 0 {
 		return agro.INodeRef{}, nil
@@ -583,9 +584,10 @@ func (c *etcdCtx) GetChainINode(volume string, base agro.INodeRef) (agro.INodeRe
 	return agro.NewINodeRef(base.Volume(), agro.INodeID(v)), nil
 }
 
-func (c *etcdCtx) SetChainINode(volume string, base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
+func (c *etcdCtx) SetChainINode(base agro.INodeRef, was agro.INodeRef, new agro.INodeRef) error {
 	promOps.WithLabelValues("set-chain-inode").Inc()
 	pageID := uint64ToHex(uint64(base.INode / chainPageSize))
+	volume := uint64ToHex(uint64(base.Volume()))
 	_, err := c.atomicModifyKey(mkKey("volumemeta", "chain", volume, pageID), func(b []byte) ([]byte, interface{}, error) {
 		set := &models.FileChainSet{}
 		if len(b) == 0 {
@@ -749,4 +751,19 @@ func (c *etcdCtx) DumpMetadata(w io.Writer) error {
 		io.WriteString(w, "\n")
 	}
 	return nil
+}
+
+func (c *etcdCtx) GetINodeChains(vid agro.VolumeID) ([]*models.FileChainSet, error) {
+	volume := uint64ToHex(uint64(vid))
+	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "chain", volume)))
+	if err != nil {
+		return nil, err
+	}
+	var out []*models.FileChainSet
+	for _, x := range resp.Kvs {
+		chains := &models.FileChainSet{}
+		chains.Unmarshal(x.Value)
+		out = append(out, chains)
+	}
+	return out, nil
 }
