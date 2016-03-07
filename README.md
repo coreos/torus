@@ -18,6 +18,7 @@ Then one of:
 ```
 go install -v github.com/coreos/agro/cmd/agro
 go install -v github.com/coreos/agro/cmd/agroctl
+go install -v github.com/coreos/agro/cmd/agromount
 ```
 
 or 
@@ -159,5 +160,5 @@ agroctl volume create myVolume
 ### 7) Mount that volume with FUSE
 
 ```
-agro --etcd 127.0.0.1:2378 --fuse-volume myVolume --fuse-mountpoint /mnt/myVolume
+agromount --etcd 127.0.0.1:2378 myVolume /mnt/myVolume
 ```
