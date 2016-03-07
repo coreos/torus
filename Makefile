@@ -1,6 +1,7 @@
 build:
 	go build ./cmd/agro
 	go build ./cmd/agroctl
+	go build ./cmd/agromount
 
 run:
 	./agro --etcd 127.0.0.1:2378 --debug --debug-mkfs --peer-address 127.0.0.1:40000

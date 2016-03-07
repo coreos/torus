@@ -14,7 +14,6 @@ import (
 	"github.com/coreos/agro/internal/http"
 	"github.com/coreos/agro/ring"
 	"github.com/coreos/agro/server"
-	agrofuse "github.com/coreos/agro/server/fuse"
 
 	// Register all the possible drivers.
 	_ "github.com/coreos/agro/metadata/etcd"
@@ -27,8 +26,6 @@ var (
 	etcdAddress      string
 	httpAddress      string
 	peerAddress      string
-	fuseMountpoint   string
-	fuseVolume       string
 	readCacheSize    uint64
 	readCacheSizeStr string
 	sizeStr          string
@@ -40,10 +37,8 @@ var (
 	readLevel        string
 	writeLevel       string
 	cfg              agro.Config
-	rootMount        bool
 
 	debug bool
-	trace bool
 )
 
 var rootCommand = &cobra.Command{
@@ -61,16 +56,12 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "", "", "Address for talking to etcd")
 	rootCommand.PersistentFlags().StringVarP(&host, "host", "", "127.0.0.1", "Host to listen on for HTTP")
 	rootCommand.PersistentFlags().IntVarP(&port, "port", "", 4321, "Port to listen on for HTTP")
-	rootCommand.PersistentFlags().BoolVarP(&trace, "trace", "", false, "Turn on trace output")
 	rootCommand.PersistentFlags().StringVarP(&peerAddress, "peer-address", "", "", "Address to listen on for intra-cluster data")
-	rootCommand.PersistentFlags().StringVarP(&fuseMountpoint, "fuse-mountpoint", "", "", "Location to mount a FUSE filesystem")
-	rootCommand.PersistentFlags().StringVarP(&fuseVolume, "fuse-volume", "", "", "Volume to be mounted as a FUSE filesystem")
-	rootCommand.PersistentFlags().StringVarP(&sizeStr, "size", "", "1GiB", "Amount of memory to use for read cache")
+	rootCommand.PersistentFlags().StringVarP(&sizeStr, "size", "", "1GiB", "How much disk space to use for this storage node")
 	rootCommand.PersistentFlags().StringVarP(&readCacheSizeStr, "read-cache-size", "", "20MiB", "Amount of memory to use for read cache")
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
-	rootCommand.PersistentFlags().StringVarP(&readLevel, "readlevel", "", "block", "Specific package logging")
-	rootCommand.PersistentFlags().StringVarP(&writeLevel, "writelevel", "", "all", "Specific package logging")
-	rootCommand.PersistentFlags().BoolVarP(&rootMount, "root-mount", "", false, "Mount FUSE with options to allow other users (must be root)")
+	rootCommand.PersistentFlags().StringVarP(&readLevel, "readlevel", "", "block", "Read replication level")
+	rootCommand.PersistentFlags().StringVarP(&writeLevel, "writelevel", "", "all", "Write replication level")
 }
 
 func main() {
@@ -82,8 +73,6 @@ func main() {
 
 func configureServer(cmd *cobra.Command, args []string) {
 	switch {
-	case trace:
-		capnslog.SetGlobalLogLevel(capnslog.TRACE)
 	case debug:
 		capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	default:
@@ -198,12 +187,5 @@ func runServer(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	if fuseMountpoint != "" && fuseVolume != "" {
-		if httpAddress != "" {
-			go http.ServeHTTP(httpAddress, srv)
-		}
-		agrofuse.MustMount(fuseMountpoint, fuseVolume, srv, rootMount)
-	} else {
-		http.ServeHTTP(httpAddress, srv)
-	}
+	http.ServeHTTP(httpAddress, srv)
 }

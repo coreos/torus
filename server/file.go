@@ -452,7 +452,7 @@ func (f *file) Sync() error {
 		// Today, it's Last Write Wins.
 		promFileChangedSyncs.WithLabelValues(f.volume).Inc()
 		oldINode := f.inode
-		f.inode, err = f.srv.inodes.GetINode(context.TODO(), replaced)
+		f.inode, err = f.srv.inodes.GetINode(f.srv.getContext(), replaced)
 		if err != nil {
 			return err
 		}
@@ -490,7 +490,7 @@ func (f *file) Sync() error {
 	// TODO(barakmich): Correct behavior depending on O_CREAT
 	dead = roaring.AndNot(f.initialINodes, newLive)
 	if replaced.INode != 0 && f.replaces == 0 {
-		deadinode, err := f.srv.inodes.GetINode(context.TODO(), replaced)
+		deadinode, err := f.srv.inodes.GetINode(f.srv.getContext(), replaced)
 		if err != nil {
 			return err
 		}

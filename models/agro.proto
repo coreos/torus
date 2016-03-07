@@ -65,7 +65,6 @@ message PeerInfo {
   uint64 last_rebalance_blocks = 7;
   bool rebalancing = 8;
   bool timed_out = 9;
-
 }
 
 message Ring {

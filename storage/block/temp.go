@@ -15,29 +15,29 @@ func init() {
 }
 
 type tempBlockStore struct {
-	mut     sync.RWMutex
-	store   map[agro.BlockRef][]byte
-	nBlocks uint64
-	name    string
+	mut       sync.RWMutex
+	store     map[agro.BlockRef][]byte
+	nBlocks   uint64
+	name      string
+	blockSize uint64
 }
 
 func openTempBlockStore(name string, cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
-	// TODO(barakmich): Currently we lie about the number of blocks.
-	// If we want to guess at a size, or make the map be a max size, or something, PRs accepted.
-	nBlocks := cfg.StorageSize / 1024
+	nBlocks := cfg.StorageSize / gmd.BlockSize
 	promBlocksAvail.WithLabelValues(name).Set(float64(nBlocks))
 	promBlocks.WithLabelValues(name).Set(0)
 	promBytesPerBlock.Set(float64(gmd.BlockSize))
 	return &tempBlockStore{
-		store:   make(map[agro.BlockRef][]byte),
-		nBlocks: nBlocks,
-		name:    name,
+		store:     make(map[agro.BlockRef][]byte),
+		nBlocks:   nBlocks,
+		name:      name,
+		blockSize: gmd.BlockSize,
 	}, nil
 }
 
 func (t *tempBlockStore) Kind() string      { return "temp" }
 func (t *tempBlockStore) Flush() error      { return nil }
-func (t *tempBlockStore) BlockSize() uint64 { return 1024 }
+func (t *tempBlockStore) BlockSize() uint64 { return t.blockSize }
 
 func (t *tempBlockStore) Close() error {
 	t.mut.Lock()
@@ -93,8 +93,12 @@ func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockRef, data []b
 		promBlockWritesFailed.WithLabelValues(t.name).Inc()
 		return agro.ErrClosed
 	}
-
-	t.store[s] = data
+	if int(t.nBlocks) <= len(t.store) {
+		return agro.ErrOutOfSpace
+	}
+	buf := make([]byte, len(data))
+	copy(buf, data)
+	t.store[s] = buf
 	promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
 	promBlocksWritten.WithLabelValues(t.name).Inc()
 	return nil
