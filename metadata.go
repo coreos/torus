@@ -94,9 +94,13 @@ func (p Path) Equals(b Path) bool {
 // MetadataService is the interface representing the basic ways to manipulate
 // consistently stored fileystem metadata.
 type MetadataService interface {
-	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
-	GetVolumes() ([]string, error)
-	GetVolumeID(volume string) (VolumeID, error)
+	CreateVolume(*models.Volume) error
+	GetVolumes() ([]*models.Volume, error)
+	GetVolume(volume string) (*models.Volume, error)
+
+	OpenBlockVolume(lease int64, vid VolumeID) (*models.INode, error)
+	SyncBlockVolume(*models.INode) error
+	CloseBlockVolume(vid VolumeID) error
 
 	CommitINodeIndex(volume string) (INodeID, error)
 	GetINodeIndex(volume string) (INodeID, error)

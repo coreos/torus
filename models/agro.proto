@@ -45,6 +45,16 @@ message Directory {
   map<string, FileEntry> files = 2;
 }
 
+message Volume {
+  string name = 1;
+  uint64 id = 2;
+  enum VolumeType {
+    FILE = 0;
+    BLOCK = 1;
+  }
+  VolumeType type = 3;
+}
+
 message FileEntry {
   uint64 chain = 1;
   string sympath = 2; 

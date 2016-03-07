@@ -14,6 +14,7 @@
 		INode
 		BlockLayer
 		Directory
+		Volume
 		FileEntry
 		FileChainSet
 		PeerInfo
@@ -44,6 +45,26 @@ import io "io"
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+type Volume_VolumeType int32
+
+const (
+	Volume_FILE  Volume_VolumeType = 0
+	Volume_BLOCK Volume_VolumeType = 1
+)
+
+var Volume_VolumeType_name = map[int32]string{
+	0: "FILE",
+	1: "BLOCK",
+}
+var Volume_VolumeType_value = map[string]int32{
+	"FILE":  0,
+	"BLOCK": 1,
+}
+
+func (x Volume_VolumeType) String() string {
+	return proto.EnumName(Volume_VolumeType_name, int32(x))
+}
 
 type Metadata struct {
 	Uid   uint32 `protobuf:"varint,1,opt,name=uid,proto3" json:"uid,omitempty"`
@@ -126,6 +147,16 @@ func (m *Directory) GetFiles() map[string]*FileEntry {
 	}
 	return nil
 }
+
+type Volume struct {
+	Name string            `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Id   uint64            `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	Type Volume_VolumeType `protobuf:"varint,3,opt,name=type,proto3,enum=models.Volume_VolumeType" json:"type,omitempty"`
+}
+
+func (m *Volume) Reset()         { *m = Volume{} }
+func (m *Volume) String() string { return proto.CompactTextString(m) }
+func (*Volume) ProtoMessage()    {}
 
 type FileEntry struct {
 	Chain   uint64 `protobuf:"varint,1,opt,name=chain,proto3" json:"chain,omitempty"`
@@ -217,12 +248,14 @@ func init() {
 	proto.RegisterType((*INode)(nil), "models.INode")
 	proto.RegisterType((*BlockLayer)(nil), "models.BlockLayer")
 	proto.RegisterType((*Directory)(nil), "models.Directory")
+	proto.RegisterType((*Volume)(nil), "models.Volume")
 	proto.RegisterType((*FileEntry)(nil), "models.FileEntry")
 	proto.RegisterType((*FileChainSet)(nil), "models.FileChainSet")
 	proto.RegisterType((*PeerInfo)(nil), "models.PeerInfo")
 	proto.RegisterType((*Ring)(nil), "models.Ring")
 	proto.RegisterType((*BlockRef)(nil), "models.BlockRef")
 	proto.RegisterType((*INodeRef)(nil), "models.INodeRef")
+	proto.RegisterEnum("models.Volume_VolumeType", Volume_VolumeType_name, Volume_VolumeType_value)
 }
 func (this *Metadata) VerboseEqual(that interface{}) error {
 	if that == nil {
@@ -585,6 +618,78 @@ func (this *Directory) Equal(that interface{}) bool {
 		if !this.Files[i].Equal(that1.Files[i]) {
 			return false
 		}
+	}
+	return true
+}
+func (this *Volume) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*Volume)
+	if !ok {
+		that2, ok := that.(Volume)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *Volume")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *Volume but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *Volume but is not nil && this == nil")
+	}
+	if this.Name != that1.Name {
+		return fmt.Errorf("Name this(%v) Not Equal that(%v)", this.Name, that1.Name)
+	}
+	if this.Id != that1.Id {
+		return fmt.Errorf("Id this(%v) Not Equal that(%v)", this.Id, that1.Id)
+	}
+	if this.Type != that1.Type {
+		return fmt.Errorf("Type this(%v) Not Equal that(%v)", this.Type, that1.Type)
+	}
+	return nil
+}
+func (this *Volume) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*Volume)
+	if !ok {
+		that2, ok := that.(Volume)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if this.Name != that1.Name {
+		return false
+	}
+	if this.Id != that1.Id {
+		return false
+	}
+	if this.Type != that1.Type {
+		return false
 	}
 	return true
 }
@@ -1298,6 +1403,40 @@ func (m *Directory) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
+func (m *Volume) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *Volume) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Name) > 0 {
+		data[i] = 0xa
+		i++
+		i = encodeVarintAgro(data, i, uint64(len(m.Name)))
+		i += copy(data[i:], m.Name)
+	}
+	if m.Id != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Id))
+	}
+	if m.Type != 0 {
+		data[i] = 0x18
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.Type))
+	}
+	return i, nil
+}
+
 func (m *FileEntry) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -1661,6 +1800,16 @@ func NewPopulatedDirectory(r randyAgro, easy bool) *Directory {
 	return this
 }
 
+func NewPopulatedVolume(r randyAgro, easy bool) *Volume {
+	this := &Volume{}
+	this.Name = randStringAgro(r)
+	this.Id = uint64(uint64(r.Uint32()))
+	this.Type = Volume_VolumeType([]int32{0, 1}[r.Intn(2)])
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
 func NewPopulatedFileEntry(r randyAgro, easy bool) *FileEntry {
 	this := &FileEntry{}
 	this.Chain = uint64(uint64(r.Uint32()))
@@ -1926,6 +2075,22 @@ func (m *Directory) Size() (n int) {
 			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + l + sovAgro(uint64(l))
 			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
 		}
+	}
+	return n
+}
+
+func (m *Volume) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovAgro(uint64(l))
+	}
+	if m.Id != 0 {
+		n += 1 + sovAgro(uint64(m.Id))
+	}
+	if m.Type != 0 {
+		n += 1 + sovAgro(uint64(m.Type))
 	}
 	return n
 }
@@ -2833,6 +2998,123 @@ func (m *Directory) Unmarshal(data []byte) error {
 			}
 			m.Files[mapkey] = mapvalue
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Volume) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Volume: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Volume: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			m.Id = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Id |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
+			}
+			m.Type = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Type |= (Volume_VolumeType(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])
