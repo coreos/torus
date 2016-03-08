@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 	"github.com/tgruben/roaring"
 )
 
@@ -20,18 +21,21 @@ type deadINodes struct {
 	live *roaring.Bitmap
 	vol  agro.VolumeID
 	max  agro.INodeID
-	mds  agro.MetadataService
+	mds  agro.FSMetadataService
 }
 
 func NewDeadINodeGC(mds agro.MetadataService) GC {
-	return &deadINodes{mds: mds}
+	if m, ok := mds.(agro.FSMetadataService); ok {
+		return &deadINodes{mds: m}
+	}
+	return &nullGC{}
 }
 
-func (d *deadINodes) PrepVolume(vid agro.VolumeID) error {
+func (d *deadINodes) PrepVolume(vol *models.Volume) error {
 	d.mut.Lock()
 	defer d.mut.Unlock()
-	d.vol = vid
-	chains, err := d.mds.GetINodeChains(vid)
+	d.vol = agro.VolumeID(vol.Id)
+	chains, err := d.mds.GetINodeChains(d.vol)
 	if err != nil {
 		return err
 	}

@@ -41,11 +41,11 @@ func (s *server) Rename(from, to agro.Path) error {
 	if err != nil {
 		return err
 	}
-	err = s.mds.SetFileEntry(from, &models.FileEntry{})
+	err = s.fsMDS().SetFileEntry(from, &models.FileEntry{})
 	if err != nil {
 		return err
 	}
-	return s.mds.SetFileEntry(to, &models.FileEntry{
+	return s.fsMDS().SetFileEntry(to, &models.FileEntry{
 		Chain: inode.Chain,
 	})
 }
@@ -74,7 +74,7 @@ func (s *server) Link(p agro.Path, new agro.Path) error {
 		return err
 	}
 	clog.Debugf("newinode %s replaced %s", inode, replaced)
-	return s.mds.SetFileEntry(new, &models.FileEntry{
+	return s.fsMDS().SetFileEntry(new, &models.FileEntry{
 		Chain: inode.Chain,
 	})
 }
@@ -90,7 +90,7 @@ func (s *server) Symlink(to string, new agro.Path) error {
 			return agro.ErrExists
 		}
 	}
-	return s.mds.SetFileEntry(new, &models.FileEntry{
+	return s.fsMDS().SetFileEntry(new, &models.FileEntry{
 		Sympath: to,
 	})
 }
@@ -102,9 +102,9 @@ func (s *server) removeFile(p agro.Path) error {
 		return err
 	}
 	if ent.Sympath != "" {
-		return s.mds.SetFileEntry(p, &models.FileEntry{})
+		return s.fsMDS().SetFileEntry(p, &models.FileEntry{})
 	}
-	ref, err := s.mds.GetChainINode(agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
+	ref, err := s.fsMDS().GetChainINode(agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func (s *server) removeFile(p agro.Path) error {
 			return err
 		}
 	}
-	err = s.mds.SetFileEntry(p, &models.FileEntry{})
+	err = s.fsMDS().SetFileEntry(p, &models.FileEntry{})
 	if err != nil {
 		return err
 	}
@@ -155,11 +155,11 @@ func (s *server) removeFile(p agro.Path) error {
 		live := bs.GetLiveINodes()
 		// Anybody who had it open still does, and a write/sync will bring it back,
 		// as expected. So this is safe to modify.
-		err = s.mds.SetChainINode(agro.NewINodeRef(ref.Volume(), agro.INodeID(inode.Chain)), ref, agro.NewINodeRef(0, 0))
+		err = s.fsMDS().SetChainINode(agro.NewINodeRef(ref.Volume(), agro.INodeID(inode.Chain)), ref, agro.NewINodeRef(0, 0))
 		if err != nil {
 			return err
 		}
-		return s.mds.ModifyDeadMap(ref.Volume(), roaring.NewBitmap(), live)
+		return s.fsMDS().ModifyDeadMap(ref.Volume(), roaring.NewBitmap(), live)
 	}
 	return nil
 }

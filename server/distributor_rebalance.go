@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 )
 
 // Goroutine which watches for new rings and kicks off
@@ -44,7 +45,7 @@ func (d *distributor) rebalanceTicker(closer chan struct{}) {
 	total := 0
 	time.Sleep(time.Duration(250+rand.Intn(250)) * time.Millisecond)
 	volIdx := 0
-	var volset []string
+	var volset []*models.Volume
 	var err error
 exit:
 	for {
@@ -57,12 +58,7 @@ exit:
 			time.Sleep(time.Duration(rand.Intn(250)) * time.Millisecond)
 			continue
 		}
-		vol, err := d.srv.mds.GetVolumeID(volset[volIdx])
-		if err != nil {
-			clog.Error(err)
-			continue
-		}
-		err = d.rebalancer.UseVolume(vol)
+		err := d.rebalancer.UseVolume(volset[volIdx])
 		if err != nil {
 			clog.Error(err)
 			continue

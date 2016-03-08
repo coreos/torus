@@ -2,6 +2,7 @@ package rebalance
 
 import (
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/server/gc"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
@@ -17,7 +18,7 @@ type Ringer interface {
 type Rebalancer interface {
 	Tick() (int, error)
 	VersionStart() int
-	UseVolume(agro.VolumeID) error
+	UseVolume(*models.Volume) error
 }
 
 type CheckAndSender interface {
@@ -31,7 +32,7 @@ func NewRebalancer(r Ringer, bs agro.BlockStore, cs CheckAndSender, gc gc.GC) Re
 		bs:      bs,
 		cs:      cs,
 		gc:      gc,
-		vol:     agro.VolumeID(0),
+		vol:     nil,
 		version: 0,
 	}
 }
@@ -42,7 +43,7 @@ type rebalancer struct {
 	cs      CheckAndSender
 	it      agro.BlockIterator
 	gc      gc.GC
-	vol     agro.VolumeID
+	vol     *models.Volume
 	version int
 }
 
@@ -53,7 +54,7 @@ func (r *rebalancer) VersionStart() int {
 	return r.version
 }
 
-func (r *rebalancer) UseVolume(vol agro.VolumeID) error {
+func (r *rebalancer) UseVolume(vol *models.Volume) error {
 	r.vol = vol
 	r.gc.Clear()
 	return r.gc.PrepVolume(vol)

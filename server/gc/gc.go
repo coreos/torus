@@ -2,6 +2,7 @@ package gc
 
 import (
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
 )
 
@@ -12,7 +13,7 @@ type controller struct {
 }
 
 type GC interface {
-	PrepVolume(agro.VolumeID) error
+	PrepVolume(*models.Volume) error
 	IsDead(agro.BlockRef) bool
 	Clear()
 }
@@ -23,9 +24,9 @@ func NewGCController(mds agro.MetadataService) GC {
 	}
 }
 
-func (c *controller) PrepVolume(vid agro.VolumeID) error {
+func (c *controller) PrepVolume(vol *models.Volume) error {
 	for _, x := range c.gcs {
-		err := x.PrepVolume(vid)
+		err := x.PrepVolume(vol)
 		if err != nil {
 			return err
 		}

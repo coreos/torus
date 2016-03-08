@@ -39,12 +39,12 @@ type memory struct {
 	vol    agro.VolumeID
 
 	tree         *iradix.Tree
-	volIndex     map[string]agro.VolumeID
+	volIndex     map[string]*models.Volume
 	global       agro.GlobalMetadata
 	cfg          agro.Config
 	uuid         string
-	openINodes   map[string]*roaring.Bitmap
-	deadMap      map[string]*roaring.Bitmap
+	openINodes   map[agro.VolumeID]*roaring.Bitmap
+	deadMap      map[agro.VolumeID]*roaring.Bitmap
 	ring         agro.Ring
 	ringWatchers []chan agro.Ring
 	chains       map[agro.VolumeID]map[agro.INodeRef]agro.INodeRef
@@ -74,7 +74,7 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	}
 	clog.Info("single: couldn't parse metadata: ", err)
 	return &memory{
-		volIndex: make(map[string]agro.VolumeID),
+		volIndex: make(map[string]*models.Volume),
 		tree:     iradix.New(),
 		inodes:   make(map[string]agro.INodeID),
 		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
@@ -84,8 +84,8 @@ func newMemoryMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		},
 		cfg:        cfg,
 		uuid:       uuid,
-		openINodes: make(map[string]*roaring.Bitmap),
-		deadMap:    make(map[string]*roaring.Bitmap),
+		openINodes: make(map[agro.VolumeID]*roaring.Bitmap),
+		deadMap:    make(map[agro.VolumeID]*roaring.Bitmap),
 		ring:       ring,
 		chains:     make(map[agro.VolumeID]map[agro.INodeRef]agro.INodeRef),
 	}, nil
@@ -112,10 +112,10 @@ func (s *memory) GetPeers() (agro.PeerInfoList, error) {
 func (s *memory) GetLease() (int64, error)                       { return 1, nil }
 func (s *memory) RegisterPeer(_ int64, _ *models.PeerInfo) error { return nil }
 
-func (s *memory) CreateVolume(volume string) error {
+func (s *memory) CreateVolume(volume *models.Volume) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	if _, ok := s.volIndex[volume]; ok {
+	if _, ok := s.volIndex[volume.Name]; ok {
 		return agro.ErrExists
 	}
 
@@ -131,12 +131,13 @@ func (s *memory) CreateVolume(volume string) error {
 
 	tx := s.tree.Txn()
 
-	k := []byte(agro.Path{Volume: volume, Path: "/"}.Key())
+	k := []byte(agro.Path{Volume: volume.Name, Path: "/"}.Key())
 	if _, ok := tx.Get(k); !ok {
 		tx.Insert(k, dir)
 		s.tree = tx.Commit()
 		s.vol++
-		s.volIndex[volume] = s.vol
+		volume.Id = uint64(s.vol)
+		s.volIndex[volume.Name] = volume
 		s.chains[s.vol] = make(map[agro.INodeRef]agro.INodeRef)
 	}
 	return nil
@@ -350,53 +351,29 @@ func (s *memory) ChangeDirMetadata(p agro.Path, md *models.Metadata) error {
 	return nil
 }
 
-func (s *memory) GetVolumes() ([]string, error) {
+func (s *memory) GetVolumes() ([]*models.Volume, error) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
 	var (
-		iter = s.tree.Root().Iterator()
-		out  []string
-		last string
+		out []*models.Volume
 	)
-	for {
-		k, _, ok := iter.Next()
-		if !ok {
-			break
-		}
-		if i := bytes.IndexByte(k, ':'); i != -1 {
-			vol := string(k[:i])
-			if vol == last {
-				continue
-			}
-			out = append(out, vol)
-			last = vol
-		}
+
+	for _, v := range s.volIndex {
+		out = append(out, v)
 	}
 	return out, nil
 }
 
-func (s *memory) GetVolumeName(vid agro.VolumeID) (string, error) {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-
-	for k, v := range s.volIndex {
-		if v == vid {
-			return k, nil
-		}
-	}
-	return "", errors.New("memory: no such volume exists")
-
-}
-
-func (s *memory) GetVolumeID(volume string) (agro.VolumeID, error) {
+func (s *memory) GetVolume(volume string) (*models.Volume, error) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
 	if vol, ok := s.volIndex[volume]; ok {
 		return vol, nil
 	}
-	return 0, errors.New("memory: no such volume exists")
+	return nil, errors.New("memory: no such volume exists")
+
 }
 
 func (s *memory) GetRing() (agro.Ring, error) {
@@ -427,31 +404,28 @@ func (s *memory) SetRing(newring agro.Ring) error {
 }
 
 func (s *memory) ClaimVolumeINodes(_ int64, vol agro.VolumeID, inodes *roaring.Bitmap) error {
-	volume, _ := s.GetVolumeName(vol)
-	s.openINodes[volume] = inodes
+	s.openINodes[vol] = inodes
 	return nil
 }
 
 func (s *memory) ModifyDeadMap(vol agro.VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error {
-	volume, _ := s.GetVolumeName(vol)
-	x, ok := s.deadMap[volume]
+	x, ok := s.deadMap[vol]
 	if !ok {
 		x = roaring.NewBitmap()
 	}
 	x.Or(dead)
 	x.AndNot(live)
-	s.deadMap[volume] = x
+	s.deadMap[vol] = x
 	return nil
 }
 
 func (s *memory) GetVolumeLiveness(vol agro.VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error) {
-	volume, _ := s.GetVolumeName(vol)
-	x, ok := s.deadMap[volume]
+	x, ok := s.deadMap[vol]
 	if !ok {
 		x = roaring.NewBitmap()
 	}
 	var l []*roaring.Bitmap
-	if y, ok := s.openINodes[volume]; ok {
+	if y, ok := s.openINodes[vol]; ok {
 		if y != nil {
 			l = append(l, y)
 		}

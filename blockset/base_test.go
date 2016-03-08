@@ -14,7 +14,7 @@ import (
 type makeTestBlockset func(s agro.BlockStore) blockset
 
 func TestBaseReadWrite(t *testing.T) {
-	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{}, agro.GlobalMetadata{})
+	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{StorageSize: 300 * 1024}, agro.GlobalMetadata{BlockSize: 1024})
 	b := newBaseBlockset(s)
 	readWriteTest(t, b)
 }
@@ -42,7 +42,7 @@ func readWriteTest(t *testing.T, b blockset) {
 }
 
 func TestBaseMarshal(t *testing.T) {
-	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{}, agro.GlobalMetadata{})
+	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{StorageSize: 300 * 1024}, agro.GlobalMetadata{BlockSize: 1024})
 	marshalTest(t, s, MustParseBlockLayerSpec("base"))
 }
 

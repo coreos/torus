@@ -26,8 +26,8 @@ type Server interface {
 	Chmod(name Path, mode os.FileMode) error
 	Chown(name Path, uid, gid int) error
 	// Some server metacalls.
-	CreateVolume(string) error
-	GetVolumes() ([]string, error)
+	CreateFSVolume(string) error
+	GetVolumes() ([]*models.Volume, error)
 
 	Close() error
 

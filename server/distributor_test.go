@@ -14,7 +14,9 @@ import (
 )
 
 func newServer(md *temp.Server) *server {
-	cfg := agro.Config{}
+	cfg := agro.Config{
+		StorageSize: 100 * 1024 * 1024,
+	}
 	mds := temp.NewClient(cfg, md)
 	gmd, _ := mds.GlobalMetadata()
 	blocks, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
@@ -104,7 +106,7 @@ func testThreeWrite(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	srvs[1].mds.CreateVolume("vol1")
+	srvs[1].CreateFSVolume("vol1")
 	err = srvs[1].Mkdir(agro.Path{
 		Volume: "vol1",
 		Path:   "/foo/",

@@ -64,7 +64,9 @@ func NewServer(cfg agro.Config, metadataServiceKind, blockStoreKind string) (agr
 }
 
 func NewMemoryServer() agro.Server {
-	cfg := agro.Config{}
+	cfg := agro.Config{
+		StorageSize: 100 * 1024 * 1024,
+	}
 	x, err := NewServer(cfg, "memory", "temp")
 	if err != nil {
 		panic(err)

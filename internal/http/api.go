@@ -48,7 +48,7 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) createVolume(c *gin.Context) {
 	vol := c.Params.ByName("volume")
-	err := s.dfs.CreateVolume(vol)
+	err := s.dfs.CreateFSVolume(vol)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))
@@ -69,10 +69,14 @@ func (s *Server) dumpMDS(c *gin.Context) {
 }
 
 func (s *Server) getVolumes(c *gin.Context) {
-	list, err := s.dfs.GetVolumes()
+	vols, err := s.dfs.GetVolumes()
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))
+	}
+	list := make([]string, len(vols))
+	for i, x := range vols {
+		list[i] = x.Name
 	}
 	c.Writer.Write([]byte(strings.Join(list, "\n")))
 }

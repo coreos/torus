@@ -52,4 +52,7 @@ var (
 
 	// ErrNotDir is returned if we're trying a directory operation on a non-directory path.
 	ErrNotDir = errors.New("agro: not a directory")
+
+	// ErrWrongVolumeType is returned if the operation cannot be performed on this type of volume.
+	ErrWrongVolumeType = errors.New("agro: wrong volume type")
 )

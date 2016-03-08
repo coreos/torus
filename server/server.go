@@ -61,22 +61,22 @@ func (s *server) FileEntryForPath(p agro.Path) (agro.VolumeID, *models.FileEntry
 	promOps.WithLabelValues("file-entry-for-path").Inc()
 	dirname, filename := path.Split(p.Path)
 	dirpath := agro.Path{p.Volume, dirname}
-	dir, _, err := s.mds.Getdir(dirpath)
+	dir, _, err := s.fsMDS().Getdir(dirpath)
 	if err != nil {
 		return agro.VolumeID(0), nil, err
 	}
 
-	volID, err := s.mds.GetVolumeID(p.Volume)
+	vol, err := s.mds.GetVolume(p.Volume)
 	if err != nil {
-		return volID, nil, err
+		return 0, nil, err
 	}
 
 	ent, ok := dir.Files[filename]
 	if !ok {
-		return volID, nil, os.ErrNotExist
+		return agro.VolumeID(vol.Id), nil, os.ErrNotExist
 	}
 
-	return volID, ent, nil
+	return agro.VolumeID(vol.Id), ent, nil
 }
 
 func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
@@ -87,7 +87,7 @@ func (s *server) inodeRefForPath(p agro.Path) (agro.INodeRef, error) {
 	if ent.Sympath != "" {
 		return s.inodeRefForPath(agro.Path{p.Volume, path.Clean(p.Base() + "/" + ent.Sympath)})
 	}
-	return s.mds.GetChainINode(agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
+	return s.fsMDS().GetChainINode(agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 }
 
 type FileInfo struct {
@@ -162,7 +162,7 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 	clog.Tracef("lstat %s", path)
 	if path.IsDir() {
 		clog.Tracef("is dir")
-		d, _, err := s.mds.Getdir(path)
+		d, _, err := s.fsMDS().Getdir(path)
 		return FileInfo{
 			Path: path,
 			Dir:  d,
@@ -179,7 +179,7 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 			Symlink: ent.Sympath,
 		}, nil
 	}
-	ref, err := s.mds.GetChainINode(agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
+	ref, err := s.fsMDS().GetChainINode(agro.NewINodeRef(vol, agro.INodeID(ent.Chain)))
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (s *server) Readdir(path agro.Path) ([]agro.Path, error) {
 		return nil, errors.New("ENOTDIR")
 	}
 
-	dir, subdirs, err := s.mds.Getdir(path)
+	dir, subdirs, err := s.fsMDS().Getdir(path)
 	if err != nil {
 		return nil, err
 	}
@@ -227,17 +227,21 @@ func (s *server) Mkdir(path agro.Path, md *models.Metadata) error {
 	if !path.IsDir() {
 		return os.ErrInvalid
 	}
-	return s.mds.Mkdir(path, md)
+	return s.fsMDS().Mkdir(path, md)
 }
-func (s *server) CreateVolume(vol string) error {
-	err := s.mds.CreateVolume(vol)
+func (s *server) CreateFSVolume(vol string) error {
+	v := &models.Volume{
+		Name: vol,
+		Type: models.Volume_FILE,
+	}
+	err := s.mds.CreateVolume(v)
 	if err == agro.ErrAgain {
-		return s.CreateVolume(vol)
+		return s.CreateFSVolume(vol)
 	}
 	return err
 }
 
-func (s *server) GetVolumes() ([]string, error) {
+func (s *server) GetVolumes() ([]*models.Volume, error) {
 	return s.mds.GetVolumes()
 }
 
@@ -350,7 +354,7 @@ func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func
 	for {
 		var inode *models.INode
 		if !notExist {
-			ref, err = s.mds.GetChainINode(chainRef)
+			ref, err = s.fsMDS().GetChainINode(chainRef)
 			clog.Tracef("ref: %s", ref)
 			if err != nil {
 				return nil, ref, err
@@ -365,9 +369,9 @@ func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func
 			return nil, ref, err
 		}
 		if chainRef.INode == 0 {
-			err = s.mds.SetChainINode(newRef, chainRef, newRef)
+			err = s.fsMDS().SetChainINode(newRef, chainRef, newRef)
 		} else {
-			err = s.mds.SetChainINode(chainRef, ref, newRef)
+			err = s.fsMDS().SetChainINode(chainRef, ref, newRef)
 		}
 		if err == nil {
 			return newINode, ref, s.inodes.WriteINode(ctx, newRef, newINode)
@@ -379,8 +383,15 @@ func (s *server) updateINodeChain(ctx context.Context, p agro.Path, modFunc func
 	}
 }
 
+func (s *server) fsMDS() agro.FSMetadataService {
+	if v, ok := s.mds.(agro.FSMetadataService); ok {
+		return v
+	}
+	panic("not a FS metadata service")
+}
+
 func (s *server) removeDir(path agro.Path) error {
-	return s.mds.Rmdir(path)
+	return s.fsMDS().Rmdir(path)
 }
 
 func (s *server) addOpenFile(chainID uint64, fh *fileHandle) {
