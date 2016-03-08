@@ -69,7 +69,7 @@ func peerChangePreRun(cmd *cobra.Command, args []string) {
 			}
 		}
 		if !found {
-			fmt.Fprintf(os.Stderr, "peer %s not currently healthy\n", err)
+			fmt.Fprintf(os.Stderr, "peer %s not currently healthy\n", arg)
 			os.Exit(1)
 		}
 	}
