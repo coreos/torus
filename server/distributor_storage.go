@@ -218,7 +218,7 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 		if err == nil {
 			return nil
 		}
-		clog.Noticef("Couldn't write locally; writing to cluster")
+		clog.Tracef("Couldn't write locally; writing to cluster")
 		// fallthrough is evil
 		return d.WriteBlock(context.WithValue(ctx, ctxWriteLevel, agro.WriteOne), i, data)
 	case agro.WriteOne:

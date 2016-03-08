@@ -9,7 +9,6 @@ import (
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
-	"golang.org/x/net/context"
 )
 
 var (
@@ -100,7 +99,7 @@ func (s *server) openFile(p agro.Path, flag int, md *models.Metadata) (agro.File
 		return nil, err
 	}
 
-	inode, err := s.inodes.GetINode(context.TODO(), ref)
+	inode, err := s.inodes.GetINode(s.getContext(), ref)
 	if err != nil {
 		return nil, err
 	}

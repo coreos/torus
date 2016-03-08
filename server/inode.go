@@ -107,6 +107,7 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 			data, err = b.bs.GetBlock(ctx, ref)
 			if err != nil {
 				promINodeFailures.Inc()
+				clog.Errorf("inode: couldn't get inode block: %s", err)
 				return nil, err
 			}
 		}
@@ -118,6 +119,7 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 	err = out.Unmarshal(buf)
 	if err != nil {
 		promINodeFailures.Inc()
+		clog.Errorf("inode: couldn't unmarshal: %s", err)
 		return nil, err
 	}
 	return out, nil

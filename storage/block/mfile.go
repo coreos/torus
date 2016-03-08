@@ -233,10 +233,11 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 	tx := m.blockTrie.Txn()
 	old, exists := tx.Insert(s.ToBytes(), index)
 	if exists {
-		clog.Debug("block already exists", s.ToBytes())
+		clog.Debug("mfile: block already exists", s.ToBytes())
 		olddata := m.data.GetBlock(uint64(old.(int)))
 		if !bytes.Equal(olddata, data) {
 			clog.Error("getting wrong data for block", s.ToBytes())
+			clog.Errorf("%s, %s", olddata[:10], data[:10])
 			return agro.ErrExists
 		}
 		// Not an error, if we already have it

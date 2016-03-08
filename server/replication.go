@@ -15,6 +15,7 @@ func (s *server) OpenReplication() error {
 	return s.openReplication("", false)
 }
 func (s *server) openReplication(addr string, listen bool) error {
+	var err error
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	if s.replicationOpen {
@@ -27,6 +28,10 @@ func (s *server) openReplication(addr string, listen bool) error {
 		}
 		ipaddr = autodetectIP(ipaddr)
 		s.peerInfo.Address = fmt.Sprintf("%s:%s", ipaddr, port)
+	}
+	s.lease, err = s.mds.GetLease()
+	if err != nil {
+		return err
 	}
 	dist, err := newDistributor(s, addr, listen)
 	if err != nil {

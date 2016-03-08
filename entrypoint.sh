@@ -14,4 +14,4 @@ if [ ${DEBUG} -eq "1" ]; then
   AGRO_FLAGS="$AGRO_FLAGS --debug"
 fi
 
-agro --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port 4321 --datadir /data --peer-address $LISTEN_HOST:40000 --size $STORAGE_SIZE $AGRO_FLAGS
+agro --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port $LISTEN_HTTP_PORT --datadir /data --peer-address $LISTEN_HOST:$LISTEN_PEER_PORT --size $STORAGE_SIZE $AGRO_FLAGS

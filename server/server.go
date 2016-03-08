@@ -184,7 +184,7 @@ func (s *server) Lstat(path agro.Path) (os.FileInfo, error) {
 		return nil, err
 	}
 
-	inode, err := s.inodes.GetINode(context.TODO(), ref)
+	inode, err := s.inodes.GetINode(s.getContext(), ref)
 	if err != nil {
 		return nil, err
 	}
