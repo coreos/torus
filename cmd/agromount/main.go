@@ -18,7 +18,6 @@ import (
 
 var (
 	etcdAddress       string
-	volume            string
 	debug             bool
 	localBlockSizeStr string
 	localBlockSize    uint64
@@ -48,7 +47,6 @@ func init() {
 	// rootCommand.AddCommand(daemonCommand)
 
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2378", "hostname:port to the etcd instance storing the metadata")
-	rootCommand.PersistentFlags().StringVarP(&volume, "volume", "v", "", "Name of the volume we'll be mounting.")
 	rootCommand.PersistentFlags().StringVarP(&localBlockSizeStr, "write-cache-size", "", "128MiB", "Amount of memory to use for the local write cache")
 	rootCommand.PersistentFlags().StringVarP(&readCacheSizeStr, "read-cache-size", "", "20MiB", "Amount of memory to use for read cache")
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
@@ -122,7 +120,7 @@ func createServer() agro.Server {
 	}
 	err = srv.OpenReplication()
 	if err != nil {
-		fmt.Printf("Couldn't start ")
+		fmt.Printf("Couldn't start: %s", err)
 		os.Exit(1)
 	}
 	return srv
