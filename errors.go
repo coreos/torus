@@ -55,4 +55,8 @@ var (
 
 	// ErrWrongVolumeType is returned if the operation cannot be performed on this type of volume.
 	ErrWrongVolumeType = errors.New("agro: wrong volume type")
+
+	// ErrNotSupported is returned if the interface doesn't implement the
+	// requested subfuntionality.
+	ErrNotSupported = errors.New("agro: not supported")
 )

@@ -21,8 +21,9 @@ import (
 )
 
 var (
-	_       agro.Server = &server{}
-	promOps             = prometheus.NewCounterVec(prometheus.CounterOpts{
+	_       agro.Server   = &server{}
+	_       agro.FSServer = &server{}
+	promOps               = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "agro_server_ops_total",
 		Help: "Number of times an atomic update failed and needed to be retried",
 	}, []string{"kind"})
@@ -438,12 +439,12 @@ func (s *server) removeOpenFile(chainID uint64) {
 	clog.Tracef("removeOpenFile %#v", s.openFileChains)
 }
 
-func (s *server) Statfs() (agro.ServerStats, error) {
+func (s *server) Info() (agro.ServerInfo, error) {
 	gmd, err := s.mds.GlobalMetadata()
 	if err != nil {
-		return agro.ServerStats{}, err
+		return agro.ServerInfo{}, err
 	}
-	return agro.ServerStats{
+	return agro.ServerInfo{
 		BlockSize: gmd.BlockSize,
 	}, nil
 }
@@ -461,3 +462,5 @@ func (s *server) getContext() context.Context {
 	rl := context.WithValue(wl, ctxReadLevel, s.cfg.ReadLevel)
 	return rl
 }
+
+func (s *server) FS() (agro.FSServer, error) { return s, nil }

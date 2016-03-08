@@ -16,11 +16,11 @@ var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "http")
 
 type Server struct {
 	router      *gin.Engine
-	dfs         agro.Server
+	dfs         agro.FSServer
 	promHandler http.Handler
 }
 
-func NewServer(dfs agro.Server) *Server {
+func NewServer(dfs agro.FSServer) *Server {
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 	s := &Server{
@@ -117,7 +117,7 @@ func (s *Server) getFile(c *gin.Context) {
 		return
 	}
 	defer f.Close()
-	stat, _ := s.dfs.Statfs()
+	stat, _ := s.dfs.Info()
 	bs := stat.BlockSize
 	buf := make([]byte, bs)
 	_, err = io.CopyBuffer(c.Writer, f, buf)
@@ -143,6 +143,6 @@ func (s *Server) deleteFile(c *gin.Context) {
 	}
 	c.Writer.WriteHeader(http.StatusOK)
 }
-func ServeHTTP(addr string, srv agro.Server) error {
+func ServeHTTP(addr string, srv agro.FSServer) error {
 	return NewServer(srv).router.Run(addr)
 }

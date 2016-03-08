@@ -179,13 +179,19 @@ func runServer(cmd *cobra.Command, args []string) {
 		srv.OpenReplication()
 	}
 
+	defer srv.Close()
+
 	go func() {
 		for _ = range signalChan {
 			fmt.Println("\nReceived an interrupt, stopping services...")
-			srv.Close()
 			os.Exit(0)
 		}
 	}()
 
-	http.ServeHTTP(httpAddress, srv)
+	fsSrv, err := srv.FS()
+	if err != nil {
+		fmt.Println("couldn't use server as filesystem:", err)
+		os.Exit(0)
+	}
+	http.ServeHTTP(httpAddress, fsSrv)
 }
