@@ -36,7 +36,7 @@ outer:
 				break outer
 			}
 			ref = r.it.BlockRef()
-			if r.vol != 0 && ref.Volume() == r.vol {
+			if r.vol.Id != 0 && ref.Volume() == agro.VolumeID(r.vol.Id) {
 				break
 			}
 		}

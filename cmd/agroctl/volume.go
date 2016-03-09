@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/coreos/agro/models"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +15,7 @@ var volumeCommand = &cobra.Command{
 }
 
 var volumeCreateCommand = &cobra.Command{
-	Use:   "create",
+	Use:   "create-fs",
 	Short: "create a volume in the cluster",
 	Run:   volumeCreateAction,
 }
@@ -38,14 +39,17 @@ func volumeAction(cmd *cobra.Command, args []string) {
 func volumeCreateAction(cmd *cobra.Command, args []string) {
 	mds := mustConnectToMDS()
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "USAGE: agroctl volume create VOLUME_NAME")
+		fmt.Fprintf(os.Stderr, "USAGE: agroctl volume create-fs VOLUME_NAME")
 		os.Exit(1)
 	}
 	if len(args) != 1 {
 		fmt.Fprintf(os.Stderr, "too many volumes specified (try one at a time)\n")
 		os.Exit(1)
 	}
-	err := mds.CreateVolume(args[0])
+	err := mds.CreateVolume(&models.Volume{
+		Name: args[0],
+		Type: models.Volume_FILE,
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error creating volume %s: %s", args[0], err)
 		os.Exit(1)

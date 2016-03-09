@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"strconv"
 	"sync"
 	"time"
 
@@ -70,7 +69,7 @@ type etcd struct {
 	mut          sync.RWMutex
 	cfg          agro.Config
 	global       agro.GlobalMetadata
-	volumesCache map[string]agro.VolumeID
+	volumesCache map[string]*models.Volume
 
 	ringListeners []chan agro.Ring
 
@@ -98,7 +97,7 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		cfg:          cfg,
 		conn:         conn,
 		kv:           client,
-		volumesCache: make(map[string]agro.VolumeID),
+		volumesCache: make(map[string]*models.Volume),
 		uuid:         uuid,
 	}
 	e.etcdCtx.etcd = e
@@ -295,22 +294,25 @@ func bytesAddOne(in []byte) ([]byte, interface{}, error) {
 	return uint64ToBytes(newval), newval, nil
 }
 
-func (c *etcdCtx) CreateVolume(volume string) error {
+func (c *etcdCtx) CreateVolume(volume *models.Volume) error {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	key := agro.Path{Volume: volume, Path: "/"}
+	key := agro.Path{Volume: volume.Name, Path: "/"}
 	new, err := c.atomicModifyKey(mkKey("meta", "volumeminter"), bytesAddOne)
-	newID := new.(uint64)
+	volume.Id = new.(uint64)
 	if err != nil {
 		return err
 	}
-	sID := strconv.FormatUint(newID, 10)
 	t := uint64(time.Now().UnixNano())
+	vbytes, err := volume.Marshal()
+	if err != nil {
+		return err
+	}
 	do := tx().Do(
-		setKey(mkKey("volumes", volume), uint64ToBytes(newID)),
-		setKey(mkKey("volumeid", sID), []byte(volume)),
-		setKey(mkKey("volumemeta", "inode", volume), uint64ToBytes(1)),
-		setKey(mkKey("volumemeta", "deadmap", uint64ToHex(uint64(newID))), roaringToBytes(roaring.NewBitmap())),
+		setKey(mkKey("volumes", volume.Name), uint64ToBytes(volume.Id)),
+		setKey(mkKey("volumeid", uint64ToHex(volume.Id)), vbytes),
+		setKey(mkKey("volumemeta", "inode", uint64ToHex(volume.Id)), uint64ToBytes(1)),
+		setKey(mkKey("volumemeta", "deadmap", uint64ToHex(volume.Id)), roaringToBytes(roaring.NewBitmap())),
 		setKey(mkKey("dirs", key.Key()), newDirProto(&models.Metadata{
 			Ctime: t,
 			Mtime: t,
@@ -324,21 +326,25 @@ func (c *etcdCtx) CreateVolume(volume string) error {
 	return nil
 }
 
-func (c *etcdCtx) GetVolumes() ([]string, error) {
+func (c *etcdCtx) GetVolumes() ([]*models.Volume, error) {
 	promOps.WithLabelValues("get-volumes").Inc()
-	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumes")))
+	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumeid")))
 	if err != nil {
 		return nil, err
 	}
-	var out []string
+	var out []*models.Volume
 	for _, x := range resp.Kvs {
-		p := string(x.Key)
-		out = append(out, path.Base(p))
+		v := &models.Volume{}
+		err := v.Unmarshal(x.Value)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
 	}
 	return out, nil
 }
 
-func (c *etcdCtx) GetVolumeID(volume string) (agro.VolumeID, error) {
+func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
 	if v, ok := c.etcd.volumesCache[volume]; ok {
 		return v, nil
 	}
@@ -347,31 +353,30 @@ func (c *etcdCtx) GetVolumeID(volume string) (agro.VolumeID, error) {
 	req := getKey(mkKey("volumes", volume))
 	resp, err := c.etcd.kv.Range(c.getContext(), req)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if resp.More {
 		// What do?
-		return 0, errors.New("implement me")
+		return nil, errors.New("implement me")
 	}
 	if len(resp.Kvs) == 0 {
-		return 0, errors.New("etcd: no such volume exists")
+		return nil, errors.New("etcd: no such volume exists")
 	}
-	vid := agro.VolumeID(bytesToUint64(resp.Kvs[0].Value))
-	c.etcd.volumesCache[volume] = vid
-	return vid, nil
-}
-
-func (c *etcdCtx) GetVolumeName(vid agro.VolumeID) (string, error) {
-	s := strconv.FormatUint(uint64(vid), 10)
-	req := getKey(mkKey("volumeid", s))
-	resp, err := c.etcd.kv.Range(c.getContext(), req)
+	vid := bytesToUint64(resp.Kvs[0].Value)
+	resp, err = c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumeid", uint64ToHex(vid))))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return "", errors.New("etcd: no such volume exists")
+		return nil, errors.New("etcd: no such volume ID exists")
 	}
-	return string(resp.Kvs[0].Value), nil
+	v := &models.Volume{}
+	err = v.Unmarshal(resp.Kvs[0].Value)
+	if err != nil {
+		return nil, err
+	}
+	c.etcd.volumesCache[volume] = v
+	return v, nil
 }
 
 func (c *etcdCtx) CommitINodeIndex(volume string) (agro.INodeID, error) {

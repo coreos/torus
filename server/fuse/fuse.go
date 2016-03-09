@@ -25,7 +25,7 @@ var (
 
 var fuseSrv *fs.Server
 
-func MustMount(mountpoint, volume string, srv agro.Server, rootMount bool) {
+func MustMount(mountpoint, volume string, srv agro.FSServer, rootMount bool) {
 	options := []fuse.MountOption{
 		fuse.FSName("agro"),
 		fuse.Subtype("agrofs"),
@@ -67,7 +67,7 @@ func MustMount(mountpoint, volume string, srv agro.Server, rootMount bool) {
 }
 
 type FS struct {
-	dfs    agro.Server
+	dfs    agro.FSServer
 	volume string
 }
 
@@ -79,13 +79,13 @@ func (fs FS) Root() (fs.Node, error) {
 }
 
 type Dir struct {
-	dfs    agro.Server
+	dfs    agro.FSServer
 	path   agro.Path
 	handle *DirHandle
 }
 
 type DirHandle struct {
-	dfs  agro.Server
+	dfs  agro.FSServer
 	path agro.Path
 	dir  *Dir
 }
@@ -96,7 +96,7 @@ var (
 	dirExists = make(map[agro.Path]error)
 )
 
-func readDirExists(dfs agro.Server, p agro.Path) ([]agro.Path, error) {
+func readDirExists(dfs agro.FSServer, p agro.Path) ([]agro.Path, error) {
 	cacheMut.Lock()
 	defer cacheMut.Unlock()
 	if v, ok := dirExists[p]; ok {
@@ -108,7 +108,7 @@ func readDirExists(dfs agro.Server, p agro.Path) ([]agro.Path, error) {
 }
 
 func (d *Dir) Statfs(ctx context.Context, req *fuse.StatfsRequest, resp *fuse.StatfsResponse) error {
-	stats, err := d.dfs.Statfs()
+	stats, err := d.dfs.Info()
 	if err != nil {
 		return err
 	}
@@ -375,12 +375,12 @@ func (d Dir) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
 }
 
 type File struct {
-	dfs  agro.Server
+	dfs  agro.FSServer
 	path agro.Path
 }
 
 type FileHandle struct {
-	dfs  agro.Server
+	dfs  agro.FSServer
 	path agro.Path
 	file agro.File
 	node *File
@@ -397,7 +397,7 @@ var (
 	lstatExists = make(map[agro.Path]error)
 )
 
-func readLstatExists(dfs agro.Server, p agro.Path) (os.FileInfo, error) {
+func readLstatExists(dfs agro.FSServer, p agro.Path) (os.FileInfo, error) {
 	cacheMut.Lock()
 	defer cacheMut.Unlock()
 	if v, ok := lstatExists[p]; ok {
@@ -442,7 +442,7 @@ func (f File) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.
 	return setattrHelper(ctx, req, resp, f.path, f.dfs)
 }
 
-func setattrHelper(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse, p agro.Path, srv agro.Server) error {
+func setattrHelper(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse, p agro.Path, srv agro.FSServer) error {
 	fileInfo, err := srv.Lstat(p)
 	if err != nil {
 		clog.Error("setattr:", p, err)

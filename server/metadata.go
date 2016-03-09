@@ -30,7 +30,7 @@ func (s *server) modFileMetadata(p agro.Path, f func(inode *models.INode) error)
 }
 
 func (s *server) modDirMetadata(p agro.Path, f func(md *models.Metadata) error) error {
-	dir, _, err := s.mds.Getdir(p)
+	dir, _, err := s.fsMDS().Getdir(p)
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func (s *server) modDirMetadata(p agro.Path, f func(md *models.Metadata) error) 
 	if err != nil {
 		return err
 	}
-	return s.mds.ChangeDirMetadata(p, dir.Metadata)
+	return s.fsMDS().ChangeDirMetadata(p, dir.Metadata)
 }
 
 func (s *server) Chmod(name agro.Path, mode os.FileMode) error {

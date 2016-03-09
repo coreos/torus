@@ -37,6 +37,7 @@ func fuseAction(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	srv := createServer()
+	defer srv.Close()
 	vol := args[0]
 	mnt := args[1]
 	signalChan := make(chan os.Signal, 1)
@@ -45,10 +46,14 @@ func fuseAction(cmd *cobra.Command, args []string) {
 	go func() {
 		for _ = range signalChan {
 			fmt.Println("\nReceived an interrupt, stopping services...")
-			srv.Close()
 			os.Exit(0)
 		}
 	}()
 
-	agrofuse.MustMount(mnt, vol, srv, !userMount)
+	fsSrv, err := srv.FS()
+	if err != nil {
+		fmt.Println("server doesn't support filesystems:", err)
+		os.Exit(0)
+	}
+	agrofuse.MustMount(mnt, vol, fsSrv, !userMount)
 }

@@ -10,6 +10,35 @@ import (
 // Server is the interface representing the basic ways to interact with the
 // filesystem.
 type Server interface {
+	Close() error
+
+	// If we support a filesystem interface, these calls will work,
+	// otherwise returning ErrNotSupported
+	FS() (FSServer, error)
+	CreateFSVolume(string) error
+
+	// GetVolumes lists all volumes, regardless of type.
+	GetVolumes() ([]*models.Volume, error)
+
+	// Return some global server information, usually from the underlying
+	// metadata service.
+	Info() (ServerInfo, error)
+
+	// BeginHeartbeat spawns a goroutine for heartbeats. Non-blocking.
+	BeginHeartbeat() error
+
+	// ListenReplication opens the internal networking port and connects to the cluster
+	ListenReplication(addr string) error
+	// OpenReplication connects to the cluster without opening the internal networking.
+	OpenReplication() error
+
+	// Write a bunch of debug output to the io.Writer.
+	// Implementation specific.
+	Debug(io.Writer) error
+}
+
+type FSServer interface {
+	Server
 	// Standard file path calls.
 	Create(Path) (File, error)
 	Open(Path) (File, error)
@@ -25,24 +54,8 @@ type Server interface {
 
 	Chmod(name Path, mode os.FileMode) error
 	Chown(name Path, uid, gid int) error
-	// Some server metacalls.
-	CreateVolume(string) error
-	GetVolumes() ([]string, error)
-
-	Close() error
-
-	Statfs() (ServerStats, error)
-
-	// BeginHeartbeat spawns a goroutine for heartbeats. Non-blocking.
-	BeginHeartbeat() error
-
-	// ListenReplication opens the internal networking port and connects to the cluster
-	ListenReplication(addr string) error
-	// OpenReplication connects to the cluster without opening the internal networking.
-	OpenReplication() error
-	Debug(io.Writer) error
 }
 
-type ServerStats struct {
+type ServerInfo struct {
 	BlockSize uint64
 }

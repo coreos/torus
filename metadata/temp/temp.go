@@ -31,13 +31,13 @@ type Server struct {
 	vol   agro.VolumeID
 
 	tree       *iradix.Tree
-	volIndex   map[string]agro.VolumeID
+	volIndex   map[string]*models.Volume
 	global     agro.GlobalMetadata
 	peers      agro.PeerInfoList
 	ring       agro.Ring
 	newRing    agro.Ring
-	openINodes map[string]map[string]*roaring.Bitmap
-	deadMap    map[string]*roaring.Bitmap
+	openINodes map[string]map[agro.VolumeID]*roaring.Bitmap
+	deadMap    map[agro.VolumeID]*roaring.Bitmap
 	chains     map[agro.VolumeID]map[agro.INodeRef]agro.INodeRef
 
 	ringListeners []chan agro.Ring
@@ -59,7 +59,7 @@ func NewServer() *Server {
 		panic(err)
 	}
 	return &Server{
-		volIndex: make(map[string]agro.VolumeID),
+		volIndex: make(map[string]*models.Volume),
 		tree:     iradix.New(),
 		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
 		global: agro.GlobalMetadata{
@@ -69,9 +69,9 @@ func NewServer() *Server {
 		},
 		ring:       r,
 		inode:      make(map[string]agro.INodeID),
-		openINodes: make(map[string]map[string]*roaring.Bitmap),
+		openINodes: make(map[string]map[agro.VolumeID]*roaring.Bitmap),
 		chains:     make(map[agro.VolumeID]map[agro.INodeRef]agro.INodeRef),
-		deadMap:    make(map[string]*roaring.Bitmap),
+		deadMap:    make(map[agro.VolumeID]*roaring.Bitmap),
 	}
 }
 
@@ -80,7 +80,7 @@ func NewClient(cfg agro.Config, srv *Server) *Client {
 	if err != nil {
 		return nil
 	}
-	srv.openINodes[uuid] = make(map[string]*roaring.Bitmap)
+	srv.openINodes[uuid] = make(map[agro.VolumeID]*roaring.Bitmap)
 	return &Client{
 		cfg:  cfg,
 		uuid: uuid,
@@ -120,24 +120,25 @@ func (t *Client) RegisterPeer(_ int64, pi *models.PeerInfo) error {
 	return nil
 }
 
-func (t *Client) CreateVolume(volume string) error {
+func (t *Client) CreateVolume(volume *models.Volume) error {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	if _, ok := t.srv.volIndex[volume]; ok {
+	if _, ok := t.srv.volIndex[volume.Name]; ok {
 		return agro.ErrExists
 	}
 
 	tx := t.srv.tree.Txn()
 
-	k := []byte(agro.Path{Volume: volume, Path: "/"}.Key())
+	k := []byte(agro.Path{Volume: volume.Name, Path: "/"}.Key())
 	if _, ok := tx.Get(k); !ok {
 		tx.Insert(k, &models.Directory{})
 		t.srv.tree = tx.Commit()
 		t.srv.vol++
-		t.srv.volIndex[volume] = t.srv.vol
+		volume.Id = uint64(t.srv.vol)
+		t.srv.volIndex[volume.Name] = volume
+		t.srv.chains[t.srv.vol] = make(map[agro.INodeRef]agro.INodeRef)
 	}
 
-	t.srv.chains[t.srv.vol] = make(map[agro.INodeRef]agro.INodeRef)
 	return nil
 }
 
@@ -337,54 +338,26 @@ func (t *Client) Getdir(p agro.Path) (*models.Directory, []agro.Path, error) {
 	return dir, subdirs, nil
 }
 
-func (t *Client) GetVolumes() ([]string, error) {
-	var (
-		out  []string
-		last string
-	)
-
+func (t *Client) GetVolumes() ([]*models.Volume, error) {
 	t.srv.mut.Lock()
-	iter := t.srv.tree.Root().Iterator()
-	t.srv.mut.Unlock()
+	defer t.srv.mut.Unlock()
 
-	for {
-		k, _, ok := iter.Next()
-		if !ok {
-			break
-		}
-		if i := bytes.IndexByte(k, ':'); i != -1 {
-			vol := string(k[:i])
-			if vol == last {
-				continue
-			}
-			out = append(out, vol)
-			last = vol
-		}
+	var out []*models.Volume
+
+	for _, v := range t.srv.volIndex {
+		out = append(out, v)
 	}
 	return out, nil
 }
 
-func (t *Client) GetVolumeName(vid agro.VolumeID) (string, error) {
-	t.srv.mut.Lock()
-	defer t.srv.mut.Unlock()
-
-	for k, v := range t.srv.volIndex {
-		if v == vid {
-			return k, nil
-		}
-	}
-	return "", errors.New("temp: no such volume exists")
-
-}
-
-func (t *Client) GetVolumeID(volume string) (agro.VolumeID, error) {
+func (t *Client) GetVolume(volume string) (*models.Volume, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 
 	if vol, ok := t.srv.volIndex[volume]; ok {
 		return vol, nil
 	}
-	return 0, errors.New("temp: no such volume exists")
+	return nil, errors.New("temp: no such volume exists")
 }
 
 func (t *Client) GetRing() (agro.Ring, error) {
@@ -427,38 +400,35 @@ func (t *Client) Close() error {
 }
 
 func (t *Client) ClaimVolumeINodes(_ int64, vol agro.VolumeID, inodes *roaring.Bitmap) error {
-	volume, _ := t.GetVolumeName(vol)
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	t.srv.openINodes[t.uuid][volume] = inodes
+	t.srv.openINodes[t.uuid][vol] = inodes
 	return nil
 }
 
 func (t *Client) ModifyDeadMap(vol agro.VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error {
-	volume, _ := t.GetVolumeName(vol)
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	x, ok := t.srv.deadMap[volume]
+	x, ok := t.srv.deadMap[vol]
 	if !ok {
 		x = roaring.NewBitmap()
 	}
 	x.Or(dead)
 	x.AndNot(live)
-	t.srv.deadMap[volume] = x
+	t.srv.deadMap[vol] = x
 	return nil
 }
 
 func (t *Client) GetVolumeLiveness(vol agro.VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error) {
-	volume, _ := t.GetVolumeName(vol)
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	x, ok := t.srv.deadMap[volume]
+	x, ok := t.srv.deadMap[vol]
 	if !ok {
 		x = roaring.NewBitmap()
 	}
 	var l []*roaring.Bitmap
 	for _, perclient := range t.srv.openINodes {
-		if c, ok := perclient[volume]; ok {
+		if c, ok := perclient[vol]; ok {
 			if c != nil {
 				l = append(l, c)
 			}

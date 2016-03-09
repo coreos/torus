@@ -28,8 +28,16 @@ func (s *server) create(path agro.Path, flag int, md *models.Metadata) (f agro.F
 	}
 	n := models.NewEmptyINode()
 	n.Filenames = []string{path.Path}
-	volid, err := s.mds.GetVolumeID(path.Volume)
-	n.Volume = uint64(volid)
+	_, ent, err := s.FileEntryForPath(path)
+	if err != nil {
+		if err != os.ErrNotExist {
+			return nil, err
+		}
+		ent = &models.FileEntry{}
+	}
+	n.Chain = ent.Chain
+	vol, err := s.mds.GetVolume(path.Volume)
+	n.Volume = vol.Id
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +52,7 @@ func (s *server) create(path agro.Path, flag int, md *models.Metadata) (f agro.F
 	}
 	clog.Tracef("Create file %s at inode %d:%d with block length %d", path, n.Volume, n.INode, bs.Length())
 	fh := &fileHandle{
-		volume:        path.Volume,
+		volume:        vol,
 		inode:         n,
 		srv:           s,
 		blocks:        bs,
@@ -84,6 +92,10 @@ func (s *server) OpenFileMetadata(p agro.Path, flag int, md *models.Metadata) (a
 }
 
 func (s *server) openFile(p agro.Path, flag int, md *models.Metadata) (agro.File, error) {
+	vol, err := s.mds.GetVolume(p.Volume)
+	if vol.Type != models.Volume_FILE {
+		return nil, agro.ErrWrongVolumeType
+	}
 	if flag&os.O_CREATE != 0 && (flag&os.O_EXCL) == 0 {
 		return s.create(p, flag, md)
 	}
@@ -151,7 +163,7 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 	if err != nil {
 		return nil, err
 	}
-	vid, err := s.mds.GetVolumeID(path.Volume)
+	vol, err := s.mds.GetVolume(path.Volume)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +172,7 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 	s.incRef(path.Volume, set)
 	bm, ok := s.getBitmap(path.Volume)
 	mlog.Tracef("updating claim %s %s", path.Volume, bm)
-	err = s.mds.ClaimVolumeINodes(s.lease, vid, bm)
+	err = s.fsMDS().ClaimVolumeINodes(s.lease, agro.VolumeID(vol.Id), bm)
 	if err != nil {
 		s.decRef(path.Volume, set)
 		return nil, err
@@ -173,7 +185,7 @@ func (s *server) newFile(path agro.Path, flag int, inode *models.INode) (agro.Fi
 
 	clog.Debugf("Open file %s at inode %d:%d with block length %d and size %d", path, inode.Volume, inode.INode, bs.Length(), inode.Filesize)
 	fh := &fileHandle{
-		volume:        path.Volume,
+		volume:        vol,
 		inode:         inode,
 		srv:           s,
 		blocks:        bs,

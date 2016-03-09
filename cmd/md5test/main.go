@@ -24,9 +24,10 @@ func main() {
 		MetadataAddress: *etcdAddress,
 		ReadCacheSize:   40 * 1024 * 1024,
 	}
-	srv, err := server.NewServer(cfg, "etcd", "temp")
+	srv, _ := server.NewServer(cfg, "etcd", "temp")
 	srv.OpenReplication()
-	f, err := srv.Open(agro.Path{
+	fsSrv, _ := srv.FS()
+	f, err := fsSrv.Open(agro.Path{
 		Volume: *volume,
 		Path:   *file,
 	})

@@ -10,7 +10,7 @@ import (
 
 func TestReadWrite(t *testing.T) {
 	srv := NewMemoryServer().(*server)
-	err := srv.CreateVolume("test")
+	err := srv.CreateFSVolume("test")
 	if err != nil {
 		t.Fatal(err)
 	}

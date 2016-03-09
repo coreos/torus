@@ -94,23 +94,13 @@ func (p Path) Equals(b Path) bool {
 // MetadataService is the interface representing the basic ways to manipulate
 // consistently stored fileystem metadata.
 type MetadataService interface {
-	CreateVolume(volume string) error // TODO(barakmich): Volume and FS options
-	GetVolumes() ([]string, error)
-	GetVolumeID(volume string) (VolumeID, error)
+	CreateVolume(*models.Volume) error
+	GetVolumes() ([]*models.Volume, error)
+	GetVolume(volume string) (*models.Volume, error)
 
 	CommitINodeIndex(volume string) (INodeID, error)
 	GetINodeIndex(volume string) (INodeID, error)
 	GetINodeIndexes() (map[string]INodeID, error)
-
-	Mkdir(path Path, dir *models.Metadata) error
-	ChangeDirMetadata(path Path, dir *models.Metadata) error
-	Getdir(path Path) (*models.Directory, []Path, error)
-	Rmdir(path Path) error
-	SetFileEntry(path Path, ent *models.FileEntry) error
-
-	GetINodeChains(vid VolumeID) ([]*models.FileChainSet, error)
-	GetChainINode(base INodeRef) (INodeRef, error)
-	SetChainINode(base INodeRef, was INodeRef, new INodeRef) error
 
 	GlobalMetadata() (GlobalMetadata, error)
 
@@ -129,13 +119,34 @@ type MetadataService interface {
 
 	GetLease() (int64, error)
 	RegisterPeer(lease int64, pi *models.PeerInfo) error
+
+	Close() error
+}
+
+type BlockMetadataService interface {
+	MetadataService
+	OpenBlockVolume(lease int64, vid VolumeID) (*models.INode, error)
+	SyncBlockVolume(*models.INode) error
+	CloseBlockVolume(vid VolumeID) error
+}
+
+type FSMetadataService interface {
+	MetadataService
+
+	Mkdir(path Path, dir *models.Metadata) error
+	ChangeDirMetadata(path Path, dir *models.Metadata) error
+	Getdir(path Path) (*models.Directory, []Path, error)
+	Rmdir(path Path) error
+	SetFileEntry(path Path, ent *models.FileEntry) error
+
+	GetINodeChains(vid VolumeID) ([]*models.FileChainSet, error)
+	GetChainINode(base INodeRef) (INodeRef, error)
+	SetChainINode(base INodeRef, was INodeRef, new INodeRef) error
+
 	ClaimVolumeINodes(lease int64, vol VolumeID, inodes *roaring.Bitmap) error
 
 	ModifyDeadMap(vol VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error
 	GetVolumeLiveness(vol VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error)
-
-	// TODO(barakmich): Extend with GC interaction, et al
-	Close() error
 }
 
 type DebugMetadataService interface {

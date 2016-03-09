@@ -6,24 +6,28 @@ import (
 	"github.com/RoaringBitmap/roaring"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/models"
 )
 
 type blocksByINode struct {
 	mut     sync.RWMutex
 	deadmap *roaring.Bitmap
-	vol     agro.VolumeID
-	mds     agro.MetadataService
+	vol     *models.Volume
+	mds     agro.FSMetadataService
 }
 
 func NewBlocksByINodeGC(mds agro.MetadataService) GC {
-	return &blocksByINode{mds: mds}
+	if m, ok := mds.(agro.FSMetadataService); ok {
+		return &blocksByINode{mds: m}
+	}
+	return &nullGC{}
 }
 
-func (b *blocksByINode) PrepVolume(vid agro.VolumeID) error {
+func (b *blocksByINode) PrepVolume(vol *models.Volume) error {
 	b.mut.Lock()
 	defer b.mut.Unlock()
-	b.vol = vid
-	deadmap, held, err := b.mds.GetVolumeLiveness(vid)
+	b.vol = vol
+	deadmap, held, err := b.mds.GetVolumeLiveness(agro.VolumeID(vol.Id))
 	if err != nil {
 		return err
 	}
@@ -37,7 +41,7 @@ func (b *blocksByINode) PrepVolume(vid agro.VolumeID) error {
 func (b *blocksByINode) IsDead(ref agro.BlockRef) bool {
 	b.mut.RLock()
 	defer b.mut.RUnlock()
-	if ref.Volume() != b.vol {
+	if ref.Volume() != agro.VolumeID(b.vol.Id) {
 		clog.Error("checking dead ref we haven't prepared for")
 		return false
 	}

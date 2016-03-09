@@ -12,19 +12,19 @@ import (
 )
 
 func TestCRCReadWrite(t *testing.T) {
-	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{}, agro.GlobalMetadata{})
+	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{StorageSize: 300 * 1024}, agro.GlobalMetadata{BlockSize: 1024})
 	b := newBaseBlockset(s)
 	crc := newCRCBlockset(b)
 	readWriteTest(t, crc)
 }
 
 func TestCRCMarshal(t *testing.T) {
-	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{}, agro.GlobalMetadata{})
+	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{StorageSize: 300 * 1024}, agro.GlobalMetadata{BlockSize: 1024})
 	marshalTest(t, s, MustParseBlockLayerSpec("crc,base"))
 }
 
 func TestCRCCorruption(t *testing.T) {
-	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{}, agro.GlobalMetadata{})
+	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{StorageSize: 300 * 1024}, agro.GlobalMetadata{BlockSize: 1024})
 	b := newBaseBlockset(s)
 	crc := newCRCBlockset(b)
 	inode := agro.NewINodeRef(1, 1)
