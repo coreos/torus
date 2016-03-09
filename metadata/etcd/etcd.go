@@ -379,19 +379,30 @@ func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
 	return v, nil
 }
 
-func (c *etcdCtx) CommitINodeIndex(volume string) (agro.INodeID, error) {
+func (c *etcdCtx) CommitINodeIndex(vol string) (agro.INodeID, error) {
+	volume, err := c.GetVolume(vol)
+	if err != nil {
+		return 0, err
+	}
 	promOps.WithLabelValues("commit-inode-index").Inc()
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	newID, err := c.atomicModifyKey(mkKey("volumemeta", "inode", volume), bytesAddOne)
+	newID, err := c.atomicModifyKey(mkKey("volumemeta", "inode", uint64ToHex(volume.Id)), bytesAddOne)
 	if err != nil {
 		return 0, err
 	}
 	return agro.INodeID(newID.(uint64)), nil
 }
 
-func (c *etcdCtx) GetINodeIndex(volume string) (agro.INodeID, error) {
-	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "inode", volume)))
+func (c *etcdCtx) GetINodeIndex(vol string) (agro.INodeID, error) {
+	volume, err := c.GetVolume(vol)
+	if err != nil {
+		return 0, err
+	}
+	promOps.WithLabelValues("get-inode-index").Inc()
+	c.etcd.mut.Lock()
+	defer c.etcd.mut.Unlock()
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "inode", uint64ToHex(volume.Id))))
 	if err != nil {
 		return agro.INodeID(0), err
 	}
