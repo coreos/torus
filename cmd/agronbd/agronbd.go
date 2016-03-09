@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
+	"os/signal"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/internal/nbd"
@@ -13,23 +13,15 @@ import (
 	"github.com/coreos/agro/server"
 	_ "github.com/coreos/agro/storage/block"
 	"github.com/coreos/pkg/capnslog"
-	"github.com/dustin/go-humanize"
 )
 
 var etcdAddress = flag.String("etcd", "127.0.0.1:2378", "Etcd")
-var volume = flag.String("vol", "", "Agro volume to file")
-var file = flag.String("file", "", "Agro path to file")
-var size = flag.String("size", "30MiB", "Size of image")
+var volume = flag.String("vol", "", "Agro block volume")
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "agronbd")
 
 func main() {
 	flag.Parse()
-	imgsize, err := humanize.ParseBytes(*size)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
-		os.Exit(1)
-	}
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	cfg := agro.Config{
 		MetadataAddress: *etcdAddress,
@@ -40,50 +32,46 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	clog.Trace("open rep")
 	srv.OpenReplication()
-	stats, err := srv.Statfs()
+	blocksrv, err := srv.Block()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	path := agro.Path{
-		Volume: *volume,
-		Path:   filepath.Clean(filepath.Join("/", *file)),
-	}
-	clog.Trace("lstat")
-	fi, err := srv.Lstat(path)
-	var f agro.File
-	if err == os.ErrNotExist {
-		f, err = srv.Create(path)
-		f.Truncate(int64(imgsize))
-	} else if err != nil {
-		panic(err)
-	} else {
-		f, err = srv.Open(path)
-		imgsize = uint64(fi.Size())
-	}
+	f, err := blocksrv.OpenBlockFile(*volume)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	clog.Trace("sync")
-	f.Sync()
-	fmt.Println("Size:", imgsize)
-	// go func(f agro.File) {
-	// 	for {
-	// 		time.Sleep(5 * time.Second)
-	// 		f.Sync()
-	// 	}
-	// }(f)
+	fi, err := f.Stat()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	stats, _ := srv.Info()
 	clog.Trace("create")
-	handle := nbd.Create(f, int64(imgsize), int64(stats.BlockSize))
+	handle := nbd.Create(f, int64(fi.Size()), int64(stats.BlockSize))
 	dev, err := handle.Connect()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 	fmt.Println("*****", dev)
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+
+	go func(n *nbd.NBD) {
+		for _ = range signalChan {
+			fmt.Println("\nReceived an interrupt, disconnecting...")
+			n.Close()
+		}
+	}(handle)
+
 	err = handle.Serve()
+	clog.Debug("closing")
 	f.Close()
-	fmt.Println(err)
+	if err != nil {
+		fmt.Println(err)
+	}
 }

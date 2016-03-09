@@ -24,6 +24,9 @@ func (s *server) CreateBlockVolume(volume string, size uint64) error {
 
 func (s *server) OpenBlockFile(volume string) (agro.BlockFile, error) {
 	vol, err := s.mds.GetVolume(volume)
+	if err != nil {
+		return nil, err
+	}
 	if vol.Type != models.Volume_BLOCK {
 		return nil, agro.ErrWrongVolumeType
 	}
@@ -61,6 +64,7 @@ func (s *server) OpenBlockFile(volume string) (agro.BlockFile, error) {
 
 func (f *file) blockSync(mds agro.BlockMetadataService) error {
 	if !f.writeOpen {
+		clog.Debugf("not syncing")
 		return nil
 	}
 	clog.Debugf("Syncing block volume: %v", f.volume.Name)

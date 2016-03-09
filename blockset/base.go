@@ -139,7 +139,7 @@ func (b *baseBlockset) GetLiveINodes() *roaring.Bitmap {
 	return out
 }
 
-func (b *baseBlockset) Truncate(lastIndex int) error {
+func (b *baseBlockset) Truncate(lastIndex int, _ uint64) error {
 	if lastIndex <= len(b.blocks) {
 		b.blocks = b.blocks[:lastIndex]
 		return nil

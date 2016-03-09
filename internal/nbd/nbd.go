@@ -84,6 +84,8 @@ type NBD struct {
 	blocksize int64
 	nbd       *os.File
 	socket    int
+	setsocket int
+	closer    chan error
 }
 
 func Create(device Device, size int64, blocksize int64) *NBD {
@@ -143,6 +145,7 @@ func (nbd *NBD) Connect() (dev string, err error) {
 			// possible candidate
 			ioctl(nbd.nbd.Fd(), BLKROSET, 0) // I'm really sorry about this
 			if err := ioctl(nbd.nbd.Fd(), NBD_SET_SOCK, uintptr(pair[0])); err == nil {
+				nbd.setsocket = pair[0]
 				nbd.socket = pair[1]
 				break // success
 			}
@@ -156,43 +159,57 @@ func (nbd *NBD) Connect() (dev string, err error) {
 
 func (nbd *NBD) Serve() (err error) {
 	// setup
-	if err = nbd.Size(nbd.size, nbd.blocksize); err != nil {
+	err = nbd.Size(nbd.size, nbd.blocksize)
+	if err != nil {
 		// already set by nbd.Size()
-	} else if err = ioctl(nbd.nbd.Fd(), NBD_SET_FLAGS, uintptr(NBD_FLAG_SEND_FLUSH|NBD_FLAG_SEND_TRIM)); err != nil {
-		err = &os.PathError{nbd.nbd.Name(), "ioctl NBD_SET_FLAGS", err}
-	} else {
-		c := make(chan error)
-		go nbd.do_it(c)
-		for {
-			select {
-			case err = <-c:
-				return err
-			default:
-				nbd.handle()
-			}
-		}
+		return err
+	}
+	err = ioctl(nbd.nbd.Fd(), NBD_SET_FLAGS, uintptr(NBD_FLAG_SEND_FLUSH|NBD_FLAG_SEND_TRIM))
+	if err != nil {
+		return &os.PathError{nbd.nbd.Name(), "ioctl NBD_SET_FLAGS", err}
 	}
 
-	return err
+	if nbd.closer != nil {
+		close(nbd.closer)
+	}
+	nbd.closer = make(chan error)
+	go nbd.do_it()
+	go nbd.handle(nbd.closer)
+	for {
+		select {
+		case err, ok := <-nbd.closer:
+			if !ok {
+				fmt.Println(err)
+			}
+			return err
+		}
+	}
 }
 
-func (nbd *NBD) do_it(c chan error) {
+func (nbd *NBD) Close() error {
+	syscall.Write(nbd.setsocket, make([]byte, 28))
+	syscall.Close(nbd.setsocket)
+	syscall.Close(nbd.socket)
+	return nbd.nbd.Close()
+}
+
+func (nbd *NBD) do_it() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
 	// NBD_DO_IT does not return until disconnect
 	if err := ioctl(nbd.nbd.Fd(), NBD_DO_IT, 0); err != nil {
-		c <- &os.PathError{nbd.nbd.Name(), "ioctl NBD_DO_IT", err}
+		nbd.closer <- &os.PathError{nbd.nbd.Name(), "ioctl NBD_DO_IT", err}
 	} else if err = ioctl(nbd.nbd.Fd(), NBD_DISCONNECT, 0); err != nil {
-		c <- &os.PathError{nbd.nbd.Name(), "ioctl NBD_DISCONNECT", err}
+		nbd.closer <- &os.PathError{nbd.nbd.Name(), "ioctl NBD_DISCONNECT", err}
 	} else if err = ioctl(nbd.nbd.Fd(), NBD_CLEAR_SOCK, 0); err != nil {
-		c <- &os.PathError{nbd.nbd.Name(), "ioctl NBD_CLEAR_SOCK", err}
+		nbd.closer <- &os.PathError{nbd.nbd.Name(), "ioctl NBD_CLEAR_SOCK", err}
 	}
-
+	close(nbd.closer)
 }
 
 // handle requests
-func (nbd *NBD) handle() {
+func (nbd *NBD) handle(closer chan error) {
 	buf := make([]byte, 2<<19)
 	var x request
 
@@ -245,7 +262,9 @@ func (nbd *NBD) handle() {
 				panic("unknown command")
 			}
 		default:
-			panic("Invalid packet")
+			// We're done
+			closer <- nil
+			return
 		}
 	}
 }

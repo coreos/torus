@@ -15,7 +15,6 @@ type File interface {
 	Sync() error
 	Stat() (os.FileInfo, error)
 	Truncate(int64) error
-	Trim(int64, int64) error
 }
 
 type BlockFile interface {
@@ -24,4 +23,6 @@ type BlockFile interface {
 	io.WriterAt
 	io.Closer
 	Sync() error
+	Stat() (os.FileInfo, error)
+	Trim(int64, int64) error
 }

@@ -163,8 +163,8 @@ func (b *replicationBlockset) GetLiveINodes() *roaring.Bitmap {
 	return b.sub.GetLiveINodes()
 }
 
-func (b *replicationBlockset) Truncate(lastIndex int) error {
-	err := b.sub.Truncate(lastIndex)
+func (b *replicationBlockset) Truncate(lastIndex int, blocksize uint64) error {
+	err := b.sub.Truncate(lastIndex, blocksize)
 	if err != nil {
 		return err
 	}

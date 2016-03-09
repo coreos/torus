@@ -130,13 +130,13 @@ func (f *fileHandle) openWrite() error {
 		}
 	}
 	if f.volume.Type == models.Volume_FILE {
-		f.writeOpen = true
 		f.updateHeldINodes(false)
 		bm := roaring.NewBitmap()
 		bm.Add(uint32(newINode))
 		// Kill the open inode; we'll reopen it if we use it.
 		f.srv.fsMDS().ModifyDeadMap(vid, roaring.NewBitmap(), bm)
 	}
+	f.writeOpen = true
 	return nil
 }
 
@@ -589,7 +589,7 @@ func (f *fileHandle) Truncate(size int64) error {
 		nBlocks++
 	}
 	clog.Tracef("truncate to %d %d", size, nBlocks)
-	f.blocks.Truncate(int(nBlocks))
+	f.blocks.Truncate(int(nBlocks), uint64(f.blkSize))
 	f.inode.Filesize = uint64(size)
 	return nil
 }

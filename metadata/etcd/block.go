@@ -30,7 +30,7 @@ func (c *etcdCtx) createBlockVol(volume *models.Volume) error {
 	if volume.MaxBytes%globals.BlockSize != 0 {
 		nBlocks++
 	}
-	err = bs.Truncate(int(nBlocks))
+	err = bs.Truncate(int(nBlocks), globals.BlockSize)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (c *etcdCtx) LockBlockVolume(lease int64, vid agro.VolumeID) error {
 }
 
 func (c *etcdCtx) GetBlockVolumeINode(vid agro.VolumeID) (*models.INode, error) {
-	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "blockinode")))
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "blockinode", uint64ToHex(uint64(vid)))))
 	if err != nil {
 		return nil, err
 	}
