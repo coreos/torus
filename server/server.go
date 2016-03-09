@@ -391,6 +391,13 @@ func (s *server) fsMDS() agro.FSMetadataService {
 	panic("not a FS metadata service")
 }
 
+func (s *server) blockMDS() agro.BlockMetadataService {
+	if v, ok := s.mds.(agro.BlockMetadataService); ok {
+		return v
+	}
+	panic("not a Block metadata service")
+}
+
 func (s *server) removeDir(path agro.Path) error {
 	return s.fsMDS().Rmdir(path)
 }

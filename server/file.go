@@ -364,12 +364,24 @@ func (f *file) Close() error {
 	if f.fileHandle == nil {
 		return nil
 	}
-	c := f.inode.Chain
-	err := f.Sync()
-	if err != nil {
-		clog.Error(err)
+	var err error
+	switch f.volume.Type {
+	case models.Volume_FILE:
+		c := f.inode.Chain
+		err = f.Sync()
+		if err != nil {
+			clog.Error(err)
+		}
+		f.srv.removeOpenFile(c)
+	case models.Volume_BLOCK:
+		err = f.Sync()
+		if err != nil {
+			clog.Error(err)
+		}
+		err = f.srv.blockMDS().UnlockBlockVolume(agro.VolumeID(f.volume.Id))
+	default:
+		panic("unknown volume type")
 	}
-	f.srv.removeOpenFile(c)
 	promOpenFiles.WithLabelValues(f.volume.Name).Dec()
 	f.fileHandle = nil
 	return err
@@ -382,7 +394,7 @@ func (f *file) Sync() error {
 	case models.Volume_FILE:
 		return f.fileSync(f.srv.fsMDS())
 	case models.Volume_BLOCK:
-		panic("unimplemented")
+		return f.blockSync(f.srv.blockMDS())
 	default:
 		panic("unknown volume type")
 	}

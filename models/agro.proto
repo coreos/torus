@@ -53,6 +53,9 @@ message Volume {
     BLOCK = 1;
   }
   VolumeType type = 3;
+
+  // TODO(barakmich): Respect sizes for FILE volumes.
+  uint64 max_bytes = 4;
 }
 
 message FileEntry {
