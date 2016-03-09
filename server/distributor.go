@@ -91,7 +91,9 @@ func (d *distributor) Close() error {
 	}
 	close(d.rebalancerChan)
 	close(d.ringWatcherChan)
-	d.grpcSrv.Stop()
+	if d.grpcSrv != nil {
+		d.grpcSrv.Stop()
+	}
 	d.client.Close()
 	err := d.blocks.Close()
 	if err != nil {
