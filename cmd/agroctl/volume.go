@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/coreos/agro/models"
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 )
 
@@ -14,10 +15,16 @@ var volumeCommand = &cobra.Command{
 	Run:   volumeAction,
 }
 
-var volumeCreateCommand = &cobra.Command{
+var volumeCreateFSCommand = &cobra.Command{
 	Use:   "create-fs",
 	Short: "create a volume in the cluster",
-	Run:   volumeCreateAction,
+	Run:   volumeCreateFSAction,
+}
+
+var volumeCreateBlockCommand = &cobra.Command{
+	Use:   "create-block",
+	Short: "create a block volume in the cluster",
+	Run:   volumeCreateBlockAction,
 }
 
 var volumeListCommand = &cobra.Command{
@@ -27,7 +34,8 @@ var volumeListCommand = &cobra.Command{
 }
 
 func init() {
-	volumeCommand.AddCommand(volumeCreateCommand)
+	volumeCommand.AddCommand(volumeCreateFSCommand)
+	volumeCommand.AddCommand(volumeCreateBlockCommand)
 	volumeCommand.AddCommand(volumeListCommand)
 }
 
@@ -36,7 +44,7 @@ func volumeAction(cmd *cobra.Command, args []string) {
 	os.Exit(1)
 }
 
-func volumeCreateAction(cmd *cobra.Command, args []string) {
+func volumeCreateFSAction(cmd *cobra.Command, args []string) {
 	mds := mustConnectToMDS()
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, "USAGE: agroctl volume create-fs VOLUME_NAME")
@@ -49,6 +57,27 @@ func volumeCreateAction(cmd *cobra.Command, args []string) {
 	err := mds.CreateVolume(&models.Volume{
 		Name: args[0],
 		Type: models.Volume_FILE,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error creating volume %s: %s", args[0], err)
+		os.Exit(1)
+	}
+}
+
+func volumeCreateBlockAction(cmd *cobra.Command, args []string) {
+	mds := mustConnectToMDS()
+	if len(args) != 2 {
+		fmt.Fprintf(os.Stderr, "USAGE: agroctl volume create-block VOLUME_NAME SIZE")
+		os.Exit(1)
+	}
+	size, err := humanize.ParseBytes(args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing size %s", args[1])
+	}
+	err = mds.CreateVolume(&models.Volume{
+		Name:     args[0],
+		MaxBytes: size,
+		Type:     models.Volume_BLOCK,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error creating volume %s: %s", args[0], err)
