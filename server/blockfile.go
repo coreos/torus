@@ -63,7 +63,7 @@ func (s *server) OpenBlockFile(volume string) (agro.BlockFile, error) {
 }
 
 func (f *file) blockSync(mds agro.BlockMetadataService) error {
-	if !f.writeOpen {
+	if !f.writeOpen && !f.trimmed {
 		clog.Debugf("not syncing")
 		return nil
 	}
@@ -95,5 +95,6 @@ func (f *file) blockSync(mds agro.BlockMetadataService) error {
 		return err
 	}
 	f.writeOpen = false
+	f.trimmed = false
 	return nil
 }
