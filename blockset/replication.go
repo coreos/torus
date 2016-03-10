@@ -201,5 +201,14 @@ func (b *replicationBlockset) Trim(from, to int) error {
 		}
 	}
 	return nil
+}
 
+func (b *replicationBlockset) GetAllBlockRefs() []agro.BlockRef {
+	sub := b.sub.GetAllBlockRefs()
+	out := make([]agro.BlockRef, len(b.repBlocks[0])*len(b.repBlocks))
+	nblocks := len(b.repBlocks[0])
+	for i, list := range b.repBlocks {
+		copy(out[i*nblocks:], list)
+	}
+	return append(sub, out...)
 }

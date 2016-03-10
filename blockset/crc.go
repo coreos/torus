@@ -183,3 +183,9 @@ func (b *crcBlockset) Trim(from, to int) error {
 	}
 	return nil
 }
+
+func (b *crcBlockset) GetAllBlockRefs() []agro.BlockRef {
+	b.mut.Lock()
+	defer b.mut.Unlock()
+	return b.sub.GetAllBlockRefs()
+}

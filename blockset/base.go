@@ -164,3 +164,9 @@ func (b *baseBlockset) Trim(from, to int) error {
 	}
 	return nil
 }
+
+func (b *baseBlockset) GetAllBlockRefs() []agro.BlockRef {
+	out := make([]agro.BlockRef, len(b.blocks))
+	copy(out, b.blocks)
+	return out
+}
