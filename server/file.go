@@ -358,6 +358,23 @@ func (f *fileHandle) ReadAt(b []byte, off int64) (n int, ferr error) {
 	return n, ferr
 }
 
+func (f *file) Seek(offset int64, whence int) (int64, error) {
+	// TODO(mischief): validate offset
+	switch whence {
+	case os.SEEK_SET:
+		f.offset = offset
+	case os.SEEK_CUR:
+		f.offset += offset
+	case os.SEEK_END:
+		//f.offset = int64(f.inode.Filesize) - offset
+		fallthrough
+	default:
+		return 0, errors.New("invalid whence")
+	}
+
+	return offset, nil
+}
+
 func (f *file) Close() error {
 	if f == nil {
 		return agro.ErrInvalid
