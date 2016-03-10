@@ -353,7 +353,7 @@ func (f *fileHandle) ReadAt(b []byte, off int64) (n int, ferr error) {
 		off += int64(count)
 	}
 	if toRead != n {
-		panic("Read more than n bytes?")
+		//panic("Read more than n bytes?")
 	}
 	return n, ferr
 }
