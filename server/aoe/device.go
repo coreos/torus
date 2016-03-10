@@ -62,12 +62,19 @@ func pshort(p []byte, off int, v uint16) {
 
 // poke a string into p at off and pad with space
 func pstring(p []byte, off int, sz int, ident string) {
+	if sz%2 != 0 {
+		panic("can't encode odd length string")
+	}
+
 	id := make([]byte, sz)
 	for i := 0; i < len(id); i++ {
 		id[i] = byte(' ')
 	}
-
 	copy(id, []byte(ident))
+	for i := 0; i < len(id); i += 2 {
+		id[i], id[i+1] = id[i+1], id[i]
+	}
+
 	copy(p[off*2:], id)
 }
 
