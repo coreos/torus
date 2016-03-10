@@ -59,4 +59,7 @@ var (
 	// ErrNotSupported is returned if the interface doesn't implement the
 	// requested subfuntionality.
 	ErrNotSupported = errors.New("agro: not supported")
+
+	// ErrLocked is returned if the resource is locked.
+	ErrLocked = errors.New("agro: locked")
 )

@@ -83,8 +83,6 @@ func (s *server) updatePeerMap() {
 	if err != nil {
 		clog.Warningf("couldn't update peerlist: %s", err)
 	}
-	s.mut.Lock()
-	defer s.mut.Unlock()
 	promServerPeers.Set(float64(len(peers)))
 	for _, p := range peers {
 		s.peersMap[p.UUID] = p

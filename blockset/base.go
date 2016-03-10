@@ -139,7 +139,7 @@ func (b *baseBlockset) GetLiveINodes() *roaring.Bitmap {
 	return out
 }
 
-func (b *baseBlockset) Truncate(lastIndex int) error {
+func (b *baseBlockset) Truncate(lastIndex int, _ uint64) error {
 	if lastIndex <= len(b.blocks) {
 		b.blocks = b.blocks[:lastIndex]
 		return nil
@@ -148,6 +148,19 @@ func (b *baseBlockset) Truncate(lastIndex int) error {
 	for toadd != 0 {
 		b.blocks = append(b.blocks, agro.ZeroBlock())
 		toadd--
+	}
+	return nil
+}
+
+func (b *baseBlockset) Trim(from, to int) error {
+	if from >= len(b.blocks) {
+		return nil
+	}
+	if to > len(b.blocks) {
+		to = len(b.blocks)
+	}
+	for i := from; i < to; i++ {
+		b.blocks[i] = agro.ZeroBlock()
 	}
 	return nil
 }

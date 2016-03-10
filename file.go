@@ -16,3 +16,13 @@ type File interface {
 	Stat() (os.FileInfo, error)
 	Truncate(int64) error
 }
+
+type BlockFile interface {
+	io.ReadWriter
+	io.ReaderAt
+	io.WriterAt
+	io.Closer
+	Sync() error
+	Stat() (os.FileInfo, error)
+	Trim(int64, int64) error
+}

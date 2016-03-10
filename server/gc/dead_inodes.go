@@ -22,6 +22,7 @@ type deadINodes struct {
 	vol  agro.VolumeID
 	max  agro.INodeID
 	mds  agro.FSMetadataService
+	skip bool
 }
 
 func NewDeadINodeGC(mds agro.MetadataService) GC {
@@ -34,6 +35,11 @@ func NewDeadINodeGC(mds agro.MetadataService) GC {
 func (d *deadINodes) PrepVolume(vol *models.Volume) error {
 	d.mut.Lock()
 	defer d.mut.Unlock()
+	d.skip = false
+	if vol.Type != models.Volume_FILE {
+		d.skip = true
+		return nil
+	}
 	d.vol = agro.VolumeID(vol.Id)
 	chains, err := d.mds.GetINodeChains(d.vol)
 	if err != nil {
@@ -55,6 +61,9 @@ func (d *deadINodes) PrepVolume(vol *models.Volume) error {
 }
 
 func (d *deadINodes) IsDead(ref agro.BlockRef) bool {
+	if d.skip {
+		return false
+	}
 	if ref.BlockType() != agro.TypeINode {
 		return false
 	}

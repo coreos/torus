@@ -152,6 +152,8 @@ type Volume struct {
 	Name string            `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Id   uint64            `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
 	Type Volume_VolumeType `protobuf:"varint,3,opt,name=type,proto3,enum=models.Volume_VolumeType" json:"type,omitempty"`
+	// TODO(barakmich): Respect sizes for FILE volumes.
+	MaxBytes uint64 `protobuf:"varint,4,opt,name=max_bytes,proto3" json:"max_bytes,omitempty"`
 }
 
 func (m *Volume) Reset()         { *m = Volume{} }
@@ -655,6 +657,9 @@ func (this *Volume) VerboseEqual(that interface{}) error {
 	if this.Type != that1.Type {
 		return fmt.Errorf("Type this(%v) Not Equal that(%v)", this.Type, that1.Type)
 	}
+	if this.MaxBytes != that1.MaxBytes {
+		return fmt.Errorf("MaxBytes this(%v) Not Equal that(%v)", this.MaxBytes, that1.MaxBytes)
+	}
 	return nil
 }
 func (this *Volume) Equal(that interface{}) bool {
@@ -689,6 +694,9 @@ func (this *Volume) Equal(that interface{}) bool {
 		return false
 	}
 	if this.Type != that1.Type {
+		return false
+	}
+	if this.MaxBytes != that1.MaxBytes {
 		return false
 	}
 	return true
@@ -1434,6 +1442,11 @@ func (m *Volume) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Type))
 	}
+	if m.MaxBytes != 0 {
+		data[i] = 0x20
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.MaxBytes))
+	}
 	return i, nil
 }
 
@@ -1805,6 +1818,7 @@ func NewPopulatedVolume(r randyAgro, easy bool) *Volume {
 	this.Name = randStringAgro(r)
 	this.Id = uint64(uint64(r.Uint32()))
 	this.Type = Volume_VolumeType([]int32{0, 1}[r.Intn(2)])
+	this.MaxBytes = uint64(uint64(r.Uint32()))
 	if !easy && r.Intn(10) != 0 {
 	}
 	return this
@@ -2091,6 +2105,9 @@ func (m *Volume) Size() (n int) {
 	}
 	if m.Type != 0 {
 		n += 1 + sovAgro(uint64(m.Type))
+	}
+	if m.MaxBytes != 0 {
+		n += 1 + sovAgro(uint64(m.MaxBytes))
 	}
 	return n
 }
@@ -3111,6 +3128,25 @@ func (m *Volume) Unmarshal(data []byte) error {
 				b := data[iNdEx]
 				iNdEx++
 				m.Type |= (Volume_VolumeType(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxBytes", wireType)
+			}
+			m.MaxBytes = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.MaxBytes |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}

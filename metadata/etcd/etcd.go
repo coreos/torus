@@ -297,6 +297,17 @@ func bytesAddOne(in []byte) ([]byte, interface{}, error) {
 func (c *etcdCtx) CreateVolume(volume *models.Volume) error {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
+	switch volume.Type {
+	case models.Volume_FILE:
+		return c.createFSVol(volume)
+	case models.Volume_BLOCK:
+		return c.createBlockVol(volume)
+	default:
+		panic("unknown volume type")
+	}
+}
+
+func (c *etcdCtx) createFSVol(volume *models.Volume) error {
 	key := agro.Path{Volume: volume.Name, Path: "/"}
 	new, err := c.atomicModifyKey(mkKey("meta", "volumeminter"), bytesAddOne)
 	volume.Id = new.(uint64)
@@ -308,7 +319,9 @@ func (c *etcdCtx) CreateVolume(volume *models.Volume) error {
 	if err != nil {
 		return err
 	}
-	do := tx().Do(
+	do := tx().If(
+		keyNotExists(mkKey("volumes", volume.Name)),
+	).Then(
 		setKey(mkKey("volumes", volume.Name), uint64ToBytes(volume.Id)),
 		setKey(mkKey("volumeid", uint64ToHex(volume.Id)), vbytes),
 		setKey(mkKey("volumemeta", "inode", uint64ToHex(volume.Id)), uint64ToBytes(1)),
@@ -319,9 +332,12 @@ func (c *etcdCtx) CreateVolume(volume *models.Volume) error {
 			Mode:  uint32(os.ModeDir | 0755),
 		})),
 	).Tx()
-	_, err = c.etcd.kv.Txn(c.getContext(), do)
+	resp, err := c.etcd.kv.Txn(c.getContext(), do)
 	if err != nil {
 		return err
+	}
+	if !resp.Succeeded {
+		return agro.ErrExists
 	}
 	return nil
 }
@@ -720,8 +736,42 @@ func (c *etcdCtx) SetRing(ring agro.Ring) error {
 }
 
 func (c *etcdCtx) DumpMetadata(w io.Writer) error {
+	io.WriteString(w, "## Volumes\n")
+	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumeid")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		v := &models.Volume{}
+		v.Unmarshal(x.Value)
+		io.WriteString(w, v.String())
+		io.WriteString(w, "\n")
+	}
+	io.WriteString(w, "## INodes\n")
+	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "inode")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		v := bytesToUint64(x.Value)
+		io.WriteString(w, uint64ToHex(v))
+		io.WriteString(w, "\n")
+	}
+	io.WriteString(w, "## BlockLocks\n")
+	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "blocklock")))
+	if err != nil {
+		return err
+	}
+	for _, x := range resp.Kvs {
+		io.WriteString(w, string(x.Key)+":\n")
+		io.WriteString(w, string(x.Value))
+		io.WriteString(w, "\n")
+	}
+
 	io.WriteString(w, "## Deadmaps\n")
-	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "deadmap")))
+	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "deadmap")))
 	if err != nil {
 		return err
 	}

@@ -130,13 +130,13 @@ func (f *fileHandle) openWrite() error {
 		}
 	}
 	if f.volume.Type == models.Volume_FILE {
-		f.writeOpen = true
 		f.updateHeldINodes(false)
 		bm := roaring.NewBitmap()
 		bm.Add(uint32(newINode))
 		// Kill the open inode; we'll reopen it if we use it.
 		f.srv.fsMDS().ModifyDeadMap(vid, roaring.NewBitmap(), bm)
 	}
+	f.writeOpen = true
 	return nil
 }
 
@@ -364,12 +364,24 @@ func (f *file) Close() error {
 	if f.fileHandle == nil {
 		return nil
 	}
-	c := f.inode.Chain
-	err := f.Sync()
-	if err != nil {
-		clog.Error(err)
+	var err error
+	switch f.volume.Type {
+	case models.Volume_FILE:
+		c := f.inode.Chain
+		err = f.Sync()
+		if err != nil {
+			clog.Error(err)
+		}
+		f.srv.removeOpenFile(c)
+	case models.Volume_BLOCK:
+		err = f.Sync()
+		if err != nil {
+			clog.Error(err)
+		}
+		err = f.srv.blockMDS().UnlockBlockVolume(agro.VolumeID(f.volume.Id))
+	default:
+		panic("unknown volume type")
 	}
-	f.srv.removeOpenFile(c)
 	promOpenFiles.WithLabelValues(f.volume.Name).Dec()
 	f.fileHandle = nil
 	return err
@@ -382,7 +394,7 @@ func (f *file) Sync() error {
 	case models.Volume_FILE:
 		return f.fileSync(f.srv.fsMDS())
 	case models.Volume_BLOCK:
-		panic("unimplemented")
+		return f.blockSync(f.srv.blockMDS())
 	default:
 		panic("unknown volume type")
 	}
@@ -577,7 +589,19 @@ func (f *fileHandle) Truncate(size int64) error {
 		nBlocks++
 	}
 	clog.Tracef("truncate to %d %d", size, nBlocks)
-	f.blocks.Truncate(int(nBlocks))
+	f.blocks.Truncate(int(nBlocks), uint64(f.blkSize))
 	f.inode.Filesize = uint64(size)
 	return nil
+}
+
+// Trim zeroes data in the middle of a file.
+func (f *fileHandle) Trim(offset, length int64) error {
+	clog.Debugf("trimming %d %d", offset, length)
+	// find the block edges
+	blkFrom := offset / f.blkSize
+	if offset%f.blkSize != 0 {
+		blkFrom += 1
+	}
+	blkTo := (offset + length) / f.blkSize
+	return f.blocks.Trim(int(blkFrom), int(blkTo))
 }

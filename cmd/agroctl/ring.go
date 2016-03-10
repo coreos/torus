@@ -131,6 +131,9 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 		uuids = currentPeers.PeerList()
 	}
 	for _, p := range currentPeers {
+		if p.Address == "" {
+			continue
+		}
 		for _, x := range uuids {
 			if p.UUID == x {
 				peers = append(peers, p)

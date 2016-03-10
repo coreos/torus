@@ -17,7 +17,8 @@ type Blockset interface {
 	Marshal() ([]byte, error)
 	Unmarshal(data []byte) error
 	GetSubBlockset() Blockset
-	Truncate(lastIndex int) error
+	Truncate(lastIndex int, blocksize uint64) error
+	Trim(from, to int) error
 }
 
 type BlockLayerKind int

@@ -14,6 +14,7 @@ type blocksByINode struct {
 	deadmap *roaring.Bitmap
 	vol     *models.Volume
 	mds     agro.FSMetadataService
+	skip    bool
 }
 
 func NewBlocksByINodeGC(mds agro.MetadataService) GC {
@@ -26,6 +27,11 @@ func NewBlocksByINodeGC(mds agro.MetadataService) GC {
 func (b *blocksByINode) PrepVolume(vol *models.Volume) error {
 	b.mut.Lock()
 	defer b.mut.Unlock()
+	b.skip = false
+	if vol.Type != models.Volume_FILE {
+		b.skip = true
+		return nil
+	}
 	b.vol = vol
 	deadmap, held, err := b.mds.GetVolumeLiveness(agro.VolumeID(vol.Id))
 	if err != nil {
@@ -41,6 +47,9 @@ func (b *blocksByINode) PrepVolume(vol *models.Volume) error {
 func (b *blocksByINode) IsDead(ref agro.BlockRef) bool {
 	b.mut.RLock()
 	defer b.mut.RUnlock()
+	if b.skip {
+		return false
+	}
 	if ref.Volume() != agro.VolumeID(b.vol.Id) {
 		clog.Error("checking dead ref we haven't prepared for")
 		return false

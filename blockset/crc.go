@@ -144,10 +144,10 @@ func (b *crcBlockset) GetLiveINodes() *roaring.Bitmap {
 	return b.sub.GetLiveINodes()
 }
 
-func (b *crcBlockset) Truncate(lastIndex int) error {
+func (b *crcBlockset) Truncate(lastIndex int, blocksize uint64) error {
 	b.mut.Lock()
 	defer b.mut.Unlock()
-	err := b.sub.Truncate(lastIndex)
+	err := b.sub.Truncate(lastIndex, blocksize)
 	if err != nil {
 		return err
 	}
@@ -155,11 +155,31 @@ func (b *crcBlockset) Truncate(lastIndex int) error {
 		b.crcs = b.crcs[:lastIndex]
 		return nil
 	}
-	crc := crc32.ChecksumIEEE(make([]byte, b.getStore().BlockSize()))
+	crc := crc32.ChecksumIEEE(make([]byte, blocksize))
 	toadd := lastIndex - len(b.crcs)
 	for toadd != 0 {
 		b.crcs = append(b.crcs, crc)
 		toadd--
+	}
+	return nil
+}
+
+func (b *crcBlockset) Trim(from, to int) error {
+	b.mut.Lock()
+	defer b.mut.Unlock()
+	err := b.sub.Trim(from, to)
+	if err != nil {
+		return err
+	}
+	if from >= len(b.crcs) {
+		return nil
+	}
+	if to > len(b.crcs) {
+		to = len(b.crcs)
+	}
+	crc := crc32.ChecksumIEEE(make([]byte, b.getStore().BlockSize()))
+	for i := from; i < to; i++ {
+		b.crcs[i] = crc
 	}
 	return nil
 }

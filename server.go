@@ -15,7 +15,10 @@ type Server interface {
 	// If we support a filesystem interface, these calls will work,
 	// otherwise returning ErrNotSupported
 	FS() (FSServer, error)
-	CreateFSVolume(string) error
+
+	// If we support a block interface, these calls will work,
+	// otherwise returning ErrNotSupported
+	Block() (BlockServer, error)
 
 	// GetVolumes lists all volumes, regardless of type.
 	GetVolumes() ([]*models.Volume, error)
@@ -39,6 +42,7 @@ type Server interface {
 
 type FSServer interface {
 	Server
+	CreateFSVolume(string) error
 	// Standard file path calls.
 	Create(Path) (File, error)
 	Open(Path) (File, error)
@@ -54,6 +58,12 @@ type FSServer interface {
 
 	Chmod(name Path, mode os.FileMode) error
 	Chown(name Path, uid, gid int) error
+}
+
+type BlockServer interface {
+	Server
+	CreateBlockVolume(name string, size uint64) error
+	OpenBlockFile(volume string) (BlockFile, error)
 }
 
 type ServerInfo struct {

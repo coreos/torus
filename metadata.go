@@ -125,9 +125,10 @@ type MetadataService interface {
 
 type BlockMetadataService interface {
 	MetadataService
-	OpenBlockVolume(lease int64, vid VolumeID) (*models.INode, error)
+	LockBlockVolume(lease int64, vid VolumeID) error
+	GetBlockVolumeINode(vid VolumeID) (*models.INode, error)
 	SyncBlockVolume(*models.INode) error
-	CloseBlockVolume(vid VolumeID) error
+	UnlockBlockVolume(vid VolumeID) error
 }
 
 type FSMetadataService interface {
