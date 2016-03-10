@@ -13,6 +13,7 @@ type Blockset interface {
 	GetBlock(ctx context.Context, i int) ([]byte, error)
 	PutBlock(ctx context.Context, inode INodeRef, i int, b []byte) error
 	GetLiveINodes() *roaring.Bitmap
+	GetAllBlockRefs() []BlockRef
 
 	Marshal() ([]byte, error)
 	Unmarshal(data []byte) error

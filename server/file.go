@@ -84,6 +84,7 @@ type fileHandle struct {
 	initialINodes *roaring.Bitmap
 	writeINodeRef agro.INodeRef
 	writeOpen     bool
+	trimmed       bool
 
 	// half-finished blocks
 	openIdx   int
@@ -603,5 +604,6 @@ func (f *fileHandle) Trim(offset, length int64) error {
 		blkFrom += 1
 	}
 	blkTo := (offset + length) / f.blkSize
+	f.trimmed = true
 	return f.blocks.Trim(int(blkFrom), int(blkTo))
 }
