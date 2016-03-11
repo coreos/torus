@@ -17,7 +17,6 @@ var (
 
 type Server struct {
 	dfs agro.BlockServer
-	mds agro.MetadataService
 
 	dev Device
 
@@ -25,7 +24,7 @@ type Server struct {
 	minor uint8
 }
 
-func NewServer(srv agro.BlockServer, mds agro.MetadataService, volume string) (*Server, error) {
+func NewServer(srv agro.BlockServer, volume string) (*Server, error) {
 	f, err := srv.OpenBlockFile(volume)
 	if err != nil {
 		return nil, err
@@ -37,7 +36,6 @@ func NewServer(srv agro.BlockServer, mds agro.MetadataService, volume string) (*
 
 	as := &Server{
 		dfs:   srv,
-		mds:   mds,
 		dev:   fd,
 		major: 1,
 		minor: 1,
@@ -135,4 +133,8 @@ func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, er
 	default:
 		return sender.SendError(aoe.ErrorUnrecognizedCommandCode)
 	}
+}
+
+func (s *Server) Close() error {
+	return s.dev.Close()
 }
