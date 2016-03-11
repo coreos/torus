@@ -20,6 +20,7 @@ type Server interface {
 	// otherwise returning ErrNotSupported
 	Block() (BlockServer, error)
 
+	GetVolume(name string) (*models.Volume, error)
 	// GetVolumes lists all volumes, regardless of type.
 	GetVolumes() ([]*models.Volume, error)
 
