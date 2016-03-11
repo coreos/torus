@@ -10,6 +10,7 @@ import (
 
 	"github.com/DeanThompson/ginpprof"
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/internal/nbd"
 	"github.com/coreos/agro/models"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
@@ -122,8 +123,33 @@ func (d *Daemon) attach(c *gin.Context) {
 		d.onErr(c, errors.New("can't mount file volumes at this time"))
 		return
 	}
+
+	dev, err := nbd.FindDevice()
+	if err != nil {
+		d.onErr(c, err)
+		return
+	}
+	closer := make(chan bool)
+	a := &attached{
+		dev:    dev,
+		closer: closer,
+		volume: vol,
+	}
+	go connectNBD(d.srv, vol.Name, dev, closer)
+	d.attached = append(d.attached, a)
+	d.writeResponse(c, Response{
+		Status: "Success",
+		Device: dev,
+	})
 }
-func (d *Daemon) detach(c *gin.Context)  {}
+
+func (d *Daemon) detach(c *gin.Context) {
+	cmd, err := d.getCommand(c)
+	if err != nil {
+		d.onErr(c, err)
+		return
+	}
+}
 func (d *Daemon) mount(c *gin.Context)   {}
 func (d *Daemon) unmount(c *gin.Context) {}
 

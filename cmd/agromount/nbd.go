@@ -75,12 +75,15 @@ func connectNBD(srv agro.Server, vol string, target string, closer chan bool) er
 
 	handle := nbd.Create(f, int64(fi.Size()), int64(stats.BlockSize))
 
-	var dev string
-	if target != "" {
-		dev, err = handle.ConnectDevice(target)
-	} else {
-		dev, err = handle.Connect()
+	if target == "" {
+		target, err = nbd.FindDevice()
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
 	}
+
+	dev, err := handle.ConnectDevice(target)
 	if err != nil {
 		fmt.Println(err)
 		return err

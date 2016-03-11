@@ -124,7 +124,7 @@ func (nbd *NBD) Size(size int64, blocksize int64) (err error) {
 }
 
 // connect the network block device
-func (nbd *NBD) Connect() (dev string, err error) {
+func FindDevice() (dev string, err error) {
 
 	if err != nil {
 		return "", err
@@ -140,10 +140,7 @@ func (nbd *NBD) Connect() (dev string, err error) {
 		if _, err = os.Stat(fmt.Sprintf("/sys/block/nbd%d/pid", i)); !os.IsNotExist(err) {
 			continue // busy
 		}
-		outdev, err := nbd.ConnectDevice(dev)
-		if err == nil {
-			return outdev, err
-		}
+		return dev, nil
 	}
 	return "", errors.New("no devices available")
 }
