@@ -6,6 +6,7 @@ package nbd
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -124,7 +125,6 @@ func (nbd *NBD) Size(size int64, blocksize int64) (err error) {
 
 // connect the network block device
 func (nbd *NBD) Connect() (dev string, err error) {
-	pair, err := syscall.Socketpair(syscall.SOCK_STREAM, syscall.AF_UNIX, 0)
 
 	if err != nil {
 		return "", err
@@ -140,21 +140,29 @@ func (nbd *NBD) Connect() (dev string, err error) {
 		if _, err = os.Stat(fmt.Sprintf("/sys/block/nbd%d/pid", i)); !os.IsNotExist(err) {
 			continue // busy
 		}
-
-		if nbd.nbd, err = os.Open(dev); err == nil {
-			// possible candidate
-			ioctl(nbd.nbd.Fd(), BLKROSET, 0) // I'm really sorry about this
-			if err := ioctl(nbd.nbd.Fd(), NBD_SET_SOCK, uintptr(pair[0])); err == nil {
-				nbd.setsocket = pair[0]
-				nbd.socket = pair[1]
-				break // success
-			}
+		outdev, err := nbd.ConnectDevice(dev)
+		if err == nil {
+			return outdev, err
 		}
+	}
+	return "", errors.New("no devices available")
+}
+
+func (nbd *NBD) ConnectDevice(dev string) (outdev string, err error) {
+	if nbd.nbd, err = os.Open(dev); err == nil {
+		// possible candidate
+		ioctl(nbd.nbd.Fd(), BLKROSET, 0) // I'm really sorry about this
+		pair, err := syscall.Socketpair(syscall.SOCK_STREAM, syscall.AF_UNIX, 0)
 		if err != nil {
 			return "", err
 		}
+		if err := ioctl(nbd.nbd.Fd(), NBD_SET_SOCK, uintptr(pair[0])); err == nil {
+			nbd.setsocket = pair[0]
+			nbd.socket = pair[1]
+			return dev, nil
+		}
 	}
-	return dev, err
+	return "", err
 }
 
 func (nbd *NBD) Serve() (err error) {

@@ -45,7 +45,7 @@ func init() {
 	rootCommand.AddCommand(fuseCommand)
 	rootCommand.AddCommand(aoeCommand)
 	rootCommand.AddCommand(ninepCommand)
-	// rootCommand.AddCommand(blockCommand)
+	rootCommand.AddCommand(nbdCommand)
 	// rootCommand.AddCommand(daemonCommand)
 
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2378", "hostname:port to the etcd instance storing the metadata")
