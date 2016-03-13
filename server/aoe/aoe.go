@@ -20,8 +20,9 @@ type Server struct {
 
 	dev Device
 
-	major uint16
-	minor uint8
+	major      uint16
+	minor      uint8
+	configData []byte
 }
 
 func NewServer(srv agro.BlockServer, volume string) (*Server, error) {
@@ -35,10 +36,11 @@ func NewServer(srv agro.BlockServer, volume string) (*Server, error) {
 	fd := &FileDevice{f}
 
 	as := &Server{
-		dfs:   srv,
-		dev:   fd,
-		major: 1,
-		minor: 1,
+		dfs:        srv,
+		dev:        fd,
+		major:      1,
+		minor:      1,
+		configData: make([]byte, 0),
 	}
 
 	return as, nil
@@ -118,8 +120,25 @@ func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, er
 				SectorCount:  uint8(iface.MTU / 512),
 				Version:      1,
 				Command:      aoe.ConfigCommandRead,
-				StringLength: 0,
-				String:       []byte{},
+				StringLength: uint16(len(s.configData)),
+				String:       s.configData,
+			}
+
+			return sender.Send(hdr)
+		case aoe.ConfigCommandSet:
+			if len(s.configData) == 0 {
+				clog.Debugf("setting data: %s", string(cfgarg.String))
+				s.configData = cfgarg.String
+			}
+			hdr.Arg = &aoe.ConfigArg{
+				BufferCount:     0,
+				FirmwareVersion: 0,
+				// naive, but works.
+				SectorCount:  uint8(iface.MTU / 512),
+				Version:      1,
+				Command:      aoe.ConfigCommandSet,
+				StringLength: uint16(len(s.configData)),
+				String:       s.configData,
 			}
 
 			return sender.Send(hdr)
