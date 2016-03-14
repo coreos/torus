@@ -26,13 +26,11 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 	mds := mustConnectToMDS()
 	gmd, err := mds.GlobalMetadata()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't get global metadata: %s\n", err)
-		os.Exit(1)
+		die("couldn't get global metadata: %v", err)
 	}
 	peers, err := mds.GetPeers()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't get peers: %s\n", err)
-		os.Exit(1)
+		die("couldn't get peers: %v", err)
 	}
 	table := tablewriter.NewWriter(os.Stdout)
 	if outputAsCSV {

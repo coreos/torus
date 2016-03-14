@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/coreos/agro"
@@ -47,12 +46,10 @@ func peerChangePreRun(cmd *cobra.Command, args []string) {
 	mds = mustConnectToMDS()
 	peers, err := mds.GetPeers()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't get peer list: %s\n", err)
-		os.Exit(1)
+		die("couldn't get peer list: %v", err)
 	}
 	if allPeers && len(args) > 0 {
-		fmt.Fprintf(os.Stderr, "can't have both --all-peers and a list of peers")
-		os.Exit(1)
+		die("can't have both --all-peers and a list of peers")
 	}
 	var out agro.PeerInfoList
 	for _, arg := range args {
@@ -69,8 +66,7 @@ func peerChangePreRun(cmd *cobra.Command, args []string) {
 			}
 		}
 		if !found {
-			fmt.Fprintf(os.Stderr, "peer %s not currently healthy\n", arg)
-			os.Exit(1)
+			die("peer %s not currently healthy", arg)
 		}
 	}
 	if allPeers {
@@ -89,24 +85,20 @@ func peerAddAction(cmd *cobra.Command, args []string) {
 	}
 	currentRing, err := mds.GetRing()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't get ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't get ring: %v", err)
 	}
 	var newRing agro.Ring
 	if r, ok := currentRing.(agro.RingAdder); ok {
 		newRing, err = r.AddPeers(newPeers)
 	} else {
-		fmt.Fprintf(os.Stderr, "current ring type cannot support adding")
-		os.Exit(1)
+		die("current ring type cannot support adding")
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't add peer to ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't add peer to ring: %v", err)
 	}
 	err = mds.SetRing(newRing)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't set new ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't set new ring: %v", err)
 	}
 }
 
@@ -116,23 +108,19 @@ func peerRemoveAction(cmd *cobra.Command, args []string) {
 	}
 	currentRing, err := mds.GetRing()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't get ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't get ring: %v", err)
 	}
 	var newRing agro.Ring
 	if r, ok := currentRing.(agro.RingRemover); ok {
 		newRing, err = r.RemovePeers(newPeers.PeerList())
 	} else {
-		fmt.Fprintf(os.Stderr, "current ring type cannot support removal")
-		os.Exit(1)
+		die("current ring type cannot support removal")
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't add peer to ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't add peer to ring: %v", err)
 	}
 	err = mds.SetRing(newRing)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't set new ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't set new ring: %v", err)
 	}
 }

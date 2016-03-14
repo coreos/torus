@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"strings"
 
 	"github.com/coreos/agro"
@@ -44,8 +42,7 @@ func mkfsPreRun(cmd *cobra.Command, args []string) {
 	var err error
 	blockSize, err = humanize.ParseBytes(blockSizeStr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing block-size: %s\n", err)
-		os.Exit(1)
+		die("error parsing block-size: %v", err)
 	}
 }
 
@@ -56,8 +53,7 @@ func mkfsAction(cmd *cobra.Command, args []string) {
 	md.DefaultBlockSpec, err = blockset.ParseBlockLayerSpec(blockSpec)
 	md.INodeReplication = inodeReplication
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing block-spec: %s\n", err)
-		os.Exit(1)
+		die("error parsing block-spec: %v", err)
 	}
 
 	cfg := agro.Config{
@@ -69,7 +65,6 @@ func mkfsAction(cmd *cobra.Command, args []string) {
 	}
 	err = agro.Mkfs("etcd", cfg, md, ringType)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error writing metadata: %s\n", err)
-		os.Exit(1)
+		die("error writing metadata: %v", err)
 	}
 }

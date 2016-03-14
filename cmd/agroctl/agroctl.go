@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/coreos/pkg/capnslog"
@@ -33,7 +32,6 @@ func main() {
 	capnslog.SetGlobalLogLevel(capnslog.WARNING)
 
 	if err := rootCommand.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		die("%v", err)
 	}
 }

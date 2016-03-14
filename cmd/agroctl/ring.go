@@ -57,8 +57,7 @@ func ringGetAction(cmd *cobra.Command, args []string) {
 	mds := mustConnectToMDS()
 	ring, err := mds.GetRing()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't get ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't get ring: %v", err)
 	}
 	fmt.Println(ring.Describe())
 }
@@ -69,8 +68,7 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 	}
 	currentRing, err := mds.GetRing()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't get ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't get ring: %v", err)
 	}
 	var newRing agro.Ring
 	switch ringType {
@@ -103,16 +101,14 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 		panic("still unknown ring type")
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't create new ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't create new ring: %v", err)
 	}
 	cfg := agro.Config{
 		MetadataAddress: etcdAddress,
 	}
 	err = agro.SetRing("etcd", cfg, newRing)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't set new ring: %s\n", err)
-		os.Exit(1)
+		die("couldn't set new ring: %v", err)
 	}
 }
 
@@ -121,12 +117,10 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 	currentPeers, err := mds.GetPeers()
 	if allUUIDs {
 		if allUUIDs && len(uuids) != 0 {
-			fmt.Fprint(os.Stderr, "use only one of --uuids or --all-peers")
-			os.Exit(1)
+			die("use only one of --uuids or --all-peers")
 		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "couldn't get peer list: %s\n", err)
-			os.Exit(1)
+			die("couldn't get peer list: %v", err)
 		}
 		uuids = currentPeers.PeerList()
 	}
@@ -146,22 +140,18 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 		return
 	case "single":
 		if len(peers) != 1 {
-			fmt.Fprint(os.Stderr, "require one uuid (use --uuids)\n")
-			os.Exit(1)
+			die("require one uuid (use --uuids)\n")
 		}
 		return
 	case "mod":
 		if len(peers) == 0 {
-			fmt.Fprint(os.Stderr, "need one of --uuids or --all-peers")
-			os.Exit(1)
+			die("need one of --uuids or --all-peers")
 		}
 	case "ketama":
 		if len(peers) == 0 {
-			fmt.Fprint(os.Stderr, "need one of --uuids or --all-peers")
-			os.Exit(1)
+			die("need one of --uuids or --all-peers")
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "invalid ring type %s (try \"empty\", \"mod\" or \"single\")", ringType)
-		os.Exit(1)
+		die(`invalid ring type %s (try "empty", "mod" or "single")`, ringType)
 	}
 }
