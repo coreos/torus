@@ -93,6 +93,9 @@ func (s *server) OpenFileMetadata(p agro.Path, flag int, md *models.Metadata) (a
 
 func (s *server) openFile(p agro.Path, flag int, md *models.Metadata) (agro.File, error) {
 	vol, err := s.mds.GetVolume(p.Volume)
+	if err != nil {
+		return nil, err
+	}
 	if vol.Type != models.Volume_FILE {
 		return nil, agro.ErrWrongVolumeType
 	}
