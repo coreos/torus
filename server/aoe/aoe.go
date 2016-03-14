@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	clog = capnslog.NewPackageLogger("github.com/coreos/agro", "aoe")
+	clog          = capnslog.NewPackageLogger("github.com/coreos/agro", "aoe")
+	broadcastAddr = net.HardwareAddr([]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
 )
 
 type Server struct {
@@ -44,10 +45,33 @@ func NewServer(srv agro.BlockServer, volume string) (*Server, error) {
 	return as, nil
 }
 
+func (s *Server) advertise(iface *Interface) error {
+	// little hack to trigger a broadcast
+	from := &raw.Addr{
+		HardwareAddr: broadcastAddr,
+	}
+
+	fr := &Frame{
+		Header: aoe.Header{
+			Command: aoe.CommandQueryConfigInformation,
+			Arg: &aoe.ConfigArg{
+				Command: aoe.ConfigCommandRead,
+			},
+		},
+	}
+
+	_, err := s.handleFrame(from, iface, fr)
+	return err
+}
+
 func (s *Server) Serve(iface *Interface) error {
 	clog.Tracef("beginning server loop on %+v", iface)
 
-	// TODO(mischief): broadcast when online
+	// broadcast ourselves
+	if err := s.advertise(iface); err != nil {
+		clog.Errorf("advertisement failed: %v", err)
+		return err
+	}
 
 	for {
 		payload := make([]byte, iface.MTU)
