@@ -148,7 +148,8 @@ func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, er
 		switch cfgarg.Command {
 		case aoe.ConfigCommandRead:
 			hdr.Arg = &aoe.ConfigArg{
-				BufferCount:     0,
+				// if < 2, linux aoe handles it poorly
+				BufferCount:     2,
 				FirmwareVersion: 0,
 				// naive, but works.
 				SectorCount:  uint8(iface.MTU / 512),
