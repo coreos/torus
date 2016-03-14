@@ -45,34 +45,33 @@ func volumeAction(cmd *cobra.Command, args []string) {
 }
 
 func volumeCreateFSAction(cmd *cobra.Command, args []string) {
-	mds := mustConnectToMDS()
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "USAGE: agroctl volume create-fs VOLUME_NAME")
+		cmd.Usage()
 		os.Exit(1)
 	}
 	if len(args) != 1 {
-		fmt.Fprintf(os.Stderr, "too many volumes specified (try one at a time)\n")
-		os.Exit(1)
+		cmd.Usage()
+		die("too many volumes specified (try one at a time)")
 	}
+	mds := mustConnectToMDS()
 	err := mds.CreateVolume(&models.Volume{
 		Name: args[0],
 		Type: models.Volume_FILE,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error creating volume %s: %s", args[0], err)
-		os.Exit(1)
+		die("error creating volume %s: %v", args[0], err)
 	}
 }
 
 func volumeCreateBlockAction(cmd *cobra.Command, args []string) {
 	mds := mustConnectToMDS()
 	if len(args) != 2 {
-		fmt.Fprintf(os.Stderr, "USAGE: agroctl volume create-block VOLUME_NAME SIZE")
+		cmd.Usage()
 		os.Exit(1)
 	}
 	size, err := humanize.ParseBytes(args[1])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing size %s", args[1])
+		die("error parsing size %s: %v", args[1], err)
 	}
 	err = mds.CreateVolume(&models.Volume{
 		Name:     args[0],
@@ -80,21 +79,19 @@ func volumeCreateBlockAction(cmd *cobra.Command, args []string) {
 		Type:     models.Volume_BLOCK,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error creating volume %s: %s", args[0], err)
-		os.Exit(1)
+		die("error creating volume %s: %v", args[0], err)
 	}
 }
 
 func volumeListAction(cmd *cobra.Command, args []string) {
-	mds := mustConnectToMDS()
 	if len(args) != 0 {
-		fmt.Fprintf(os.Stderr, "too many arguments to list\n")
+		cmd.Usage()
 		os.Exit(1)
 	}
+	mds := mustConnectToMDS()
 	vols, err := mds.GetVolumes()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error listing volumes: %s", err)
-		os.Exit(1)
+		die("error listing volumes: %v\n", err)
 	}
 	for _, x := range vols {
 		fmt.Println(x)
