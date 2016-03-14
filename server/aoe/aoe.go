@@ -3,6 +3,7 @@ package aoe
 import (
 	"net"
 	"syscall"
+	"time"
 
 	"github.com/coreos/agro"
 
@@ -66,6 +67,17 @@ func (s *Server) advertise(iface *Interface) error {
 
 func (s *Server) Serve(iface *Interface) error {
 	clog.Tracef("beginning server loop on %+v", iface)
+
+	// cheap sync proc, should stop when server is shut off
+	go func() {
+		for {
+			if err := s.dev.Sync(); err != nil {
+				clog.Warningf("failed to sync %s: %v", s.dev, err)
+			}
+
+			time.Sleep(5 * time.Second)
+		}
+	}()
 
 	// broadcast ourselves
 	if err := s.advertise(iface); err != nil {
