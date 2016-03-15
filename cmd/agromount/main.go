@@ -28,6 +28,8 @@ var (
 	logpkg            string
 
 	cfg agro.Config
+
+	clog = capnslog.NewPackageLogger("github.com/coreos/agro", "agromount")
 )
 
 var rootCommand = &cobra.Command{
@@ -46,7 +48,7 @@ func init() {
 	rootCommand.AddCommand(aoeCommand)
 	rootCommand.AddCommand(ninepCommand)
 	rootCommand.AddCommand(nbdCommand)
-	// rootCommand.AddCommand(daemonCommand)
+	rootCommand.AddCommand(daemonCommand)
 
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2378", "hostname:port to the etcd instance storing the metadata")
 	rootCommand.PersistentFlags().StringVarP(&localBlockSizeStr, "write-cache-size", "", "128MiB", "Amount of memory to use for the local write cache")
