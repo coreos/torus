@@ -3,6 +3,7 @@ package aoe
 import (
 	"net"
 	"syscall"
+	"time"
 
 	"github.com/coreos/agro"
 
@@ -12,7 +13,8 @@ import (
 )
 
 var (
-	clog = capnslog.NewPackageLogger("github.com/coreos/agro", "aoe")
+	clog          = capnslog.NewPackageLogger("github.com/coreos/agro", "aoe")
+	broadcastAddr = net.HardwareAddr([]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
 )
 
 type Server struct {
@@ -44,10 +46,44 @@ func NewServer(srv agro.BlockServer, volume string) (*Server, error) {
 	return as, nil
 }
 
+func (s *Server) advertise(iface *Interface) error {
+	// little hack to trigger a broadcast
+	from := &raw.Addr{
+		HardwareAddr: broadcastAddr,
+	}
+
+	fr := &Frame{
+		Header: aoe.Header{
+			Command: aoe.CommandQueryConfigInformation,
+			Arg: &aoe.ConfigArg{
+				Command: aoe.ConfigCommandRead,
+			},
+		},
+	}
+
+	_, err := s.handleFrame(from, iface, fr)
+	return err
+}
+
 func (s *Server) Serve(iface *Interface) error {
 	clog.Tracef("beginning server loop on %+v", iface)
 
-	// TODO(mischief): broadcast when online
+	// cheap sync proc, should stop when server is shut off
+	go func() {
+		for {
+			if err := s.dev.Sync(); err != nil {
+				clog.Warningf("failed to sync %s: %v", s.dev, err)
+			}
+
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
+	// broadcast ourselves
+	if err := s.advertise(iface); err != nil {
+		clog.Errorf("advertisement failed: %v", err)
+		return err
+	}
 
 	for {
 		payload := make([]byte, iface.MTU)
@@ -112,7 +148,8 @@ func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, er
 		switch cfgarg.Command {
 		case aoe.ConfigCommandRead:
 			hdr.Arg = &aoe.ConfigArg{
-				BufferCount:     0,
+				// if < 2, linux aoe handles it poorly
+				BufferCount:     2,
 				FirmwareVersion: 0,
 				// naive, but works.
 				SectorCount:  uint8(iface.MTU / 512),

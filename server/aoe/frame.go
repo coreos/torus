@@ -27,11 +27,15 @@ func (f *Frame) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+type WriterTo interface {
+	WriteTo(b []byte, addr net.Addr) (n int, err error)
+}
+
 type FrameSender struct {
 	orig *Frame
 	dst  net.HardwareAddr
 	src  net.HardwareAddr
-	conn net.PacketConn
+	conn WriterTo
 
 	major uint16
 	minor uint8

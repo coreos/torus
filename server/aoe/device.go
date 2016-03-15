@@ -57,7 +57,7 @@ func lba48(s int64) [6]byte {
 // poke a short into p at off
 func pshort(p []byte, off int, v uint16) {
 	off = off * 2
-	binary.BigEndian.PutUint16(p[off:off+2], v)
+	binary.LittleEndian.PutUint16(p[off:off+2], v)
 }
 
 // poke a string into p at off and pad with space
@@ -104,11 +104,24 @@ func (fd *FileDevice) Identify() ([512]byte, error) {
 	pshort(buf, 47, 0x8000)
 	pshort(buf, 49, 0x0200)
 	pshort(buf, 50, 0x4000)
+
+	// PIO mode 4
+	pshort(buf, 53, 0x0002)
+	pshort(buf, 64, 0x0002)
+
+	// claim ATA8-ACS support
+	pshort(buf, 80, 0x00F0)
+
 	pshort(buf, 83, 0x5400)
 	pshort(buf, 84, 0x4000)
 	pshort(buf, 86, 0x1400)
 	pshort(buf, 87, 0x4000)
 	pshort(buf, 93, 0x400b)
+
+	// we support DRAT
+	pshort(buf, 69, 0x4000)
+	// we support TRIM
+	pshort(buf, 169, 0x0001)
 
 	// Serial number
 	pstring(buf, 10, 20, "0")
