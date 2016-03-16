@@ -86,6 +86,14 @@ func (i INodeRef) ToBytes() []byte {
 
 }
 
+func INodeRefFromBytes(b []byte) INodeRef {
+	order := binary.LittleEndian
+	return INodeRef{
+		volume: VolumeID(order.Uint64(b[0:8])),
+		INode:  INodeID(order.Uint64(b[8:16])),
+	}
+}
+
 // BlockRef is the identifier for a unique block in the filesystem.
 type BlockRef struct {
 	INodeRef

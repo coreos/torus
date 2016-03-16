@@ -4,6 +4,7 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
+	"golang.org/x/net/context"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "gc")
@@ -18,9 +19,13 @@ type GC interface {
 	Clear()
 }
 
-func NewGCController(mds agro.MetadataService) GC {
+type INodeFetcher interface {
+	GetINode(context.Context, agro.INodeRef) (*models.INode, error)
+}
+
+func NewGCController(mds agro.MetadataService, inodes INodeFetcher) GC {
 	return &controller{
-		gcs: []GC{NewBlocksByINodeGC(mds), NewDeadINodeGC(mds), NewBlockVolGC(mds)},
+		gcs: []GC{NewBlocksByINodeGC(mds), NewDeadINodeGC(mds), NewBlockVolGC(mds, inodes)},
 	}
 }
 

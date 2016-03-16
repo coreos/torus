@@ -83,25 +83,20 @@ func (c *etcdCtx) LockBlockVolume(lease int64, vid agro.VolumeID) error {
 	return nil
 }
 
-func (c *etcdCtx) GetBlockVolumeINode(vid agro.VolumeID) (*models.INode, error) {
+func (c *etcdCtx) GetBlockVolumeINode(vid agro.VolumeID) (agro.INodeRef, error) {
 	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "blockinode", uint64ToHex(uint64(vid)))))
 	if err != nil {
-		return nil, err
+		return agro.NewINodeRef(0, 0), err
 	}
 	if len(resp.Kvs) != 1 {
-		return nil, errors.New("unexpected metadata for volume")
+		return agro.NewINodeRef(0, 0), errors.New("unexpected metadata for volume")
 	}
-	i := &models.INode{}
-	err = i.Unmarshal(resp.Kvs[0].Value)
-	return i, err
+	return agro.INodeRefFromBytes(resp.Kvs[0].Value), nil
 }
 
-func (c *etcdCtx) SyncBlockVolume(inode *models.INode) error {
-	vid := inode.Volume
-	inodeBytes, err := inode.Marshal()
-	if err != nil {
-		return err
-	}
+func (c *etcdCtx) SyncBlockVolume(inode *agro.INodeRef) error {
+	vid := uint64(inode.Volume())
+	inodeBytes := inode.ToBytes()
 	tx := tx().If(
 		keyExists(mkKey("volumemeta", "blocklock", uint64ToHex(vid))),
 		keyEquals(mkKey("volumemeta", "blocklock", uint64ToHex(vid)), []byte(c.UUID())),
