@@ -22,6 +22,37 @@ func (s *server) CreateBlockVolume(volume string, size uint64) error {
 	})
 }
 
+func (s *server) getOrCreateBlockINode(volume *models.Volume, ref agro.INodeRef) (*models.INode, error) {
+	if ref.Volume() != agro.VolumeID(volume.Id) {
+		panic("ids managed by metadata didn't match, how is that possible?")
+	}
+	if ref.INode != 1 {
+		return s.inodes.GetINode(s.getContext(), ref)
+	}
+	globals, err := s.mds.GlobalMetadata()
+	if err != nil {
+
+	}
+	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, nil)
+	if err != nil {
+		return nil, err
+	}
+	nBlocks := (volume.MaxBytes / globals.BlockSize)
+	if volume.MaxBytes%globals.BlockSize != 0 {
+		nBlocks++
+	}
+	err = bs.Truncate(int(nBlocks), globals.BlockSize)
+	if err != nil {
+		return nil, err
+	}
+	inode := models.NewEmptyINode()
+	inode.INode = 1
+	inode.Volume = volume.Id
+	inode.Filesize = volume.MaxBytes
+	inode.Blocks, err = blockset.MarshalToProto(bs)
+	return inode, err
+}
+
 func (s *server) OpenBlockFile(volume string) (agro.BlockFile, error) {
 	vol, err := s.mds.GetVolume(volume)
 	if err != nil {
@@ -39,7 +70,7 @@ func (s *server) OpenBlockFile(volume string) (agro.BlockFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	inode, err := s.inodes.GetINode(s.getContext(), ref)
+	inode, err := s.getOrCreateBlockINode(vol, ref)
 	if err != nil {
 		return nil, err
 	}

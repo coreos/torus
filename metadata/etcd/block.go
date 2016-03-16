@@ -4,8 +4,11 @@ import (
 	"errors"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
+)
+
+var (
+	_ agro.BlockMetadataService = &etcdCtx{}
 )
 
 func (c *etcdCtx) createBlockVol(volume *models.Volume) error {
@@ -18,34 +21,7 @@ func (c *etcdCtx) createBlockVol(volume *models.Volume) error {
 	if err != nil {
 		return err
 	}
-	globals, err := c.GlobalMetadata()
-	if err != nil {
-		return err
-	}
-	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, nil)
-	if err != nil {
-		return err
-	}
-	nBlocks := (volume.MaxBytes / globals.BlockSize)
-	if volume.MaxBytes%globals.BlockSize != 0 {
-		nBlocks++
-	}
-	err = bs.Truncate(int(nBlocks), globals.BlockSize)
-	if err != nil {
-		return err
-	}
-	inode := models.NewEmptyINode()
-	inode.INode = 1
-	inode.Volume = volume.Id
-	inode.Filesize = volume.MaxBytes
-	inode.Blocks, err = blockset.MarshalToProto(bs)
-	if err != nil {
-		return err
-	}
-	inodeBytes, err := inode.Marshal()
-	if err != nil {
-		return err
-	}
+	inodeBytes := agro.NewINodeRef(agro.VolumeID(volume.Id), 1).ToBytes()
 	do := tx().If(
 		keyNotExists(mkKey("volumes", volume.Name)),
 	).Then(
@@ -94,7 +70,7 @@ func (c *etcdCtx) GetBlockVolumeINode(vid agro.VolumeID) (agro.INodeRef, error) 
 	return agro.INodeRefFromBytes(resp.Kvs[0].Value), nil
 }
 
-func (c *etcdCtx) SyncBlockVolume(inode *agro.INodeRef) error {
+func (c *etcdCtx) SyncBlockVolume(inode agro.INodeRef) error {
 	vid := uint64(inode.Volume())
 	inodeBytes := inode.ToBytes()
 	tx := tx().If(

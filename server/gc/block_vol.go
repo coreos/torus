@@ -51,6 +51,10 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	if err != nil {
 		return err
 	}
+	if b.curRef.INode <= 1 {
+		b.skip = true
+		return nil
+	}
 	inode, err := b.inodes.GetINode(b.getContext(), b.curRef)
 	if err != nil {
 		return err
