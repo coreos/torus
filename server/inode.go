@@ -73,6 +73,7 @@ func (b *INodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *mod
 		bufoffset = 0
 		index++
 	}
+	clog.Tracef("Wrote INode %s", i)
 	return nil
 }
 
@@ -107,7 +108,7 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 			data, err = b.bs.GetBlock(ctx, ref)
 			if err != nil {
 				promINodeFailures.Inc()
-				clog.Errorf("inode: couldn't get inode block: %s", err)
+				clog.Errorf("inode: couldn't get inode block: %s -- %s", err, ref)
 				return nil, err
 			}
 		}

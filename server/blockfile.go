@@ -22,6 +22,37 @@ func (s *server) CreateBlockVolume(volume string, size uint64) error {
 	})
 }
 
+func (s *server) getOrCreateBlockINode(volume *models.Volume, ref agro.INodeRef) (*models.INode, error) {
+	if ref.Volume() != agro.VolumeID(volume.Id) {
+		panic("ids managed by metadata didn't match, how is that possible?")
+	}
+	if ref.INode != 1 {
+		return s.inodes.GetINode(s.getContext(), ref)
+	}
+	globals, err := s.mds.GlobalMetadata()
+	if err != nil {
+
+	}
+	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, nil)
+	if err != nil {
+		return nil, err
+	}
+	nBlocks := (volume.MaxBytes / globals.BlockSize)
+	if volume.MaxBytes%globals.BlockSize != 0 {
+		nBlocks++
+	}
+	err = bs.Truncate(int(nBlocks), globals.BlockSize)
+	if err != nil {
+		return nil, err
+	}
+	inode := models.NewEmptyINode()
+	inode.INode = 1
+	inode.Volume = volume.Id
+	inode.Filesize = volume.MaxBytes
+	inode.Blocks, err = blockset.MarshalToProto(bs)
+	return inode, err
+}
+
 func (s *server) OpenBlockFile(volume string) (agro.BlockFile, error) {
 	vol, err := s.mds.GetVolume(volume)
 	if err != nil {
@@ -35,7 +66,11 @@ func (s *server) OpenBlockFile(volume string) (agro.BlockFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	inode, err := mds.GetBlockVolumeINode(agro.VolumeID(vol.Id))
+	ref, err := mds.GetBlockVolumeINode(agro.VolumeID(vol.Id))
+	if err != nil {
+		return nil, err
+	}
+	inode, err := s.getOrCreateBlockINode(vol, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +98,7 @@ func (s *server) OpenBlockFile(volume string) (agro.BlockFile, error) {
 }
 
 func (f *file) blockSync(mds agro.BlockMetadataService) error {
-	if !f.writeOpen && !f.trimmed {
+	if !f.writeOpen {
 		clog.Debugf("not syncing")
 		return nil
 	}
@@ -81,6 +116,7 @@ func (f *file) blockSync(mds agro.BlockMetadataService) error {
 	if err != nil {
 		return err
 	}
+	ref := f.writeINodeRef
 	blkdata, err := blockset.MarshalToProto(f.blocks)
 	if err != nil {
 		clog.Error("sync: couldn't marshal proto")
@@ -90,11 +126,14 @@ func (f *file) blockSync(mds agro.BlockMetadataService) error {
 	if f.inode.Volume != f.volume.Id {
 		panic("mismatched volume and inode volume")
 	}
-	err = mds.SyncBlockVolume(f.inode)
+	err = f.srv.inodes.WriteINode(f.getContext(), ref, f.inode)
+	if err != nil {
+		return err
+	}
+	err = mds.SyncBlockVolume(ref)
 	if err != nil {
 		return err
 	}
 	f.writeOpen = false
-	f.trimmed = false
 	return nil
 }

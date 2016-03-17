@@ -84,7 +84,6 @@ type fileHandle struct {
 	initialINodes *roaring.Bitmap
 	writeINodeRef agro.INodeRef
 	writeOpen     bool
-	trimmed       bool
 
 	// half-finished blocks
 	openIdx   int
@@ -615,12 +614,15 @@ func (f *fileHandle) Truncate(size int64) error {
 // Trim zeroes data in the middle of a file.
 func (f *fileHandle) Trim(offset, length int64) error {
 	clog.Debugf("trimming %d %d", offset, length)
+	err := f.openWrite()
+	if err != nil {
+		return err
+	}
 	// find the block edges
 	blkFrom := offset / f.blkSize
 	if offset%f.blkSize != 0 {
 		blkFrom += 1
 	}
 	blkTo := (offset + length) / f.blkSize
-	f.trimmed = true
 	return f.blocks.Trim(int(blkFrom), int(blkTo))
 }
