@@ -242,6 +242,10 @@ func (s *server) CreateFSVolume(vol string) error {
 	return err
 }
 
+func (s *server) GetVolume(name string) (*models.Volume, error) {
+	return s.mds.GetVolume(name)
+}
+
 func (s *server) GetVolumes() ([]*models.Volume, error) {
 	return s.mds.GetVolumes()
 }

@@ -1,0 +1,68 @@
+#!/bin/bash
+
+usage() {
+	err "Invalid usage. Usage: "
+	err "\t$0 init"
+	err "\t$0 attach <json params>"
+	err "\t$0 detach <mount device>"
+	err "\t$0 mount <mount dir> <mount device> <json params>"
+	err "\t$0 unmount <mount dir>"
+	exit 1
+}
+
+err() {
+	echo -ne $* 1>&2
+}
+
+log() {
+	echo -ne $* >&1
+}
+
+attach() {
+        echo "{\"Volume\": ${@:1}}" | curl -H "Content-Type: application/json" -X POST -d @- "http://127.0.0.1:41000/attach"
+}
+
+detach() {
+        curl -H "Content-Type: application/json" -X POST -d "{\"MountDev\": \"$1\"}" "http://127.0.0.1:41000/detach"
+}
+
+domount() {
+#	FSTYPE=$(echo $3|jq -r '.["kubernetes.io/fsType"]')
+        echo "{\"MountDir\":\"$1\",\"MountDev\": \"$2\", \"Volume\": ${@:3}}" | curl -H "Content-Type: application/json" -X POST -d @- "http://127.0.0.1:41000/mount"
+}
+
+unmount() {
+        curl -H "Content-Type: application/json" -X POST -d "{\"MountDir\":\"$1\"}" "http://127.0.0.1:41000/unmount"
+}
+
+op=$1
+
+if [ "$op" = "init" ]; then
+	log "{\"status\": \"Success\"}"
+	exit 0
+fi
+
+if [ $# -lt 2 ]; then
+	usage
+fi
+
+shift
+
+case "$op" in
+	attach)
+		attach $*
+		;;
+	detach)
+		detach $*
+		;;
+	mount)
+		domount $*
+		;;
+	unmount)
+		unmount $*
+		;;
+	*)
+		usage
+esac
+
+exit 1
