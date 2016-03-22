@@ -59,9 +59,9 @@ type VolumeData struct {
 
 type Response struct {
 	// Status of the callout. One of "Success" or "Failure".
-	Status string
+	Status string `json:"status"`
 	// Message is the reason for failure.
-	Message string `json:",omitempty"`
+	Message string `json:"message,omitempty"`
 	// Device assigned by the driver.
 	Device string `json:"device,omitempty"`
 }
@@ -226,6 +226,7 @@ func (d *Daemon) mount(c *gin.Context) {
 	if cmd.Volume.Trim {
 		flags = "noatime,discard"
 	}
+	os.MkdirAll(cmd.MountDir, os.ModeDir|0555)
 	ex := exec.Command("mount", "-t", fstype, "-o", flags, cmd.MountDev, cmd.MountDir)
 	fmt.Println(ex.Env)
 	out, err = ex.CombinedOutput()
@@ -273,8 +274,11 @@ func (d *Daemon) writeResponse(c *gin.Context, resp Response) {
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))
+		c.Writer.WriteString("\n")
 	}
+	clog.Println("out:", string(b)+"\n")
 	c.Writer.Write(b)
+	c.Writer.WriteString("\n")
 }
 
 func (d *Daemon) onErr(c *gin.Context, err error) {
