@@ -156,7 +156,21 @@ func (d *Daemon) attach(c *gin.Context) {
 		closer: closer,
 		volume: vol,
 	}
-	go connectNBD(d.srv, vol.Name, dev, closer)
+	blocksrv, err := d.srv.Block()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "server doesn't support block volumes: %s\n", err)
+		d.onErr(c, err)
+		return
+	}
+
+	f, err := blocksrv.OpenBlockFile(vol.Name)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
+		d.onErr(c, err)
+		return
+	}
+
+	go connectNBD(d.srv, f, dev, closer)
 	d.attached = append(d.attached, a)
 	d.writeResponse(c, Response{
 		Status: "Success",
@@ -212,7 +226,7 @@ func (d *Daemon) mount(c *gin.Context) {
 	if err != nil {
 		// Not formatted
 		clog.Debug("blkid err")
-		out, err := exec.Command("mkfs", "-t", fstype, cmd.MountDev).Output()
+		out, err := exec.Command("mkfs", "-t", fstype, cmd.MountDev).CombinedOutput()
 		clog.Info("mkfs ", string(out))
 		clog.Info("err ", err)
 	} else {
