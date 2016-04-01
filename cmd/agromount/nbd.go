@@ -41,28 +41,27 @@ func nbdAction(cmd *cobra.Command, args []string) {
 			close(closer)
 		}
 	}()
-	err := connectNBD(srv, args[0], knownDev, closer)
+	defer srv.Close()
+	blocksrv, err := srv.Block()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "server doesn't support block volumes: %s\n", err)
+		os.Exit(1)
+	}
+
+	f, err := blocksrv.OpenBlockFile(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
+		os.Exit(1)
+	}
+	err = connectNBD(srv, f, knownDev, closer)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
-	srv.Close()
 }
 
-func connectNBD(srv agro.Server, vol string, target string, closer chan bool) error {
-	blocksrv, err := srv.Block()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "server doesn't support block volumes: %s\n", err)
-		return err
-	}
-
-	f, err := blocksrv.OpenBlockFile(vol)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
-		return err
-	}
+func connectNBD(srv agro.Server, f agro.BlockFile, target string, closer chan bool) error {
 	defer f.Close()
-
 	fi, err := f.Stat()
 	if err != nil {
 		return err

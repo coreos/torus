@@ -19,20 +19,20 @@ log() {
 }
 
 attach() {
-        echo "{\"Volume\": ${@:1}}" | curl -H "Content-Type: application/json" -X POST -d @- "http://127.0.0.1:41000/attach"
+        echo "{\"Volume\": ${@:1}}" | curl -sS -H "Content-Type: application/json" -X POST -d @- "http://127.0.0.1:4444/attach"
 }
 
 detach() {
-        curl -H "Content-Type: application/json" -X POST -d "{\"MountDev\": \"$1\"}" "http://127.0.0.1:41000/detach"
+        curl -sS -H "Content-Type: application/json" -X POST -d "{\"MountDev\": \"$1\"}" "http://127.0.0.1:4444/detach"
 }
 
 domount() {
 #	FSTYPE=$(echo $3|jq -r '.["kubernetes.io/fsType"]')
-        echo "{\"MountDir\":\"$1\",\"MountDev\": \"$2\", \"Volume\": ${@:3}}" | curl -H "Content-Type: application/json" -X POST -d @- "http://127.0.0.1:41000/mount"
+        echo "{\"MountDir\":\"$1\",\"MountDev\": \"$2\", \"Volume\": ${@:3}}" | curl -sS -H "Content-Type: application/json" -X POST -d @- "http://127.0.0.1:4444/mount"
 }
 
 unmount() {
-        curl -H "Content-Type: application/json" -X POST -d "{\"MountDir\":\"$1\"}" "http://127.0.0.1:41000/unmount"
+        curl -sS -H "Content-Type: application/json" -X POST -d "{\"MountDir\":\"$1\"}" "http://127.0.0.1:4444/unmount"
 }
 
 op=$1
@@ -65,4 +65,4 @@ case "$op" in
 		usage
 esac
 
-exit 1
+exit 0

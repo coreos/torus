@@ -59,9 +59,9 @@ type VolumeData struct {
 
 type Response struct {
 	// Status of the callout. One of "Success" or "Failure".
-	Status string
+	Status string `json:"status"`
 	// Message is the reason for failure.
-	Message string `json:",omitempty"`
+	Message string `json:"message,omitempty"`
 	// Device assigned by the driver.
 	Device string `json:"device,omitempty"`
 }
@@ -156,7 +156,21 @@ func (d *Daemon) attach(c *gin.Context) {
 		closer: closer,
 		volume: vol,
 	}
-	go connectNBD(d.srv, vol.Name, dev, closer)
+	blocksrv, err := d.srv.Block()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "server doesn't support block volumes: %s\n", err)
+		d.onErr(c, err)
+		return
+	}
+
+	f, err := blocksrv.OpenBlockFile(vol.Name)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
+		d.onErr(c, err)
+		return
+	}
+
+	go connectNBD(d.srv, f, dev, closer)
 	d.attached = append(d.attached, a)
 	d.writeResponse(c, Response{
 		Status: "Success",
@@ -212,7 +226,7 @@ func (d *Daemon) mount(c *gin.Context) {
 	if err != nil {
 		// Not formatted
 		clog.Debug("blkid err")
-		out, err := exec.Command("mkfs", "-t", fstype, cmd.MountDev).Output()
+		out, err := exec.Command("mkfs", "-t", fstype, cmd.MountDev).CombinedOutput()
 		clog.Info("mkfs ", string(out))
 		clog.Info("err ", err)
 	} else {
@@ -226,6 +240,7 @@ func (d *Daemon) mount(c *gin.Context) {
 	if cmd.Volume.Trim {
 		flags = "noatime,discard"
 	}
+	os.MkdirAll(cmd.MountDir, os.ModeDir|0555)
 	ex := exec.Command("mount", "-t", fstype, "-o", flags, cmd.MountDev, cmd.MountDir)
 	fmt.Println(ex.Env)
 	out, err = ex.CombinedOutput()
@@ -273,8 +288,11 @@ func (d *Daemon) writeResponse(c *gin.Context, resp Response) {
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		c.Writer.Write([]byte(err.Error()))
+		c.Writer.WriteString("\n")
 	}
+	clog.Println("out:", string(b)+"\n")
 	c.Writer.Write(b)
+	c.Writer.WriteString("\n")
 }
 
 func (d *Daemon) onErr(c *gin.Context, err error) {
