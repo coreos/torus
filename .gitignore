@@ -33,3 +33,5 @@ agro
 agroctl
 agromount
 
+# local-cluster information
+/local-cluster
