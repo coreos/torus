@@ -22,8 +22,8 @@ const (
 // MetadataService is the interface representing the basic ways to manipulate
 // consistently stored fileystem metadata.
 type MetadataService interface {
-	CreateVolume(*models.Volume) error
 	GetVolumes() ([]*models.Volume, error)
+	GetVolume(volume string) (*models.Volume, error)
 	Kind() MetadataKind
 
 	GlobalMetadata() (GlobalMetadata, error)

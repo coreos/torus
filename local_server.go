@@ -67,7 +67,7 @@ func NewMemoryServer() agro.Server {
 	cfg := agro.Config{
 		StorageSize: 100 * 1024 * 1024,
 	}
-	x, err := NewServer(cfg, "memory", "temp")
+	x, err := NewServer(cfg, "temp", "temp")
 	if err != nil {
 		panic(err)
 	}
