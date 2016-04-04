@@ -47,7 +47,6 @@ type MetadataService interface {
 
 	CommitINodeIndex(VolumeID) (INodeID, error)
 	GetINodeIndex(VolumeID) (INodeID, error)
-	GetINodeIndexes() (map[string]INodeID, error)
 }
 
 type DebugMetadataService interface {

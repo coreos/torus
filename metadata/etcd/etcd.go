@@ -87,7 +87,7 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	}
 	client := etcdpb.NewKVClient(conn)
 
-	e := &etcd{
+	e := &Etcd{
 		cfg:          cfg,
 		conn:         conn,
 		kv:           client,
@@ -104,6 +104,10 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 		return nil, err
 	}
 	return e, nil
+}
+
+func (e *etcdCtx) Kind() agro.MetadataKind {
+	return agro.EtcdMetadata
 }
 
 func (e *Etcd) Close() error {
@@ -389,4 +393,30 @@ func (c *etcdCtx) SetRing(ring agro.Ring) error {
 	}
 	return nil
 
+}
+
+func (c *etcdCtx) CommitINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
+	promOps.WithLabelValues("commit-inode-index").Inc()
+	c.etcd.mut.Lock()
+	defer c.etcd.mut.Unlock()
+	newID, err := c.AtomicModifyKey(mkKey("volumemeta", "inode", uint64ToHex(uint64(vid))), bytesAddOne)
+	if err != nil {
+		return 0, err
+	}
+	return agro.INodeID(newID.(uint64)), nil
+}
+
+func (c *etcdCtx) GetINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
+	promOps.WithLabelValues("get-inode-index").Inc()
+	c.etcd.mut.Lock()
+	defer c.etcd.mut.Unlock()
+	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "inode", uint64ToHex(uint64(vid)))))
+	if err != nil {
+		return agro.INodeID(0), err
+	}
+	if len(resp.Kvs) != 1 {
+		return agro.INodeID(0), agro.ErrNotExist
+	}
+	id := bytesToUint64(resp.Kvs[0].Value)
+	return agro.INodeID(id), nil
 }

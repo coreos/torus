@@ -2,61 +2,12 @@ package block
 
 import (
 	"errors"
-	"path"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 )
 
 type etcd struct {
-}
-
-func (c *etcdCtx) CommitINodeIndex(vol string) (agro.INodeID, error) {
-	volume, err := c.GetVolume(vol)
-	if err != nil {
-		return 0, err
-	}
-	promOps.WithLabelValues("commit-inode-index").Inc()
-	c.etcd.mut.Lock()
-	defer c.etcd.mut.Unlock()
-	newID, err := c.atomicModifyKey(mkKey("volumemeta", "inode", uint64ToHex(volume.Id)), bytesAddOne)
-	if err != nil {
-		return 0, err
-	}
-	return agro.INodeID(newID.(uint64)), nil
-}
-
-func (c *etcdCtx) GetINodeIndex(vol string) (agro.INodeID, error) {
-	volume, err := c.GetVolume(vol)
-	if err != nil {
-		return 0, err
-	}
-	promOps.WithLabelValues("get-inode-index").Inc()
-	c.etcd.mut.Lock()
-	defer c.etcd.mut.Unlock()
-	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "inode", uint64ToHex(volume.Id))))
-	if err != nil {
-		return agro.INodeID(0), err
-	}
-	if len(resp.Kvs) != 1 {
-		return agro.INodeID(0), agro.ErrNotExist
-	}
-	id := bytesToUint64(resp.Kvs[0].Value)
-	return agro.INodeID(id), nil
-}
-
-func (c *etcdCtx) GetINodeIndexes() (map[string]agro.INodeID, error) {
-	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "inode")))
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[string]agro.INodeID)
-	for _, kv := range resp.Kvs {
-		vol := path.Base(string(kv.Key))
-		id := bytesToUint64(kv.Value)
-		out[vol] = agro.INodeID(id)
-	}
-	return out, nil
 }
 
 func (c *etcdCtx) createBlockVol(volume *models.Volume) error {

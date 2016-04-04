@@ -12,7 +12,7 @@ import (
 )
 
 func mkKey(s ...string) []byte {
-	s = append([]string{keyPrefix}, s...)
+	s = append([]string{KeyPrefix}, s...)
 	return []byte(path.Join(s...))
 }
 
