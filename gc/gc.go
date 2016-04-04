@@ -24,8 +24,18 @@ type INodeFetcher interface {
 }
 
 func NewGCController(mds agro.MetadataService, inodes INodeFetcher) GC {
+	var gcs []GC
+	for k, v := range gcFuncs {
+		clog.Debugf("creating %s gc", k)
+		gc, err := v(mds, inodes)
+		if err != nil {
+			clog.Errorf("cannot create gc %s", k)
+			continue
+		}
+		gcs = append(gcs, gc)
+	}
 	return &controller{
-		gcs: []GC{NewBlocksByINodeGC(mds), NewDeadINodeGC(mds), NewBlockVolGC(mds, inodes)},
+		gcs: gcs,
 	}
 }
 
@@ -52,4 +62,20 @@ func (c *controller) Clear() {
 	for _, x := range c.gcs {
 		x.Clear()
 	}
+}
+
+type CreateGCFunc func(mds agro.MetadataService, inodes INodeFetcher) (GC, error)
+
+var gcFuncs map[string]CreateGCFunc
+
+func RegisterGC(name string, newFunc CreateGCFunc) {
+	if gcFuncs == nil {
+		gcFuncs = make(map[string]CreateGCFunc)
+	}
+
+	if _, ok := gcFuncs[name]; ok {
+		panic("gc: attempted to register GC " + name + " twice")
+	}
+
+	gcFuncs[name] = newFunc
 }

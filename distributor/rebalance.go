@@ -11,14 +11,14 @@ import (
 
 // Goroutine which watches for new rings and kicks off
 // the rebalance dance.
-func (d *distributor) ringWatcher(closer chan struct{}) {
+func (d *Distributor) ringWatcher(closer chan struct{}) {
 	ch := make(chan agro.Ring)
-	d.srv.mds.SubscribeNewRings(ch)
+	d.srv.MDS.SubscribeNewRings(ch)
 exit:
 	for {
 		select {
 		case <-closer:
-			d.srv.mds.UnsubscribeNewRings(ch)
+			d.srv.MDS.UnsubscribeNewRings(ch)
 			close(ch)
 			break exit
 		case newring, ok := <-ch:
@@ -40,7 +40,7 @@ exit:
 	}
 }
 
-func (d *distributor) rebalanceTicker(closer chan struct{}) {
+func (d *Distributor) rebalanceTicker(closer chan struct{}) {
 	n := 0
 	total := 0
 	time.Sleep(time.Duration(250+rand.Intn(250)) * time.Millisecond)
@@ -51,7 +51,7 @@ exit:
 	for {
 		if volIdx == len(volset) {
 			volIdx = 0
-			volset, err = d.srv.mds.GetVolumes()
+			volset, err = d.srv.MDS.GetVolumes()
 			if err != nil {
 				clog.Error(err)
 			}
@@ -72,29 +72,32 @@ exit:
 				break exit
 			case <-time.After(timeout):
 				written, err := d.rebalancer.Tick()
-				d.srv.infoMut.Lock()
 				if d.ring.Version() != d.rebalancer.VersionStart() {
 					// Something is changed -- we are now rebalancing
-					d.srv.peerInfo.Rebalancing = true
+					d.rebalancing = true
+				}
+				info := &models.RebalanceInfo{
+					Rebalancing: d.rebalancing,
 				}
 				total += written
-				d.srv.peerInfo.LastRebalanceBlocks = uint64(total)
+				info.LastRebalanceBlocks = uint64(total)
 				if err == io.EOF {
 					// Good job, sleep well, I'll most likely rebalance you in the morning.
-					d.srv.peerInfo.LastRebalanceFinish = time.Now().UnixNano()
+					info.LastRebalanceFinish = time.Now().UnixNano()
 					total = 0
 					finishver := d.rebalancer.VersionStart()
 					if finishver == d.ring.Version() {
-						d.srv.peerInfo.Rebalancing = false
+						d.rebalancing = false
+						info.Rebalancing = false
 					}
-					d.srv.infoMut.Unlock()
+					d.srv.UpdateRebalanceInfo(info)
 					break volume
 				} else if err != nil {
 					// This is usually really bad
 					clog.Error(err)
 				}
 				n = written
-				d.srv.infoMut.Unlock()
+				d.srv.UpdateRebalanceInfo(info)
 			}
 		}
 		time.Sleep(time.Duration(rand.Intn(3)) * time.Second)

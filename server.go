@@ -31,17 +31,17 @@ type Server struct {
 	mut           sync.RWMutex
 	writeableLock sync.RWMutex
 	infoMut       sync.Mutex
-	blocks        BlockStore
+	Blocks        BlockStore
 	MDS           MetadataService
-	inodes        *INodeStore
+	INodes        *INodeStore
 	peersMap      map[string]*models.PeerInfo
 	closeChans    []chan interface{}
-	cfg           Config
+	Cfg           Config
 	peerInfo      *models.PeerInfo
 
 	lease            int64
 	heartbeating     bool
-	replicationOpen  bool
+	ReplicationOpen  bool
 	timeoutCallbacks []func(string)
 }
 
@@ -54,12 +54,12 @@ func (s *Server) Close() error {
 		clog.Errorf("couldn't close mds: %s", err)
 		return err
 	}
-	err = s.inodes.Close()
+	err = s.INodes.Close()
 	if err != nil {
 		clog.Errorf("couldn't close inodes: %s", err)
 		return err
 	}
-	err = s.blocks.Close()
+	err = s.Blocks.Close()
 	if err != nil {
 		clog.Errorf("couldn't close blocks: %s", err)
 		return err
@@ -81,7 +81,17 @@ func (s *Server) getContext() context.Context {
 }
 
 func (s *Server) ExtendContext(ctx context.Context) context.Context {
-	wl := context.WithValue(ctx, CtxWriteLevel, s.cfg.WriteLevel)
-	rl := context.WithValue(wl, CtxReadLevel, s.cfg.ReadLevel)
+	wl := context.WithValue(ctx, CtxWriteLevel, s.Cfg.WriteLevel)
+	rl := context.WithValue(wl, CtxReadLevel, s.Cfg.ReadLevel)
 	return rl
+}
+
+func (s *Server) GetPeerMap() map[string]*models.PeerInfo {
+	s.infoMut.Lock()
+	defer s.infoMut.Unlock()
+	out := make(map[string]*models.PeerInfo)
+	for k, v := range s.peersMap {
+		out[k] = v
+	}
+	return out
 }

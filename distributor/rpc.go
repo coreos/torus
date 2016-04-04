@@ -53,7 +53,7 @@ func (d *Distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 		}
 		ok := false
 		for _, x := range peers.Peers {
-			if x == d.srv.mds.UUID() {
+			if x == d.UUID() {
 				ok = true
 				break
 			}

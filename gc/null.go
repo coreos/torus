@@ -5,8 +5,8 @@ import (
 	"github.com/coreos/agro/models"
 )
 
-type nullGC struct{}
+type NullGC struct{}
 
-func (n *nullGC) PrepVolume(_ *models.Volume) error { return nil }
-func (n *nullGC) IsDead(ref agro.BlockRef) bool     { return false }
-func (n *nullGC) Clear()                            {}
+func (n *NullGC) PrepVolume(_ *models.Volume) error { return nil }
+func (n *NullGC) IsDead(ref agro.BlockRef) bool     { return false }
+func (n *NullGC) Clear()                            {}

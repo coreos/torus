@@ -18,6 +18,7 @@
 		FileEntry
 		FileChainSet
 		PeerInfo
+		RebalanceInfo
 		Ring
 		BlockRef
 		INodeRef
@@ -185,20 +186,35 @@ func (m *FileChainSet) GetChains() map[uint64]uint64 {
 }
 
 type PeerInfo struct {
-	UUID                string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	Address             string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	LastSeen            int64  `protobuf:"varint,3,opt,name=last_seen,proto3" json:"last_seen,omitempty"`
-	TotalBlocks         uint64 `protobuf:"varint,4,opt,name=total_blocks,proto3" json:"total_blocks,omitempty"`
-	UsedBlocks          uint64 `protobuf:"varint,5,opt,name=used_blocks,proto3" json:"used_blocks,omitempty"`
-	LastRebalanceFinish int64  `protobuf:"varint,6,opt,name=last_rebalance_finish,proto3" json:"last_rebalance_finish,omitempty"`
-	LastRebalanceBlocks uint64 `protobuf:"varint,7,opt,name=last_rebalance_blocks,proto3" json:"last_rebalance_blocks,omitempty"`
-	Rebalancing         bool   `protobuf:"varint,8,opt,name=rebalancing,proto3" json:"rebalancing,omitempty"`
-	TimedOut            bool   `protobuf:"varint,9,opt,name=timed_out,proto3" json:"timed_out,omitempty"`
+	UUID          string         `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	Address       string         `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	LastSeen      int64          `protobuf:"varint,3,opt,name=last_seen,proto3" json:"last_seen,omitempty"`
+	TotalBlocks   uint64         `protobuf:"varint,4,opt,name=total_blocks,proto3" json:"total_blocks,omitempty"`
+	UsedBlocks    uint64         `protobuf:"varint,5,opt,name=used_blocks,proto3" json:"used_blocks,omitempty"`
+	TimedOut      bool           `protobuf:"varint,6,opt,name=timed_out,proto3" json:"timed_out,omitempty"`
+	RebalanceInfo *RebalanceInfo `protobuf:"bytes,7,opt,name=rebalance_info" json:"rebalance_info,omitempty"`
 }
 
 func (m *PeerInfo) Reset()         { *m = PeerInfo{} }
 func (m *PeerInfo) String() string { return proto.CompactTextString(m) }
 func (*PeerInfo) ProtoMessage()    {}
+
+func (m *PeerInfo) GetRebalanceInfo() *RebalanceInfo {
+	if m != nil {
+		return m.RebalanceInfo
+	}
+	return nil
+}
+
+type RebalanceInfo struct {
+	LastRebalanceFinish int64  `protobuf:"varint,1,opt,name=last_rebalance_finish,proto3" json:"last_rebalance_finish,omitempty"`
+	LastRebalanceBlocks uint64 `protobuf:"varint,2,opt,name=last_rebalance_blocks,proto3" json:"last_rebalance_blocks,omitempty"`
+	Rebalancing         bool   `protobuf:"varint,3,opt,name=rebalancing,proto3" json:"rebalancing,omitempty"`
+}
+
+func (m *RebalanceInfo) Reset()         { *m = RebalanceInfo{} }
+func (m *RebalanceInfo) String() string { return proto.CompactTextString(m) }
+func (*RebalanceInfo) ProtoMessage()    {}
 
 type Ring struct {
 	Type              uint32            `protobuf:"varint,1,opt,name=type,proto3" json:"type,omitempty"`
@@ -254,6 +270,7 @@ func init() {
 	proto.RegisterType((*FileEntry)(nil), "models.FileEntry")
 	proto.RegisterType((*FileChainSet)(nil), "models.FileChainSet")
 	proto.RegisterType((*PeerInfo)(nil), "models.PeerInfo")
+	proto.RegisterType((*RebalanceInfo)(nil), "models.RebalanceInfo")
 	proto.RegisterType((*Ring)(nil), "models.Ring")
 	proto.RegisterType((*BlockRef)(nil), "models.BlockRef")
 	proto.RegisterType((*INodeRef)(nil), "models.INodeRef")
@@ -877,17 +894,11 @@ func (this *PeerInfo) VerboseEqual(that interface{}) error {
 	if this.UsedBlocks != that1.UsedBlocks {
 		return fmt.Errorf("UsedBlocks this(%v) Not Equal that(%v)", this.UsedBlocks, that1.UsedBlocks)
 	}
-	if this.LastRebalanceFinish != that1.LastRebalanceFinish {
-		return fmt.Errorf("LastRebalanceFinish this(%v) Not Equal that(%v)", this.LastRebalanceFinish, that1.LastRebalanceFinish)
-	}
-	if this.LastRebalanceBlocks != that1.LastRebalanceBlocks {
-		return fmt.Errorf("LastRebalanceBlocks this(%v) Not Equal that(%v)", this.LastRebalanceBlocks, that1.LastRebalanceBlocks)
-	}
-	if this.Rebalancing != that1.Rebalancing {
-		return fmt.Errorf("Rebalancing this(%v) Not Equal that(%v)", this.Rebalancing, that1.Rebalancing)
-	}
 	if this.TimedOut != that1.TimedOut {
 		return fmt.Errorf("TimedOut this(%v) Not Equal that(%v)", this.TimedOut, that1.TimedOut)
+	}
+	if !this.RebalanceInfo.Equal(that1.RebalanceInfo) {
+		return fmt.Errorf("RebalanceInfo this(%v) Not Equal that(%v)", this.RebalanceInfo, that1.RebalanceInfo)
 	}
 	return nil
 }
@@ -931,6 +942,75 @@ func (this *PeerInfo) Equal(that interface{}) bool {
 	if this.UsedBlocks != that1.UsedBlocks {
 		return false
 	}
+	if this.TimedOut != that1.TimedOut {
+		return false
+	}
+	if !this.RebalanceInfo.Equal(that1.RebalanceInfo) {
+		return false
+	}
+	return true
+}
+func (this *RebalanceInfo) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*RebalanceInfo)
+	if !ok {
+		that2, ok := that.(RebalanceInfo)
+		if ok {
+			that1 = &that2
+		} else {
+			return fmt.Errorf("that is not of type *RebalanceInfo")
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *RebalanceInfo but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *RebalanceInfo but is not nil && this == nil")
+	}
+	if this.LastRebalanceFinish != that1.LastRebalanceFinish {
+		return fmt.Errorf("LastRebalanceFinish this(%v) Not Equal that(%v)", this.LastRebalanceFinish, that1.LastRebalanceFinish)
+	}
+	if this.LastRebalanceBlocks != that1.LastRebalanceBlocks {
+		return fmt.Errorf("LastRebalanceBlocks this(%v) Not Equal that(%v)", this.LastRebalanceBlocks, that1.LastRebalanceBlocks)
+	}
+	if this.Rebalancing != that1.Rebalancing {
+		return fmt.Errorf("Rebalancing this(%v) Not Equal that(%v)", this.Rebalancing, that1.Rebalancing)
+	}
+	return nil
+}
+func (this *RebalanceInfo) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*RebalanceInfo)
+	if !ok {
+		that2, ok := that.(RebalanceInfo)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
 	if this.LastRebalanceFinish != that1.LastRebalanceFinish {
 		return false
 	}
@@ -938,9 +1018,6 @@ func (this *PeerInfo) Equal(that interface{}) bool {
 		return false
 	}
 	if this.Rebalancing != that1.Rebalancing {
-		return false
-	}
-	if this.TimedOut != that1.TimedOut {
 		return false
 	}
 	return true
@@ -1554,30 +1631,58 @@ func (m *PeerInfo) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.UsedBlocks))
 	}
-	if m.LastRebalanceFinish != 0 {
+	if m.TimedOut {
 		data[i] = 0x30
 		i++
-		i = encodeVarintAgro(data, i, uint64(m.LastRebalanceFinish))
-	}
-	if m.LastRebalanceBlocks != 0 {
-		data[i] = 0x38
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.LastRebalanceBlocks))
-	}
-	if m.Rebalancing {
-		data[i] = 0x40
-		i++
-		if m.Rebalancing {
+		if m.TimedOut {
 			data[i] = 1
 		} else {
 			data[i] = 0
 		}
 		i++
 	}
-	if m.TimedOut {
-		data[i] = 0x48
+	if m.RebalanceInfo != nil {
+		data[i] = 0x3a
 		i++
-		if m.TimedOut {
+		i = encodeVarintAgro(data, i, uint64(m.RebalanceInfo.Size()))
+		n4, err := m.RebalanceInfo.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n4
+	}
+	return i, nil
+}
+
+func (m *RebalanceInfo) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *RebalanceInfo) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.LastRebalanceFinish != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.LastRebalanceFinish))
+	}
+	if m.LastRebalanceBlocks != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintAgro(data, i, uint64(m.LastRebalanceBlocks))
+	}
+	if m.Rebalancing {
+		data[i] = 0x18
+		i++
+		if m.Rebalancing {
 			data[i] = 1
 		} else {
 			data[i] = 0
@@ -1858,13 +1963,23 @@ func NewPopulatedPeerInfo(r randyAgro, easy bool) *PeerInfo {
 	}
 	this.TotalBlocks = uint64(uint64(r.Uint32()))
 	this.UsedBlocks = uint64(uint64(r.Uint32()))
+	this.TimedOut = bool(bool(r.Intn(2) == 0))
+	if r.Intn(10) != 0 {
+		this.RebalanceInfo = NewPopulatedRebalanceInfo(r, easy)
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedRebalanceInfo(r randyAgro, easy bool) *RebalanceInfo {
+	this := &RebalanceInfo{}
 	this.LastRebalanceFinish = int64(r.Int63())
 	if r.Intn(2) == 0 {
 		this.LastRebalanceFinish *= -1
 	}
 	this.LastRebalanceBlocks = uint64(uint64(r.Uint32()))
 	this.Rebalancing = bool(bool(r.Intn(2) == 0))
-	this.TimedOut = bool(bool(r.Intn(2) == 0))
 	if !easy && r.Intn(10) != 0 {
 	}
 	return this
@@ -2159,6 +2274,19 @@ func (m *PeerInfo) Size() (n int) {
 	if m.UsedBlocks != 0 {
 		n += 1 + sovAgro(uint64(m.UsedBlocks))
 	}
+	if m.TimedOut {
+		n += 2
+	}
+	if m.RebalanceInfo != nil {
+		l = m.RebalanceInfo.Size()
+		n += 1 + l + sovAgro(uint64(l))
+	}
+	return n
+}
+
+func (m *RebalanceInfo) Size() (n int) {
+	var l int
+	_ = l
 	if m.LastRebalanceFinish != 0 {
 		n += 1 + sovAgro(uint64(m.LastRebalanceFinish))
 	}
@@ -2166,9 +2294,6 @@ func (m *PeerInfo) Size() (n int) {
 		n += 1 + sovAgro(uint64(m.LastRebalanceBlocks))
 	}
 	if m.Rebalancing {
-		n += 2
-	}
-	if m.TimedOut {
 		n += 2
 	}
 	return n
@@ -3557,6 +3682,109 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 			}
 		case 6:
 			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TimedOut", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.TimedOut = bool(v != 0)
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RebalanceInfo", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAgro
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAgro
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.RebalanceInfo == nil {
+				m.RebalanceInfo = &RebalanceInfo{}
+			}
+			if err := m.RebalanceInfo.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAgro(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAgro
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RebalanceInfo) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAgro
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RebalanceInfo: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RebalanceInfo: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LastRebalanceFinish", wireType)
 			}
 			m.LastRebalanceFinish = 0
@@ -3574,7 +3802,7 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 					break
 				}
 			}
-		case 7:
+		case 2:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LastRebalanceBlocks", wireType)
 			}
@@ -3593,7 +3821,7 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 					break
 				}
 			}
-		case 8:
+		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Rebalancing", wireType)
 			}
@@ -3613,26 +3841,6 @@ func (m *PeerInfo) Unmarshal(data []byte) error {
 				}
 			}
 			m.Rebalancing = bool(v != 0)
-		case 9:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TimedOut", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				v |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.TimedOut = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])

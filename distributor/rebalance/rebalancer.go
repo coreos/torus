@@ -2,8 +2,8 @@ package rebalance
 
 import (
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/gc"
 	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/server/gc"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 )

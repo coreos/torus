@@ -21,21 +21,21 @@ const (
 // TODO(barakmich): Clean up errors
 
 type distClient struct {
-	dist *distributor
+	dist *Distributor
 	//TODO(barakmich): Better connection pooling
 	openConns   map[string]*grpc.ClientConn
 	openClients map[string]models.AgroStorageClient
 	mut         sync.Mutex
 }
 
-func newDistClient(d *distributor) *distClient {
+func newDistClient(d *Distributor) *distClient {
 
 	client := &distClient{
 		dist:        d,
 		openConns:   make(map[string]*grpc.ClientConn),
 		openClients: make(map[string]models.AgroStorageClient),
 	}
-	d.srv.addTimeoutCallback(client.onPeerTimeout)
+	d.srv.AddTimeoutCallback(client.onPeerTimeout)
 	return client
 }
 
@@ -60,15 +60,12 @@ func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 	if conn, ok := d.openClients[uuid]; ok {
 		return conn
 	}
-	d.dist.srv.infoMut.Lock()
-	pi := d.dist.srv.peersMap[uuid]
-	d.dist.srv.infoMut.Unlock()
+	pm := d.dist.srv.GetPeerMap()
+	pi := pm[uuid]
 	if pi == nil {
 		// We know this UUID exists, we don't have an address for it, let's refresh now.
-		d.dist.srv.updatePeerMap()
-		d.dist.srv.mut.RLock()
-		pi = d.dist.srv.peersMap[uuid]
-		d.dist.srv.mut.RUnlock()
+		pm := d.dist.srv.UpdatePeerMap()
+		pi = pm[uuid]
 		if pi == nil {
 			// Not much more we can try
 			return nil

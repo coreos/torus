@@ -48,11 +48,11 @@ func NewServer(cfg Config, metadataServiceKind, blockStoreKind string) (*Server,
 	}
 
 	s := &Server{
-		blocks:   blocks,
+		Blocks:   blocks,
 		MDS:      mds,
-		inodes:   NewINodeStore(blocks),
+		INodes:   NewINodeStore(blocks),
 		peersMap: make(map[string]*models.PeerInfo),
-		cfg:      cfg,
+		Cfg:      cfg,
 		peerInfo: &models.PeerInfo{
 			UUID: mds.UUID(),
 		},

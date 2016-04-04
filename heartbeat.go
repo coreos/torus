@@ -1,8 +1,11 @@
 package agro
 
 import (
+	"fmt"
+	"net"
 	"time"
 
+	"github.com/coreos/agro/models"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"golang.org/x/net/context"
@@ -30,9 +33,22 @@ func init() {
 }
 
 // BeginHeartbeat spawns a goroutine for heartbeats. Non-blocking.
-func (s *Server) BeginHeartbeat() error {
+func (s *Server) BeginHeartbeat(addr string, listen bool) error {
 	if s.heartbeating {
 		return nil
+	}
+	if addr != "" {
+		ipaddr, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return err
+		}
+		ipaddr = autodetectIP(ipaddr)
+		s.peerInfo.Address = fmt.Sprintf("%s:%s", ipaddr, port)
+	}
+	var err error
+	s.lease, err = s.MDS.GetLease()
+	if err != nil {
+		return err
 	}
 	ch := make(chan interface{})
 	s.closeChans = append(s.closeChans, ch)
@@ -54,7 +70,7 @@ func (s *Server) heartbeat(cl chan interface{}) {
 	}
 }
 
-func (s *Server) addTimeoutCallback(f func(uuid string)) {
+func (s *Server) AddTimeoutCallback(f func(uuid string)) {
 	s.timeoutCallbacks = append(s.timeoutCallbacks, f)
 }
 
@@ -62,8 +78,8 @@ func (s *Server) oneHeartbeat() {
 	promHeartbeats.Inc()
 
 	s.mut.Lock()
-	s.peerInfo.TotalBlocks = s.blocks.NumBlocks()
-	s.peerInfo.UsedBlocks = s.blocks.UsedBlocks()
+	s.peerInfo.TotalBlocks = s.Blocks.NumBlocks()
+	s.peerInfo.UsedBlocks = s.Blocks.UsedBlocks()
 	s.mut.Unlock()
 
 	s.infoMut.Lock()
@@ -103,4 +119,35 @@ func (s *Server) updatePeerMap() {
 			s.peersMap[k].TimedOut = true
 		}
 	}
+}
+
+func (s *Server) UpdatePeerMap() map[string]*models.PeerInfo {
+	s.updatePeerMap()
+	return s.GetPeerMap()
+}
+
+func (s *Server) UpdateRebalanceInfo(ri *models.RebalanceInfo) {
+	s.infoMut.Lock()
+	defer s.infoMut.Unlock()
+	s.peerInfo.RebalanceInfo = ri
+}
+
+func autodetectIP(ip string) string {
+	// We can't advertise "all IPs"
+	if ip != "0.0.0.0" {
+		return ip
+	}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		panic(err)
+	}
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	// Just do localhost.
+	return "127.0.0.1"
 }

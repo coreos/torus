@@ -24,7 +24,7 @@ var (
 type Distributor struct {
 	mut       sync.RWMutex
 	blocks    agro.BlockStore
-	srv       *server
+	srv       *agro.Server
 	client    *distClient
 	grpcSrv   *grpc.Server
 	readCache *cache
@@ -34,12 +34,13 @@ type Distributor struct {
 	rebalancerChan  chan struct{}
 	ringWatcherChan chan struct{}
 	rebalancer      rebalance.Rebalancer
+	rebalancing     bool
 }
 
 func newDistributor(srv *agro.Server, addr string, listen bool) (*Distributor, error) {
 	var err error
-	d := &distributor{
-		blocks: srv.blocks,
+	d := &Distributor{
+		blocks: srv.Blocks,
 		srv:    srv,
 	}
 	if listen {
@@ -51,17 +52,12 @@ func newDistributor(srv *agro.Server, addr string, listen bool) (*Distributor, e
 		models.RegisterAgroStorageServer(d.grpcSrv, d)
 		go d.grpcSrv.Serve(lis)
 	}
-	srv.lease, err = srv.mds.GetLease()
+	gmd, err := d.srv.MDS.GlobalMetadata()
 	if err != nil {
 		return nil, err
 	}
-	srv.BeginHeartbeat()
-	gmd, err := d.srv.mds.GlobalMetadata()
-	if err != nil {
-		return nil, err
-	}
-	if srv.cfg.ReadCacheSize != 0 {
-		size := srv.cfg.ReadCacheSize / gmd.BlockSize
+	if srv.Cfg.ReadCacheSize != 0 {
+		size := srv.Cfg.ReadCacheSize / gmd.BlockSize
 		if size < 100 {
 			size = 100
 		}
@@ -69,14 +65,14 @@ func newDistributor(srv *agro.Server, addr string, listen bool) (*Distributor, e
 	}
 
 	// Set up the rebalancer
-	d.ring, err = d.srv.mds.GetRing()
+	d.ring, err = d.srv.MDS.GetRing()
 	if err != nil {
 		return nil, err
 	}
 	d.ringWatcherChan = make(chan struct{})
 	go d.ringWatcher(d.rebalancerChan)
 	d.client = newDistClient(d)
-	g := gc.NewGCController(d.srv.mds, NewINodeStore(d))
+	g := gc.NewGCController(d.srv.MDS, agro.NewINodeStore(d))
 	d.rebalancer = rebalance.NewRebalancer(d, d.blocks, d.client, g)
 	d.rebalancerChan = make(chan struct{})
 	go d.rebalanceTicker(d.rebalancerChan)
@@ -84,7 +80,7 @@ func newDistributor(srv *agro.Server, addr string, listen bool) (*Distributor, e
 }
 
 func (d *Distributor) UUID() string {
-	return d.srv.mds.UUID()
+	return d.srv.MDS.UUID()
 }
 
 func (d *Distributor) Ring() agro.Ring {

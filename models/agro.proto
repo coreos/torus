@@ -74,10 +74,15 @@ message PeerInfo {
   int64 last_seen = 3; // In Unix nanoseconds.
   uint64 total_blocks = 4;
   uint64 used_blocks = 5;
-  int64 last_rebalance_finish = 6; // In Unix nanoseconds.
-  uint64 last_rebalance_blocks = 7;
-  bool rebalancing = 8;
-  bool timed_out = 9;
+  bool timed_out = 6;
+
+  RebalanceInfo rebalance_info = 7;
+}
+
+message RebalanceInfo {
+  int64 last_rebalance_finish = 1; // In Unix nanoseconds.
+  uint64 last_rebalance_blocks = 2;
+  bool rebalancing = 3;
 }
 
 message Ring {
