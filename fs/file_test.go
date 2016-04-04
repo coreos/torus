@@ -1,4 +1,4 @@
-package server
+package fs
 
 import (
 	"crypto/rand"
@@ -9,12 +9,12 @@ import (
 )
 
 func TestReadWrite(t *testing.T) {
-	srv := NewMemoryServer().(*server)
+	srv := agro.NewMemoryServer()
 	err := srv.CreateFSVolume("test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	testPath := agro.Path{
+	testPath := Path{
 		Volume: "test",
 		Path:   "/foobar",
 	}

@@ -1,4 +1,4 @@
-package server
+package distributor
 
 import (
 	"container/list"

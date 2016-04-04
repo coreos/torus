@@ -1,4 +1,4 @@
-package server
+package distributor
 
 import (
 	"github.com/coreos/agro"
@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/trace"
 )
 
-func (d *distributor) Block(ctx context.Context, req *models.BlockRequest) (*models.BlockResponse, error) {
+func (d *Distributor) Block(ctx context.Context, req *models.BlockRequest) (*models.BlockResponse, error) {
 	promDistBlockRPCs.Inc()
 	t, tok := trace.FromContext(ctx)
 	out := &models.BlockResponse{}
@@ -37,7 +37,7 @@ func (d *distributor) Block(ctx context.Context, req *models.BlockRequest) (*mod
 	return out, nil
 }
 
-func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest) (*models.PutResponse, error) {
+func (d *Distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest) (*models.PutResponse, error) {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	promDistPutBlockRPCs.Inc()
@@ -71,7 +71,7 @@ func (d *distributor) PutBlock(ctx context.Context, req *models.PutBlockRequest)
 	}, nil
 }
 
-func (d *distributor) RebalanceCheck(ctx context.Context, req *models.RebalanceCheckRequest) (*models.RebalanceCheckResponse, error) {
+func (d *Distributor) RebalanceCheck(ctx context.Context, req *models.RebalanceCheckRequest) (*models.RebalanceCheckResponse, error) {
 	out := make([]bool, len(req.BlockRefs))
 	for i, x := range req.BlockRefs {
 		p := agro.BlockFromProto(x)

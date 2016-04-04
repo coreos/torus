@@ -1,4 +1,4 @@
-package server
+package agro
 
 import (
 	"errors"
@@ -9,17 +9,13 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/models"
 )
 
 var (
-	clog             = capnslog.NewPackageLogger("github.com/coreos/agro", "server")
 	aborter          = errors.New("abort update")
 	writingToDeleted = errors.New("writing to deleted file")
 )
@@ -67,22 +63,22 @@ func init() {
 	prometheus.MustRegister(promFileBlockWrite)
 }
 
-type fileHandle struct {
+type File struct {
 	// globals
 	mut     sync.RWMutex
-	srv     *server
+	srv     *Server
 	blkSize int64
+	offset  int64
 
 	// file metadata
 	volume   *models.Volume
 	inode    *models.INode
-	blocks   agro.Blockset
+	blocks   Blockset
 	replaces uint64
 	changed  map[string]bool
 
 	// during write
-	initialINodes *roaring.Bitmap
-	writeINodeRef agro.INodeRef
+	writeINodeRef INodeRef
 	writeOpen     bool
 
 	// half-finished blocks
@@ -91,21 +87,29 @@ type fileHandle struct {
 	openWrote bool
 }
 
-func (f *fileHandle) openWrite() error {
+func (f *File) WriteOpen() bool {
+	return f.writeOpen
+}
+
+func (f *File) Replaces() uint64 {
+	return f.replaces
+}
+
+func (f *File) openWrite() error {
 	if f.writeOpen {
 		return nil
 	}
 	f.srv.writeableLock.RLock()
 	defer f.srv.writeableLock.RUnlock()
-	vid := agro.VolumeID(f.volume.Id)
-	newINode, err := f.srv.mds.CommitINodeIndex(f.volume.Name)
+	vid := VolumeID(f.volume.Id)
+	newINode, err := f.srv.MDS.CommitINodeIndex(vid)
 	if err != nil {
-		if err == agro.ErrAgain {
+		if err == ErrAgain {
 			return f.openWrite()
 		}
 		return err
 	}
-	f.writeINodeRef = agro.NewINodeRef(vid, newINode)
+	f.writeINodeRef = NewINodeRef(VolumeID(vid), newINode)
 	if f.inode != nil {
 		f.replaces = f.inode.INode
 		f.inode.INode = uint64(newINode)
@@ -113,18 +117,11 @@ func (f *fileHandle) openWrite() error {
 			f.inode.Chain = uint64(newINode)
 		}
 	}
-	if f.volume.Type == models.Volume_FILE {
-		f.updateHeldINodes(false)
-		bm := roaring.NewBitmap()
-		bm.Add(uint32(newINode))
-		// Kill the open inode; we'll reopen it if we use it.
-		f.srv.fsMDS().ModifyDeadMap(vid, roaring.NewBitmap(), bm)
-	}
 	f.writeOpen = true
 	return nil
 }
 
-func (f *fileHandle) openBlock(i int) error {
+func (f *File) openBlock(i int) error {
 	if f.openIdx == i && f.openData != nil {
 		return nil
 	}
@@ -151,7 +148,7 @@ func (f *fileHandle) openBlock(i int) error {
 	return nil
 }
 
-func (f *fileHandle) writeToBlock(from, to int, data []byte) int {
+func (f *File) writeToBlock(from, to int, data []byte) int {
 	f.openWrote = true
 	if f.openData == nil {
 		panic("server: file data not open")
@@ -162,7 +159,7 @@ func (f *fileHandle) writeToBlock(from, to int, data []byte) int {
 	return copy(f.openData[from:to], data)
 }
 
-func (f *fileHandle) syncBlock() error {
+func (f *File) syncBlock() error {
 	if f.openData == nil || !f.openWrote {
 		return nil
 	}
@@ -176,11 +173,11 @@ func (f *fileHandle) syncBlock() error {
 	return err
 }
 
-func (f *fileHandle) getContext() context.Context {
+func (f *File) getContext() context.Context {
 	return f.srv.getContext()
 }
 
-func (f *fileHandle) WriteAt(b []byte, off int64) (n int, err error) {
+func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
 	clog.Trace("begin write: offset ", off, " size ", len(b))
@@ -291,13 +288,13 @@ func (f *fileHandle) WriteAt(b []byte, off int64) (n int, err error) {
 	return n, nil
 }
 
-func (f *file) Read(b []byte) (n int, err error) {
+func (f *File) Read(b []byte) (n int, err error) {
 	n, err = f.ReadAt(b, f.offset)
 	f.offset += int64(n)
 	return
 }
 
-func (f *fileHandle) ReadAt(b []byte, off int64) (n int, ferr error) {
+func (f *File) ReadAt(b []byte, off int64) (n int, ferr error) {
 	f.mut.RLock()
 	defer f.mut.RUnlock()
 	toRead := len(b)
@@ -334,7 +331,7 @@ func (f *fileHandle) ReadAt(b []byte, off int64) (n int, ferr error) {
 	return n, ferr
 }
 
-func (f *file) Seek(offset int64, whence int) (int64, error) {
+func (f *File) Seek(offset int64, whence int) (int64, error) {
 	// TODO(mischief): validate offset
 	switch whence {
 	case os.SEEK_SET:
@@ -351,221 +348,16 @@ func (f *file) Seek(offset int64, whence int) (int64, error) {
 	return offset, nil
 }
 
-func (f *file) Close() error {
+func (f *File) Close() error {
 	if f == nil {
-		return agro.ErrInvalid
-	}
-	if f.fileHandle == nil {
-		return nil
+		return ErrInvalid
 	}
 	var err error
-	switch f.volume.Type {
-	case models.Volume_FILE:
-		c := f.inode.Chain
-		err = f.Sync()
-		if err != nil {
-			clog.Error(err)
-		}
-		f.srv.removeOpenFile(c)
-	case models.Volume_BLOCK:
-		err = f.Sync()
-		if err != nil {
-			clog.Error(err)
-		}
-		err = f.srv.blockMDS().UnlockBlockVolume(agro.VolumeID(f.volume.Id))
-	default:
-		panic("unknown volume type")
-	}
 	promOpenFiles.WithLabelValues(f.volume.Name).Dec()
-	f.fileHandle = nil
 	return err
 }
 
-func (f *file) Sync() error {
-	f.mut.Lock()
-	defer f.mut.Unlock()
-	switch f.volume.Type {
-	case models.Volume_FILE:
-		return f.fileSync(f.srv.fsMDS())
-	case models.Volume_BLOCK:
-		return f.blockSync(f.srv.blockMDS())
-	default:
-		panic("unknown volume type")
-	}
-}
-
-func (f *file) fileSync(mds agro.FSMetadataService) error {
-	// Here there be dragons.
-	if !f.writeOpen {
-		f.updateHeldINodes(false)
-		return nil
-	}
-	clog.Debugf("Syncing file: %v", f.inode.Filenames)
-	clog.Tracef("inode: %s", f.inode)
-	clog.Tracef("replaces: %x, ref: %s", f.replaces, f.writeINodeRef)
-
-	promFileSyncs.WithLabelValues(f.volume.Name).Inc()
-	err := f.syncBlock()
-	if err != nil {
-		clog.Error("sync: couldn't sync block")
-		return err
-	}
-	err = f.srv.blocks.Flush()
-	if err != nil {
-		return err
-	}
-	blkdata, err := blockset.MarshalToProto(f.blocks)
-	if err != nil {
-		clog.Error("sync: couldn't marshal proto")
-		return err
-	}
-	f.inode.Blocks = blkdata
-
-	// Here we begin the critical transaction section
-
-	var replaced agro.INodeRef
-	for {
-		_, replaced, err = f.srv.updateINodeChain(
-			f.getContext(),
-			f.path,
-			func(inode *models.INode, vol agro.VolumeID) (*models.INode, agro.INodeRef, error) {
-				if inode == nil {
-					// We're unilaterally overwriting a file, or starting a new chain. If that was the intent, go ahead.
-					if f.replaces == 0 {
-						// Replace away.
-						return f.inode, f.writeINodeRef, nil
-					}
-					// Update the chain
-					f.inode.Chain = f.inode.INode
-					return f.inode, f.writeINodeRef, nil
-				}
-				if inode.Chain != f.inode.Chain {
-					// We're starting a new chain, go ahead and replace
-					return f.inode, f.writeINodeRef, nil
-				}
-				switch f.replaces {
-				case 0:
-					// We're writing a completely new file on this chain.
-					return f.inode, f.writeINodeRef, nil
-				case inode.INode:
-					// We're replacing exactly what we expected to replace. Go for it.
-					return f.inode, f.writeINodeRef, nil
-				default:
-					// Dammit. Somebody changed the file underneath us.
-					// Abort transaction, we'll figure out what to do.
-					return nil, agro.NewINodeRef(vol, agro.INodeID(inode.INode)), aborter
-				}
-			})
-		if err == nil {
-			break
-		}
-		if err != aborter {
-			clog.Errorf("sync: unexpected update error: %s", err)
-			return err
-		}
-		// We can write a smarter merge function -- O_APPEND for example, doing the
-		// right thing, by keeping some state in the file and actually appending it.
-		// Today, it's Last Write Wins.
-		promFileChangedSyncs.WithLabelValues(f.volume.Name).Inc()
-		oldINode := f.inode
-		f.inode, err = f.srv.inodes.GetINode(f.srv.getContext(), replaced)
-		if err != nil {
-			return err
-		}
-		f.replaces = f.inode.INode
-		f.inode.INode = oldINode.INode
-		f.inode.Blocks = oldINode.Blocks
-		f.inode.Filesize = oldINode.Filesize
-
-		for k, _ := range f.changed {
-			switch k {
-			case "mode":
-				f.inode.Permissions.Mode = oldINode.Permissions.Mode
-			}
-		}
-		bs, err := blockset.UnmarshalFromProto(f.inode.Blocks, nil)
-		if err != nil {
-			// If it's corrupt we're in another world of hurt. But this one we can't fix.
-			// Again, safer in transaction.
-			panic("sync: couldn't unmarshal blockset")
-		}
-		f.initialINodes = bs.GetLiveINodes()
-		f.initialINodes.Add(uint32(f.inode.INode))
-		f.updateHeldINodes(false)
-		clog.Debugf("retrying critical transaction section")
-	}
-
-	err = mds.SetFileEntry(f.path, &models.FileEntry{
-		Chain: f.inode.Chain,
-	})
-
-	newLive := f.getLiveINodes()
-	var dead *roaring.Bitmap
-	// Cleanup.
-
-	// TODO(barakmich): Correct behavior depending on O_CREAT
-	dead = roaring.AndNot(f.initialINodes, newLive)
-	if replaced.INode != 0 && f.replaces == 0 {
-		deadinode, err := f.srv.inodes.GetINode(f.srv.getContext(), replaced)
-		if err != nil {
-			return err
-		}
-		bs, err := blockset.UnmarshalFromProto(deadinode.Blocks, nil)
-		if err != nil {
-			// If it's corrupt we're in another world of hurt. But this one we can't fix.
-			// Again, safer in transaction.
-			panic("sync: couldn't unmarshal blockset")
-		}
-		dead.Or(bs.GetLiveINodes())
-		dead.Add(uint32(replaced.INode))
-		dead.AndNot(newLive)
-	}
-	mds.ModifyDeadMap(f.writeINodeRef.Volume(), newLive, dead)
-
-	// Critical section over.
-	f.changed = make(map[string]bool)
-	f.writeOpen = false
-	f.updateHeldINodes(false)
-	// SHANTIH.
-	return nil
-}
-
-func (f *fileHandle) getLiveINodes() *roaring.Bitmap {
-	bm := f.blocks.GetLiveINodes()
-	bm.Add(uint32(f.inode.INode))
-	return bm
-}
-
-func (f *fileHandle) updateHeldINodes(closing bool) {
-	if f.volume.Type != models.Volume_FILE {
-		return
-	}
-	f.srv.decRef(f.volume.Name, f.initialINodes)
-	if !closing {
-		f.initialINodes = f.getLiveINodes()
-		f.srv.incRef(f.volume.Name, f.initialINodes)
-	}
-	bm, _ := f.srv.getBitmap(f.volume.Name)
-	card := uint64(0)
-	if bm != nil {
-		card = bm.GetCardinality()
-	}
-	promOpenINodes.WithLabelValues(f.volume.Name).Set(float64(card))
-	mlog.Tracef("updating claim %s %s", f.volume.Name, bm)
-	err := f.srv.fsMDS().ClaimVolumeINodes(f.srv.lease, agro.VolumeID(f.volume.Id), bm)
-	if err != nil {
-		mlog.Error("file: TODO: Can't re-claim")
-	}
-}
-
-func (f *file) Truncate(size int64) error {
-	if f.readOnly {
-		return os.ErrPermission
-	}
-	return f.fileHandle.Truncate(size)
-}
-
-func (f *fileHandle) Truncate(size int64) error {
+func (f *File) Truncate(size int64) error {
 	err := f.openWrite()
 	if err != nil {
 		return err
@@ -581,7 +373,7 @@ func (f *fileHandle) Truncate(size int64) error {
 }
 
 // Trim zeroes data in the middle of a file.
-func (f *fileHandle) Trim(offset, length int64) error {
+func (f *File) Trim(offset, length int64) error {
 	clog.Debugf("trimming %d %d", offset, length)
 	err := f.openWrite()
 	if err != nil {

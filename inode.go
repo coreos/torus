@@ -1,9 +1,8 @@
-package server
+package agro
 
 import (
 	"encoding/binary"
 
-	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
@@ -27,11 +26,11 @@ func init() {
 }
 
 type INodeStore struct {
-	bs   agro.BlockStore
+	bs   BlockStore
 	name string
 }
 
-func NewINodeStore(bs agro.BlockStore) *INodeStore {
+func NewINodeStore(bs BlockStore) *INodeStore {
 	return &INodeStore{
 		bs: bs,
 	}
@@ -42,7 +41,7 @@ func (b *INodeStore) Close() error {
 	return b.bs.Close()
 }
 
-func (b *INodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *models.INode) error {
+func (b *INodeStore) WriteINode(ctx context.Context, i INodeRef, inode *models.INode) error {
 	if i.INode == 0 {
 		panic("Writing zero inode")
 	}
@@ -61,11 +60,11 @@ func (b *INodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *mod
 		}
 		written := copy(buf[bufoffset:], inodedata[inodeoffset:])
 		inodeoffset += written
-		ref := agro.BlockRef{
+		ref := BlockRef{
 			INodeRef: i,
-			Index:    agro.IndexID(index),
+			Index:    IndexID(index),
 		}
-		ref.SetBlockType(agro.TypeINode)
+		ref.SetBlockType(TypeINode)
 		err := b.bs.WriteBlock(ctx, ref, buf)
 		if err != nil {
 			return err
@@ -77,17 +76,17 @@ func (b *INodeStore) WriteINode(ctx context.Context, i agro.INodeRef, inode *mod
 	return nil
 }
 
-func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INode, error) {
+func (b *INodeStore) GetINode(ctx context.Context, i INodeRef) (*models.INode, error) {
 	if i.INode == 0 {
 		panic("Fetching zero inode")
 	}
 	promINodeRequests.Inc()
 	index := 1
-	ref := agro.BlockRef{
+	ref := BlockRef{
 		INodeRef: i,
-		Index:    agro.IndexID(index),
+		Index:    IndexID(index),
 	}
-	ref.SetBlockType(agro.TypeINode)
+	ref.SetBlockType(TypeINode)
 	data, err := b.bs.GetBlock(ctx, ref)
 	if err != nil {
 		promINodeFailures.Inc()
@@ -100,11 +99,11 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 	for bufoffset != int(dlen) {
 		if dataoffset == 0 {
 			index++
-			ref := agro.BlockRef{
+			ref := BlockRef{
 				INodeRef: i,
-				Index:    agro.IndexID(index),
+				Index:    IndexID(index),
 			}
-			ref.SetBlockType(agro.TypeINode)
+			ref.SetBlockType(TypeINode)
 			data, err = b.bs.GetBlock(ctx, ref)
 			if err != nil {
 				promINodeFailures.Inc()
@@ -126,15 +125,15 @@ func (b *INodeStore) GetINode(ctx context.Context, i agro.INodeRef) (*models.INo
 	return out, nil
 }
 
-func (b *INodeStore) DeleteINode(ctx context.Context, i agro.INodeRef) error {
+func (b *INodeStore) DeleteINode(ctx context.Context, i INodeRef) error {
 	if i.INode == 0 {
 		panic("Deleting zero inode")
 	}
-	ref := agro.BlockRef{
+	ref := BlockRef{
 		INodeRef: i,
-		Index:    agro.IndexID(1),
+		Index:    IndexID(1),
 	}
-	ref.SetBlockType(agro.TypeINode)
+	ref.SetBlockType(TypeINode)
 	data, err := b.bs.GetBlock(ctx, ref)
 	if err != nil {
 		return err
@@ -142,11 +141,11 @@ func (b *INodeStore) DeleteINode(ctx context.Context, i agro.INodeRef) error {
 	dlen := binary.LittleEndian.Uint32(data[0:4])
 	nblocks := (uint64(dlen) / b.bs.BlockSize()) + 1
 	for j := uint64(1); j <= nblocks; j++ {
-		ref := agro.BlockRef{
+		ref := BlockRef{
 			INodeRef: i,
-			Index:    agro.IndexID(j),
+			Index:    IndexID(j),
 		}
-		ref.SetBlockType(agro.TypeINode)
+		ref.SetBlockType(TypeINode)
 		err := b.bs.DeleteBlock(ctx, ref)
 		if err != nil {
 			return err
@@ -161,21 +160,21 @@ func (b *INodeStore) INodeIterator() *INodeIterator {
 }
 
 type INodeIterator struct {
-	it agro.BlockIterator
+	it BlockIterator
 }
 
 func (i *INodeIterator) Err() error { return i.it.Err() }
 func (i *INodeIterator) Next() bool {
 	for i.it.Next() {
 		ref := i.it.BlockRef()
-		if ref.BlockType() == agro.TypeINode && ref.Index == 1 {
+		if ref.BlockType() == TypeINode && ref.Index == 1 {
 			return true
 		}
 	}
 	return false
 }
 
-func (i *INodeIterator) INodeRef() agro.INodeRef {
+func (i *INodeIterator) INodeRef() INodeRef {
 	return i.it.BlockRef().INodeRef
 }
 

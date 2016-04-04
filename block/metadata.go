@@ -7,16 +7,8 @@ import (
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "block")
 
-type INodeVolume interface {
-	agro.MetadataService
-
-	CommitINodeIndex() (agro.INodeID, error)
-	GetINodeIndex() (agro.INodeID, error)
-	GetINodeIndexes() (map[string]agro.INodeID, error)
-}
-
 type BlockVolume interface {
-	INodeVolume
+	agro.MetadataService
 
 	Lock(lease int64) error
 	GetBlockVolumeINode() (agro.INodeRef, error)

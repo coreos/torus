@@ -1,4 +1,4 @@
-package server
+package distributor
 
 import (
 	"fmt"
@@ -7,19 +7,21 @@ import (
 	"github.com/coreos/agro"
 )
 
-func (s *server) ListenReplication(addr string) error {
-	return s.openReplication(addr, true)
+// ListenReplication opens the internal networking port and connects to the cluster
+func ListenReplication(s *agro.Server, addr string) error {
+	return openReplication(s, addr, true)
 }
 
-func (s *server) OpenReplication() error {
-	return s.openReplication("", false)
+// OpenReplication connects to the cluster without opening the internal networking.
+func OpenReplication(s *agro.Server) error {
+	return openReplication(s, "", false)
 }
-func (s *server) openReplication(addr string, listen bool) error {
+func openReplication(s *agro.Server, addr string, listen bool) error {
 	var err error
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	if s.replicationOpen {
-		return agro.ErrExists
+		return ErrExists
 	}
 	if addr != "" {
 		ipaddr, port, err := net.SplitHostPort(addr)

@@ -1,4 +1,4 @@
-package server
+package distributor
 
 import (
 	"net"
@@ -7,16 +7,21 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/distributor/rebalance"
+	"github.com/coreos/agro/gc"
 	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/server/gc"
-	"github.com/coreos/agro/server/rebalance"
+	"github.com/coreos/pkg/capnslog"
 )
 
 const (
 	defaultINodeReplication = 3
 )
 
-type distributor struct {
+var (
+	clog = capnslog.NewPackageLogger("github.com/coreos/agro", "distributor")
+)
+
+type Distributor struct {
 	mut       sync.RWMutex
 	blocks    agro.BlockStore
 	srv       *server
@@ -31,7 +36,7 @@ type distributor struct {
 	rebalancer      rebalance.Rebalancer
 }
 
-func newDistributor(srv *server, addr string, listen bool) (*distributor, error) {
+func newDistributor(srv *agro.Server, addr string, listen bool) (*Distributor, error) {
 	var err error
 	d := &distributor{
 		blocks: srv.blocks,
@@ -78,17 +83,17 @@ func newDistributor(srv *server, addr string, listen bool) (*distributor, error)
 	return d, nil
 }
 
-func (d *distributor) UUID() string {
+func (d *Distributor) UUID() string {
 	return d.srv.mds.UUID()
 }
 
-func (d *distributor) Ring() agro.Ring {
+func (d *Distributor) Ring() agro.Ring {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	return d.ring
 }
 
-func (d *distributor) Close() error {
+func (d *Distributor) Close() error {
 	d.mut.Lock()
 	defer d.mut.Unlock()
 	if d.closed {

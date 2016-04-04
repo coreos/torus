@@ -1,4 +1,4 @@
-package server
+package distributor
 
 import (
 	"errors"
@@ -11,11 +11,6 @@ import (
 
 var (
 	ErrNoPeersBlock = errors.New("distributor: no peers available for a block")
-)
-
-const (
-	ctxWriteLevel int = iota
-	ctxReadLevel
 )
 
 func getRepFromContext(ctx context.Context) int {
@@ -33,7 +28,7 @@ func getRepFromContext(ctx context.Context) int {
 	return repInt
 }
 
-func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
+func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	promDistBlockRequests.Inc()
@@ -85,7 +80,7 @@ func (d *distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	return blk, err
 }
 
-func (d *distributor) readWithBackoff(ctx context.Context, ref agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
+func (d *Distributor) readWithBackoff(ctx context.Context, ref agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
 	for i := uint(0); i < 10; i++ {
 		timeout := clientTimeout * (1 << i)
 		blk, err := d.readSequential(ctx, ref, peers, timeout)
@@ -96,7 +91,7 @@ func (d *distributor) readWithBackoff(ctx context.Context, ref agro.BlockRef, pe
 	return nil, ErrNoPeersBlock
 }
 
-func (d *distributor) readSequential(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation, timeout time.Duration) ([]byte, error) {
+func (d *Distributor) readSequential(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation, timeout time.Duration) ([]byte, error) {
 	for _, p := range peers.Peers {
 		// If it's local, just try to get it.
 		if p == d.UUID() {
@@ -134,7 +129,7 @@ func (d *distributor) readSequential(ctx context.Context, i agro.BlockRef, peers
 	return nil, ErrNoPeersBlock
 }
 
-func (d *distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
+func (d *Distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
 	resch := make(chan []byte)
 	errch := make(chan error, peers.Replication)
 	var once sync.Once
@@ -173,7 +168,7 @@ func (d *distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agr
 	}
 }
 
-func (d *distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer string) ([]byte, error) {
+func (d *Distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer string) ([]byte, error) {
 	blk, err := d.client.GetBlock(ctx, peer, i)
 	// If we're successful, store that.
 	if err == nil {
@@ -202,7 +197,7 @@ func getReadFromContext(ctx context.Context) agro.ReadLevel {
 	return agro.ReadBlock
 }
 
-func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {
+func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	peers, err := d.ring.GetPeers(i)
@@ -267,36 +262,36 @@ func (d *distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 	return nil
 }
 
-func (d *distributor) HasBlock(ctx context.Context, i agro.BlockRef) (bool, error) {
+func (d *Distributor) HasBlock(ctx context.Context, i agro.BlockRef) (bool, error) {
 	return false, errors.New("unimplemented -- finding if a block exists cluster-wide")
 }
 
-func (d *distributor) DeleteBlock(ctx context.Context, i agro.BlockRef) error {
+func (d *Distributor) DeleteBlock(ctx context.Context, i agro.BlockRef) error {
 	return d.blocks.DeleteBlock(ctx, i)
 }
 
-func (d *distributor) NumBlocks() uint64 {
+func (d *Distributor) NumBlocks() uint64 {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	return d.blocks.NumBlocks()
 }
 
-func (d *distributor) UsedBlocks() uint64 {
+func (d *Distributor) UsedBlocks() uint64 {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	return d.blocks.UsedBlocks()
 }
 
-func (d *distributor) BlockIterator() agro.BlockIterator {
+func (d *Distributor) BlockIterator() agro.BlockIterator {
 	return d.blocks.BlockIterator()
 }
 
-func (d *distributor) Flush() error {
+func (d *Distributor) Flush() error {
 	return d.blocks.Flush()
 }
 
-func (d *distributor) Kind() string { return "distributor" }
+func (d *Distributor) Kind() string { return "distributor" }
 
-func (d *distributor) BlockSize() uint64 {
+func (d *Distributor) BlockSize() uint64 {
 	return d.blocks.BlockSize()
 }

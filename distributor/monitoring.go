@@ -1,4 +1,4 @@
-package server
+package distributor
 
 import "github.com/prometheus/client_golang/prometheus"
 

@@ -1,4 +1,4 @@
-package server
+package agro
 
 import (
 	"time"
@@ -29,7 +29,8 @@ func init() {
 	prometheus.MustRegister(promServerPeers)
 }
 
-func (s *server) BeginHeartbeat() error {
+// BeginHeartbeat spawns a goroutine for heartbeats. Non-blocking.
+func (s *Server) BeginHeartbeat() error {
 	if s.heartbeating {
 		return nil
 	}
@@ -40,7 +41,7 @@ func (s *server) BeginHeartbeat() error {
 	return nil
 }
 
-func (s *server) heartbeat(cl chan interface{}) {
+func (s *Server) heartbeat(cl chan interface{}) {
 	for {
 		s.oneHeartbeat()
 		select {
@@ -53,11 +54,11 @@ func (s *server) heartbeat(cl chan interface{}) {
 	}
 }
 
-func (s *server) addTimeoutCallback(f func(uuid string)) {
+func (s *Server) addTimeoutCallback(f func(uuid string)) {
 	s.timeoutCallbacks = append(s.timeoutCallbacks, f)
 }
 
-func (s *server) oneHeartbeat() {
+func (s *Server) oneHeartbeat() {
 	promHeartbeats.Inc()
 
 	s.mut.Lock()
@@ -69,17 +70,17 @@ func (s *server) oneHeartbeat() {
 	defer s.infoMut.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), heartbeatTimeout)
 	defer cancel()
-	err := s.mds.WithContext(ctx).RegisterPeer(s.lease, s.peerInfo)
+	err := s.MDS.WithContext(ctx).RegisterPeer(s.lease, s.peerInfo)
 	if err != nil {
 		clog.Warningf("couldn't register heartbeat: %s", err)
 	}
 	s.updatePeerMap()
 }
 
-func (s *server) updatePeerMap() {
+func (s *Server) updatePeerMap() {
 	ctxget, cancelget := context.WithTimeout(context.Background(), heartbeatTimeout)
 	defer cancelget()
-	peers, err := s.mds.WithContext(ctxget).GetPeers()
+	peers, err := s.MDS.WithContext(ctxget).GetPeers()
 	if err != nil {
 		clog.Warningf("couldn't update peerlist: %s", err)
 	}

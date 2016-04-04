@@ -1,4 +1,4 @@
-package server
+package distributor
 
 import (
 	"crypto/rand"
@@ -94,7 +94,7 @@ func testThreeWrite(t *testing.T) {
 	for {
 		ok := true
 		for i := 0; i < 3; i++ {
-			d := srvs[i].blocks.(*distributor)
+			d := srvs[i].blocks.(*Distributor)
 			if d.Ring().Version() != 2 {
 				ok = false
 				break
