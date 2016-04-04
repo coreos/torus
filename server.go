@@ -1,28 +1,11 @@
 package agro
 
-import (
-	"io"
-	"os"
-
-	"github.com/coreos/agro/models"
-)
+import "io"
 
 // Server is the interface representing the basic ways to interact with the
 // filesystem.
 type Server interface {
 	Close() error
-
-	// If we support a filesystem interface, these calls will work,
-	// otherwise returning ErrNotSupported
-	FS() (FSServer, error)
-
-	// If we support a block interface, these calls will work,
-	// otherwise returning ErrNotSupported
-	Block() (BlockServer, error)
-
-	GetVolume(name string) (*models.Volume, error)
-	// GetVolumes lists all volumes, regardless of type.
-	GetVolumes() ([]*models.Volume, error)
 
 	// Return some global server information, usually from the underlying
 	// metadata service.
@@ -39,32 +22,6 @@ type Server interface {
 	// Write a bunch of debug output to the io.Writer.
 	// Implementation specific.
 	Debug(io.Writer) error
-}
-
-type FSServer interface {
-	Server
-	CreateFSVolume(string) error
-	// Standard file path calls.
-	Create(Path) (File, error)
-	Open(Path) (File, error)
-	OpenFile(p Path, flag int, perm os.FileMode) (File, error)
-	OpenFileMetadata(p Path, flag int, md *models.Metadata) (File, error)
-	Rename(p Path, new Path) error
-	Link(p Path, new Path) error
-	Symlink(to string, new Path) error
-	Lstat(Path) (os.FileInfo, error)
-	Readdir(Path) ([]Path, error)
-	Remove(Path) error
-	Mkdir(Path, *models.Metadata) error
-
-	Chmod(name Path, mode os.FileMode) error
-	Chown(name Path, uid, gid int) error
-}
-
-type BlockServer interface {
-	Server
-	CreateBlockVolume(name string, size uint64) error
-	OpenBlockFile(volume string) (BlockFile, error)
 }
 
 type ServerInfo struct {
