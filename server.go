@@ -45,6 +45,10 @@ type Server struct {
 	timeoutCallbacks []func(string)
 }
 
+func (s *Server) Lease() int64 {
+	return s.lease
+}
+
 func (s *Server) Close() error {
 	for _, c := range s.closeChans {
 		close(c)

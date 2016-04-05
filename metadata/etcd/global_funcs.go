@@ -29,11 +29,11 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) erro
 	if err != nil {
 		return err
 	}
-	tx := tx().If(
-		keyNotExists(mkKey("meta", "globalmetadata")),
+	tx := Tx().If(
+		KeyNotExists(MkKey("meta", "globalmetadata")),
 	).Then(
-		setKey(mkKey("meta", "volumeminter"), uint64ToBytes(1)),
-		setKey(mkKey("meta", "globalmetadata"), gmdbytes),
+		SetKey(MkKey("meta", "volumeminter"), Uint64ToBytes(1)),
+		SetKey(MkKey("meta", "globalmetadata"), gmdbytes),
 	).Tx()
 	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())
 	if err != nil {
@@ -49,7 +49,7 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) erro
 		return agro.ErrExists
 	}
 	_, err = client.Put(context.Background(),
-		setKey(mkKey("meta", "the-one-ring"), ringb))
+		SetKey(MkKey("meta", "the-one-ring"), ringb))
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 	}
 	defer conn.Close()
 	client := etcdpb.NewKVClient(conn)
-	resp, err := client.Range(context.Background(), getKey(mkKey("meta", "the-one-ring")))
+	resp, err := client.Range(context.Background(), GetKey(MkKey("meta", "the-one-ring")))
 	if err != nil {
 		return err
 	}
@@ -81,6 +81,6 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 	if oldr.Version() != r.Version()-1 {
 		return agro.ErrNonSequentialRing
 	}
-	_, err = client.Put(context.Background(), setKey(mkKey("meta", "the-one-ring"), b))
+	_, err = client.Put(context.Background(), SetKey(MkKey("meta", "the-one-ring"), b))
 	return err
 }

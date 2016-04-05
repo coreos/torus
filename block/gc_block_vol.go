@@ -1,4 +1,4 @@
-package gc
+package block
 
 import (
 	"sync"
@@ -8,28 +8,30 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
+	"github.com/coreos/agro/gc"
 	"github.com/coreos/agro/models"
 	"github.com/hashicorp/go-immutable-radix"
 )
 
+func init() {
+	gc.RegisterGC("blockvol", NewBlockVolGC)
+}
+
 type blockvolGC struct {
 	mut       sync.Mutex
-	mds       agro.BlockMetadataService
-	inodes    INodeFetcher
+	mds       agro.MetadataService
+	inodes    gc.INodeFetcher
 	trie      *iradix.Tree
 	highwater agro.INodeID
 	skip      bool
 	curRef    agro.INodeRef
 }
 
-func NewBlockVolGC(mds agro.MetadataService, inodes INodeFetcher) GC {
-	if m, ok := mds.(agro.BlockMetadataService); ok {
-		return &blockvolGC{
-			mds:    m,
-			inodes: inodes,
-		}
-	}
-	return &nullGC{}
+func NewBlockVolGC(mds agro.MetadataService, inodes gc.INodeFetcher) (gc.GC, error) {
+	return &blockvolGC{
+		mds:    mds,
+		inodes: inodes,
+	}, nil
 }
 
 func (b *blockvolGC) getContext() context.Context {
@@ -46,8 +48,11 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 		b.skip = true
 		return nil
 	}
-	var err error
-	b.curRef, err = b.mds.GetBlockVolumeINode(agro.VolumeID(vol.Id))
+	mds, err := createBlockMetadata(b.mds, agro.VolumeID(vol.Id))
+	if err != nil {
+		return err
+	}
+	b.curRef, err = mds.GetINode()
 	if err != nil {
 		return err
 	}

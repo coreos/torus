@@ -8,15 +8,14 @@ import (
 
 	"github.com/RoaringBitmap/roaring"
 	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
-	"github.com/coreos/agro/models"
 )
 
-func mkKey(s ...string) []byte {
+func MkKey(s ...string) []byte {
 	s = append([]string{KeyPrefix}, s...)
 	return []byte(path.Join(s...))
 }
 
-func uint64ToBytes(x uint64) []byte {
+func Uint64ToBytes(x uint64) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, x)
 	if err != nil {
@@ -44,7 +43,7 @@ func bytesToRoaring(b []byte) *roaring.Bitmap {
 	return bm
 }
 
-func bytesToUint64(b []byte) uint64 {
+func BytesToUint64(b []byte) uint64 {
 	r := bytes.NewReader(b)
 	var out uint64
 	err := binary.Read(r, binary.LittleEndian, &out)
@@ -54,20 +53,20 @@ func bytesToUint64(b []byte) uint64 {
 	return out
 }
 
-func uint64ToHex(x uint64) string {
+func Uint64ToHex(x uint64) string {
 	return fmt.Sprintf("%x", x)
 }
 
-type transact struct {
+type Transact struct {
 	tx *etcdpb.TxnRequest
 }
 
-func tx() *transact {
-	t := transact{&etcdpb.TxnRequest{}}
+func Tx() *Transact {
+	t := Transact{&etcdpb.TxnRequest{}}
 	return &t
 }
 
-func (t *transact) If(comps ...*etcdpb.Compare) *transact {
+func (t *Transact) If(comps ...*etcdpb.Compare) *Transact {
 	t.tx.Compare = comps
 	return t
 }
@@ -89,27 +88,27 @@ func requestUnion(comps ...interface{}) []*etcdpb.RequestUnion {
 	return out
 }
 
-func (t *transact) Do(comps ...interface{}) *transact {
+func (t *Transact) Do(comps ...interface{}) *Transact {
 	return t.Then(comps...)
 }
 
-func (t *transact) Then(comps ...interface{}) *transact {
+func (t *Transact) Then(comps ...interface{}) *Transact {
 	ru := requestUnion(comps...)
 	t.tx.Success = ru
 	return t
 }
 
-func (t *transact) Else(comps ...interface{}) *transact {
+func (t *Transact) Else(comps ...interface{}) *Transact {
 	ru := requestUnion(comps...)
 	t.tx.Failure = ru
 	return t
 }
 
-func (t *transact) Tx() *etcdpb.TxnRequest {
+func (t *Transact) Tx() *etcdpb.TxnRequest {
 	return t.tx
 }
 
-func keyEquals(key []byte, value []byte) *etcdpb.Compare {
+func KeyEquals(key []byte, value []byte) *etcdpb.Compare {
 	return &etcdpb.Compare{
 		Target: etcdpb.Compare_VALUE,
 		Key:    key,
@@ -120,7 +119,7 @@ func keyEquals(key []byte, value []byte) *etcdpb.Compare {
 	}
 }
 
-func keyExists(key []byte) *etcdpb.Compare {
+func KeyExists(key []byte) *etcdpb.Compare {
 	return &etcdpb.Compare{
 		Target: etcdpb.Compare_VERSION,
 		Result: etcdpb.Compare_GREATER,
@@ -131,7 +130,7 @@ func keyExists(key []byte) *etcdpb.Compare {
 	}
 }
 
-func keyNotExists(key []byte) *etcdpb.Compare {
+func KeyNotExists(key []byte) *etcdpb.Compare {
 	return &etcdpb.Compare{
 		Target: etcdpb.Compare_VERSION,
 		Result: etcdpb.Compare_LESS,
@@ -142,7 +141,7 @@ func keyNotExists(key []byte) *etcdpb.Compare {
 	}
 }
 
-func keyIsVersion(key []byte, version int64) *etcdpb.Compare {
+func KeyIsVersion(key []byte, version int64) *etcdpb.Compare {
 	return &etcdpb.Compare{
 		Target: etcdpb.Compare_VERSION,
 		Result: etcdpb.Compare_EQUAL,
@@ -153,14 +152,14 @@ func keyIsVersion(key []byte, version int64) *etcdpb.Compare {
 	}
 }
 
-func setKey(key []byte, value []byte) *etcdpb.PutRequest {
+func SetKey(key []byte, value []byte) *etcdpb.PutRequest {
 	return &etcdpb.PutRequest{
 		Key:   key,
 		Value: value,
 	}
 }
 
-func setLeasedKey(lease int64, key []byte, value []byte) *etcdpb.PutRequest {
+func SetLeasedKey(lease int64, key []byte, value []byte) *etcdpb.PutRequest {
 	return &etcdpb.PutRequest{
 		Key:   key,
 		Value: value,
@@ -168,19 +167,19 @@ func setLeasedKey(lease int64, key []byte, value []byte) *etcdpb.PutRequest {
 	}
 }
 
-func deleteKey(key []byte) *etcdpb.DeleteRangeRequest {
+func DeleteKey(key []byte) *etcdpb.DeleteRangeRequest {
 	return &etcdpb.DeleteRangeRequest{
 		Key: key,
 	}
 }
 
-func getKey(key []byte) *etcdpb.RangeRequest {
+func GetKey(key []byte) *etcdpb.RangeRequest {
 	return &etcdpb.RangeRequest{
 		Key: key,
 	}
 }
 
-func getPrefix(key []byte) *etcdpb.RangeRequest {
+func GetPrefix(key []byte) *etcdpb.RangeRequest {
 	end := make([]byte, len(key))
 	copy(end, key)
 	end[len(end)-1]++
@@ -188,18 +187,4 @@ func getPrefix(key []byte) *etcdpb.RangeRequest {
 		Key:      key,
 		RangeEnd: end,
 	}
-}
-
-// *********
-
-func newDirProto(md *models.Metadata) []byte {
-	a := models.Directory{
-		Metadata: md,
-		Files:    make(map[string]*models.FileEntry),
-	}
-	b, err := a.Marshal()
-	if err != nil {
-		panic(err)
-	}
-	return b
 }

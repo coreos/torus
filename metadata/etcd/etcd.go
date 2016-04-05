@@ -68,7 +68,7 @@ type Etcd struct {
 	ringListeners []chan agro.Ring
 
 	conn *grpc.ClientConn
-	kv   etcdpb.KVClient
+	KV   etcdpb.KVClient
 
 	leaseclient etcdpb.LeaseClient
 	leasestream etcdpb.Lease_LeaseKeepAliveClient
@@ -90,7 +90,7 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	e := &Etcd{
 		cfg:          cfg,
 		conn:         conn,
-		kv:           client,
+		KV:           client,
 		volumesCache: make(map[string]*models.Volume),
 		uuid:         uuid,
 	}
@@ -118,12 +118,12 @@ func (e *Etcd) Close() error {
 }
 
 func (e *Etcd) getGlobalMetadata() error {
-	tx := tx().If(
-		keyExists(mkKey("meta", "globalmetadata")),
+	tx := Tx().If(
+		KeyExists(MkKey("meta", "globalmetadata")),
 	).Then(
-		getKey(mkKey("meta", "globalmetadata")),
+		GetKey(MkKey("meta", "globalmetadata")),
 	).Tx()
-	resp, err := e.kv.Txn(context.Background(), tx)
+	resp, err := e.KV.Txn(context.Background(), tx)
 	if err != nil {
 		return err
 	}
@@ -208,15 +208,15 @@ func (c *etcdCtx) RegisterPeer(lease int64, p *models.PeerInfo) error {
 		}
 		clog.Tracef("updated lease for %d, TTL %d", resp.ID, resp.TTL)
 	}
-	_, err = c.etcd.kv.Put(c.getContext(),
-		setLeasedKey(lease, mkKey("nodes", p.UUID), data),
+	_, err = c.etcd.KV.Put(c.getContext(),
+		SetLeasedKey(lease, MkKey("nodes", p.UUID), data),
 	)
 	return err
 }
 
 func (c *etcdCtx) GetPeers() (agro.PeerInfoList, error) {
 	promOps.WithLabelValues("get-peers").Inc()
-	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("nodes")))
+	resp, err := c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("nodes")))
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +247,7 @@ func (c *etcdCtx) GetPeers() (agro.PeerInfoList, error) {
 type AtomicModifyFunc func(in []byte) (out []byte, data interface{}, err error)
 
 func (c *etcdCtx) AtomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, error) {
-	resp, err := c.etcd.kv.Range(c.getContext(), getKey(key))
+	resp, err := c.etcd.KV.Range(c.getContext(), GetKey(key))
 	if err != nil {
 		return nil, err
 	}
@@ -266,14 +266,14 @@ func (c *etcdCtx) AtomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, 
 		if err != nil {
 			return nil, err
 		}
-		tx := tx().If(
-			keyIsVersion(key, version),
+		tx := Tx().If(
+			KeyIsVersion(key, version),
 		).Then(
-			setKey(key, newBytes),
+			SetKey(key, newBytes),
 		).Else(
-			getKey(key),
+			GetKey(key),
 		).Tx()
-		resp, err := c.etcd.kv.Txn(c.getContext(), tx)
+		resp, err := c.etcd.KV.Txn(c.getContext(), tx)
 		if err != nil {
 			return nil, err
 		}
@@ -288,13 +288,13 @@ func (c *etcdCtx) AtomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, 
 }
 
 func bytesAddOne(in []byte) ([]byte, interface{}, error) {
-	newval := bytesToUint64(in) + 1
-	return uint64ToBytes(newval), newval, nil
+	newval := BytesToUint64(in) + 1
+	return Uint64ToBytes(newval), newval, nil
 }
 
 func (c *etcdCtx) GetVolumes() ([]*models.Volume, error) {
 	promOps.WithLabelValues("get-volumes").Inc()
-	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumeid")))
+	resp, err := c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("volumeid")))
 	if err != nil {
 		return nil, err
 	}
@@ -316,8 +316,8 @@ func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
 	}
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	req := getKey(mkKey("volumes", volume))
-	resp, err := c.etcd.kv.Range(c.getContext(), req)
+	req := GetKey(MkKey("volumes", volume))
+	resp, err := c.etcd.KV.Range(c.getContext(), req)
 	if err != nil {
 		return nil, err
 	}
@@ -328,8 +328,8 @@ func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
 	if len(resp.Kvs) == 0 {
 		return nil, errors.New("etcd: no such volume exists")
 	}
-	vid := bytesToUint64(resp.Kvs[0].Value)
-	resp, err = c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumeid", uint64ToHex(vid))))
+	vid := BytesToUint64(resp.Kvs[0].Value)
+	resp, err = c.etcd.KV.Range(c.getContext(), GetKey(MkKey("volumeid", Uint64ToHex(vid))))
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +365,7 @@ func (c *etcdCtx) GetLease() (int64, error) {
 
 func (c *etcdCtx) GetRing() (agro.Ring, error) {
 	promOps.WithLabelValues("get-ring").Inc()
-	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("meta", "the-one-ring")))
+	resp, err := c.etcd.KV.Range(c.getContext(), GetKey(MkKey("meta", "the-one-ring")))
 	if err != nil {
 		return nil, err
 	}
@@ -385,9 +385,9 @@ func (c *etcdCtx) SetRing(ring agro.Ring) error {
 	if err != nil {
 		return err
 	}
-	key := mkKey("meta", "the-one-ring")
-	_, err = c.etcd.kv.Put(c.getContext(),
-		setKey(key, b))
+	key := MkKey("meta", "the-one-ring")
+	_, err = c.etcd.KV.Put(c.getContext(),
+		SetKey(key, b))
 	if err != nil {
 		return err
 	}
@@ -399,7 +399,7 @@ func (c *etcdCtx) CommitINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
 	promOps.WithLabelValues("commit-inode-index").Inc()
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	newID, err := c.AtomicModifyKey(mkKey("volumemeta", "inode", uint64ToHex(uint64(vid))), bytesAddOne)
+	newID, err := c.AtomicModifyKey(MkKey("volumemeta", "inode", Uint64ToHex(uint64(vid))), bytesAddOne)
 	if err != nil {
 		return 0, err
 	}
@@ -410,13 +410,13 @@ func (c *etcdCtx) GetINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
 	promOps.WithLabelValues("get-inode-index").Inc()
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "inode", uint64ToHex(uint64(vid)))))
+	resp, err := c.etcd.KV.Range(c.getContext(), GetKey(MkKey("volumemeta", "inode", Uint64ToHex(uint64(vid)))))
 	if err != nil {
 		return agro.INodeID(0), err
 	}
 	if len(resp.Kvs) != 1 {
 		return agro.INodeID(0), agro.ErrNotExist
 	}
-	id := bytesToUint64(resp.Kvs[0].Value)
+	id := BytesToUint64(resp.Kvs[0].Value)
 	return agro.INodeID(id), nil
 }

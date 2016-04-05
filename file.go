@@ -95,6 +95,20 @@ func (f *File) Replaces() uint64 {
 	return f.replaces
 }
 
+func (s *Server) CreateFile(volume *models.Volume, inode *models.INode, blocks Blockset) (*File, error) {
+	md, err := s.MDS.GlobalMetadata()
+	if err != nil {
+		return nil, err
+	}
+	return &File{
+		volume:  volume,
+		inode:   inode,
+		srv:     s,
+		blocks:  blocks,
+		blkSize: int64(md.BlockSize),
+	}, nil
+}
+
 func (f *File) openWrite() error {
 	if f.writeOpen {
 		return nil
@@ -386,4 +400,32 @@ func (f *File) Trim(offset, length int64) error {
 	}
 	blkTo := (offset + length) / f.blkSize
 	return f.blocks.Trim(int(blkFrom), int(blkTo))
+}
+
+func (f *File) SyncAllWrites() (INodeRef, error) {
+	err := f.syncBlock()
+	if err != nil {
+		clog.Error("sync: couldn't sync block")
+		return ZeroINode(), err
+	}
+	err = f.srv.Blocks.Flush()
+	if err != nil {
+		return ZeroINode(), err
+	}
+	ref := f.writeINodeRef
+	blkdata, err := MarshalBlocksetToProto(f.blocks)
+	if err != nil {
+		clog.Error("sync: couldn't marshal proto")
+		return ZeroINode(), err
+	}
+	f.inode.Blocks = blkdata
+	if f.inode.Volume != f.volume.Id {
+		panic("mismatched volume and inode volume")
+	}
+	err = f.srv.INodes.WriteINode(f.getContext(), ref, f.inode)
+	if err != nil {
+		return ZeroINode(), err
+	}
+	f.writeOpen = false
+	return ref, nil
 }

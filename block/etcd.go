@@ -3,52 +3,60 @@ package block
 import (
 	"errors"
 
+	"golang.org/x/net/context"
+
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/metadata/etcd"
 )
 
-type etcd struct {
+type blockEtcd struct {
+	*etcd.Etcd
+	vid agro.VolumeID
 }
 
-func (c *etcdCtx) createBlockVol(volume *models.Volume) error {
-	new, err := c.atomicModifyKey(mkKey("meta", "volumeminter"), bytesAddOne)
-	volume.Id = new.(uint64)
-	if err != nil {
-		return err
-	}
-	vbytes, err := volume.Marshal()
-	if err != nil {
-		return err
-	}
-	inodeBytes := agro.NewINodeRef(agro.VolumeID(volume.Id), 1).ToBytes()
-	do := tx().If(
-		keyNotExists(mkKey("volumes", volume.Name)),
-	).Then(
-		setKey(mkKey("volumes", volume.Name), uint64ToBytes(volume.Id)),
-		setKey(mkKey("volumeid", uint64ToHex(volume.Id)), vbytes),
-		setKey(mkKey("volumemeta", "inode", uint64ToHex(volume.Id)), uint64ToBytes(1)),
-		setKey(mkKey("volumemeta", "blockinode", uint64ToHex(volume.Id)), inodeBytes),
-	).Tx()
-	resp, err := c.etcd.kv.Txn(c.getContext(), do)
-	if err != nil {
-		return err
-	}
-	if !resp.Succeeded {
-		return agro.ErrExists
-	}
-	return nil
+// func (b *blockEtcd) createBlockVol(volume *models.Volume) error {
+// 	new, err := c.atomicModifyKey(mkKey("meta", "volumeminter"), bytesAddOne)
+// 	volume.Id = new.(uint64)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	vbytes, err := volume.Marshal()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	inodeBytes := agro.NewINodeRef(agro.VolumeID(volume.Id), 1).ToBytes()
+// 	do := etcd.Tx().If(
+// 		keyNotExists(mkKey("volumes", volume.Name)),
+// 	).Then(
+// 		setKey(mkKey("volumes", volume.Name), uint64ToBytes(volume.Id)),
+// 		setKey(mkKey("volumeid", uint64ToHex(volume.Id)), vbytes),
+// 		setKey(mkKey("volumemeta", "inode", uint64ToHex(volume.Id)), uint64ToBytes(1)),
+// 		setKey(mkKey("volumemeta", "blockinode", uint64ToHex(volume.Id)), inodeBytes),
+// 	).Tx()
+// 	resp, err := c.etcd.kv.Txn(c.getContext(), do)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if !resp.Succeeded {
+// 		return agro.ErrExists
+// 	}
+// 	return nil
+// }
+
+func (b *blockEtcd) getContext() context.Context {
+	return context.TODO()
 }
 
-func (c *etcdCtx) LockBlockVolume(lease int64, vid agro.VolumeID) error {
+func (b *blockEtcd) Lock(lease int64) error {
 	if lease == 0 {
 		return agro.ErrInvalid
 	}
-	tx := tx().If(
-		keyNotExists(mkKey("volumemeta", "blocklock", uint64ToHex(uint64(vid)))),
+	tx := etcd.Tx().If(
+		etcd.KeyNotExists(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(uint64(b.vid)))),
 	).Then(
-		setLeasedKey(lease, mkKey("volumemeta", "blocklock", uint64ToHex(uint64(vid))), []byte(c.UUID())),
+		etcd.SetLeasedKey(lease, etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(uint64(b.vid))), []byte(b.Etcd.UUID())),
 	).Tx()
-	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
+	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
 	if err != nil {
 		return err
 	}
@@ -58,8 +66,8 @@ func (c *etcdCtx) LockBlockVolume(lease int64, vid agro.VolumeID) error {
 	return nil
 }
 
-func (c *etcdCtx) GetBlockVolumeINode(vid agro.VolumeID) (agro.INodeRef, error) {
-	resp, err := c.etcd.kv.Range(c.getContext(), getKey(mkKey("volumemeta", "blockinode", uint64ToHex(uint64(vid)))))
+func (b *blockEtcd) GetINode() (agro.INodeRef, error) {
+	resp, err := b.Etcd.KV.Range(b.getContext(), etcd.GetKey(etcd.MkKey("volumemeta", "blockinode", etcd.Uint64ToHex(uint64(b.vid)))))
 	if err != nil {
 		return agro.NewINodeRef(0, 0), err
 	}
@@ -69,16 +77,16 @@ func (c *etcdCtx) GetBlockVolumeINode(vid agro.VolumeID) (agro.INodeRef, error) 
 	return agro.INodeRefFromBytes(resp.Kvs[0].Value), nil
 }
 
-func (c *etcdCtx) SyncBlockVolume(inode agro.INodeRef) error {
+func (b *blockEtcd) SyncINode(inode agro.INodeRef) error {
 	vid := uint64(inode.Volume())
 	inodeBytes := inode.ToBytes()
-	tx := tx().If(
-		keyExists(mkKey("volumemeta", "blocklock", uint64ToHex(vid))),
-		keyEquals(mkKey("volumemeta", "blocklock", uint64ToHex(vid)), []byte(c.UUID())),
+	tx := etcd.Tx().If(
+		etcd.KeyExists(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid))),
+		etcd.KeyEquals(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid)), []byte(b.Etcd.UUID())),
 	).Then(
-		setKey(mkKey("volumemeta", "blockinode", uint64ToHex(vid)), inodeBytes),
+		etcd.SetKey(etcd.MkKey("volumemeta", "blockinode", etcd.Uint64ToHex(vid)), inodeBytes),
 	).Tx()
-	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
+	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
 	if err != nil {
 		return err
 	}
@@ -88,15 +96,15 @@ func (c *etcdCtx) SyncBlockVolume(inode agro.INodeRef) error {
 	return nil
 }
 
-func (c *etcdCtx) UnlockBlockVolume(v agro.VolumeID) error {
-	vid := uint64(v)
-	tx := tx().If(
-		keyExists(mkKey("volumemeta", "blocklock", uint64ToHex(vid))),
-		keyEquals(mkKey("volumemeta", "blocklock", uint64ToHex(vid)), []byte(c.UUID())),
+func (b *blockEtcd) Unlock() error {
+	vid := uint64(b.vid)
+	tx := etcd.Tx().If(
+		etcd.KeyExists(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid))),
+		etcd.KeyEquals(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid)), []byte(b.Etcd.UUID())),
 	).Then(
-		deleteKey(mkKey("volumemeta", "blocklock", uint64ToHex(vid))),
+		etcd.DeleteKey(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid))),
 	).Tx()
-	resp, err := c.etcd.kv.Txn(c.getContext(), tx)
+	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
 	if err != nil {
 		return err
 	}
@@ -104,4 +112,14 @@ func (c *etcdCtx) UnlockBlockVolume(v agro.VolumeID) error {
 		return agro.ErrLocked
 	}
 	return nil
+}
+
+func createBlockEtcdMetadata(mds agro.MetadataService, vid agro.VolumeID) (blockMetadata, error) {
+	if e, ok := mds.(*etcd.Etcd); ok {
+		return &blockEtcd{
+			Etcd: e,
+			vid:  vid,
+		}, nil
+	}
+	panic("how are we creating an etcd metadata that doesn't implement it but reports as being etcd")
 }

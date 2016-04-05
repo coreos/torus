@@ -2,6 +2,7 @@ package agro
 
 import (
 	"github.com/RoaringBitmap/roaring"
+	"github.com/coreos/agro/models"
 	"golang.org/x/net/context"
 )
 
@@ -30,3 +31,19 @@ type BlockLayer struct {
 }
 
 type BlockLayerSpec []BlockLayer
+
+func MarshalBlocksetToProto(bs Blockset) ([]*models.BlockLayer, error) {
+	var out []*models.BlockLayer
+	var layer Blockset
+	for layer = bs; layer != nil; layer = layer.GetSubBlockset() {
+		m, err := layer.Marshal()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, &models.BlockLayer{
+			Type:    layer.Kind(),
+			Content: m,
+		})
+	}
+	return out, nil
+}

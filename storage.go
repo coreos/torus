@@ -172,6 +172,10 @@ func ZeroBlock() BlockRef {
 	return BlockRef{}
 }
 
+func ZeroINode() INodeRef {
+	return INodeRef{}
+}
+
 type ReadLevel int
 type WriteLevel int
 

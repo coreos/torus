@@ -8,7 +8,7 @@ import (
 
 func (c *etcdCtx) DumpMetadata(w io.Writer) error {
 	io.WriteString(w, "## Volumes\n")
-	resp, err := c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumeid")))
+	resp, err := c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("volumeid")))
 	if err != nil {
 		return err
 	}
@@ -20,18 +20,18 @@ func (c *etcdCtx) DumpMetadata(w io.Writer) error {
 		io.WriteString(w, "\n")
 	}
 	io.WriteString(w, "## INodes\n")
-	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "inode")))
+	resp, err = c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("volumemeta", "inode")))
 	if err != nil {
 		return err
 	}
 	for _, x := range resp.Kvs {
 		io.WriteString(w, string(x.Key)+":\n")
-		v := bytesToUint64(x.Value)
-		io.WriteString(w, uint64ToHex(v))
+		v := BytesToUint64(x.Value)
+		io.WriteString(w, Uint64ToHex(v))
 		io.WriteString(w, "\n")
 	}
 	io.WriteString(w, "## BlockLocks\n")
-	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "blocklock")))
+	resp, err = c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("volumemeta", "blocklock")))
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (c *etcdCtx) DumpMetadata(w io.Writer) error {
 	}
 
 	io.WriteString(w, "## Deadmaps\n")
-	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "deadmap")))
+	resp, err = c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("volumemeta", "deadmap")))
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (c *etcdCtx) DumpMetadata(w io.Writer) error {
 		io.WriteString(w, "\n")
 	}
 	io.WriteString(w, "## Open\n")
-	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "open")))
+	resp, err = c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("volumemeta", "open")))
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (c *etcdCtx) DumpMetadata(w io.Writer) error {
 		io.WriteString(w, "\n")
 	}
 	io.WriteString(w, "## Dirs\n")
-	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("dirs")))
+	resp, err = c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("dirs")))
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (c *etcdCtx) DumpMetadata(w io.Writer) error {
 		io.WriteString(w, "\n")
 	}
 	io.WriteString(w, "## Chains\n")
-	resp, err = c.etcd.kv.Range(c.getContext(), getPrefix(mkKey("volumemeta", "chain")))
+	resp, err = c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("volumemeta", "chain")))
 	if err != nil {
 		return err
 	}
