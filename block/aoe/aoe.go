@@ -5,7 +5,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/agro/block"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/mdlayher/aoe"
@@ -18,7 +18,7 @@ var (
 )
 
 type Server struct {
-	dfs agro.BlockServer
+	dfs *block.BlockVolume
 
 	dev Device
 
@@ -26,8 +26,8 @@ type Server struct {
 	minor uint8
 }
 
-func NewServer(srv agro.BlockServer, volume string) (*Server, error) {
-	f, err := srv.OpenBlockFile(volume)
+func NewServer(b *block.BlockVolume) (*Server, error) {
+	f, err := b.OpenBlockFile()
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func NewServer(srv agro.BlockServer, volume string) (*Server, error) {
 	fd := &FileDevice{f}
 
 	as := &Server{
-		dfs:   srv,
+		dfs:   b,
 		dev:   fd,
 		major: 1,
 		minor: 1,

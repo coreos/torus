@@ -2,8 +2,10 @@ package aoe
 
 import (
 	"encoding/binary"
+	"errors"
+	"io"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/agro/block"
 
 	"github.com/mdlayher/aoe"
 )
@@ -13,7 +15,11 @@ var (
 )
 
 type Device interface {
-	agro.BlockFile
+	io.ReadWriteSeeker
+	io.ReaderAt
+	io.WriterAt
+	Sync() error
+	Close() error
 	aoe.Identifier
 }
 
@@ -79,16 +85,16 @@ func pstring(p []byte, off int, sz int, ident string) {
 }
 
 type FileDevice struct {
-	agro.BlockFile
+	*block.BlockFile
 }
 
 func (fd *FileDevice) Sectors() (int64, error) {
-	fi, err := fd.BlockFile.Stat()
-	if err != nil {
-		return 0, err
+	fi := fd.BlockFile.Size()
+	if fi == 0 {
+		return 0, errors.New("empty file device?")
 	}
 
-	return fi.Size() / 512, nil
+	return int64(fi) / 512, nil
 }
 
 func (fd *FileDevice) Identify() ([512]byte, error) {

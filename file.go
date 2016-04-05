@@ -191,6 +191,12 @@ func (f *File) getContext() context.Context {
 	return f.srv.getContext()
 }
 
+func (f *File) Write(b []byte) (n int, err error) {
+	n, err = f.WriteAt(b, f.offset)
+	f.offset += int64(n)
+	return
+}
+
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
@@ -428,4 +434,8 @@ func (f *File) SyncAllWrites() (INodeRef, error) {
 	}
 	f.writeOpen = false
 	return ref, nil
+}
+
+func (f *File) Size() uint64 {
+	return f.inode.Filesize
 }
