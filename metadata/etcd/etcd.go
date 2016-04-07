@@ -287,7 +287,7 @@ func (c *etcdCtx) AtomicModifyKey(key []byte, f AtomicModifyFunc) (interface{}, 
 	}
 }
 
-func bytesAddOne(in []byte) ([]byte, interface{}, error) {
+func BytesAddOne(in []byte) ([]byte, interface{}, error) {
 	newval := BytesToUint64(in) + 1
 	return Uint64ToBytes(newval), newval, nil
 }
@@ -399,7 +399,7 @@ func (c *etcdCtx) CommitINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
 	promOps.WithLabelValues("commit-inode-index").Inc()
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	newID, err := c.AtomicModifyKey(MkKey("volumemeta", "inode", Uint64ToHex(uint64(vid))), bytesAddOne)
+	newID, err := c.AtomicModifyKey(MkKey("volumemeta", "inode", Uint64ToHex(uint64(vid))), BytesAddOne)
 	if err != nil {
 		return 0, err
 	}

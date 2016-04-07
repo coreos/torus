@@ -73,22 +73,6 @@ func createBlockset(b agro.BlockLayer, store agro.BlockStore, subLayer blockset)
 	return blocklayerRegistry[b.Kind](b.Options, store, subLayer)
 }
 
-func MarshalToProto(bs agro.Blockset) ([]*models.BlockLayer, error) {
-	var out []*models.BlockLayer
-	var layer agro.Blockset
-	for layer = bs; layer != nil; layer = layer.GetSubBlockset() {
-		m, err := layer.Marshal()
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, &models.BlockLayer{
-			Type:    layer.Kind(),
-			Content: m,
-		})
-	}
-	return out, nil
-}
-
 func UnmarshalFromProto(layers []*models.BlockLayer, store agro.BlockStore) (agro.Blockset, error) {
 	l := len(layers)
 	var layer blockset

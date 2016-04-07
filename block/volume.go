@@ -13,7 +13,7 @@ type BlockVolume struct {
 	volume *models.Volume
 }
 
-func CreateBlockVolume(s *agro.Server, volume string, size uint64) error {
+func CreateBlockVolume(mds agro.MetadataService, volume string, size uint64) error {
 	panic("TODO")
 }
 
@@ -64,6 +64,6 @@ func (s *BlockVolume) getOrCreateBlockINode(ref agro.INodeRef) (*models.INode, e
 	inode.INode = 1
 	inode.Volume = s.volume.Id
 	inode.Filesize = s.volume.MaxBytes
-	inode.Blocks, err = blockset.MarshalToProto(bs)
+	inode.Blocks, err = agro.MarshalBlocksetToProto(bs)
 	return inode, err
 }
