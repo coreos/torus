@@ -9,9 +9,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/server"
 
 	// Register all the drivers.
+	"github.com/coreos/agro/distributor"
 	_ "github.com/coreos/agro/metadata/etcd"
 	_ "github.com/coreos/agro/storage/block"
 )
@@ -44,9 +44,9 @@ var rootCommand = &cobra.Command{
 }
 
 func init() {
-	rootCommand.AddCommand(fuseCommand)
+	// rootCommand.AddCommand(fuseCommand)
+	// rootCommand.AddCommand(ninepCommand)
 	rootCommand.AddCommand(aoeCommand)
-	rootCommand.AddCommand(ninepCommand)
 	rootCommand.AddCommand(nbdCommand)
 	rootCommand.AddCommand(daemonCommand)
 
@@ -116,13 +116,13 @@ func configureServer(cmd *cobra.Command, args []string) {
 	}
 }
 
-func createServer() agro.Server {
-	srv, err := server.NewServer(cfg, "etcd", "temp")
+func createServer() *agro.Server {
+	srv, err := agro.NewServer(cfg, "etcd", "temp")
 	if err != nil {
 		fmt.Printf("Couldn't start: %s\n", err)
 		os.Exit(1)
 	}
-	err = srv.OpenReplication()
+	err = distributor.OpenReplication(srv)
 	if err != nil {
 		fmt.Printf("Couldn't start: %s", err)
 		os.Exit(1)

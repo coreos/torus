@@ -6,6 +6,7 @@ import (
 	"os/signal"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/block"
 	"github.com/coreos/agro/internal/nbd"
 
 	"github.com/spf13/cobra"
@@ -42,13 +43,13 @@ func nbdAction(cmd *cobra.Command, args []string) {
 		}
 	}()
 	defer srv.Close()
-	blocksrv, err := srv.Block()
+	blockvol, err := block.OpenBlockVolume(srv, args[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "server doesn't support block volumes: %s\n", err)
 		os.Exit(1)
 	}
 
-	f, err := blocksrv.OpenBlockFile(args[0])
+	f, err := blockvol.OpenBlockFile()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
 		os.Exit(1)
@@ -60,19 +61,16 @@ func nbdAction(cmd *cobra.Command, args []string) {
 	}
 }
 
-func connectNBD(srv agro.Server, f agro.BlockFile, target string, closer chan bool) error {
+func connectNBD(srv *agro.Server, f *block.BlockFile, target string, closer chan bool) error {
 	defer f.Close()
-	fi, err := f.Stat()
+	size := f.Size()
+
+	gmd, err := srv.MDS.GlobalMetadata()
 	if err != nil {
 		return err
 	}
 
-	stats, err := srv.Info()
-	if err != nil {
-		return err
-	}
-
-	handle := nbd.Create(f, int64(fi.Size()), int64(stats.BlockSize))
+	handle := nbd.Create(f, int64(size), int64(gmd.BlockSize))
 
 	if target == "" {
 		target, err = nbd.FindDevice()
