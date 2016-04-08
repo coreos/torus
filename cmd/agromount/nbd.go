@@ -54,6 +54,7 @@ func nbdAction(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
 		os.Exit(1)
 	}
+	defer f.Close()
 	err = connectNBD(srv, f, knownDev, closer)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)

@@ -14,7 +14,20 @@ type BlockVolume struct {
 }
 
 func CreateBlockVolume(mds agro.MetadataService, volume string, size uint64) error {
-	panic("TODO")
+	id, err := mds.NewVolumeID()
+	if err != nil {
+		return err
+	}
+	blkmd, err := createBlockMetadata(mds, id)
+	if err != nil {
+		return err
+	}
+	return blkmd.CreateBlockVolume(&models.Volume{
+		Name:     volume,
+		Id:       uint64(id),
+		Type:     models.Volume_BLOCK,
+		MaxBytes: size,
+	})
 }
 
 func OpenBlockVolume(s *agro.Server, volume string) (*BlockVolume, error) {

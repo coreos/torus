@@ -114,6 +114,14 @@ func (t *Client) RegisterPeer(_ int64, pi *models.PeerInfo) error {
 	return nil
 }
 
+func (t *Client) NewVolumeID() (agro.VolumeID, error) {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+
+	t.srv.vol++
+	return t.srv.vol, nil
+}
+
 func (t *Client) CommitINodeIndex(vol agro.VolumeID) (agro.INodeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()

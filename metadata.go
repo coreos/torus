@@ -24,6 +24,7 @@ const (
 type MetadataService interface {
 	GetVolumes() ([]*models.Volume, error)
 	GetVolume(volume string) (*models.Volume, error)
+	NewVolumeID() (VolumeID, error)
 	Kind() MetadataKind
 
 	GlobalMetadata() (GlobalMetadata, error)
