@@ -46,18 +46,7 @@ func NewServer(cfg Config, metadataServiceKind, blockStoreKind string) (*Server,
 	if err != nil {
 		return nil, err
 	}
-
-	s := &Server{
-		Blocks:   blocks,
-		MDS:      mds,
-		INodes:   NewINodeStore(blocks),
-		peersMap: make(map[string]*models.PeerInfo),
-		Cfg:      cfg,
-		peerInfo: &models.PeerInfo{
-			UUID: mds.UUID(),
-		},
-	}
-	return s, nil
+	return NewServerByImpl(cfg, mds, blocks)
 }
 
 func NewMemoryServer() *Server {
@@ -69,4 +58,17 @@ func NewMemoryServer() *Server {
 		panic(err)
 	}
 	return x
+}
+
+func NewServerByImpl(cfg Config, mds MetadataService, blocks BlockStore) (*Server, error) {
+	return &Server{
+		Blocks:   blocks,
+		MDS:      mds,
+		INodes:   NewINodeStore(blocks),
+		peersMap: make(map[string]*models.PeerInfo),
+		Cfg:      cfg,
+		peerInfo: &models.PeerInfo{
+			UUID: mds.UUID(),
+		},
+	}, nil
 }

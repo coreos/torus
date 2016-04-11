@@ -53,7 +53,7 @@ func marshalTest(t *testing.T, s agro.BlockStore, spec agro.BlockLayerSpec) {
 	}
 	inode := agro.NewINodeRef(1, 1)
 	b.PutBlock(context.TODO(), inode, 0, []byte("Some data"))
-	marshal, err := MarshalToProto(b)
+	marshal, err := agro.MarshalBlocksetToProto(b)
 	if err != nil {
 		t.Fatal(err)
 	}
