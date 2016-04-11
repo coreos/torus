@@ -127,9 +127,6 @@ func (f *File) openWrite() error {
 	if f.inode != nil {
 		f.replaces = f.inode.INode
 		f.inode.INode = uint64(newINode)
-		if f.inode.Chain == 0 {
-			f.inode.Chain = uint64(newINode)
-		}
 	}
 	f.writeOpen = true
 	return nil

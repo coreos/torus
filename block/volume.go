@@ -25,7 +25,7 @@ func CreateBlockVolume(mds agro.MetadataService, volume string, size uint64) err
 	return blkmd.CreateBlockVolume(&models.Volume{
 		Name:     volume,
 		Id:       uint64(id),
-		Type:     models.Volume_BLOCK,
+		Type:     "block",
 		MaxBytes: size,
 	})
 }

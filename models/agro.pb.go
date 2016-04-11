@@ -10,13 +10,9 @@
 		rpc.proto
 
 	It has these top-level messages:
-		Metadata
 		INode
 		BlockLayer
-		Directory
 		Volume
-		FileEntry
-		FileChainSet
 		PeerInfo
 		RebalanceInfo
 		Ring
@@ -38,8 +34,6 @@ import _ "github.com/gogo/protobuf/gogoproto"
 
 import bytes "bytes"
 
-import errors "errors"
-
 import io "io"
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -47,60 +41,17 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
-type Volume_VolumeType int32
-
-const (
-	Volume_FILE  Volume_VolumeType = 0
-	Volume_BLOCK Volume_VolumeType = 1
-)
-
-var Volume_VolumeType_name = map[int32]string{
-	0: "FILE",
-	1: "BLOCK",
-}
-var Volume_VolumeType_value = map[string]int32{
-	"FILE":  0,
-	"BLOCK": 1,
-}
-
-func (x Volume_VolumeType) String() string {
-	return proto.EnumName(Volume_VolumeType_name, int32(x))
-}
-
-type Metadata struct {
-	Uid   uint32 `protobuf:"varint,1,opt,name=uid,proto3" json:"uid,omitempty"`
-	Gid   uint32 `protobuf:"varint,2,opt,name=gid,proto3" json:"gid,omitempty"`
-	Mode  uint32 `protobuf:"varint,3,opt,name=mode,proto3" json:"mode,omitempty"`
-	Flags uint32 `protobuf:"varint,4,opt,name=flags,proto3" json:"flags,omitempty"`
-	Ctime uint64 `protobuf:"varint,5,opt,name=ctime,proto3" json:"ctime,omitempty"`
-	Mtime uint64 `protobuf:"varint,6,opt,name=mtime,proto3" json:"mtime,omitempty"`
-}
-
-func (m *Metadata) Reset()         { *m = Metadata{} }
-func (m *Metadata) String() string { return proto.CompactTextString(m) }
-func (*Metadata) ProtoMessage()    {}
-
 type INode struct {
-	Volume      uint64            `protobuf:"varint,1,opt,name=volume,proto3" json:"volume,omitempty"`
-	INode       uint64            `protobuf:"varint,2,opt,name=inode,proto3" json:"inode,omitempty"`
-	Chain       uint64            `protobuf:"varint,3,opt,name=chain,proto3" json:"chain,omitempty"`
-	Filesize    uint64            `protobuf:"varint,4,opt,name=filesize,proto3" json:"filesize,omitempty"`
-	Filenames   []string          `protobuf:"bytes,5,rep,name=filenames" json:"filenames,omitempty"`
-	Permissions *Metadata         `protobuf:"bytes,6,opt,name=permissions" json:"permissions,omitempty"`
-	Attrs       map[string]string `protobuf:"bytes,7,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Blocks      []*BlockLayer     `protobuf:"bytes,8,rep,name=blocks" json:"blocks,omitempty"`
+	Volume   uint64            `protobuf:"varint,1,opt,name=volume,proto3" json:"volume,omitempty"`
+	INode    uint64            `protobuf:"varint,2,opt,name=inode,proto3" json:"inode,omitempty"`
+	Filesize uint64            `protobuf:"varint,4,opt,name=filesize,proto3" json:"filesize,omitempty"`
+	Attrs    map[string]string `protobuf:"bytes,7,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Blocks   []*BlockLayer     `protobuf:"bytes,8,rep,name=blocks" json:"blocks,omitempty"`
 }
 
 func (m *INode) Reset()         { *m = INode{} }
 func (m *INode) String() string { return proto.CompactTextString(m) }
 func (*INode) ProtoMessage()    {}
-
-func (m *INode) GetPermissions() *Metadata {
-	if m != nil {
-		return m.Permissions
-	}
-	return nil
-}
 
 func (m *INode) GetAttrs() map[string]string {
 	if m != nil {
@@ -125,34 +76,10 @@ func (m *BlockLayer) Reset()         { *m = BlockLayer{} }
 func (m *BlockLayer) String() string { return proto.CompactTextString(m) }
 func (*BlockLayer) ProtoMessage()    {}
 
-type Directory struct {
-	Metadata *Metadata `protobuf:"bytes,1,opt,name=metadata" json:"metadata,omitempty"`
-	// key is the filename without the path
-	Files map[string]*FileEntry `protobuf:"bytes,2,rep,name=files" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value"`
-}
-
-func (m *Directory) Reset()         { *m = Directory{} }
-func (m *Directory) String() string { return proto.CompactTextString(m) }
-func (*Directory) ProtoMessage()    {}
-
-func (m *Directory) GetMetadata() *Metadata {
-	if m != nil {
-		return m.Metadata
-	}
-	return nil
-}
-
-func (m *Directory) GetFiles() map[string]*FileEntry {
-	if m != nil {
-		return m.Files
-	}
-	return nil
-}
-
 type Volume struct {
-	Name string            `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Id   uint64            `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
-	Type Volume_VolumeType `protobuf:"varint,3,opt,name=type,proto3,enum=models.Volume_VolumeType" json:"type,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Id   uint64 `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	Type string `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
 	// TODO(barakmich): Respect sizes for FILE volumes.
 	MaxBytes uint64 `protobuf:"varint,4,opt,name=max_bytes,proto3" json:"max_bytes,omitempty"`
 }
@@ -160,30 +87,6 @@ type Volume struct {
 func (m *Volume) Reset()         { *m = Volume{} }
 func (m *Volume) String() string { return proto.CompactTextString(m) }
 func (*Volume) ProtoMessage()    {}
-
-type FileEntry struct {
-	Chain   uint64 `protobuf:"varint,1,opt,name=chain,proto3" json:"chain,omitempty"`
-	Sympath string `protobuf:"bytes,2,opt,name=sympath,proto3" json:"sympath,omitempty"`
-}
-
-func (m *FileEntry) Reset()         { *m = FileEntry{} }
-func (m *FileEntry) String() string { return proto.CompactTextString(m) }
-func (*FileEntry) ProtoMessage()    {}
-
-type FileChainSet struct {
-	Chains map[uint64]uint64 `protobuf:"bytes,1,rep,name=chains" json:"chains,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
-}
-
-func (m *FileChainSet) Reset()         { *m = FileChainSet{} }
-func (m *FileChainSet) String() string { return proto.CompactTextString(m) }
-func (*FileChainSet) ProtoMessage()    {}
-
-func (m *FileChainSet) GetChains() map[uint64]uint64 {
-	if m != nil {
-		return m.Chains
-	}
-	return nil
-}
 
 type PeerInfo struct {
 	UUID          string         `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
@@ -262,109 +165,14 @@ func (m *INodeRef) String() string { return proto.CompactTextString(m) }
 func (*INodeRef) ProtoMessage()    {}
 
 func init() {
-	proto.RegisterType((*Metadata)(nil), "models.Metadata")
 	proto.RegisterType((*INode)(nil), "models.INode")
 	proto.RegisterType((*BlockLayer)(nil), "models.BlockLayer")
-	proto.RegisterType((*Directory)(nil), "models.Directory")
 	proto.RegisterType((*Volume)(nil), "models.Volume")
-	proto.RegisterType((*FileEntry)(nil), "models.FileEntry")
-	proto.RegisterType((*FileChainSet)(nil), "models.FileChainSet")
 	proto.RegisterType((*PeerInfo)(nil), "models.PeerInfo")
 	proto.RegisterType((*RebalanceInfo)(nil), "models.RebalanceInfo")
 	proto.RegisterType((*Ring)(nil), "models.Ring")
 	proto.RegisterType((*BlockRef)(nil), "models.BlockRef")
 	proto.RegisterType((*INodeRef)(nil), "models.INodeRef")
-	proto.RegisterEnum("models.Volume_VolumeType", Volume_VolumeType_name, Volume_VolumeType_value)
-}
-func (this *Metadata) VerboseEqual(that interface{}) error {
-	if that == nil {
-		if this == nil {
-			return nil
-		}
-		return fmt.Errorf("that == nil && this != nil")
-	}
-
-	that1, ok := that.(*Metadata)
-	if !ok {
-		that2, ok := that.(Metadata)
-		if ok {
-			that1 = &that2
-		} else {
-			return fmt.Errorf("that is not of type *Metadata")
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return nil
-		}
-		return fmt.Errorf("that is type *Metadata but is nil && this != nil")
-	} else if this == nil {
-		return fmt.Errorf("that is type *Metadata but is not nil && this == nil")
-	}
-	if this.Uid != that1.Uid {
-		return fmt.Errorf("Uid this(%v) Not Equal that(%v)", this.Uid, that1.Uid)
-	}
-	if this.Gid != that1.Gid {
-		return fmt.Errorf("Gid this(%v) Not Equal that(%v)", this.Gid, that1.Gid)
-	}
-	if this.Mode != that1.Mode {
-		return fmt.Errorf("Mode this(%v) Not Equal that(%v)", this.Mode, that1.Mode)
-	}
-	if this.Flags != that1.Flags {
-		return fmt.Errorf("Flags this(%v) Not Equal that(%v)", this.Flags, that1.Flags)
-	}
-	if this.Ctime != that1.Ctime {
-		return fmt.Errorf("Ctime this(%v) Not Equal that(%v)", this.Ctime, that1.Ctime)
-	}
-	if this.Mtime != that1.Mtime {
-		return fmt.Errorf("Mtime this(%v) Not Equal that(%v)", this.Mtime, that1.Mtime)
-	}
-	return nil
-}
-func (this *Metadata) Equal(that interface{}) bool {
-	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	}
-
-	that1, ok := that.(*Metadata)
-	if !ok {
-		that2, ok := that.(Metadata)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	} else if this == nil {
-		return false
-	}
-	if this.Uid != that1.Uid {
-		return false
-	}
-	if this.Gid != that1.Gid {
-		return false
-	}
-	if this.Mode != that1.Mode {
-		return false
-	}
-	if this.Flags != that1.Flags {
-		return false
-	}
-	if this.Ctime != that1.Ctime {
-		return false
-	}
-	if this.Mtime != that1.Mtime {
-		return false
-	}
-	return true
 }
 func (this *INode) VerboseEqual(that interface{}) error {
 	if that == nil {
@@ -397,22 +205,8 @@ func (this *INode) VerboseEqual(that interface{}) error {
 	if this.INode != that1.INode {
 		return fmt.Errorf("INode this(%v) Not Equal that(%v)", this.INode, that1.INode)
 	}
-	if this.Chain != that1.Chain {
-		return fmt.Errorf("Chain this(%v) Not Equal that(%v)", this.Chain, that1.Chain)
-	}
 	if this.Filesize != that1.Filesize {
 		return fmt.Errorf("Filesize this(%v) Not Equal that(%v)", this.Filesize, that1.Filesize)
-	}
-	if len(this.Filenames) != len(that1.Filenames) {
-		return fmt.Errorf("Filenames this(%v) Not Equal that(%v)", len(this.Filenames), len(that1.Filenames))
-	}
-	for i := range this.Filenames {
-		if this.Filenames[i] != that1.Filenames[i] {
-			return fmt.Errorf("Filenames this[%v](%v) Not Equal that[%v](%v)", i, this.Filenames[i], i, that1.Filenames[i])
-		}
-	}
-	if !this.Permissions.Equal(that1.Permissions) {
-		return fmt.Errorf("Permissions this(%v) Not Equal that(%v)", this.Permissions, that1.Permissions)
 	}
 	if len(this.Attrs) != len(that1.Attrs) {
 		return fmt.Errorf("Attrs this(%v) Not Equal that(%v)", len(this.Attrs), len(that1.Attrs))
@@ -463,21 +257,7 @@ func (this *INode) Equal(that interface{}) bool {
 	if this.INode != that1.INode {
 		return false
 	}
-	if this.Chain != that1.Chain {
-		return false
-	}
 	if this.Filesize != that1.Filesize {
-		return false
-	}
-	if len(this.Filenames) != len(that1.Filenames) {
-		return false
-	}
-	for i := range this.Filenames {
-		if this.Filenames[i] != that1.Filenames[i] {
-			return false
-		}
-	}
-	if !this.Permissions.Equal(that1.Permissions) {
 		return false
 	}
 	if len(this.Attrs) != len(that1.Attrs) {
@@ -564,82 +344,6 @@ func (this *BlockLayer) Equal(that interface{}) bool {
 	}
 	return true
 }
-func (this *Directory) VerboseEqual(that interface{}) error {
-	if that == nil {
-		if this == nil {
-			return nil
-		}
-		return fmt.Errorf("that == nil && this != nil")
-	}
-
-	that1, ok := that.(*Directory)
-	if !ok {
-		that2, ok := that.(Directory)
-		if ok {
-			that1 = &that2
-		} else {
-			return fmt.Errorf("that is not of type *Directory")
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return nil
-		}
-		return fmt.Errorf("that is type *Directory but is nil && this != nil")
-	} else if this == nil {
-		return fmt.Errorf("that is type *Directory but is not nil && this == nil")
-	}
-	if !this.Metadata.Equal(that1.Metadata) {
-		return fmt.Errorf("Metadata this(%v) Not Equal that(%v)", this.Metadata, that1.Metadata)
-	}
-	if len(this.Files) != len(that1.Files) {
-		return fmt.Errorf("Files this(%v) Not Equal that(%v)", len(this.Files), len(that1.Files))
-	}
-	for i := range this.Files {
-		if !this.Files[i].Equal(that1.Files[i]) {
-			return fmt.Errorf("Files this[%v](%v) Not Equal that[%v](%v)", i, this.Files[i], i, that1.Files[i])
-		}
-	}
-	return nil
-}
-func (this *Directory) Equal(that interface{}) bool {
-	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	}
-
-	that1, ok := that.(*Directory)
-	if !ok {
-		that2, ok := that.(Directory)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	} else if this == nil {
-		return false
-	}
-	if !this.Metadata.Equal(that1.Metadata) {
-		return false
-	}
-	if len(this.Files) != len(that1.Files) {
-		return false
-	}
-	for i := range this.Files {
-		if !this.Files[i].Equal(that1.Files[i]) {
-			return false
-		}
-	}
-	return true
-}
 func (this *Volume) VerboseEqual(that interface{}) error {
 	if that == nil {
 		if this == nil {
@@ -715,142 +419,6 @@ func (this *Volume) Equal(that interface{}) bool {
 	}
 	if this.MaxBytes != that1.MaxBytes {
 		return false
-	}
-	return true
-}
-func (this *FileEntry) VerboseEqual(that interface{}) error {
-	if that == nil {
-		if this == nil {
-			return nil
-		}
-		return fmt.Errorf("that == nil && this != nil")
-	}
-
-	that1, ok := that.(*FileEntry)
-	if !ok {
-		that2, ok := that.(FileEntry)
-		if ok {
-			that1 = &that2
-		} else {
-			return fmt.Errorf("that is not of type *FileEntry")
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return nil
-		}
-		return fmt.Errorf("that is type *FileEntry but is nil && this != nil")
-	} else if this == nil {
-		return fmt.Errorf("that is type *FileEntry but is not nil && this == nil")
-	}
-	if this.Chain != that1.Chain {
-		return fmt.Errorf("Chain this(%v) Not Equal that(%v)", this.Chain, that1.Chain)
-	}
-	if this.Sympath != that1.Sympath {
-		return fmt.Errorf("Sympath this(%v) Not Equal that(%v)", this.Sympath, that1.Sympath)
-	}
-	return nil
-}
-func (this *FileEntry) Equal(that interface{}) bool {
-	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	}
-
-	that1, ok := that.(*FileEntry)
-	if !ok {
-		that2, ok := that.(FileEntry)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	} else if this == nil {
-		return false
-	}
-	if this.Chain != that1.Chain {
-		return false
-	}
-	if this.Sympath != that1.Sympath {
-		return false
-	}
-	return true
-}
-func (this *FileChainSet) VerboseEqual(that interface{}) error {
-	if that == nil {
-		if this == nil {
-			return nil
-		}
-		return fmt.Errorf("that == nil && this != nil")
-	}
-
-	that1, ok := that.(*FileChainSet)
-	if !ok {
-		that2, ok := that.(FileChainSet)
-		if ok {
-			that1 = &that2
-		} else {
-			return fmt.Errorf("that is not of type *FileChainSet")
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return nil
-		}
-		return fmt.Errorf("that is type *FileChainSet but is nil && this != nil")
-	} else if this == nil {
-		return fmt.Errorf("that is type *FileChainSet but is not nil && this == nil")
-	}
-	if len(this.Chains) != len(that1.Chains) {
-		return fmt.Errorf("Chains this(%v) Not Equal that(%v)", len(this.Chains), len(that1.Chains))
-	}
-	for i := range this.Chains {
-		if this.Chains[i] != that1.Chains[i] {
-			return fmt.Errorf("Chains this[%v](%v) Not Equal that[%v](%v)", i, this.Chains[i], i, that1.Chains[i])
-		}
-	}
-	return nil
-}
-func (this *FileChainSet) Equal(that interface{}) bool {
-	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	}
-
-	that1, ok := that.(*FileChainSet)
-	if !ok {
-		that2, ok := that.(FileChainSet)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	} else if this == nil {
-		return false
-	}
-	if len(this.Chains) != len(that1.Chains) {
-		return false
-	}
-	for i := range this.Chains {
-		if this.Chains[i] != that1.Chains[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -1264,54 +832,6 @@ func (this *INodeRef) Equal(that interface{}) bool {
 	}
 	return true
 }
-func (m *Metadata) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *Metadata) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.Uid != 0 {
-		data[i] = 0x8
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Uid))
-	}
-	if m.Gid != 0 {
-		data[i] = 0x10
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Gid))
-	}
-	if m.Mode != 0 {
-		data[i] = 0x18
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Mode))
-	}
-	if m.Flags != 0 {
-		data[i] = 0x20
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Flags))
-	}
-	if m.Ctime != 0 {
-		data[i] = 0x28
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Ctime))
-	}
-	if m.Mtime != 0 {
-		data[i] = 0x30
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Mtime))
-	}
-	return i, nil
-}
-
 func (m *INode) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -1337,40 +857,10 @@ func (m *INode) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.INode))
 	}
-	if m.Chain != 0 {
-		data[i] = 0x18
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Chain))
-	}
 	if m.Filesize != 0 {
 		data[i] = 0x20
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Filesize))
-	}
-	if len(m.Filenames) > 0 {
-		for _, s := range m.Filenames {
-			data[i] = 0x2a
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			data[i] = uint8(l)
-			i++
-			i += copy(data[i:], s)
-		}
-	}
-	if m.Permissions != nil {
-		data[i] = 0x32
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Permissions.Size()))
-		n1, err := m.Permissions.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n1
 	}
 	if len(m.Attrs) > 0 {
 		for k, _ := range m.Attrs {
@@ -1435,59 +925,6 @@ func (m *BlockLayer) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
-func (m *Directory) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *Directory) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.Metadata != nil {
-		data[i] = 0xa
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Metadata.Size()))
-		n2, err := m.Metadata.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n2
-	}
-	if len(m.Files) > 0 {
-		for k, _ := range m.Files {
-			data[i] = 0x12
-			i++
-			v := m.Files[k]
-			if v == nil {
-				return 0, errors.New("proto: map has nil element")
-			}
-			msgSize := v.Size()
-			mapSize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + msgSize + sovAgro(uint64(msgSize))
-			i = encodeVarintAgro(data, i, uint64(mapSize))
-			data[i] = 0xa
-			i++
-			i = encodeVarintAgro(data, i, uint64(len(k)))
-			i += copy(data[i:], k)
-			data[i] = 0x12
-			i++
-			i = encodeVarintAgro(data, i, uint64(v.Size()))
-			n3, err := v.MarshalTo(data[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n3
-		}
-	}
-	return i, nil
-}
-
 func (m *Volume) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -1514,77 +951,16 @@ func (m *Volume) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.Id))
 	}
-	if m.Type != 0 {
-		data[i] = 0x18
+	if len(m.Type) > 0 {
+		data[i] = 0x1a
 		i++
-		i = encodeVarintAgro(data, i, uint64(m.Type))
+		i = encodeVarintAgro(data, i, uint64(len(m.Type)))
+		i += copy(data[i:], m.Type)
 	}
 	if m.MaxBytes != 0 {
 		data[i] = 0x20
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.MaxBytes))
-	}
-	return i, nil
-}
-
-func (m *FileEntry) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *FileEntry) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.Chain != 0 {
-		data[i] = 0x8
-		i++
-		i = encodeVarintAgro(data, i, uint64(m.Chain))
-	}
-	if len(m.Sympath) > 0 {
-		data[i] = 0x12
-		i++
-		i = encodeVarintAgro(data, i, uint64(len(m.Sympath)))
-		i += copy(data[i:], m.Sympath)
-	}
-	return i, nil
-}
-
-func (m *FileChainSet) Marshal() (data []byte, err error) {
-	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (m *FileChainSet) MarshalTo(data []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if len(m.Chains) > 0 {
-		for k, _ := range m.Chains {
-			data[i] = 0xa
-			i++
-			v := m.Chains[k]
-			mapSize := 1 + sovAgro(uint64(k)) + 1 + sovAgro(uint64(v))
-			i = encodeVarintAgro(data, i, uint64(mapSize))
-			data[i] = 0x8
-			i++
-			i = encodeVarintAgro(data, i, uint64(k))
-			data[i] = 0x10
-			i++
-			i = encodeVarintAgro(data, i, uint64(v))
-		}
 	}
 	return i, nil
 }
@@ -1645,11 +1021,11 @@ func (m *PeerInfo) MarshalTo(data []byte) (int, error) {
 		data[i] = 0x3a
 		i++
 		i = encodeVarintAgro(data, i, uint64(m.RebalanceInfo.Size()))
-		n4, err := m.RebalanceInfo.MarshalTo(data[i:])
+		n1, err := m.RebalanceInfo.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n4
+		i += n1
 	}
 	return i, nil
 }
@@ -1842,44 +1218,22 @@ func encodeVarintAgro(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	return offset + 1
 }
-func NewPopulatedMetadata(r randyAgro, easy bool) *Metadata {
-	this := &Metadata{}
-	this.Uid = uint32(r.Uint32())
-	this.Gid = uint32(r.Uint32())
-	this.Mode = uint32(r.Uint32())
-	this.Flags = uint32(r.Uint32())
-	this.Ctime = uint64(uint64(r.Uint32()))
-	this.Mtime = uint64(uint64(r.Uint32()))
-	if !easy && r.Intn(10) != 0 {
-	}
-	return this
-}
-
 func NewPopulatedINode(r randyAgro, easy bool) *INode {
 	this := &INode{}
 	this.Volume = uint64(uint64(r.Uint32()))
 	this.INode = uint64(uint64(r.Uint32()))
-	this.Chain = uint64(uint64(r.Uint32()))
 	this.Filesize = uint64(uint64(r.Uint32()))
-	v1 := r.Intn(10)
-	this.Filenames = make([]string, v1)
-	for i := 0; i < v1; i++ {
-		this.Filenames[i] = randStringAgro(r)
-	}
 	if r.Intn(10) != 0 {
-		this.Permissions = NewPopulatedMetadata(r, easy)
-	}
-	if r.Intn(10) != 0 {
-		v2 := r.Intn(10)
+		v1 := r.Intn(10)
 		this.Attrs = make(map[string]string)
-		for i := 0; i < v2; i++ {
+		for i := 0; i < v1; i++ {
 			this.Attrs[randStringAgro(r)] = randStringAgro(r)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v3 := r.Intn(5)
-		this.Blocks = make([]*BlockLayer, v3)
-		for i := 0; i < v3; i++ {
+		v2 := r.Intn(5)
+		this.Blocks = make([]*BlockLayer, v2)
+		for i := 0; i < v2; i++ {
 			this.Blocks[i] = NewPopulatedBlockLayer(r, easy)
 		}
 	}
@@ -1891,27 +1245,10 @@ func NewPopulatedINode(r randyAgro, easy bool) *INode {
 func NewPopulatedBlockLayer(r randyAgro, easy bool) *BlockLayer {
 	this := &BlockLayer{}
 	this.Type = uint32(r.Uint32())
-	v4 := r.Intn(100)
-	this.Content = make([]byte, v4)
-	for i := 0; i < v4; i++ {
+	v3 := r.Intn(100)
+	this.Content = make([]byte, v3)
+	for i := 0; i < v3; i++ {
 		this.Content[i] = byte(r.Intn(256))
-	}
-	if !easy && r.Intn(10) != 0 {
-	}
-	return this
-}
-
-func NewPopulatedDirectory(r randyAgro, easy bool) *Directory {
-	this := &Directory{}
-	if r.Intn(10) != 0 {
-		this.Metadata = NewPopulatedMetadata(r, easy)
-	}
-	if r.Intn(10) != 0 {
-		v5 := r.Intn(10)
-		this.Files = make(map[string]*FileEntry)
-		for i := 0; i < v5; i++ {
-			this.Files[randStringAgro(r)] = NewPopulatedFileEntry(r, easy)
-		}
 	}
 	if !easy && r.Intn(10) != 0 {
 	}
@@ -1922,32 +1259,8 @@ func NewPopulatedVolume(r randyAgro, easy bool) *Volume {
 	this := &Volume{}
 	this.Name = randStringAgro(r)
 	this.Id = uint64(uint64(r.Uint32()))
-	this.Type = Volume_VolumeType([]int32{0, 1}[r.Intn(2)])
+	this.Type = randStringAgro(r)
 	this.MaxBytes = uint64(uint64(r.Uint32()))
-	if !easy && r.Intn(10) != 0 {
-	}
-	return this
-}
-
-func NewPopulatedFileEntry(r randyAgro, easy bool) *FileEntry {
-	this := &FileEntry{}
-	this.Chain = uint64(uint64(r.Uint32()))
-	this.Sympath = randStringAgro(r)
-	if !easy && r.Intn(10) != 0 {
-	}
-	return this
-}
-
-func NewPopulatedFileChainSet(r randyAgro, easy bool) *FileChainSet {
-	this := &FileChainSet{}
-	if r.Intn(10) != 0 {
-		v6 := r.Intn(10)
-		this.Chains = make(map[uint64]uint64)
-		for i := 0; i < v6; i++ {
-			v7 := uint64(uint64(r.Uint32()))
-			this.Chains[v7] = uint64(uint64(r.Uint32()))
-		}
-	}
 	if !easy && r.Intn(10) != 0 {
 	}
 	return this
@@ -1991,21 +1304,21 @@ func NewPopulatedRing(r randyAgro, easy bool) *Ring {
 	this.Version = uint32(r.Uint32())
 	this.ReplicationFactor = uint32(r.Uint32())
 	if r.Intn(10) != 0 {
-		v8 := r.Intn(5)
-		this.Peers = make([]*PeerInfo, v8)
-		for i := 0; i < v8; i++ {
+		v4 := r.Intn(5)
+		this.Peers = make([]*PeerInfo, v4)
+		for i := 0; i < v4; i++ {
 			this.Peers[i] = NewPopulatedPeerInfo(r, easy)
 		}
 	}
 	if r.Intn(10) != 0 {
-		v9 := r.Intn(10)
+		v5 := r.Intn(10)
 		this.Attrs = make(map[string][]byte)
-		for i := 0; i < v9; i++ {
-			v10 := r.Intn(100)
-			v11 := randStringAgro(r)
-			this.Attrs[v11] = make([]byte, v10)
-			for i := 0; i < v10; i++ {
-				this.Attrs[v11][i] = byte(r.Intn(256))
+		for i := 0; i < v5; i++ {
+			v6 := r.Intn(100)
+			v7 := randStringAgro(r)
+			this.Attrs[v7] = make([]byte, v6)
+			for i := 0; i < v6; i++ {
+				this.Attrs[v7][i] = byte(r.Intn(256))
 			}
 		}
 	}
@@ -2052,9 +1365,9 @@ func randUTF8RuneAgro(r randyAgro) rune {
 	return rune(ru + 61)
 }
 func randStringAgro(r randyAgro) string {
-	v12 := r.Intn(100)
-	tmps := make([]rune, v12)
-	for i := 0; i < v12; i++ {
+	v8 := r.Intn(100)
+	tmps := make([]rune, v8)
+	for i := 0; i < v8; i++ {
 		tmps[i] = randUTF8RuneAgro(r)
 	}
 	return string(tmps)
@@ -2076,11 +1389,11 @@ func randFieldAgro(data []byte, r randyAgro, fieldNumber int, wire int) []byte {
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateAgro(data, uint64(key))
-		v13 := r.Int63()
+		v9 := r.Int63()
 		if r.Intn(2) == 0 {
-			v13 *= -1
+			v9 *= -1
 		}
-		data = encodeVarintPopulateAgro(data, uint64(v13))
+		data = encodeVarintPopulateAgro(data, uint64(v9))
 	case 1:
 		data = encodeVarintPopulateAgro(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -2105,30 +1418,6 @@ func encodeVarintPopulateAgro(data []byte, v uint64) []byte {
 	data = append(data, uint8(v))
 	return data
 }
-func (m *Metadata) Size() (n int) {
-	var l int
-	_ = l
-	if m.Uid != 0 {
-		n += 1 + sovAgro(uint64(m.Uid))
-	}
-	if m.Gid != 0 {
-		n += 1 + sovAgro(uint64(m.Gid))
-	}
-	if m.Mode != 0 {
-		n += 1 + sovAgro(uint64(m.Mode))
-	}
-	if m.Flags != 0 {
-		n += 1 + sovAgro(uint64(m.Flags))
-	}
-	if m.Ctime != 0 {
-		n += 1 + sovAgro(uint64(m.Ctime))
-	}
-	if m.Mtime != 0 {
-		n += 1 + sovAgro(uint64(m.Mtime))
-	}
-	return n
-}
-
 func (m *INode) Size() (n int) {
 	var l int
 	_ = l
@@ -2138,21 +1427,8 @@ func (m *INode) Size() (n int) {
 	if m.INode != 0 {
 		n += 1 + sovAgro(uint64(m.INode))
 	}
-	if m.Chain != 0 {
-		n += 1 + sovAgro(uint64(m.Chain))
-	}
 	if m.Filesize != 0 {
 		n += 1 + sovAgro(uint64(m.Filesize))
-	}
-	if len(m.Filenames) > 0 {
-		for _, s := range m.Filenames {
-			l = len(s)
-			n += 1 + l + sovAgro(uint64(l))
-		}
-	}
-	if m.Permissions != nil {
-		l = m.Permissions.Size()
-		n += 1 + l + sovAgro(uint64(l))
 	}
 	if len(m.Attrs) > 0 {
 		for k, v := range m.Attrs {
@@ -2186,28 +1462,6 @@ func (m *BlockLayer) Size() (n int) {
 	return n
 }
 
-func (m *Directory) Size() (n int) {
-	var l int
-	_ = l
-	if m.Metadata != nil {
-		l = m.Metadata.Size()
-		n += 1 + l + sovAgro(uint64(l))
-	}
-	if len(m.Files) > 0 {
-		for k, v := range m.Files {
-			_ = k
-			_ = v
-			l = 0
-			if v != nil {
-				l = v.Size()
-			}
-			mapEntrySize := 1 + len(k) + sovAgro(uint64(len(k))) + 1 + l + sovAgro(uint64(l))
-			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
-		}
-	}
-	return n
-}
-
 func (m *Volume) Size() (n int) {
 	var l int
 	_ = l
@@ -2218,38 +1472,12 @@ func (m *Volume) Size() (n int) {
 	if m.Id != 0 {
 		n += 1 + sovAgro(uint64(m.Id))
 	}
-	if m.Type != 0 {
-		n += 1 + sovAgro(uint64(m.Type))
-	}
-	if m.MaxBytes != 0 {
-		n += 1 + sovAgro(uint64(m.MaxBytes))
-	}
-	return n
-}
-
-func (m *FileEntry) Size() (n int) {
-	var l int
-	_ = l
-	if m.Chain != 0 {
-		n += 1 + sovAgro(uint64(m.Chain))
-	}
-	l = len(m.Sympath)
+	l = len(m.Type)
 	if l > 0 {
 		n += 1 + l + sovAgro(uint64(l))
 	}
-	return n
-}
-
-func (m *FileChainSet) Size() (n int) {
-	var l int
-	_ = l
-	if len(m.Chains) > 0 {
-		for k, v := range m.Chains {
-			_ = k
-			_ = v
-			mapEntrySize := 1 + sovAgro(uint64(k)) + 1 + sovAgro(uint64(v))
-			n += mapEntrySize + 1 + sovAgro(uint64(mapEntrySize))
-		}
+	if m.MaxBytes != 0 {
+		n += 1 + sovAgro(uint64(m.MaxBytes))
 	}
 	return n
 }
@@ -2368,170 +1596,6 @@ func sovAgro(x uint64) (n int) {
 func sozAgro(x uint64) (n int) {
 	return sovAgro(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *Metadata) Unmarshal(data []byte) error {
-	l := len(data)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowAgro
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := data[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: Metadata: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Metadata: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Uid", wireType)
-			}
-			m.Uid = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Uid |= (uint32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Gid", wireType)
-			}
-			m.Gid = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Gid |= (uint32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Mode", wireType)
-			}
-			m.Mode = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Mode |= (uint32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Flags", wireType)
-			}
-			m.Flags = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Flags |= (uint32(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ctime", wireType)
-			}
-			m.Ctime = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Ctime |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 6:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Mtime", wireType)
-			}
-			m.Mtime = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Mtime |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipAgro(data[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgro
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *INode) Unmarshal(data []byte) error {
 	l := len(data)
 	iNdEx := 0
@@ -2599,25 +1663,6 @@ func (m *INode) Unmarshal(data []byte) error {
 					break
 				}
 			}
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Chain", wireType)
-			}
-			m.Chain = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Chain |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Filesize", wireType)
@@ -2637,68 +1682,6 @@ func (m *INode) Unmarshal(data []byte) error {
 					break
 				}
 			}
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Filenames", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthAgro
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Filenames = append(m.Filenames, string(data[iNdEx:postIndex]))
-			iNdEx = postIndex
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Permissions", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthAgro
-			}
-			postIndex := iNdEx + msglen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Permissions == nil {
-				m.Permissions = &Metadata{}
-			}
-			if err := m.Permissions.Unmarshal(data[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
 		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Attrs", wireType)
@@ -2962,205 +1945,6 @@ func (m *BlockLayer) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *Directory) Unmarshal(data []byte) error {
-	l := len(data)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowAgro
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := data[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: Directory: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Directory: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Metadata", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthAgro
-			}
-			postIndex := iNdEx + msglen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Metadata == nil {
-				m.Metadata = &Metadata{}
-			}
-			if err := m.Metadata.Unmarshal(data[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Files", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthAgro
-			}
-			postIndex := iNdEx + msglen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var keykey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				keykey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var stringLenmapkey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				stringLenmapkey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLenmapkey := int(stringLenmapkey)
-			if intStringLenmapkey < 0 {
-				return ErrInvalidLengthAgro
-			}
-			postStringIndexmapkey := iNdEx + intStringLenmapkey
-			if postStringIndexmapkey > l {
-				return io.ErrUnexpectedEOF
-			}
-			mapkey := string(data[iNdEx:postStringIndexmapkey])
-			iNdEx = postStringIndexmapkey
-			var valuekey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				valuekey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var mapmsglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				mapmsglen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if mapmsglen < 0 {
-				return ErrInvalidLengthAgro
-			}
-			postmsgIndex := iNdEx + mapmsglen
-			if mapmsglen < 0 {
-				return ErrInvalidLengthAgro
-			}
-			if postmsgIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			mapvalue := &FileEntry{}
-			if err := mapvalue.Unmarshal(data[iNdEx:postmsgIndex]); err != nil {
-				return err
-			}
-			iNdEx = postmsgIndex
-			if m.Files == nil {
-				m.Files = make(map[string]*FileEntry)
-			}
-			m.Files[mapkey] = mapvalue
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipAgro(data[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgro
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *Volume) Unmarshal(data []byte) error {
 	l := len(data)
 	iNdEx := 0
@@ -3239,115 +2023,8 @@ func (m *Volume) Unmarshal(data []byte) error {
 				}
 			}
 		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
-			}
-			m.Type = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Type |= (Volume_VolumeType(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxBytes", wireType)
-			}
-			m.MaxBytes = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.MaxBytes |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipAgro(data[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgro
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *FileEntry) Unmarshal(data []byte) error {
-	l := len(data)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowAgro
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := data[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: FileEntry: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: FileEntry: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Chain", wireType)
-			}
-			m.Chain = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.Chain |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Sympath", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -3372,63 +2049,13 @@ func (m *FileEntry) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Sympath = string(data[iNdEx:postIndex])
+			m.Type = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipAgro(data[iNdEx:])
-			if err != nil {
-				return err
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxBytes", wireType)
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgro
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *FileChainSet) Unmarshal(data []byte) error {
-	l := len(data)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowAgro
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := data[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: FileChainSet: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: FileChainSet: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Chains", wireType)
-			}
-			var msglen int
+			m.MaxBytes = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowAgro
@@ -3438,83 +2065,11 @@ func (m *FileChainSet) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				m.MaxBytes |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if msglen < 0 {
-				return ErrInvalidLengthAgro
-			}
-			postIndex := iNdEx + msglen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var keykey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				keykey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var mapkey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				mapkey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var valuekey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				valuekey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var mapvalue uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowAgro
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				mapvalue |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if m.Chains == nil {
-				m.Chains = make(map[uint64]uint64)
-			}
-			m.Chains[mapkey] = mapvalue
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAgro(data[iNdEx:])

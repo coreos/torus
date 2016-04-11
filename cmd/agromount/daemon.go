@@ -140,7 +140,7 @@ func (d *Daemon) attach(c *gin.Context) {
 		d.onErr(c, err)
 		return
 	}
-	if vol.Type != models.Volume_BLOCK {
+	if vol.Type != "block" {
 		d.onErr(c, errors.New("can't mount file volumes at this time"))
 		return
 	}

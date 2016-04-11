@@ -3,7 +3,6 @@ package block
 import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
-	"github.com/coreos/agro/models"
 )
 
 type BlockFile struct {
@@ -12,7 +11,7 @@ type BlockFile struct {
 }
 
 func (s *BlockVolume) OpenBlockFile() (*BlockFile, error) {
-	if s.volume.Type != models.Volume_BLOCK {
+	if s.volume.Type != "block" {
 		panic("Wrong type")
 	}
 	err := s.mds.Lock(s.srv.Lease())

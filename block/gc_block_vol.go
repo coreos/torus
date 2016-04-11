@@ -44,7 +44,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	defer b.mut.Unlock()
 	t := iradix.New()
 	b.skip = false
-	if vol.Type != models.Volume_BLOCK {
+	if vol.Type != "block" {
 		b.skip = true
 		return nil
 	}
