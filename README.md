@@ -1,8 +1,16 @@
 # agro
 
-A Go DFS
+A Go Distributed Storage Engine
 
 See the [wiki](https://github.com/coreos/agro/wiki) for more details
+
+## Overview
+
+Agro is a distributed block storage engine that provides a resource pool and basic file primitives from daemons running atop a cluster. These primitvies are made consistent by being append-only and coordinated by [etcd](https://github.com/coreos/etcd). From these primitives, an agro server can support multiple types of volumes, the semantics of which can be broken into subprojects. It ships with a simple block-device volume plugin.
+
+The goal from the start is simplicity; running agro should take at most 5 minutes for a developer to set up and understand, while being as robust as possible. 
+
+Sharding is done via a consistent hash function, controlled in the simple case by a hash ring algorithm, but fully extensible to arbitrary maps, rack-awareness, and other nice features.
 
 ## Getting Started
 
@@ -28,7 +36,7 @@ cd $GOPATH/src/github.com/coreos/agro
 make
 ```
 
-Either way you'll find the binaries `agro` and `agroctl`.
+Either way you'll find the binaries `agro`, `agromount` and `agroctl`.
 
 ### 1) Get etcd
 You need a *recent* [etcd](https://github.com/coreos/etcd), as agro uses the v3 API natively and depends on some fixes therein. 
@@ -43,7 +51,7 @@ etcd --experimental-v3demo --experimental-gRPC-addr 127.0.0.1:2378 --data-dir /t
 
 ### 2) mkfs
 
-We need to initialize the filesystem keys in etcd. This sets the fixed, global settings for the storage cluster, much like formatting a block device. Fortunately, the default settings should suffice for most cases.
+We need to initialize the storage keys in etcd. This sets the fixed, global settings for the storage cluster, much like formatting a block device. Fortunately, the default settings should suffice for most cases.
 
 ```
 agroctl mkfs
@@ -51,13 +59,13 @@ agroctl mkfs
 
 And you're ready!
 
-If it can't connect to etcd, it takes the `-C` flag, just like `etcdctl`
+If `agroctl` can't connect to etcd, it takes the `-C` flag, just like `etcdctl`
 
 ```
 agroctl -C $ETCD_IP:2378 mkfs
 ```
 
-(This remains true for all uses of agroctl)
+(This remains true for all uses of agro binaries)
 
 If you're curious about the other settings, 
 ```
@@ -154,11 +162,29 @@ Even better fault tolerance with erasure codes and parity is an advanced topic T
 ### 6) Create a volume
 
 ```
-agroctl volume create myVolume
+agroctl volume create-block myVolume 10GiB
 ```
 
-### 7) Mount that volume with FUSE
+This creates a 10GiB virtual blockfile for use. It will be safely replicated and CRC checked, by default. 
+
+### 7) Mount that volume via NBD
 
 ```
-agromount --etcd 127.0.0.1:2378 myVolume /mnt/myVolume
+sudo modprobe nbd
+sudo agromount --etcd 127.0.0.1:2378 nbd myVolume /dev/nbd0
 ```
+
+Specifying `/dev/nbd0` is optional -- it will pick the first available.
+
+The mount process is similar to FUSE for a block device; it will disconnect when killed, so make sure it's synced and unmounted.
+
+At this point, you have a replicated, highly-available block device connected to your machine. You can format it and mount it as you'd expect:
+
+```
+sudo mkfs.ext4 /dev/nbd0
+sudo mount /dev/nbd0 -o discard,noatime /mnt/agro
+```
+
+It supports the TRIM SSD command for garbage collecting; `-o discard` enables this.
+
+It is recommended (though not required) to use a log-structured filesystem on these devices, to minimize the chance of corrpution. [F2FS](https://en.wikipedia.org/wiki/F2FS) is a good choice, and included in the kernel.
