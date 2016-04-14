@@ -9,7 +9,7 @@ import (
 	"github.com/coreos/agro/ring"
 )
 
-func (e *etcd) watchRingUpdates() error {
+func (e *Etcd) watchRingUpdates() error {
 	wAPI := etcdpb.NewWatchClient(e.conn)
 	wStream, err := wAPI.Watch(context.TODO())
 	if err != nil {
@@ -20,7 +20,7 @@ func (e *etcd) watchRingUpdates() error {
 	p := &etcdpb.WatchRequest{
 		RequestUnion: &etcdpb.WatchRequest_CreateRequest{
 			CreateRequest: &etcdpb.WatchCreateRequest{
-				Key: mkKey("meta", "the-one-ring"),
+				Key: MkKey("meta", "the-one-ring"),
 			},
 		},
 	}
@@ -28,7 +28,7 @@ func (e *etcd) watchRingUpdates() error {
 	return err
 }
 
-func (e *etcd) watchRing(wStream etcdpb.Watch_WatchClient) {
+func (e *Etcd) watchRing(wStream etcdpb.Watch_WatchClient) {
 	r, err := e.GetRing()
 	if err != nil {
 		clog.Errorf("can't get inital ring: %s", err)

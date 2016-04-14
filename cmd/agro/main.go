@@ -11,9 +11,9 @@ import (
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
+	"github.com/coreos/agro/distributor"
 	"github.com/coreos/agro/internal/http"
 	"github.com/coreos/agro/ring"
-	"github.com/coreos/agro/server"
 
 	// Register all the possible drivers.
 	_ "github.com/coreos/agro/metadata/etcd"
@@ -141,12 +141,12 @@ func configureServer(cmd *cobra.Command, args []string) {
 func runServer(cmd *cobra.Command, args []string) {
 
 	var (
-		srv agro.Server
+		srv *agro.Server
 		err error
 	)
 	switch {
 	case etcdAddress == "":
-		srv, err = server.NewServer(cfg, "temp", "mfile")
+		srv, err = agro.NewServer(cfg, "temp", "mfile")
 	case mkfs:
 		err = agro.Mkfs("etcd", cfg, agro.GlobalMetadata{
 			BlockSize:        8 * 1024,
@@ -163,7 +163,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		}
 		fallthrough
 	default:
-		srv, err = server.NewServer(cfg, "etcd", "mfile")
+		srv, err = agro.NewServer(cfg, "etcd", "mfile")
 	}
 	if err != nil {
 		fmt.Printf("Couldn't start: %s\n", err)
@@ -174,9 +174,9 @@ func runServer(cmd *cobra.Command, args []string) {
 	signal.Notify(signalChan, os.Interrupt)
 
 	if peerAddress != "" {
-		srv.ListenReplication(peerAddress)
+		distributor.ListenReplication(srv, peerAddress)
 	} else {
-		srv.OpenReplication()
+		distributor.OpenReplication(srv)
 	}
 
 	defer srv.Close()
@@ -188,10 +188,9 @@ func runServer(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	fsSrv, err := srv.FS()
 	if err != nil {
 		fmt.Println("couldn't use server as filesystem:", err)
 		os.Exit(0)
 	}
-	http.ServeHTTP(httpAddress, fsSrv)
+	http.ServeHTTP(httpAddress, srv)
 }

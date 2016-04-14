@@ -2,71 +2,100 @@ package agro
 
 import (
 	"io"
-	"os"
+	"sync"
+
+	"golang.org/x/net/context"
 
 	"github.com/coreos/agro/models"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
-// Server is the interface representing the basic ways to interact with the
-// filesystem.
-type Server interface {
-	Close() error
+var (
+	promOps = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "agro_server_ops_total",
+		Help: "Number of times an atomic update failed and needed to be retried",
+	}, []string{"kind"})
+)
 
-	// If we support a filesystem interface, these calls will work,
-	// otherwise returning ErrNotSupported
-	FS() (FSServer, error)
-
-	// If we support a block interface, these calls will work,
-	// otherwise returning ErrNotSupported
-	Block() (BlockServer, error)
-
-	GetVolume(name string) (*models.Volume, error)
-	// GetVolumes lists all volumes, regardless of type.
-	GetVolumes() ([]*models.Volume, error)
-
-	// Return some global server information, usually from the underlying
-	// metadata service.
-	Info() (ServerInfo, error)
-
-	// BeginHeartbeat spawns a goroutine for heartbeats. Non-blocking.
-	BeginHeartbeat() error
-
-	// ListenReplication opens the internal networking port and connects to the cluster
-	ListenReplication(addr string) error
-	// OpenReplication connects to the cluster without opening the internal networking.
-	OpenReplication() error
-
-	// Write a bunch of debug output to the io.Writer.
-	// Implementation specific.
-	Debug(io.Writer) error
+func init() {
+	prometheus.MustRegister(promOps)
 }
 
-type FSServer interface {
-	Server
-	CreateFSVolume(string) error
-	// Standard file path calls.
-	Create(Path) (File, error)
-	Open(Path) (File, error)
-	OpenFile(p Path, flag int, perm os.FileMode) (File, error)
-	OpenFileMetadata(p Path, flag int, md *models.Metadata) (File, error)
-	Rename(p Path, new Path) error
-	Link(p Path, new Path) error
-	Symlink(to string, new Path) error
-	Lstat(Path) (os.FileInfo, error)
-	Readdir(Path) ([]Path, error)
-	Remove(Path) error
-	Mkdir(Path, *models.Metadata) error
+const (
+	CtxWriteLevel int = iota
+	CtxReadLevel
+)
 
-	Chmod(name Path, mode os.FileMode) error
-	Chown(name Path, uid, gid int) error
+// Server is the type representing the generic distributed block store.
+type Server struct {
+	mut           sync.RWMutex
+	writeableLock sync.RWMutex
+	infoMut       sync.Mutex
+	Blocks        BlockStore
+	MDS           MetadataService
+	INodes        *INodeStore
+	peersMap      map[string]*models.PeerInfo
+	closeChans    []chan interface{}
+	Cfg           Config
+	peerInfo      *models.PeerInfo
+
+	lease            int64
+	heartbeating     bool
+	ReplicationOpen  bool
+	timeoutCallbacks []func(string)
 }
 
-type BlockServer interface {
-	Server
-	CreateBlockVolume(name string, size uint64) error
-	OpenBlockFile(volume string) (BlockFile, error)
+func (s *Server) Lease() int64 {
+	return s.lease
 }
 
-type ServerInfo struct {
-	BlockSize uint64
+func (s *Server) Close() error {
+	for _, c := range s.closeChans {
+		close(c)
+	}
+	err := s.MDS.Close()
+	if err != nil {
+		clog.Errorf("couldn't close mds: %s", err)
+		return err
+	}
+	err = s.INodes.Close()
+	if err != nil {
+		clog.Errorf("couldn't close inodes: %s", err)
+		return err
+	}
+	err = s.Blocks.Close()
+	if err != nil {
+		clog.Errorf("couldn't close blocks: %s", err)
+		return err
+	}
+	return nil
+}
+
+// Debug writes a bunch of debug output to the io.Writer.
+func (s *Server) Debug(w io.Writer) error {
+	if v, ok := s.MDS.(DebugMetadataService); ok {
+		io.WriteString(w, "# MDS\n")
+		return v.DumpMetadata(w)
+	}
+	return nil
+}
+
+func (s *Server) getContext() context.Context {
+	return s.ExtendContext(context.TODO())
+}
+
+func (s *Server) ExtendContext(ctx context.Context) context.Context {
+	wl := context.WithValue(ctx, CtxWriteLevel, s.Cfg.WriteLevel)
+	rl := context.WithValue(wl, CtxReadLevel, s.Cfg.ReadLevel)
+	return rl
+}
+
+func (s *Server) GetPeerMap() map[string]*models.PeerInfo {
+	s.infoMut.Lock()
+	defer s.infoMut.Unlock()
+	out := make(map[string]*models.PeerInfo)
+	for k, v := range s.peersMap {
+		out[k] = v
+	}
+	return out
 }

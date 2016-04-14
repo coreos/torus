@@ -13,6 +13,7 @@ import (
 
 	"github.com/DeanThompson/ginpprof"
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/block"
 	"github.com/coreos/agro/internal/nbd"
 	"github.com/coreos/agro/models"
 	"github.com/gin-gonic/gin"
@@ -28,7 +29,7 @@ var daemonCommand = &cobra.Command{
 
 type Daemon struct {
 	router      *gin.Engine
-	srv         agro.Server
+	srv         *agro.Server
 	promHandler http.Handler
 	attached    []*attached
 	mounts      []*mount
@@ -86,7 +87,7 @@ func daemonAction(cmd *cobra.Command, args []string) {
 	}
 }
 
-func NewDaemon(srv agro.Server, closer chan bool) *Daemon {
+func NewDaemon(srv *agro.Server, closer chan bool) *Daemon {
 	engine := gin.Default()
 	//engine.Use(gin.Recovery())
 	d := &Daemon{
@@ -133,13 +134,13 @@ func (d *Daemon) attach(c *gin.Context) {
 		d.onErr(c, err)
 		return
 	}
-	vol, err := d.srv.GetVolume(cmd.Volume.VolumeName)
+	vol, err := d.srv.MDS.GetVolume(cmd.Volume.VolumeName)
 	if err != nil {
 		clog.Error("vol")
 		d.onErr(c, err)
 		return
 	}
-	if vol.Type != models.Volume_BLOCK {
+	if vol.Type != "block" {
 		d.onErr(c, errors.New("can't mount file volumes at this time"))
 		return
 	}
@@ -156,14 +157,14 @@ func (d *Daemon) attach(c *gin.Context) {
 		closer: closer,
 		volume: vol,
 	}
-	blocksrv, err := d.srv.Block()
+	blockvol, err := block.OpenBlockVolume(d.srv, vol.Name)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "server doesn't support block volumes: %s\n", err)
 		d.onErr(c, err)
 		return
 	}
 
-	f, err := blocksrv.OpenBlockFile(vol.Name)
+	f, err := blockvol.OpenBlockFile()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
 		d.onErr(c, err)

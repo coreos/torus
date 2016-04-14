@@ -50,9 +50,9 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 			humanize.IBytes(x.TotalBlocks * gmd.BlockSize),
 			humanize.IBytes(x.UsedBlocks * gmd.BlockSize),
 			humanize.Time(time.Unix(0, x.LastSeen)),
-			humanize.IBytes(x.LastRebalanceBlocks*gmd.BlockSize*uint64(time.Second)/uint64(x.LastSeen+1-x.LastRebalanceFinish)) + "/sec",
+			humanize.IBytes(x.RebalanceInfo.LastRebalanceBlocks*gmd.BlockSize*uint64(time.Second)/uint64(x.LastSeen+1-x.RebalanceInfo.LastRebalanceFinish)) + "/sec",
 		})
-		if x.Rebalancing {
+		if x.RebalanceInfo.Rebalancing {
 			rebalancing = true
 		}
 	}

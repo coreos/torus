@@ -3,112 +3,35 @@ package agro
 import (
 	"fmt"
 	"io"
-	"path"
-	"strings"
 
 	"golang.org/x/net/context"
 
-	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "agro")
 
-// Path represents the location of a File including the Volume and the
-// unix-style path string.
-type Path struct {
-	Volume string
-	Path   string
-}
+type MetadataKind int
 
-// IsDir returns whether or not a path is a directory.
-func (p Path) IsDir() (b bool) {
-	if len(p.Path) == 0 {
-		return false
-	}
-
-	return p.Path[len(p.Path)-1] == byte('/')
-}
-
-// Parent returns the parent directory of the directory provided. False is
-// returned if the path provided is not a directory.
-func (p Path) Parent() (Path, bool) {
-	if !p.IsDir() {
-		return p, false
-	}
-
-	super, _ := path.Split(strings.TrimSuffix(p.Path, "/"))
-	return Path{
-		Volume: p.Volume,
-		Path:   super,
-	}, true
-}
-
-// Child appends the filename to the path provided and returns the resulting
-// path. False is returned if the path provided is not a directory.
-func (p Path) Child(filename string) (Path, bool) {
-	if !p.IsDir() {
-		return p, false
-	}
-
-	return Path{
-		Volume: p.Volume,
-		Path:   p.Path + filename,
-	}, true
-}
-
-// GetDepth returns the distance of the current path from the root of the
-// filesystem.
-func (p Path) GetDepth() int {
-	dir, _ := path.Split(p.Path)
-	if dir == "/" {
-		return 0
-	}
-	return strings.Count(strings.TrimSuffix(dir, "/"), "/")
-}
-
-func (p Path) Key() string {
-	dir, _ := path.Split(p.Path)
-	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth(), dir)
-}
-
-func (p Path) SubdirsPrefix() string {
-	dir, _ := path.Split(p.Path)
-	return fmt.Sprintf("%s:%04x:%s", p.Volume, p.GetDepth()+1, dir)
-}
-
-func (p Path) Filename() string {
-	_, f := path.Split(p.Path)
-	return f
-}
-
-func (p Path) Base() string {
-	return path.Base(p.Path)
-}
-
-func (p Path) Equals(b Path) bool {
-	return p.Volume == b.Volume && p.Path == b.Path
-}
+const (
+	EtcdMetadata MetadataKind = iota
+	TempMetadata
+)
 
 // MetadataService is the interface representing the basic ways to manipulate
 // consistently stored fileystem metadata.
 type MetadataService interface {
-	CreateVolume(*models.Volume) error
 	GetVolumes() ([]*models.Volume, error)
 	GetVolume(volume string) (*models.Volume, error)
-
-	CommitINodeIndex(volume string) (INodeID, error)
-	GetINodeIndex(volume string) (INodeID, error)
-	GetINodeIndexes() (map[string]INodeID, error)
+	NewVolumeID() (VolumeID, error)
+	Kind() MetadataKind
 
 	GlobalMetadata() (GlobalMetadata, error)
 
 	// Returns a UUID based on the underlying datadir. Should be
 	// unique for every created datadir.
 	UUID() string
-
-	GetPeers() (PeerInfoList, error)
 
 	GetRing() (Ring, error)
 	SubscribeNewRings(chan Ring)
@@ -119,35 +42,12 @@ type MetadataService interface {
 
 	GetLease() (int64, error)
 	RegisterPeer(lease int64, pi *models.PeerInfo) error
+	GetPeers() (PeerInfoList, error)
 
 	Close() error
-}
 
-type BlockMetadataService interface {
-	MetadataService
-	LockBlockVolume(lease int64, vid VolumeID) error
-	GetBlockVolumeINode(vid VolumeID) (INodeRef, error)
-	SyncBlockVolume(INodeRef) error
-	UnlockBlockVolume(vid VolumeID) error
-}
-
-type FSMetadataService interface {
-	MetadataService
-
-	Mkdir(path Path, dir *models.Metadata) error
-	ChangeDirMetadata(path Path, dir *models.Metadata) error
-	Getdir(path Path) (*models.Directory, []Path, error)
-	Rmdir(path Path) error
-	SetFileEntry(path Path, ent *models.FileEntry) error
-
-	GetINodeChains(vid VolumeID) ([]*models.FileChainSet, error)
-	GetChainINode(base INodeRef) (INodeRef, error)
-	SetChainINode(base INodeRef, was INodeRef, new INodeRef) error
-
-	ClaimVolumeINodes(lease int64, vol VolumeID, inodes *roaring.Bitmap) error
-
-	ModifyDeadMap(vol VolumeID, live *roaring.Bitmap, dead *roaring.Bitmap) error
-	GetVolumeLiveness(vol VolumeID) (*roaring.Bitmap, []*roaring.Bitmap, error)
+	CommitINodeIndex(VolumeID) (INodeID, error)
+	GetINodeIndex(VolumeID) (INodeID, error)
 }
 
 type DebugMetadataService interface {

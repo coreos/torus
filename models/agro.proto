@@ -14,22 +14,10 @@ option (gogoproto.testgen_all) = true;
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
 
-message Metadata {
-  uint32 uid = 1;
-  uint32 gid = 2;
-  uint32 mode = 3;
-  uint32 flags = 4;
-  uint64 ctime = 5;
-  uint64 mtime = 6;
-}
-
 message INode {
   uint64 volume = 1;
   uint64 inode = 2 [(gogoproto.customname) = "INode"];
-  uint64 chain = 3;
   uint64 filesize = 4;
-  repeated string filenames = 5; // Should always be length at least 1, includes hard links
-  Metadata permissions = 6;
   map<string, string> attrs = 7;
   repeated BlockLayer blocks = 8;
 }
@@ -39,32 +27,13 @@ message BlockLayer {
   bytes content = 2;
 }
 
-message Directory {
-  Metadata metadata = 1;
-  // key is the filename without the path
-  map<string, FileEntry> files = 2;
-}
-
 message Volume {
   string name = 1;
   uint64 id = 2;
-  enum VolumeType {
-    FILE = 0;
-    BLOCK = 1;
-  }
-  VolumeType type = 3;
+  string type = 3;
 
   // TODO(barakmich): Respect sizes for FILE volumes.
   uint64 max_bytes = 4;
-}
-
-message FileEntry {
-  uint64 chain = 1;
-  string sympath = 2; 
-}
-
-message FileChainSet {
-  map<uint64, uint64> chains = 1;
 }
 
 message PeerInfo {
@@ -74,10 +43,15 @@ message PeerInfo {
   int64 last_seen = 3; // In Unix nanoseconds.
   uint64 total_blocks = 4;
   uint64 used_blocks = 5;
-  int64 last_rebalance_finish = 6; // In Unix nanoseconds.
-  uint64 last_rebalance_blocks = 7;
-  bool rebalancing = 8;
-  bool timed_out = 9;
+  bool timed_out = 6;
+
+  RebalanceInfo rebalance_info = 7;
+}
+
+message RebalanceInfo {
+  int64 last_rebalance_finish = 1; // In Unix nanoseconds.
+  uint64 last_rebalance_blocks = 2;
+  bool rebalancing = 3;
 }
 
 message Ring {
@@ -87,7 +61,6 @@ message Ring {
   repeated PeerInfo peers = 4;
   map<string, bytes> attrs = 5;
 }
-
 
 message BlockRef {
 	uint64 volume = 1;
