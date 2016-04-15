@@ -42,7 +42,11 @@ func (f *BlockFile) Close() error {
 	if err != nil {
 		return err
 	}
-	return f.File.Close()
+	err = f.File.Close()
+	if err != nil {
+		return err
+	}
+	return f.vol.mds.Unlock()
 }
 
 func (f *BlockFile) Sync() error {
