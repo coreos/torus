@@ -16,6 +16,7 @@ import (
 	"github.com/coreos/agro/ring"
 
 	// Register all the possible drivers.
+	_ "github.com/coreos/agro/block"
 	_ "github.com/coreos/agro/metadata/etcd"
 	_ "github.com/coreos/agro/metadata/temp"
 	_ "github.com/coreos/agro/storage/block"
