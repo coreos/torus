@@ -364,12 +364,23 @@ func (c *etcdCtx) GetLease() (int64, error) {
 }
 
 func (c *etcdCtx) GetRing() (agro.Ring, error) {
+	r, _, err := c.getRing()
+	return r, err
+}
+func (c *etcdCtx) getRing() (agro.Ring, int64, error) {
 	promOps.WithLabelValues("get-ring").Inc()
 	resp, err := c.etcd.KV.Range(c.getContext(), GetKey(MkKey("meta", "the-one-ring")))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return ring.Unmarshal(resp.Kvs[0].Value)
+	if len(resp.Kvs) == 0 {
+		return nil, 0, agro.ErrNoGlobalMetadata
+	}
+	ring, err := ring.Unmarshal(resp.Kvs[0].Value)
+	if err != nil {
+		return nil, 0, err
+	}
+	return ring, resp.Kvs[0].Version, nil
 }
 
 func (c *etcdCtx) SubscribeNewRings(ch chan agro.Ring) {
@@ -381,18 +392,28 @@ func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
 }
 
 func (c *etcdCtx) SetRing(ring agro.Ring) error {
+	oldr, etcdver, err := c.getRing()
+	if oldr.Version() != ring.Version()-1 {
+		return agro.ErrNonSequentialRing
+	}
 	b, err := ring.Marshal()
 	if err != nil {
 		return err
 	}
 	key := MkKey("meta", "the-one-ring")
-	_, err = c.etcd.KV.Put(c.getContext(),
-		SetKey(key, b))
+	tx := Tx().If(
+		KeyIsVersion(key, etcdver),
+	).Then(
+		SetKey(key, b),
+	).Tx()
+	resp, err := c.etcd.KV.Txn(c.getContext(), tx)
 	if err != nil {
 		return err
 	}
-	return nil
-
+	if resp.Succeeded {
+		return nil
+	}
+	return agro.ErrNonSequentialRing
 }
 
 func (c *etcdCtx) CommitINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {

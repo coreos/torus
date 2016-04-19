@@ -60,17 +60,17 @@ exit:
 		}
 		err := d.rebalancer.UseVolume(volset[volIdx])
 		if err != nil {
-			clog.Error(err)
-			continue
+			clog.Errorf("gc prep failed: %s", err)
 		}
 		clog.Tracef("starting rebalance/gc for %s", volset[volIdx])
 	volume:
 		for {
-			timeout := 2 * time.Duration(n+1) * time.Millisecond
+			//timeout := 2 * time.Duration(n+1) * time.Millisecond
 			select {
 			case <-closer:
 				break exit
-			case <-time.After(timeout):
+				//case <-time.After(timeout):
+			default:
 				written, err := d.rebalancer.Tick()
 				if d.ring.Version() != d.rebalancer.VersionStart() {
 					// Something is changed -- we are now rebalancing
@@ -97,6 +97,7 @@ exit:
 					clog.Error(err)
 				}
 				n = written
+				clog.Trace(n)
 				d.srv.UpdateRebalanceInfo(info)
 			}
 		}

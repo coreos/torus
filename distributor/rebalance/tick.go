@@ -9,7 +9,7 @@ import (
 	"github.com/coreos/agro"
 )
 
-const maxIters = 20
+const maxIters = 50
 
 var rebalanceTimeout = 5 * time.Second
 

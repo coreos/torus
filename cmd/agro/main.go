@@ -13,6 +13,7 @@ import (
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/distributor"
 	"github.com/coreos/agro/internal/http"
+	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
 
 	// Register all the possible drivers.
@@ -34,6 +35,7 @@ var (
 	host             string
 	port             int
 	mkfs             bool
+	autojoin         bool
 	logpkg           string
 	readLevel        string
 	writeLevel       string
@@ -63,6 +65,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
 	rootCommand.PersistentFlags().StringVarP(&readLevel, "readlevel", "", "block", "Read replication level")
 	rootCommand.PersistentFlags().StringVarP(&writeLevel, "writelevel", "", "all", "Write replication level")
+	rootCommand.PersistentFlags().BoolVarP(&autojoin, "auto-join", "", false, "Automatically join the storage pool")
 }
 
 func main() {
@@ -171,6 +174,14 @@ func runServer(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	if autojoin {
+		err = doAutojoin(srv)
+		if err != nil {
+			fmt.Printf("Couldn't auto-join: %s\n", err)
+			os.Exit(1)
+		}
+	}
+
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 
@@ -194,4 +205,35 @@ func runServer(cmd *cobra.Command, args []string) {
 		os.Exit(0)
 	}
 	http.ServeHTTP(httpAddress, srv)
+}
+
+func doAutojoin(s *agro.Server) error {
+	for {
+		ring, err := s.MDS.GetRing()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "couldn't get ring: %v\n", err)
+			return err
+		}
+		var newRing agro.Ring
+		if r, ok := ring.(agro.RingAdder); ok {
+			newRing, err = r.AddPeers(agro.PeerInfoList{
+				&models.PeerInfo{
+					UUID:        s.MDS.UUID(),
+					TotalBlocks: s.Blocks.NumBlocks(),
+				},
+			})
+		} else {
+			fmt.Fprintf(os.Stderr, "current ring type cannot support auto-adding\n")
+			return err
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "couldn't add peer to ring: %v", err)
+			return err
+		}
+		err = s.MDS.SetRing(newRing)
+		if err == agro.ErrNonSequentialRing {
+			continue
+		}
+		return err
+	}
 }
