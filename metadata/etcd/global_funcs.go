@@ -57,10 +57,6 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) erro
 }
 
 func setRing(cfg agro.Config, r agro.Ring) error {
-	b, err := r.Marshal()
-	if err != nil {
-		return err
-	}
 	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())
 	if err != nil {
 		return err
@@ -80,6 +76,10 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 	}
 	if oldr.Version() != r.Version()-1 {
 		return agro.ErrNonSequentialRing
+	}
+	b, err := r.Marshal()
+	if err != nil {
+		return err
 	}
 	_, err = client.Put(context.Background(), SetKey(MkKey("meta", "the-one-ring"), b))
 	return err

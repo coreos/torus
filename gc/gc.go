@@ -23,11 +23,11 @@ type INodeFetcher interface {
 	GetINode(context.Context, agro.INodeRef) (*models.INode, error)
 }
 
-func NewGCController(mds agro.MetadataService, inodes INodeFetcher) GC {
+func NewGCController(srv *agro.Server, inodes INodeFetcher) GC {
 	var gcs []GC
 	for k, v := range gcFuncs {
 		clog.Debugf("creating %s gc", k)
-		gc, err := v(mds, inodes)
+		gc, err := v(srv, inodes)
 		if err != nil {
 			clog.Errorf("cannot create gc %s", k)
 			continue
@@ -64,7 +64,7 @@ func (c *controller) Clear() {
 	}
 }
 
-type CreateGCFunc func(mds agro.MetadataService, inodes INodeFetcher) (GC, error)
+type CreateGCFunc func(srv *agro.Server, inodes INodeFetcher) (GC, error)
 
 var gcFuncs map[string]CreateGCFunc
 

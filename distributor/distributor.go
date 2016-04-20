@@ -72,7 +72,7 @@ func newDistributor(srv *agro.Server, addr string, listen bool) (*Distributor, e
 	d.ringWatcherChan = make(chan struct{})
 	go d.ringWatcher(d.rebalancerChan)
 	d.client = newDistClient(d)
-	g := gc.NewGCController(d.srv.MDS, agro.NewINodeStore(d))
+	g := gc.NewGCController(d.srv, agro.NewINodeStore(d))
 	d.rebalancer = rebalance.NewRebalancer(d, d.blocks, d.client, g)
 	d.rebalancerChan = make(chan struct{})
 	go d.rebalanceTicker(d.rebalancerChan)

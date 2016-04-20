@@ -19,7 +19,7 @@ func init() {
 
 type blockvolGC struct {
 	mut       sync.Mutex
-	mds       agro.MetadataService
+	srv       *agro.Server
 	inodes    gc.INodeFetcher
 	trie      *iradix.Tree
 	highwater agro.INodeID
@@ -27,16 +27,16 @@ type blockvolGC struct {
 	curRef    agro.INodeRef
 }
 
-func NewBlockVolGC(mds agro.MetadataService, inodes gc.INodeFetcher) (gc.GC, error) {
+func NewBlockVolGC(srv *agro.Server, inodes gc.INodeFetcher) (gc.GC, error) {
 	return &blockvolGC{
-		mds:    mds,
+		srv:    srv,
 		inodes: inodes,
 	}, nil
 }
 
 func (b *blockvolGC) getContext() context.Context {
 	ctx, _ := context.WithTimeout(context.TODO(), 2*time.Second)
-	return ctx
+	return b.srv.ExtendContext(ctx)
 }
 
 func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
@@ -48,7 +48,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 		b.skip = true
 		return nil
 	}
-	mds, err := createBlockMetadata(b.mds, agro.VolumeID(vol.Id))
+	mds, err := createBlockMetadata(b.srv.MDS, agro.VolumeID(vol.Id))
 	if err != nil {
 		return err
 	}

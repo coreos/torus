@@ -197,6 +197,9 @@ func (t *Client) SetRing(ring agro.Ring) error {
 func (s *Server) SetRing(ring agro.Ring) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
+	if ring.Version()-1 != s.ring.Version() {
+		return agro.ErrNonSequentialRing
+	}
 	s.ring = ring
 	for _, c := range s.ringListeners {
 		c <- s.ring
