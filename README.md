@@ -6,7 +6,7 @@ See the [wiki](https://github.com/coreos/agro/wiki) for more details
 
 ## Overview
 
-Agro is a distributed block storage engine that provides a resource pool and basic file primitives from daemons running atop a cluster. These primitvies are made consistent by being append-only and coordinated by [etcd](https://github.com/coreos/etcd). From these primitives, an agro server can support multiple types of volumes, the semantics of which can be broken into subprojects. It ships with a simple block-device volume plugin.
+Agro is a distributed block storage engine that provides a resource pool and basic file primitives from daemons running atop a cluster. These primitives are made consistent by being append-only and coordinated by [etcd](https://github.com/coreos/etcd). From these primitives, an agro server can support multiple types of volumes, the semantics of which can be broken into subprojects. It ships with a simple block-device volume plugin.
 
 The goal from the start is simplicity; running agro should take at most 5 minutes for a developer to set up and understand, while being as robust as possible. 
 
@@ -187,4 +187,4 @@ sudo mount /dev/nbd0 -o discard,noatime /mnt/agro
 
 It supports the TRIM SSD command for garbage collecting; `-o discard` enables this.
 
-It is recommended (though not required) to use a log-structured filesystem on these devices, to minimize the chance of corrpution. [F2FS](https://en.wikipedia.org/wiki/F2FS) is a good choice, and included in the kernel.
+It is recommended (though not required) to use a log-structured filesystem on these devices, to minimize the chance of corruption. [F2FS](https://en.wikipedia.org/wiki/F2FS) is a good choice, and included in the kernel.
