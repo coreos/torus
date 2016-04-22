@@ -50,6 +50,7 @@ func (s *Server) BeginHeartbeat(addr string, listen bool) error {
 	if err != nil {
 		return err
 	}
+	s.UpdateRebalanceInfo(&models.RebalanceInfo{})
 	ch := make(chan interface{})
 	s.closeChans = append(s.closeChans, ch)
 	go s.heartbeat(ch)

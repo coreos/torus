@@ -1,5 +1,5 @@
 FROM golang:latest
-MAINTAINER Barak Michener <me@barakmich.com>
+MAINTAINER Barak Michener <barak.michener@coreos.com>
 
 # Set up workdir
 WORKDIR /go/src/github.com/coreos/agro

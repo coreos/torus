@@ -65,12 +65,11 @@ exit:
 		clog.Tracef("starting rebalance/gc for %s", volset[volIdx])
 	volume:
 		for {
-			//timeout := 2 * time.Duration(n+1) * time.Millisecond
+			timeout := 2 * time.Duration(n+1) * time.Millisecond
 			select {
 			case <-closer:
 				break exit
-				//case <-time.After(timeout):
-			default:
+			case <-time.After(timeout):
 				written, err := d.rebalancer.Tick()
 				if d.ring.Version() != d.rebalancer.VersionStart() {
 					// Something is changed -- we are now rebalancing
