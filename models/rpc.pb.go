@@ -27,9 +27,10 @@ type BlockRequest struct {
 	BlockRef *BlockRef `protobuf:"bytes,1,opt,name=block_ref" json:"block_ref,omitempty"`
 }
 
-func (m *BlockRequest) Reset()         { *m = BlockRequest{} }
-func (m *BlockRequest) String() string { return proto.CompactTextString(m) }
-func (*BlockRequest) ProtoMessage()    {}
+func (m *BlockRequest) Reset()                    { *m = BlockRequest{} }
+func (m *BlockRequest) String() string            { return proto.CompactTextString(m) }
+func (*BlockRequest) ProtoMessage()               {}
+func (*BlockRequest) Descriptor() ([]byte, []int) { return fileDescriptorRpc, []int{0} }
 
 func (m *BlockRequest) GetBlockRef() *BlockRef {
 	if m != nil {
@@ -43,18 +44,20 @@ type BlockResponse struct {
 	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 }
 
-func (m *BlockResponse) Reset()         { *m = BlockResponse{} }
-func (m *BlockResponse) String() string { return proto.CompactTextString(m) }
-func (*BlockResponse) ProtoMessage()    {}
+func (m *BlockResponse) Reset()                    { *m = BlockResponse{} }
+func (m *BlockResponse) String() string            { return proto.CompactTextString(m) }
+func (*BlockResponse) ProtoMessage()               {}
+func (*BlockResponse) Descriptor() ([]byte, []int) { return fileDescriptorRpc, []int{1} }
 
 type PutBlockRequest struct {
 	Refs   []*BlockRef `protobuf:"bytes,1,rep,name=refs" json:"refs,omitempty"`
 	Blocks [][]byte    `protobuf:"bytes,2,rep,name=blocks" json:"blocks,omitempty"`
 }
 
-func (m *PutBlockRequest) Reset()         { *m = PutBlockRequest{} }
-func (m *PutBlockRequest) String() string { return proto.CompactTextString(m) }
-func (*PutBlockRequest) ProtoMessage()    {}
+func (m *PutBlockRequest) Reset()                    { *m = PutBlockRequest{} }
+func (m *PutBlockRequest) String() string            { return proto.CompactTextString(m) }
+func (*PutBlockRequest) ProtoMessage()               {}
+func (*PutBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptorRpc, []int{2} }
 
 func (m *PutBlockRequest) GetRefs() []*BlockRef {
 	if m != nil {
@@ -68,17 +71,19 @@ type PutResponse struct {
 	Err string `protobuf:"bytes,2,opt,name=err,proto3" json:"err,omitempty"`
 }
 
-func (m *PutResponse) Reset()         { *m = PutResponse{} }
-func (m *PutResponse) String() string { return proto.CompactTextString(m) }
-func (*PutResponse) ProtoMessage()    {}
+func (m *PutResponse) Reset()                    { *m = PutResponse{} }
+func (m *PutResponse) String() string            { return proto.CompactTextString(m) }
+func (*PutResponse) ProtoMessage()               {}
+func (*PutResponse) Descriptor() ([]byte, []int) { return fileDescriptorRpc, []int{3} }
 
 type RebalanceCheckRequest struct {
 	BlockRefs []*BlockRef `protobuf:"bytes,1,rep,name=block_refs" json:"block_refs,omitempty"`
 }
 
-func (m *RebalanceCheckRequest) Reset()         { *m = RebalanceCheckRequest{} }
-func (m *RebalanceCheckRequest) String() string { return proto.CompactTextString(m) }
-func (*RebalanceCheckRequest) ProtoMessage()    {}
+func (m *RebalanceCheckRequest) Reset()                    { *m = RebalanceCheckRequest{} }
+func (m *RebalanceCheckRequest) String() string            { return proto.CompactTextString(m) }
+func (*RebalanceCheckRequest) ProtoMessage()               {}
+func (*RebalanceCheckRequest) Descriptor() ([]byte, []int) { return fileDescriptorRpc, []int{4} }
 
 func (m *RebalanceCheckRequest) GetBlockRefs() []*BlockRef {
 	if m != nil {
@@ -92,9 +97,10 @@ type RebalanceCheckResponse struct {
 	Status int32  `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"`
 }
 
-func (m *RebalanceCheckResponse) Reset()         { *m = RebalanceCheckResponse{} }
-func (m *RebalanceCheckResponse) String() string { return proto.CompactTextString(m) }
-func (*RebalanceCheckResponse) ProtoMessage()    {}
+func (m *RebalanceCheckResponse) Reset()                    { *m = RebalanceCheckResponse{} }
+func (m *RebalanceCheckResponse) String() string            { return proto.CompactTextString(m) }
+func (*RebalanceCheckResponse) ProtoMessage()               {}
+func (*RebalanceCheckResponse) Descriptor() ([]byte, []int) { return fileDescriptorRpc, []int{5} }
 
 func init() {
 	proto.RegisterType((*BlockRequest)(nil), "models.BlockRequest")
@@ -588,7 +594,7 @@ func RegisterAgroStorageServer(s *grpc.Server, srv AgroStorageServer) {
 	s.RegisterService(&_AgroStorage_serviceDesc, srv)
 }
 
-func _AgroStorage_Block_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _AgroStorage_Block_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BlockRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -600,7 +606,7 @@ func _AgroStorage_Block_Handler(srv interface{}, ctx context.Context, dec func(i
 	return out, nil
 }
 
-func _AgroStorage_PutBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _AgroStorage_PutBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PutBlockRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -612,7 +618,7 @@ func _AgroStorage_PutBlock_Handler(srv interface{}, ctx context.Context, dec fun
 	return out, nil
 }
 
-func _AgroStorage_RebalanceCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _AgroStorage_RebalanceCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RebalanceCheckRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -697,13 +703,11 @@ func (m *BlockResponse) MarshalTo(data []byte) (int, error) {
 		}
 		i++
 	}
-	if m.Data != nil {
-		if len(m.Data) > 0 {
-			data[i] = 0x12
-			i++
-			i = encodeVarintRpc(data, i, uint64(len(m.Data)))
-			i += copy(data[i:], m.Data)
-		}
+	if len(m.Data) > 0 {
+		data[i] = 0x12
+		i++
+		i = encodeVarintRpc(data, i, uint64(len(m.Data)))
+		i += copy(data[i:], m.Data)
 	}
 	return i, nil
 }
@@ -1045,11 +1049,9 @@ func (m *BlockResponse) Size() (n int) {
 	if m.Ok {
 		n += 2
 	}
-	if m.Data != nil {
-		l = len(m.Data)
-		if l > 0 {
-			n += 1 + l + sovRpc(uint64(l))
-		}
+	l = len(m.Data)
+	if l > 0 {
+		n += 1 + l + sovRpc(uint64(l))
 	}
 	return n
 }
@@ -1789,3 +1791,30 @@ var (
 	ErrInvalidLengthRpc = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowRpc   = fmt.Errorf("proto: integer overflow")
 )
+
+var fileDescriptorRpc = []byte{
+	// 364 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x74, 0x92, 0xcf, 0x4e, 0xfa, 0x40,
+	0x10, 0xc7, 0x7f, 0xe5, 0x5f, 0x60, 0x0a, 0xfc, 0xcc, 0x2a, 0x4a, 0x9a, 0xd8, 0x98, 0x4a, 0x8c,
+	0x1e, 0x2c, 0x09, 0x98, 0xe8, 0xc5, 0x03, 0xf8, 0x00, 0x1a, 0x7c, 0x00, 0xb3, 0x2d, 0x4b, 0x21,
+	0x14, 0x16, 0x77, 0xb7, 0x3e, 0x87, 0x8f, 0xe1, 0x23, 0x78, 0xf4, 0xe8, 0xc9, 0xf8, 0x08, 0xa8,
+	0x2f, 0xe1, 0xd1, 0x61, 0x29, 0x28, 0x0d, 0x1c, 0xbe, 0xc9, 0x4c, 0x67, 0xe6, 0xfb, 0x99, 0x4e,
+	0x16, 0x0a, 0x62, 0xe2, 0xbb, 0x13, 0xc1, 0x15, 0x27, 0xb9, 0x11, 0xef, 0xb2, 0x50, 0x5a, 0xa7,
+	0xc1, 0x40, 0xf5, 0x23, 0xcf, 0xf5, 0xf9, 0xa8, 0x1e, 0xf0, 0x80, 0xd7, 0x75, 0xd9, 0x8b, 0x7a,
+	0x3a, 0xd3, 0x89, 0x8e, 0xe6, 0x63, 0x16, 0xd0, 0x40, 0xc4, 0xb1, 0xd3, 0x84, 0x62, 0x3b, 0xe4,
+	0xfe, 0xb0, 0xc3, 0xee, 0x23, 0x26, 0x15, 0x39, 0x84, 0x82, 0x37, 0xcb, 0xef, 0x04, 0xeb, 0x55,
+	0x8d, 0x03, 0xe3, 0xd8, 0x6c, 0x6c, 0xb9, 0x73, 0x8c, 0x1b, 0x37, 0xf6, 0x9c, 0x13, 0x28, 0xc5,
+	0xb1, 0x9c, 0xf0, 0xb1, 0x64, 0x04, 0x20, 0xc5, 0x87, 0xba, 0x3d, 0x4f, 0x8a, 0x90, 0xe9, 0x52,
+	0x45, 0xab, 0x29, 0xcc, 0x8a, 0x4e, 0x0b, 0xfe, 0xdf, 0x44, 0x6a, 0x05, 0x61, 0x43, 0x06, 0xcd,
+	0x25, 0xb6, 0xa7, 0xd7, 0xb9, 0x93, 0x32, 0xe4, 0xf4, 0x0a, 0x12, 0x2d, 0xd2, 0x68, 0x71, 0x04,
+	0x26, 0x5a, 0xac, 0x65, 0x99, 0x90, 0x66, 0x42, 0x68, 0x54, 0xc1, 0xb9, 0x84, 0x4a, 0x87, 0x79,
+	0x34, 0xa4, 0x63, 0x9f, 0x5d, 0xf5, 0xd9, 0x2f, 0xb0, 0x06, 0xb0, 0xfc, 0xa7, 0x8d, 0x58, 0xe7,
+	0x1c, 0x76, 0x93, 0xe3, 0x31, 0xb1, 0x04, 0xd9, 0x07, 0x1a, 0x0e, 0xba, 0x7a, 0x34, 0x3f, 0xdb,
+	0x4f, 0x2a, 0xaa, 0x22, 0xa9, 0xb9, 0xd9, 0xc6, 0x9b, 0x01, 0x66, 0x0b, 0x2f, 0x7a, 0xab, 0xb8,
+	0xa0, 0x01, 0x23, 0x67, 0x90, 0xd5, 0xa6, 0x64, 0x27, 0xc1, 0xd0, 0xdb, 0x58, 0x95, 0xc4, 0xd7,
+	0x18, 0x72, 0x01, 0xf9, 0xc5, 0xa1, 0xc8, 0xde, 0xa2, 0x25, 0x71, 0x3a, 0x6b, 0xfb, 0x4f, 0x61,
+	0x39, 0x79, 0x0d, 0xe5, 0xd5, 0xc5, 0xc9, 0xfe, 0xa2, 0x6d, 0xed, 0x3d, 0x2c, 0x7b, 0x53, 0x79,
+	0x6e, 0xd8, 0xae, 0x4d, 0x3f, 0x6c, 0xe3, 0x1b, 0xf5, 0xf4, 0x69, 0x1b, 0xcf, 0xa8, 0x17, 0xd4,
+	0x2b, 0xea, 0x1d, 0x35, 0x45, 0x3d, 0x7e, 0xd9, 0xff, 0xbc, 0x9c, 0x7e, 0x40, 0xcd, 0x9f, 0x00,
+	0x00, 0x00, 0xff, 0xff, 0x40, 0xcc, 0xc5, 0x91, 0x90, 0x02, 0x00, 0x00,
+}

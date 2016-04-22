@@ -1081,7 +1081,7 @@ func RegisterKVServer(s *grpc.Server, srv KVServer) {
 	s.RegisterService(&_KV_serviceDesc, srv)
 }
 
-func _KV_Range_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _KV_Range_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RangeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1093,7 +1093,7 @@ func _KV_Range_Handler(srv interface{}, ctx context.Context, dec func(interface{
 	return out, nil
 }
 
-func _KV_Put_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _KV_Put_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1105,7 +1105,7 @@ func _KV_Put_Handler(srv interface{}, ctx context.Context, dec func(interface{})
 	return out, nil
 }
 
-func _KV_DeleteRange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _KV_DeleteRange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteRangeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1117,7 +1117,7 @@ func _KV_DeleteRange_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return out, nil
 }
 
-func _KV_Txn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _KV_Txn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TxnRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1129,7 +1129,7 @@ func _KV_Txn_Handler(srv interface{}, ctx context.Context, dec func(interface{})
 	return out, nil
 }
 
-func _KV_Compact_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _KV_Compact_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CompactionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1361,7 +1361,7 @@ func RegisterLeaseServer(s *grpc.Server, srv LeaseServer) {
 	s.RegisterService(&_Lease_serviceDesc, srv)
 }
 
-func _Lease_LeaseCreate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _Lease_LeaseCreate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LeaseCreateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1373,7 +1373,7 @@ func _Lease_LeaseCreate_Handler(srv interface{}, ctx context.Context, dec func(i
 	return out, nil
 }
 
-func _Lease_LeaseRevoke_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+func _Lease_LeaseRevoke_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LeaseRevokeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
