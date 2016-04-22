@@ -46,7 +46,12 @@ var rootCommand = &cobra.Command{
 func init() {
 	rootCommand.AddCommand(aoeCommand)
 	rootCommand.AddCommand(nbdCommand)
-	rootCommand.AddCommand(daemonCommand)
+	rootCommand.AddCommand(initCommand)
+	rootCommand.AddCommand(attachCommand)
+	rootCommand.AddCommand(detachCommand)
+	rootCommand.AddCommand(mountCommand)
+	rootCommand.AddCommand(unmountCommand)
+	rootCommand.AddCommand(flexprepvolCommand)
 
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2378", "hostname:port to the etcd instance storing the metadata")
 	rootCommand.PersistentFlags().StringVarP(&localBlockSizeStr, "write-cache-size", "", "128MiB", "Amount of memory to use for the local write cache")
