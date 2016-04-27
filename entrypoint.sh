@@ -8,10 +8,20 @@ set -e
 : ${ETCD_PORT:=2378}
 : ${DEBUG:=0}
 : ${STORAGE_SIZE:=2GiB}
+: ${AUTO_JOIN:=0}
+: ${DEBUG_MKFS:=0}
 
 AGRO_FLAGS=""
 if [ ${DEBUG} -eq "1" ]; then
   AGRO_FLAGS="$AGRO_FLAGS --debug"
+fi
+
+if [ ${AUTO_JOIN} -eq "1" ]; then
+  AGRO_FLAGS="$AGRO_FLAGS --auto-join"
+fi
+
+if [ ${DEBUG_MKFS} -eq "1" ]; then
+  AGRO_FLAGS="$AGRO_FLAGS --debug-mkfs"
 fi
 
 agro --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port $LISTEN_HTTP_PORT --datadir /data --peer-address $LISTEN_HOST:$LISTEN_PEER_PORT --size $STORAGE_SIZE $AGRO_FLAGS

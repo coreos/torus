@@ -36,3 +36,5 @@ spec:
         - name: data
           hostPath:
             path: /srv/agro
+      imagePullSecrets:
+        - name: quay-agro

@@ -198,7 +198,7 @@ func mountAction(cmd *cobra.Command, args []string) {
 		onErr(errors.New("unexpected number of arguments"))
 	}
 
-	vol := parseJSONArg(args[0])
+	vol := parseJSONArg(args[2])
 
 	mountdir := args[0]
 	mountdev := args[1]
