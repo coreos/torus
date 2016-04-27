@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: etcd-agro
+  name: etcd-agro
+spec:
+  type: NodePort
+  ports:
+    - port: 2379
+      name: etcd-client
+      targetPort: etcd-client
+      nodePort: 32379
+    - port: 2378
+      name: etcd-v3
+      targetPort: etcd-v3
+      nodePort: 32378
+  selector:
+    name: etcd-agro
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: etcd-agro-internal
+  name: etcd-agro-internal
+spec:
+  clusterIP: 10.3.0.100
+  ports:
+    - port: 2379
+      name: etcd-client
+      targetPort: etcd-client
+    - port: 2378
+      name: etcd-v3
+      targetPort: etcd-v3
+  selector:
+    name: etcd-agro
+---
+apiVersion: v1
+data:
+  .dockercfg: eyJxdWF5LmlvIjp7InVzZXJuYW1lIjoiY29yZW9zK2Fncm8iLCJwYXNzd29yZCI6IjBFOTBMMEZHWTNQMjNFU05JWk9RWEkxREhDM1EwRzczNE5MQUREWTdVRTBDS0ZMUFRUWFowOEJFNUYzRDNXOVYiLCJlbWFpbCI6ImFncm9AY29yZW9zLmNvbSIsImF1dGgiOiJZMjl5Wlc5eksyRm5jbTg2TUVVNU1Fd3dSa2RaTTFBeU0wVlRUa2xhVDFGWVNURkVTRU16VVRCSE56TTBUa3hCUkVSWk4xVkZNRU5MUmt4UVZGUllXakE0UWtVMVJqTkVNMWM1Vmc9PSJ9fQ==
+kind: Secret
+metadata:
+  creationTimestamp: 2016-04-26T23:56:10Z
+  name: quay-agro
+  namespace: default
+  resourceVersion: "1115"
+  selfLink: /api/v1/namespaces/default/secrets/quay-agro
+  uid: 739013b2-0c0a-11e6-854f-0cc47a15dc2a
+type: kubernetes.io/dockercfg
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: etcd-agro
+  name: etcd-agro
+spec:
+  containers:
+  - image: quay.io/coreos/etcd:v2.3.2
+    name: etcd-agro
+    ports:
+    - name: etcd-peers
+      containerPort: 2380
+    - name: etcd-client
+      containerPort: 2379
+    - name: etcd-v3
+      containerPort: 2378
+    volumeMounts:
+    - name: data
+      mountPath: /var/lib/etcd
+    env:
+    - name: POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP
+    - name: ETCD_DATA_DIR
+      value: /var/lib/etcd
+    - name: ETCD_NAME
+      value: etcd
+    - name: ETCD_INITIAL_CLUSTER
+      value: etcd=http://$(POD_IP):2380
+    - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
+      value: http://$(POD_IP):2380
+    - name: ETCD_ADVERTISE_CLIENT_URLS
+      value: http://$(POD_IP):2379
+    - name: ETCD_LISTEN_CLIENT_URLS
+      value: http://0.0.0.0:2379
+    - name: ETCD_LISTEN_PEER_URLS
+      value: http://$(POD_IP):2380
+    - name: ETCD_EXPERIMENTAL_V3DEMO
+      value: "true"
+    - name: ETCD_EXPERIMENTAL_GRPC_ADDR
+      value: $(POD_IP):2378
+  volumes:
+    - name: data
+      emptyDir: {}
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    app: agro
+  name: agro
+spec:
+  template:
+    metadata:
+      name: agro
+      labels:
+        daemon: agro
+    spec:
+      containers:
+      - name: agro
+        image: quay.io/coreos/agro:latest
+        ports:
+        - name: peer
+          containerPort: 40000
+        - name: http
+          containerPort: 4321
+        env:
+        - name: ETCD_HOST
+          value: $(ETCD_AGRO_SERVICE_HOST)
+        - name: STORAGE_SIZE
+          value: 2GiB
+        - name: LISTEN_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: AUTO_JOIN
+          value: "1"
+        - name: DEBUG_MKFS
+          value: "1"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: false
+      volumes:
+        - name: data
+          hostPath:
+            path: /srv/agro
+      imagePullSecrets:
+        - name: quay-agro
