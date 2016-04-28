@@ -99,9 +99,9 @@ spec:
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
+  name: agro
   labels:
     app: agro
-  name: agro
 spec:
   template:
     metadata:

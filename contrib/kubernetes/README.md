@@ -14,8 +14,7 @@ When this sets up a *multinode* cluster (using the `generic` scripts) it will pu
 
 ## 2) Set up your kubectl
 
-???
-I suppose Vagrant you ssh into the box? I always use my [10m-k8s](http://github.com/barakmich/10m-k8s) scripts. If there's a kube-aws way, that'd probably work too.
+Vagrant, use the kube-config. AWS has its way. Me, I use my [10m-k8s](https://github.com/barakmich/10m-k8s) scripts.
 
 ## 3) Launch all things agro on the cluster
 
@@ -46,3 +45,55 @@ And now use this volume in any other kubernetes pods, for example:
 ```
 kubectl create -f postgres-oneshot.yaml
 ```
+
+## 6) Put some data into postgres
+
+```
+AGROPOD=$(kubectl get pods -l app=postgres-agro -o name | cut -d/ -f2)
+kubectl exec $AGROPOD -- psql postgres -U postgres < test-data.sql
+kubectl exec $AGROPOD -- psql postgres -U postgres -c 'select * from films'
+```
+
+## 7) Move postgres to another node
+
+First lets cordon off the node postgres is currently on, so that when we kill
+it, it doesn't go to the same node.
+```
+PGNODE=$(kubectl get pods -l app=postgres-agro -o jsonpath='{.items[0].spec.nodeName}')
+kubectl cordon $PGNODE
+kubectl get nodes
+```
+
+Node we will delete the existing postgres pod, and then watch for a new one
+to come up and replace it
+```
+kubectl delete pod -l app=postgres-agro
+kubectl get pod -l app=postgres-agro -w
+```
+
+You should see some output similar to
+```
+$ kubectl get pods -w -l app=postgres-agro
+NAME                             READY     STATUS              RESTARTS   AGE
+postgres-agro-1844296455-6z492   1/1       Terminating         1          8m
+postgres-agro-1844296455-mv6v9   0/1       ContainerCreating   0          13s
+NAME                             READY     STATUS        RESTARTS   AGE
+postgres-agro-1844296455-6z492   0/1       Terminating   1          9m
+postgres-agro-1844296455-6z492   0/1       Terminating   1         9m
+postgres-agro-1844296455-6z492   0/1       Terminating   1         9m
+postgres-agro-1844296455-mv6v9   1/1       Running   0         1m
+```
+
+Finally we can verify that the data is still there:
+
+```
+AGROPOD=$(kubectl get pods -l app=postgres-agro -o name | cut -d/ -f2)
+kubectl exec $AGROPOD -- psql postgres -U postgres -c 'select * from films'
+```
+
+Lastly, let's uncordon that node we cordoned in the beginning:
+
+```
+kubectl uncordon $PGNODE
+```
+
