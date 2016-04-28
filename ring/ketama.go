@@ -72,7 +72,7 @@ func (k *ketama) Marshal() ([]byte, error) {
 func (k *ketama) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification) (agro.Ring, error) {
 	newPeers := k.peers.Union(peers)
 	if reflect.DeepEqual(newPeers.PeerList(), k.peers.PeerList()) {
-		return nil, errors.New("no difference in membership")
+		return nil, agro.ErrExists
 	}
 	newk := &ketama{
 		version: k.version + 1,
@@ -89,7 +89,7 @@ func (k *ketama) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification
 func (k *ketama) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
 	newPeers := k.peers.AndNot(pl)
 	if len(newPeers) == len(k.Members()) {
-		return nil, errors.New("no difference in membership")
+		return nil, agro.ErrNotExist
 	}
 
 	newk := &ketama{

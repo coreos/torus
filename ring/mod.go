@@ -1,7 +1,6 @@
 package ring
 
 import (
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"reflect"
@@ -74,7 +73,7 @@ func (m *mod) Marshal() ([]byte, error) {
 func (m *mod) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification) (agro.Ring, error) {
 	newPeers := m.peers.Union(peers)
 	if reflect.DeepEqual(newPeers.PeerList(), m.peers.PeerList()) {
-		return nil, errors.New("no difference in membership")
+		return nil, agro.ErrExists
 	}
 	newm := &mod{
 		version:  m.version + 1,
@@ -92,7 +91,7 @@ func (m *mod) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification) (
 func (m *mod) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
 	newPeers := m.peers.AndNot(pl)
 	if len(newPeers) == len(m.peers) {
-		return nil, errors.New("no difference in membership")
+		return nil, agro.ErrNotExist
 	}
 
 	newm := &mod{

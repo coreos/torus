@@ -226,6 +226,10 @@ func doAutojoin(s *agro.Server) error {
 			fmt.Fprintf(os.Stderr, "current ring type cannot support auto-adding\n")
 			return err
 		}
+		if err == agro.ErrExists {
+			// We're already a member; we're coming back up.
+			return nil
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "couldn't add peer to ring: %v", err)
 			return err
