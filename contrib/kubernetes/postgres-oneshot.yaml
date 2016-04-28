@@ -13,36 +13,42 @@ spec:
   selector:
     name: postgres-agro
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: extensions/v1beta1
+kind: Deployment
 metadata:
+  name: postgres-agro
   labels:
     name: postgres-agro
-  name: postgres-agro
 spec:
-  containers:
-  - image: postgres
-    name: postgres
-    ports:
-    - name: postgres-client
-      containerPort: 5432
-    volumeMounts:
-    - name: data
-      mountPath: /var/lib/postgresql/data
-    env:
-    - name: POD_IP
-      valueFrom:
-        fieldRef:
-          fieldPath: status.podIP
-    - name: POSTGRES_PASSWORD
-      value: testagro
-    - name: PGDATA
-      value: "/var/lib/postgresql/data/pgdata"
-  volumes:
-    - name: data
-      flexVolume:
-        driver: "coreos.com/agro"
-        fsType: "ext4"
-        options:
-          volume: "pg1"
-          etcd: "10.3.0.100:2378"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres-agro
+    spec:
+      containers:
+      - image: postgres
+        name: postgres
+        ports:
+        - name: postgres-client
+          containerPort: 5432
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POSTGRES_PASSWORD
+          value: testagro
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata"
+      volumes:
+        - name: data
+          flexVolume:
+            driver: "coreos.com/agro"
+            fsType: "ext4"
+            options:
+              volume: "pg1"
+              etcd: "10.3.0.100:2378"
