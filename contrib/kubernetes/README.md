@@ -14,8 +14,7 @@ When this sets up a *multinode* cluster (using the `generic` scripts) it will pu
 
 ## 2) Set up your kubectl
 
-???
-I suppose Vagrant you ssh into the box? I always use my [10m-k8s](http://github.com/barakmich/10m-k8s) scripts. If there's a kube-aws way, that'd probably work too.
+Vagrant, use the kube-config. AWS has its way. Me, I use my [10m-k8s](https://github.com/barakmich/10m-k8s) scripts.
 
 ## 3) Launch all things agro on the cluster
 
