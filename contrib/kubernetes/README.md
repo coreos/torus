@@ -14,7 +14,7 @@ When this sets up a *multinode* cluster (using the `generic` scripts) it will pu
 
 ## 2) Set up your kubectl
 
-Vagrant, use the kube-config. AWS has its way. Me, I use my [10m-k8s](https://github.com/barakmich/10m-k8s) scripts.
+[On Vagrant, use the kube-config](https://coreos.com/kubernetes/docs/latest/kubernetes-on-vagrant.html). Me, I use my [10m-k8s](https://github.com/barakmich/10m-k8s) scripts.
 
 ## 3) Launch all things agro on the cluster
 
