@@ -50,6 +50,10 @@ func (d *Distributor) rebalanceTicker(closer chan struct{}) {
 exit:
 	for {
 		if volIdx == len(volset) {
+			err = d.rebalancer.DeleteUnusedVolumes(volset)
+			if err != nil {
+				clog.Error(err)
+			}
 			volIdx = 0
 			volset, err = d.srv.MDS.GetVolumes()
 			if err != nil {

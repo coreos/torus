@@ -247,3 +247,11 @@ func (t *Client) GetData(x string) (interface{}, bool) {
 func (t *Client) SetData(x string, v interface{}) {
 	t.srv.keys[x] = v
 }
+
+func (t *Client) DeleteVolume(name string) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	delete(t.srv.keys, name)
+	delete(t.srv.volIndex, name)
+	return nil
+}

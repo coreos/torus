@@ -420,7 +420,7 @@ func (c *etcdCtx) CommitINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
 	promOps.WithLabelValues("commit-inode-index").Inc()
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	newID, err := c.AtomicModifyKey(MkKey("volumemeta", "inode", Uint64ToHex(uint64(vid))), BytesAddOne)
+	newID, err := c.AtomicModifyKey(MkKey("volumemeta", Uint64ToHex(uint64(vid)), "inode"), BytesAddOne)
 	if err != nil {
 		return 0, err
 	}
@@ -441,7 +441,7 @@ func (c *etcdCtx) GetINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
 	promOps.WithLabelValues("get-inode-index").Inc()
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
-	resp, err := c.etcd.KV.Range(c.getContext(), GetKey(MkKey("volumemeta", "inode", Uint64ToHex(uint64(vid)))))
+	resp, err := c.etcd.KV.Range(c.getContext(), GetKey(MkKey("volumemeta", Uint64ToHex(uint64(vid)), "inode")))
 	if err != nil {
 		return agro.INodeID(0), err
 	}

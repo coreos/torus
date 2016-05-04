@@ -18,14 +18,15 @@ type blockMetadata interface {
 	SyncINode(agro.INodeRef) error
 	Unlock() error
 	CreateBlockVolume(vol *models.Volume) error
+	DeleteVolume() error
 }
 
-func createBlockMetadata(mds agro.MetadataService, vid agro.VolumeID) (blockMetadata, error) {
+func createBlockMetadata(mds agro.MetadataService, name string, vid agro.VolumeID) (blockMetadata, error) {
 	switch mds.Kind() {
 	case agro.EtcdMetadata:
-		return createBlockEtcdMetadata(mds, vid)
+		return createBlockEtcdMetadata(mds, name, vid)
 	case agro.TempMetadata:
-		return createBlockTempMetadata(mds, vid)
+		return createBlockTempMetadata(mds, name, vid)
 	default:
 		return nil, errors.New("unimplemented for this kind of metadata")
 	}

@@ -173,6 +173,16 @@ func DeleteKey(key []byte) *etcdpb.DeleteRangeRequest {
 	}
 }
 
+func DeletePrefix(key []byte) *etcdpb.DeleteRangeRequest {
+	end := make([]byte, len(key))
+	copy(end, key)
+	end[len(end)-1]++
+	return &etcdpb.DeleteRangeRequest{
+		Key:      key,
+		RangeEnd: end,
+	}
+}
+
 func GetKey(key []byte) *etcdpb.RangeRequest {
 	return &etcdpb.RangeRequest{
 		Key: key,

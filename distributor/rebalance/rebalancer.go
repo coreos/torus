@@ -19,6 +19,7 @@ type Rebalancer interface {
 	Tick() (int, error)
 	VersionStart() int
 	UseVolume(*models.Volume) error
+	DeleteUnusedVolumes(livevols []*models.Volume) error
 }
 
 type CheckAndSender interface {
@@ -58,4 +59,29 @@ func (r *rebalancer) UseVolume(vol *models.Volume) error {
 	r.vol = vol
 	r.gc.Clear()
 	return r.gc.PrepVolume(vol)
+}
+
+func (r *rebalancer) DeleteUnusedVolumes(liveVolumes []*models.Volume) error {
+	live := make(map[agro.VolumeID]bool)
+	for _, x := range liveVolumes {
+		live[agro.VolumeID(x.Id)] = true
+	}
+	tempIt := r.bs.BlockIterator()
+	for {
+		ok := tempIt.Next()
+		if !ok {
+			err := tempIt.Err()
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+		ref := tempIt.BlockRef()
+		if !live[ref.Volume()] {
+			err := r.bs.DeleteBlock(context.TODO(), ref)
+			if err != nil {
+				return err
+			}
+		}
+	}
 }
