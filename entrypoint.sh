@@ -10,6 +10,7 @@ set -e
 : ${STORAGE_SIZE:=2GiB}
 : ${AUTO_JOIN:=0}
 : ${DEBUG_MKFS:=0}
+: ${DROP_MOUNT_BIN:=0}
 
 AGRO_FLAGS=""
 if [ ${DEBUG} -eq "1" ]; then
@@ -22,6 +23,11 @@ fi
 
 if [ ${DEBUG_MKFS} -eq "1" ]; then
   AGRO_FLAGS="$AGRO_FLAGS --debug-mkfs"
+fi
+
+if [ ${DROP_MOUNT_BIN} -eq "1" ]; then
+  mkdir -p /plugin/coreos.com~agro
+  cp `which agromount` /plugin/coreos.com~agro/agro
 fi
 
 agro --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port $LISTEN_HTTP_PORT --datadir /data --peer-address $LISTEN_HOST:$LISTEN_PEER_PORT --size $STORAGE_SIZE $AGRO_FLAGS

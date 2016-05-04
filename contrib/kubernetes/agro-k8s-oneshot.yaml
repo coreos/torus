@@ -130,13 +130,21 @@ spec:
           value: "1"
         - name: DEBUG_MKFS
           value: "1"
+        - name: DROP_MOUNT_BIN
+          value: "1"
         volumeMounts:
         - name: data
           mountPath: /data
+          readOnly: false
+        - name: plugin
+          mountPath: /plugin
           readOnly: false
       volumes:
         - name: data
           hostPath:
             path: /srv/agro
+        - name: plugin
+          hostPath:
+            path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
       imagePullSecrets:
         - name: quay-agro

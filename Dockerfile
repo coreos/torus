@@ -12,7 +12,7 @@ RUN go install -v github.com/coreos/agro/cmd/agroctl
 RUN go install -v github.com/coreos/agro/cmd/agromount
 
 # Expose the port and volume for configuration and data persistence.
-VOLUME ["/data"]
+VOLUME ["/data", "/plugin"]
 EXPOSE 40000 4321
 
 CMD ["./entrypoint.sh"]
