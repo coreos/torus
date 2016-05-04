@@ -18,7 +18,7 @@ func CreateBlockVolume(mds agro.MetadataService, volume string, size uint64) err
 	if err != nil {
 		return err
 	}
-	blkmd, err := createBlockMetadata(mds, id)
+	blkmd, err := createBlockMetadata(mds, volume, id)
 	if err != nil {
 		return err
 	}
@@ -35,7 +35,7 @@ func OpenBlockVolume(s *agro.Server, volume string) (*BlockVolume, error) {
 	if err != nil {
 		return nil, err
 	}
-	mds, err := createBlockMetadata(s.MDS, agro.VolumeID(vol.Id))
+	mds, err := createBlockMetadata(s.MDS, vol.Name, agro.VolumeID(vol.Id))
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +44,18 @@ func OpenBlockVolume(s *agro.Server, volume string) (*BlockVolume, error) {
 		mds:    mds,
 		volume: vol,
 	}, nil
+}
+
+func DeleteBlockVolume(mds agro.MetadataService, volume string) error {
+	vol, err := mds.GetVolume(volume)
+	if err != nil {
+		return err
+	}
+	bmds, err := createBlockMetadata(mds, vol.Name, agro.VolumeID(vol.Id))
+	if err != nil {
+		return err
+	}
+	return bmds.DeleteVolume()
 }
 
 func (s *BlockVolume) getContext() context.Context {

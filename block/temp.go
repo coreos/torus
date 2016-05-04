@@ -10,7 +10,8 @@ import (
 
 type blockTempMetadata struct {
 	*temp.Client
-	vid agro.VolumeID
+	name string
+	vid  agro.VolumeID
 }
 
 type blockTempVolumeData struct {
@@ -88,10 +89,25 @@ func (b *blockTempMetadata) Unlock() error {
 	return nil
 }
 
-func createBlockTempMetadata(mds agro.MetadataService, vid agro.VolumeID) (blockMetadata, error) {
+func (b *blockTempMetadata) DeleteVolume() error {
+	b.LockData()
+	defer b.UnlockData()
+	v, ok := b.GetData(fmt.Sprint(b.vid))
+	if !ok {
+		return agro.ErrNotExist
+	}
+	d := v.(*blockTempVolumeData)
+	if d.locked != b.UUID() {
+		return agro.ErrLocked
+	}
+	return b.Client.DeleteVolume(b.name)
+}
+
+func createBlockTempMetadata(mds agro.MetadataService, name string, vid agro.VolumeID) (blockMetadata, error) {
 	if t, ok := mds.(*temp.Client); ok {
 		return &blockTempMetadata{
 			Client: t,
+			name:   name,
 			vid:    vid,
 		}, nil
 	}

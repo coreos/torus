@@ -48,7 +48,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 		b.skip = true
 		return nil
 	}
-	mds, err := createBlockMetadata(b.srv.MDS, agro.VolumeID(vol.Id))
+	mds, err := createBlockMetadata(b.srv.MDS, vol.Name, agro.VolumeID(vol.Id))
 	if err != nil {
 		return err
 	}

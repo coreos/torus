@@ -12,7 +12,8 @@ import (
 
 type blockEtcd struct {
 	*etcd.Etcd
-	vid agro.VolumeID
+	name string
+	vid  agro.VolumeID
 }
 
 func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
@@ -31,8 +32,8 @@ func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
 	).Then(
 		etcd.SetKey(etcd.MkKey("volumes", volume.Name), etcd.Uint64ToBytes(volume.Id)),
 		etcd.SetKey(etcd.MkKey("volumeid", etcd.Uint64ToHex(volume.Id)), vbytes),
-		etcd.SetKey(etcd.MkKey("volumemeta", "inode", etcd.Uint64ToHex(volume.Id)), etcd.Uint64ToBytes(1)),
-		etcd.SetKey(etcd.MkKey("volumemeta", "blockinode", etcd.Uint64ToHex(volume.Id)), inodeBytes),
+		etcd.SetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(volume.Id), "inode"), etcd.Uint64ToBytes(1)),
+		etcd.SetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(volume.Id), "blockinode"), inodeBytes),
 	).Tx()
 	resp, err := b.Etcd.KV.Txn(b.getContext(), do)
 	if err != nil {
@@ -44,6 +45,26 @@ func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
 	return nil
 }
 
+func (b *blockEtcd) DeleteVolume() error {
+	vid := uint64(b.vid)
+	tx := etcd.Tx().If(
+		etcd.KeyNotExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
+	).Then(
+		etcd.DeleteKey(etcd.MkKey("volumes", b.name)),
+		etcd.DeleteKey(etcd.MkKey("volumeid", etcd.Uint64ToHex(vid))),
+		etcd.DeletePrefix(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid))),
+	).Tx()
+	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
+	if err != nil {
+		return err
+	}
+	if !resp.Succeeded {
+		return agro.ErrLocked
+	}
+	return nil
+
+}
+
 func (b *blockEtcd) getContext() context.Context {
 	return context.TODO()
 }
@@ -53,9 +74,9 @@ func (b *blockEtcd) Lock(lease int64) error {
 		return agro.ErrInvalid
 	}
 	tx := etcd.Tx().If(
-		etcd.KeyNotExists(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(uint64(b.vid)))),
+		etcd.KeyNotExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blocklock")),
 	).Then(
-		etcd.SetLeasedKey(lease, etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(uint64(b.vid))), []byte(b.Etcd.UUID())),
+		etcd.SetLeasedKey(lease, etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blocklock"), []byte(b.Etcd.UUID())),
 	).Tx()
 	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
 	if err != nil {
@@ -68,7 +89,7 @@ func (b *blockEtcd) Lock(lease int64) error {
 }
 
 func (b *blockEtcd) GetINode() (agro.INodeRef, error) {
-	resp, err := b.Etcd.KV.Range(b.getContext(), etcd.GetKey(etcd.MkKey("volumemeta", "blockinode", etcd.Uint64ToHex(uint64(b.vid)))))
+	resp, err := b.Etcd.KV.Range(b.getContext(), etcd.GetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blockinode")))
 	if err != nil {
 		return agro.NewINodeRef(0, 0), err
 	}
@@ -82,10 +103,10 @@ func (b *blockEtcd) SyncINode(inode agro.INodeRef) error {
 	vid := uint64(inode.Volume())
 	inodeBytes := inode.ToBytes()
 	tx := etcd.Tx().If(
-		etcd.KeyExists(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid))),
-		etcd.KeyEquals(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid)), []byte(b.Etcd.UUID())),
+		etcd.KeyExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
+		etcd.KeyEquals(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock"), []byte(b.Etcd.UUID())),
 	).Then(
-		etcd.SetKey(etcd.MkKey("volumemeta", "blockinode", etcd.Uint64ToHex(vid)), inodeBytes),
+		etcd.SetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blockinode"), inodeBytes),
 	).Tx()
 	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
 	if err != nil {
@@ -100,10 +121,10 @@ func (b *blockEtcd) SyncINode(inode agro.INodeRef) error {
 func (b *blockEtcd) Unlock() error {
 	vid := uint64(b.vid)
 	tx := etcd.Tx().If(
-		etcd.KeyExists(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid))),
-		etcd.KeyEquals(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid)), []byte(b.Etcd.UUID())),
+		etcd.KeyExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
+		etcd.KeyEquals(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock"), []byte(b.Etcd.UUID())),
 	).Then(
-		etcd.DeleteKey(etcd.MkKey("volumemeta", "blocklock", etcd.Uint64ToHex(vid))),
+		etcd.DeleteKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
 	).Tx()
 	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
 	if err != nil {
@@ -115,10 +136,11 @@ func (b *blockEtcd) Unlock() error {
 	return nil
 }
 
-func createBlockEtcdMetadata(mds agro.MetadataService, vid agro.VolumeID) (blockMetadata, error) {
+func createBlockEtcdMetadata(mds agro.MetadataService, name string, vid agro.VolumeID) (blockMetadata, error) {
 	if e, ok := mds.(*etcd.Etcd); ok {
 		return &blockEtcd{
 			Etcd: e,
+			name: name,
 			vid:  vid,
 		}, nil
 	}
