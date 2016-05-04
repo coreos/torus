@@ -57,8 +57,8 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&localBlockSizeStr, "write-cache-size", "", "128MiB", "Amount of memory to use for the local write cache")
 	rootCommand.PersistentFlags().StringVarP(&readCacheSizeStr, "read-cache-size", "", "20MiB", "Amount of memory to use for read cache")
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
-	rootCommand.PersistentFlags().StringVarP(&readLevel, "readlevel", "", "block", "Read replication level")
-	rootCommand.PersistentFlags().StringVarP(&writeLevel, "writelevel", "", "all", "Write replication level")
+	rootCommand.PersistentFlags().StringVarP(&readLevel, "read-level", "", "block", "Read replication level")
+	rootCommand.PersistentFlags().StringVarP(&writeLevel, "write-level", "", "all", "Write replication level")
 }
 
 func configureServer(cmd *cobra.Command, args []string) {
@@ -98,18 +98,12 @@ func configureServer(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	var wl agro.WriteLevel
-	switch writeLevel {
-	case "all":
-		wl = agro.WriteAll
-	case "one":
-		wl = agro.WriteOne
-	case "local":
-		wl = agro.WriteLocal
-	default:
-		fmt.Fprintf(os.Stderr, "invalid writelevel; use one of 'one', 'all', or 'local'")
+	wl, err := agro.ParseWriteLevel(writeLevel)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, err.Error())
 		os.Exit(1)
 	}
+
 	cfg = agro.Config{
 		StorageSize:     localBlockSize,
 		MetadataAddress: etcdAddress,

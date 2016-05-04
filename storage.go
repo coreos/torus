@@ -2,6 +2,7 @@ package agro
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"golang.org/x/net/context"
@@ -184,6 +185,21 @@ const (
 	WriteOne
 	WriteLocal
 )
+
+func ParseWriteLevel(s string) (wl WriteLevel, err error) {
+	wl = WriteAll
+	switch s {
+	case "all":
+		wl = WriteAll
+	case "one":
+		wl = WriteOne
+	case "local":
+		wl = WriteLocal
+	default:
+		err = errors.New("invalid writelevel; use one of 'one', 'all', or 'local'")
+	}
+	return
+}
 
 const (
 	ReadBlock ReadLevel = iota

@@ -3,6 +3,7 @@ package block
 import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
+	"golang.org/x/net/context"
 )
 
 type BlockFile struct {
@@ -49,13 +50,21 @@ func (f *BlockFile) Close() error {
 	return f.vol.mds.Unlock()
 }
 
+func (f *BlockFile) inodeContext() context.Context {
+	return context.WithValue(context.TODO(), agro.CtxWriteLevel, agro.WriteAll)
+}
+
 func (f *BlockFile) Sync() error {
 	if !f.WriteOpen() {
 		clog.Debugf("not syncing")
 		return nil
 	}
 	clog.Debugf("Syncing block volume: %v", f.vol.volume.Name)
-	ref, err := f.File.SyncAllWrites()
+	err := f.File.SyncBlocks()
+	if err != nil {
+		return err
+	}
+	ref, err := f.File.SyncINode(f.inodeContext())
 	if err != nil {
 		return err
 	}

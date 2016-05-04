@@ -406,15 +406,14 @@ func (f *File) Trim(offset, length int64) error {
 }
 
 func (f *File) SyncAllWrites() (INodeRef, error) {
-	err := f.syncBlock()
-	if err != nil {
-		clog.Error("sync: couldn't sync block")
-		return ZeroINode(), err
-	}
-	err = f.srv.Blocks.Flush()
+	err := f.SyncBlocks()
 	if err != nil {
 		return ZeroINode(), err
 	}
+	return f.SyncINode(f.getContext())
+}
+
+func (f *File) SyncINode(ctx context.Context) (INodeRef, error) {
 	ref := f.writeINodeRef
 	blkdata, err := MarshalBlocksetToProto(f.blocks)
 	if err != nil {
@@ -425,12 +424,21 @@ func (f *File) SyncAllWrites() (INodeRef, error) {
 	if f.inode.Volume != f.volume.Id {
 		panic("mismatched volume and inode volume")
 	}
-	err = f.srv.INodes.WriteINode(f.getContext(), ref, f.inode)
+	err = f.srv.INodes.WriteINode(ctx, ref, f.inode)
 	if err != nil {
 		return ZeroINode(), err
 	}
 	f.writeOpen = false
 	return ref, nil
+}
+
+func (f *File) SyncBlocks() error {
+	err := f.syncBlock()
+	if err != nil {
+		clog.Error("sync: couldn't sync block")
+		return err
+	}
+	return f.srv.Blocks.Flush()
 }
 
 func (f *File) Size() uint64 {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/agro"
 	"github.com/coreos/agro/internal/nbd"
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/coreos/go-systemd/unit"
@@ -18,11 +19,13 @@ import (
 )
 
 type VolumeData struct {
-	VolumeName string `json:"volume"`
-	Trim       bool   `json:"trim"`
-	Etcd       string `json:"etcd"`
-	FSType     string `json:"kubernetes.io/fsType"`
-	ReadWrite  string `json:"kubernetes.io/readwrite"`
+	VolumeName     string `json:"volume"`
+	Trim           bool   `json:"trim"`
+	Etcd           string `json:"etcd"`
+	FSType         string `json:"kubernetes.io/fsType"`
+	ReadWrite      string `json:"kubernetes.io/readwrite"`
+	WriteLevel     string `json:"writeLevel"`
+	WriteCacheSize string `json:"writeCacheSize"`
 }
 
 type Response struct {
@@ -162,18 +165,31 @@ func attachAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		onErr(err)
 	}
+
+	cmdList := []string{
+		me,
+		"-C",
+		vol.Etcd,
+		"nbd",
+		vol.VolumeName,
+		dev,
+	}
+	if vol.WriteLevel != "" {
+		_, err := agro.ParseWriteLevel(vol.WriteLevel)
+		if err != nil {
+			onErr(err)
+		}
+		cmdList = append(cmdList, []string{"--write-level", vol.WriteLevel}...)
+	}
+	if vol.WriteCacheSize != "" {
+		cmdList = append(cmdList, []string{"--write-cache-size", vol.WriteCacheSize}...)
+	}
+
 	ch := make(chan string)
 
 	sysd.ResetFailedUnit(svc)
 	_, err = sysd.StartTransientUnit(svc, "fail", []dbus.Property{
-		dbus.PropExecStart([]string{
-			me,
-			"-C",
-			vol.Etcd,
-			"nbd",
-			vol.VolumeName,
-			dev,
-		}, false),
+		dbus.PropExecStart(cmdList, false),
 	}, ch)
 	if err != nil {
 		onErr(err)
