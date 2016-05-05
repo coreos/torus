@@ -46,16 +46,17 @@ func (d *Distributor) rebalanceTicker(closer chan struct{}) {
 	time.Sleep(time.Duration(250+rand.Intn(250)) * time.Millisecond)
 	volIdx := 0
 	var volset []*models.Volume
+	var volhighwater agro.VolumeID
 	var err error
 exit:
 	for {
 		if volIdx == len(volset) {
-			err = d.rebalancer.DeleteUnusedVolumes(volset)
+			err = d.rebalancer.DeleteUnusedVolumes(volset, volhighwater)
 			if err != nil {
 				clog.Error(err)
 			}
 			volIdx = 0
-			volset, err = d.srv.MDS.GetVolumes()
+			volset, volhighwater, err = d.srv.MDS.GetVolumes()
 			if err != nil {
 				clog.Error(err)
 			}

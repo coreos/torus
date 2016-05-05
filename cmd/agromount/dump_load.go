@@ -72,5 +72,43 @@ func getWriterFromArg(arg string) (io.Writer, error) {
 }
 
 func loadAction(cmd *cobra.Command, args []string) {
-
+	if len(args) != 2 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+	input, err := getReaderFromArg(args[0])
+	if err != nil {
+		die("couldn't open input: %v", err)
+	}
+	srv := createServer()
+	defer srv.Close()
+	fi, err := input.Stat()
+	if err != nil {
+		die("couldn't stat input file: %v", err)
+	}
+	err = block.CreateBlockVolume(srv.MDS, args[1], uint64(fi.Size()))
+	if err != nil {
+		die("couldn't create block volume %s: %v", args[1], err)
+	}
+	blockvol, err := block.OpenBlockVolume(srv, args[1])
+	if err != nil {
+		die("couldn't open block volume %s: %v", args[1], err)
+	}
+	f, err := blockvol.OpenBlockFile()
+	if err != nil {
+		die("couldn't open blockfile %s: %v", args[1], err)
+	}
+	copied, err := io.Copy(f, input)
+	if err != nil {
+		die("couldn't copy: %v", err)
+	}
+	err = f.Sync()
+	if err != nil {
+		die("couldn't sync: %v", err)
+	}
+	err = f.Close()
+	if err != nil {
+		die("couldn't close: %v", err)
+	}
+	fmt.Printf("copied %d bytes", copied)
 }

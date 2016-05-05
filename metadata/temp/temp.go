@@ -130,7 +130,7 @@ func (t *Client) CommitINodeIndex(vol agro.VolumeID) (agro.INodeID, error) {
 	return t.srv.inode[vol], nil
 }
 
-func (t *Client) GetVolumes() ([]*models.Volume, error) {
+func (t *Client) GetVolumes() ([]*models.Volume, agro.VolumeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 
@@ -139,7 +139,13 @@ func (t *Client) GetVolumes() ([]*models.Volume, error) {
 	for _, v := range t.srv.volIndex {
 		out = append(out, v)
 	}
-	return out, nil
+	return out, t.srv.vol, nil
+}
+
+func (t *Client) CreateVolume(volume *models.Volume) error {
+	t.srv.volIndex[volume.Name] = volume
+	t.srv.inode[agro.VolumeID(volume.Id)] = 1
+	return nil
 }
 
 func (t *Client) GetVolume(volume string) (*models.Volume, error) {

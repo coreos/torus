@@ -27,6 +27,7 @@ func (b *blockTempMetadata) CreateBlockVolume(volume *models.Volume) error {
 	if ok {
 		return agro.ErrExists
 	}
+	b.CreateVolume(volume)
 	b.SetData(fmt.Sprint(volume.Id), &blockTempVolumeData{
 		locked: "",
 		id:     agro.NewINodeRef(agro.VolumeID(volume.Id), 1),

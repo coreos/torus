@@ -160,7 +160,7 @@ func (m *mfileBlock) close() error {
 
 func (m *mfileBlock) findIndex(s agro.BlockRef) int {
 	id := s.ToBytes()
-	clog.Tracef("finding blockid %s, bytes %v", s, id)
+	clog.Tracef("finding blockid %s", s)
 	if v, ok := m.blockTrie.Get(id); ok {
 		return v.(int)
 	}

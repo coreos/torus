@@ -101,6 +101,7 @@ func (s *Server) CreateFile(volume *models.Volume, inode *models.INode, blocks B
 	if err != nil {
 		return nil, err
 	}
+	clog.Tracef("Creating File For Inode %d:%d", inode.Volume, inode.INode)
 	return &File{
 		volume:  volume,
 		inode:   inode,

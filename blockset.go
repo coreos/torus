@@ -21,6 +21,7 @@ type Blockset interface {
 	GetSubBlockset() Blockset
 	Truncate(lastIndex int, blocksize uint64) error
 	Trim(from, to int) error
+	String() string
 }
 
 type BlockLayerKind int

@@ -75,7 +75,7 @@ func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	if err != nil {
 		// We completely failed!
 		promDistBlockFailures.Inc()
-		clog.Error("no peers for block")
+		clog.Errorf("no peers for block %s", i)
 	}
 	return blk, err
 }
