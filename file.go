@@ -80,6 +80,7 @@ type File struct {
 	// during write
 	writeINodeRef INodeRef
 	writeOpen     bool
+	ReadOnly      bool
 
 	// half-finished blocks
 	openIdx   int
@@ -110,6 +111,9 @@ func (s *Server) CreateFile(volume *models.Volume, inode *models.INode, blocks B
 }
 
 func (f *File) openWrite() error {
+	if f.ReadOnly {
+		return ErrLocked
+	}
 	if f.writeOpen {
 		return nil
 	}

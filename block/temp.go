@@ -17,6 +17,7 @@ type blockTempMetadata struct {
 type blockTempVolumeData struct {
 	locked string
 	id     agro.INodeRef
+	snaps  []Snapshot
 }
 
 func (b *blockTempMetadata) CreateBlockVolume(volume *models.Volume) error {
@@ -101,6 +102,55 @@ func (b *blockTempMetadata) DeleteVolume() error {
 		return agro.ErrLocked
 	}
 	return b.Client.DeleteVolume(b.name)
+}
+
+func (b *blockTempMetadata) SaveSnapshot(name string) error {
+	b.LockData()
+	defer b.UnlockData()
+	v, ok := b.GetData(fmt.Sprint(b.vid))
+	if !ok {
+		return agro.ErrNotExist
+	}
+	d := v.(*blockTempVolumeData)
+	for _, x := range d.snaps {
+		if x.Name == name {
+			return agro.ErrExists
+		}
+	}
+	snap := Snapshot{
+		Name:     name,
+		INodeRef: d.id.ToBytes(),
+	}
+	d.snaps = append(d.snaps, snap)
+	return nil
+}
+func (b *blockTempMetadata) GetSnapshots() ([]Snapshot, error) {
+	b.LockData()
+	defer b.UnlockData()
+	v, ok := b.GetData(fmt.Sprint(b.vid))
+	if !ok {
+		return nil, agro.ErrNotExist
+	}
+	d := v.(*blockTempVolumeData)
+	out := make([]Snapshot, len(d.snaps))
+	copy(out, d.snaps)
+	return out, nil
+}
+func (b *blockTempMetadata) DeleteSnapshot(name string) error {
+	b.LockData()
+	defer b.UnlockData()
+	v, ok := b.GetData(fmt.Sprint(b.vid))
+	if !ok {
+		return agro.ErrNotExist
+	}
+	d := v.(*blockTempVolumeData)
+	for i, x := range d.snaps {
+		if x.Name == name {
+			d.snaps = append(d.snaps[:i], d.snaps[i+1:]...)
+			return nil
+		}
+	}
+	return agro.ErrNotExist
 }
 
 func createBlockTempMetadata(mds agro.MetadataService, name string, vid agro.VolumeID) (blockMetadata, error) {

@@ -1,6 +1,7 @@
 package block
 
 import (
+	"encoding/json"
 	"errors"
 
 	"golang.org/x/net/context"
@@ -125,6 +126,79 @@ func (b *blockEtcd) Unlock() error {
 		etcd.KeyEquals(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock"), []byte(b.Etcd.UUID())),
 	).Then(
 		etcd.DeleteKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
+	).Tx()
+	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
+	if err != nil {
+		return err
+	}
+	if !resp.Succeeded {
+		return agro.ErrLocked
+	}
+	return nil
+}
+
+func (b *blockEtcd) SaveSnapshot(name string) error {
+	vid := uint64(b.vid)
+	for {
+		tx := etcd.Tx().If(
+			etcd.KeyNotExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name)),
+		).Then(
+			etcd.GetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blockinode")),
+		).Tx()
+		resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
+		if err != nil {
+			return err
+		}
+		if !resp.Succeeded {
+			return agro.ErrExists
+		}
+		v := resp.GetResponses()[0].GetResponseRange().Kvs[0]
+		inode := Snapshot{
+			Name:     name,
+			INodeRef: v.Value,
+		}
+		bytes, err := json.Marshal(inode)
+		if err != nil {
+			return err
+		}
+		tx = etcd.Tx().If(
+			etcd.KeyIsVersion(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blockinode"), v.Version),
+		).Then(
+			etcd.SetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name), bytes),
+		).Tx()
+		resp, err = b.Etcd.KV.Txn(b.getContext(), tx)
+		if err != nil {
+			return err
+		}
+		if !resp.Succeeded {
+			continue
+		}
+		return nil
+	}
+
+}
+
+func (b *blockEtcd) GetSnapshots() ([]Snapshot, error) {
+	resp, err := b.Etcd.KV.Range(b.getContext(), etcd.GetPrefix(etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "snapshots")))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Snapshot, len(resp.Kvs))
+	for i, r := range resp.Kvs {
+		err := json.Unmarshal(r.Value, &out[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func (b *blockEtcd) DeleteSnapshot(name string) error {
+	vid := uint64(b.vid)
+	tx := etcd.Tx().If(
+		etcd.KeyExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name)),
+	).Then(
+		etcd.DeleteKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name)),
 	).Tx()
 	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
 	if err != nil {

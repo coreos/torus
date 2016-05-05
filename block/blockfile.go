@@ -38,6 +38,41 @@ func (s *BlockVolume) OpenBlockFile() (*BlockFile, error) {
 	}, nil
 }
 
+func (s *BlockVolume) OpenSnapshot(name string) (*BlockFile, error) {
+	if s.volume.Type != "block" {
+		panic("wrong type")
+	}
+	snaps, err := s.mds.GetSnapshots()
+	if err != nil {
+		return nil, err
+	}
+	var found Snapshot
+	for _, x := range snaps {
+		if x.Name == name {
+			found = x
+			break
+		}
+	}
+	if found.Name != name {
+		return nil, agro.ErrNotExist
+	}
+	ref := agro.INodeRefFromBytes(found.INodeRef)
+	inode, err := s.getOrCreateBlockINode(ref)
+	if err != nil {
+		return nil, err
+	}
+	bs, err := blockset.UnmarshalFromProto(inode.GetBlocks(), s.srv.Blocks)
+	if err != nil {
+		return nil, err
+	}
+	f, err := s.srv.CreateFile(s.volume, inode, bs)
+	f.ReadOnly = true
+	return &BlockFile{
+		File: f,
+		vol:  s,
+	}, nil
+}
+
 func (f *BlockFile) Close() error {
 	err := f.Sync()
 	if err != nil {

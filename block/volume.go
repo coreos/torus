@@ -58,6 +58,10 @@ func DeleteBlockVolume(mds agro.MetadataService, volume string) error {
 	return bmds.DeleteVolume()
 }
 
+func (s *BlockVolume) SaveSnapshot(name string) error    { return s.mds.SaveSnapshot(name) }
+func (s *BlockVolume) GetSnapshots() ([]Snapshot, error) { return s.mds.GetSnapshots() }
+func (s *BlockVolume) DeleteSnapshot(name string) error  { return s.mds.DeleteSnapshot(name) }
+
 func (s *BlockVolume) getContext() context.Context {
 	return context.TODO()
 }
