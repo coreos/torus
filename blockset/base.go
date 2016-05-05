@@ -61,6 +61,15 @@ func (b *baseBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int,
 	if i > len(b.blocks) {
 		return agro.ErrBlockNotExist
 	}
+	// if v, ok := ctx.Value("isEmpty").(bool); ok && v {
+	// 	clog.Debug("copying empty block")
+	// 	if i == len(b.blocks) {
+	// 		b.blocks = append(b.blocks, agro.ZeroBlock())
+	// 	} else {
+	// 		b.blocks[i] = agro.ZeroBlock()
+	// 	}
+	// 	return nil
+	// }
 	newBlockID := b.makeID(inode)
 	clog.Tracef("base: writing block %d at BlockID %s", i, newBlockID)
 	err := b.store.WriteBlock(ctx, newBlockID, data)
@@ -168,5 +177,14 @@ func (b *baseBlockset) Trim(from, to int) error {
 func (b *baseBlockset) GetAllBlockRefs() []agro.BlockRef {
 	out := make([]agro.BlockRef, len(b.blocks))
 	copy(out, b.blocks)
+	return out
+}
+
+func (b *baseBlockset) String() string {
+	out := "[\n"
+	for _, x := range b.blocks {
+		out += x.String() + "\n"
+	}
+	out += "]"
 	return out
 }

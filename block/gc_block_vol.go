@@ -24,7 +24,8 @@ type blockvolGC struct {
 	trie      *iradix.Tree
 	highwater agro.INodeID
 	skip      bool
-	curRef    agro.INodeRef
+	curRefs   []agro.INodeRef
+	topRef    agro.INodeRef
 }
 
 func NewBlockVolGC(srv *agro.Server, inodes gc.INodeFetcher) (gc.GC, error) {
@@ -42,7 +43,7 @@ func (b *blockvolGC) getContext() context.Context {
 func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	b.mut.Lock()
 	defer b.mut.Unlock()
-	t := iradix.New()
+	b.trie = iradix.New()
 	b.skip = false
 	if vol.Type != "block" {
 		b.skip = true
@@ -52,34 +53,50 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	if err != nil {
 		return err
 	}
-	b.curRef, err = mds.GetINode()
+	curRef, err := mds.GetINode()
 	if err != nil {
 		return err
 	}
-	if b.curRef.INode <= 1 {
+	if curRef.INode <= 1 {
 		b.skip = true
 		return nil
 	}
-	inode, err := b.inodes.GetINode(b.getContext(), b.curRef)
+
+	b.curRefs = []agro.INodeRef{curRef}
+	b.topRef = curRef
+
+	snaps, err := mds.GetSnapshots()
 	if err != nil {
 		return err
 	}
-	set, err := blockset.UnmarshalFromProto(inode.Blocks, nil)
-	if err != nil {
-		return err
+
+	for _, x := range snaps {
+		b.curRefs = append(b.curRefs, agro.INodeRefFromBytes(x.INodeRef))
 	}
-	tx := t.Txn()
-	refs := set.GetAllBlockRefs()
-	for _, ref := range refs {
-		if ref.IsZero() {
-			continue
+
+	for _, x := range b.curRefs {
+		inode, err := b.inodes.GetINode(b.getContext(), x)
+		if err != nil {
+			return err
 		}
-		if ref.INode > b.highwater {
-			b.highwater = ref.INode
+		set, err := blockset.UnmarshalFromProto(inode.Blocks, nil)
+		if err != nil {
+			return err
 		}
-		tx.Insert(ref.ToBytes(), true)
+		tx := b.trie.Txn()
+		refs := set.GetAllBlockRefs()
+		for _, ref := range refs {
+			if ref.IsZero() {
+				continue
+			}
+			if ref.INode > b.highwater {
+				b.highwater = ref.INode
+			}
+			tx.Insert(ref.ToBytes(), true)
+		}
+		b.trie = tx.Commit()
 	}
-	b.trie = tx.Commit()
+
 	return nil
 }
 
@@ -90,10 +107,15 @@ func (b *blockvolGC) IsDead(ref agro.BlockRef) bool {
 		return false
 	}
 	if ref.BlockType() == agro.TypeINode {
-		if ref.INode < b.curRef.INode {
-			return true
+		if ref.INode >= b.topRef.INode {
+			return false
 		}
-		return false
+		for _, x := range b.curRefs {
+			if ref.INode == x.INode {
+				return false
+			}
+		}
+		return true
 	}
 	if ref.INode > b.highwater {
 		return false

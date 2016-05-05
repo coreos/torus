@@ -13,9 +13,10 @@ import (
 )
 
 type crcBlockset struct {
-	sub  blockset
-	crcs []uint32
-	mut  sync.RWMutex
+	sub      blockset
+	crcs     []uint32
+	mut      sync.RWMutex
+	emptyCrc uint32
 }
 
 var _ blockset = &crcBlockset{}
@@ -75,11 +76,14 @@ func (b *crcBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, 
 	if i > len(b.crcs) {
 		return agro.ErrBlockNotExist
 	}
+	crc := crc32.ChecksumIEEE(data)
+	if crc == b.emptyCrc {
+		ctx = context.WithValue(ctx, "isEmpty", true)
+	}
 	err := b.sub.PutBlock(ctx, inode, i, data)
 	if err != nil {
 		return err
 	}
-	crc := crc32.ChecksumIEEE(data)
 	if i == len(b.crcs) {
 		b.crcs = append(b.crcs, crc)
 	} else {
@@ -94,6 +98,7 @@ func (b *crcBlockset) makeID(i agro.INodeRef) agro.BlockRef {
 }
 
 func (b *crcBlockset) setStore(s agro.BlockStore) {
+	b.emptyCrc = crc32.ChecksumIEEE(make([]byte, s.BlockSize()))
 	b.sub.setStore(s)
 }
 
@@ -177,9 +182,9 @@ func (b *crcBlockset) Trim(from, to int) error {
 	if to > len(b.crcs) {
 		to = len(b.crcs)
 	}
-	crc := crc32.ChecksumIEEE(make([]byte, b.getStore().BlockSize()))
+	b.emptyCrc = crc32.ChecksumIEEE(make([]byte, b.getStore().BlockSize()))
 	for i := from; i < to; i++ {
-		b.crcs[i] = crc
+		b.crcs[i] = b.emptyCrc
 	}
 	return nil
 }
@@ -188,4 +193,8 @@ func (b *crcBlockset) GetAllBlockRefs() []agro.BlockRef {
 	b.mut.Lock()
 	defer b.mut.Unlock()
 	return b.sub.GetAllBlockRefs()
+}
+
+func (b *crcBlockset) String() string {
+	return "crc\n" + b.sub.String()
 }

@@ -292,22 +292,28 @@ func BytesAddOne(in []byte) ([]byte, interface{}, error) {
 	return Uint64ToBytes(newval), newval, nil
 }
 
-func (c *etcdCtx) GetVolumes() ([]*models.Volume, error) {
+func (c *etcdCtx) GetVolumes() ([]*models.Volume, agro.VolumeID, error) {
 	promOps.WithLabelValues("get-volumes").Inc()
-	resp, err := c.etcd.KV.Range(c.getContext(), GetPrefix(MkKey("volumeid")))
+	tx := Tx().Do(
+		GetKey(MkKey("meta", "volumeminter")),
+		GetPrefix(MkKey("volumeid")),
+	).Tx()
+	resp, err := c.etcd.KV.Txn(c.getContext(), tx)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
+	highwater := BytesToUint64(resp.Responses[0].GetResponseRange().Kvs[0].Value)
+	list := resp.Responses[1].GetResponseRange().Kvs
 	var out []*models.Volume
-	for _, x := range resp.Kvs {
+	for _, x := range list {
 		v := &models.Volume{}
 		err := v.Unmarshal(x.Value)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		out = append(out, v)
 	}
-	return out, nil
+	return out, agro.VolumeID(highwater), nil
 }
 
 func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {

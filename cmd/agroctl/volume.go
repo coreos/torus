@@ -65,7 +65,7 @@ func volumeListAction(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	mds := mustConnectToMDS()
-	vols, err := mds.GetVolumes()
+	vols, _, err := mds.GetVolumes()
 	if err != nil {
 		die("error listing volumes: %v\n", err)
 	}

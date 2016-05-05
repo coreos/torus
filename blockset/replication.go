@@ -212,3 +212,7 @@ func (b *replicationBlockset) GetAllBlockRefs() []agro.BlockRef {
 	}
 	return append(sub, out...)
 }
+
+func (b *replicationBlockset) String() string {
+	return "rep\n" + b.sub.String()
+}

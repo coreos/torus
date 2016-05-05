@@ -80,6 +80,7 @@ type File struct {
 	// during write
 	writeINodeRef INodeRef
 	writeOpen     bool
+	ReadOnly      bool
 
 	// half-finished blocks
 	openIdx   int
@@ -100,6 +101,7 @@ func (s *Server) CreateFile(volume *models.Volume, inode *models.INode, blocks B
 	if err != nil {
 		return nil, err
 	}
+	clog.Tracef("Creating File For Inode %d:%d", inode.Volume, inode.INode)
 	return &File{
 		volume:  volume,
 		inode:   inode,
@@ -110,6 +112,9 @@ func (s *Server) CreateFile(volume *models.Volume, inode *models.INode, blocks B
 }
 
 func (f *File) openWrite() error {
+	if f.ReadOnly {
+		return ErrLocked
+	}
 	if f.writeOpen {
 		return nil
 	}

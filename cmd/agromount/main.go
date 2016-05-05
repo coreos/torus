@@ -135,3 +135,8 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+func die(why string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, why+"\n", args...)
+	os.Exit(1)
+}
