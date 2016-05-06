@@ -45,6 +45,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	defer b.mut.Unlock()
 	b.trie = iradix.New()
 	b.skip = false
+	b.highwater = 0
 	if vol.Type != "block" {
 		b.skip = true
 		return nil
