@@ -118,7 +118,7 @@ func (b *blockvolGC) IsDead(ref agro.BlockRef) bool {
 		}
 		return true
 	}
-	if ref.INode > b.highwater {
+	if ref.INode >= b.topRef.INode {
 		return false
 	}
 	if _, ok := b.trie.Get(ref.ToBytes()); ok {

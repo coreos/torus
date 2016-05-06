@@ -92,6 +92,26 @@ func makeTestData(size int) []byte {
 	return out
 }
 
+func createVol(t *testing.T, server *agro.Server, volname string, size uint64) *block.BlockFile {
+	err := block.CreateBlockVolume(server.MDS, volname, size)
+	if err != nil {
+		t.Fatalf("couldn't create block volume %s: %v", volname, err)
+	}
+	return openVol(t, server, volname)
+}
+
+func openVol(t *testing.T, server *agro.Server, volname string) *block.BlockFile {
+	blockvol, err := block.OpenBlockVolume(server, volname)
+	if err != nil {
+		t.Fatalf("couldn't open block volume %s: %v", volname, err)
+	}
+	f, err := blockvol.OpenBlockFile()
+	if err != nil {
+		t.Fatalf("couldn't open blockfile %s: %v", volname, err)
+	}
+	return f
+}
+
 func TestLoadAndDump(t *testing.T) {
 	servers, mds := ringThree(t)
 	client := newServer(mds)
@@ -103,19 +123,7 @@ func TestLoadAndDump(t *testing.T) {
 	size := BlockSize * 100
 	data := makeTestData(size)
 	input := bytes.NewReader(data)
-	volname := "testvol"
-	err = block.CreateBlockVolume(client.MDS, volname, uint64(size))
-	if err != nil {
-		t.Fatalf("couldn't create block volume %s: %v", volname, err)
-	}
-	blockvol, err := block.OpenBlockVolume(client, volname)
-	if err != nil {
-		t.Fatalf("couldn't open block volume %s: %v", volname, err)
-	}
-	f, err := blockvol.OpenBlockFile()
-	if err != nil {
-		t.Fatalf("couldn't open blockfile %s: %v", volname, err)
-	}
+	f := createVol(t, client, "testvol", uint64(size))
 	copied, err := io.Copy(f, input)
 	if err != nil {
 		t.Fatalf("couldn't copy: %v", err)
@@ -146,27 +154,59 @@ func TestLoadAndDump(t *testing.T) {
 		}
 	}
 
+	compareBytes(t, mds, data, "testvol")
+	closeAll(t, servers...)
+}
+
+func compareBytes(t *testing.T, mds *temp.Server, data []byte, volume string) {
 	reader := newServer(mds)
-	err = distributor.OpenReplication(reader)
+	err := distributor.OpenReplication(reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer reader.Close()
-	blockvol, err = block.OpenBlockVolume(reader, volname)
-	if err != nil {
-		t.Fatalf("couldn't open block volume %s: %v", volname, err)
-	}
-	f, err = blockvol.OpenBlockFile()
-	if err != nil {
-		t.Fatalf("couldn't open blockfile %s: %v", volname, err)
-	}
+	f := openVol(t, reader, "testvol")
 	output := &bytes.Buffer{}
-	copied, err = io.Copy(output, f)
+	_, err = io.Copy(output, f)
 	if err != nil {
 		t.Fatalf("couldn't copy: %v", err)
 	}
 	if !bytes.Equal(output.Bytes(), data) {
 		t.Error("bytes not equal")
 	}
+	f.Close()
+}
+
+func TestRewrite(t *testing.T) {
+	servers, mds := ringThree(t)
+	client := newServer(mds)
+	err := distributor.OpenReplication(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	size := BlockSize * 100
+	data := makeTestData(size)
+	input := bytes.NewReader(data)
+	f := createVol(t, client, "testvol", uint64(size))
+
+	for i := 0; i <= 100; i++ {
+		input.Seek(int64(i%100), 0)
+		f.Seek(int64(i%100), 0)
+		_, err := io.Copy(f, input)
+		if err != nil {
+			t.Fatalf("couldn't copy: %v", err)
+		}
+		err = f.Sync()
+		if err != nil {
+			t.Fatalf("couldn't sync: %v", err)
+		}
+	}
+
+	err = f.Close()
+	if err != nil {
+		t.Fatalf("couldn't close: %v", err)
+	}
+	compareBytes(t, mds, data, "testvol")
 	closeAll(t, servers...)
 }

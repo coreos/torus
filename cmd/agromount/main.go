@@ -12,6 +12,7 @@ import (
 
 	// Register all the drivers.
 	"github.com/coreos/agro/distributor"
+	"github.com/coreos/agro/internal/http"
 	_ "github.com/coreos/agro/metadata/etcd"
 	_ "github.com/coreos/agro/storage/block"
 )
@@ -26,6 +27,7 @@ var (
 	readLevel         string
 	writeLevel        string
 	logpkg            string
+	httpAddr          string
 
 	cfg agro.Config
 
@@ -59,6 +61,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
 	rootCommand.PersistentFlags().StringVarP(&readLevel, "read-level", "", "block", "Read replication level")
 	rootCommand.PersistentFlags().StringVarP(&writeLevel, "write-level", "", "all", "Write replication level")
+	rootCommand.PersistentFlags().StringVarP(&httpAddr, "http", "", "", "HTTP endpoint for debug and stats")
 }
 
 func configureServer(cmd *cobra.Command, args []string) {
@@ -123,6 +126,9 @@ func createServer() *agro.Server {
 	if err != nil {
 		fmt.Printf("Couldn't start: %s", err)
 		os.Exit(1)
+	}
+	if httpAddr != "" {
+		go http.ServeHTTP(httpAddr, srv)
 	}
 	return srv
 }

@@ -77,7 +77,7 @@ func (r *rebalancer) DeleteUnusedVolumes(liveVolumes []*models.Volume, highwater
 			return nil
 		}
 		ref := tempIt.BlockRef()
-		if ref.Volume() >= highwater {
+		if ref.Volume() > highwater {
 			continue
 		}
 		if !live[ref.Volume()] {
