@@ -32,6 +32,9 @@ func (s *BlockVolume) OpenBlockFile() (*BlockFile, error) {
 		return nil, err
 	}
 	f, err := s.srv.CreateFile(s.volume, inode, bs)
+	if err != nil {
+		return nil, err
+	}
 	return &BlockFile{
 		File: f,
 		vol:  s,
@@ -66,6 +69,9 @@ func (s *BlockVolume) OpenSnapshot(name string) (*BlockFile, error) {
 		return nil, err
 	}
 	f, err := s.srv.CreateFile(s.volume, inode, bs)
+	if err != nil {
+		return nil, err
+	}
 	f.ReadOnly = true
 	return &BlockFile{
 		File: f,
