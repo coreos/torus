@@ -68,7 +68,7 @@ func (fs *FrameSender) Send(hdr *aoe.Header) (int, error) {
 	clog.Debugf("send %d %s %+v", len(ebuf), fs.dst, hdr)
 	//clog.Debugf("send arg %+v", hdr.Arg)
 
-	return fs.conn.WriteTo(ebuf, &raw.Addr{fs.dst})
+	return fs.conn.WriteTo(ebuf, &raw.Addr{HardwareAddr: fs.dst})
 }
 
 func (fs *FrameSender) SendError(aerr aoe.Error) (int, error) {

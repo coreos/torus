@@ -76,11 +76,11 @@ func requestUnion(comps ...interface{}) []*etcdpb.RequestUnion {
 	for _, v := range comps {
 		switch m := v.(type) {
 		case *etcdpb.RangeRequest:
-			out = append(out, &etcdpb.RequestUnion{&etcdpb.RequestUnion_RequestRange{RequestRange: m}})
+			out = append(out, &etcdpb.RequestUnion{Request: &etcdpb.RequestUnion_RequestRange{RequestRange: m}})
 		case *etcdpb.PutRequest:
-			out = append(out, &etcdpb.RequestUnion{&etcdpb.RequestUnion_RequestPut{RequestPut: m}})
+			out = append(out, &etcdpb.RequestUnion{Request: &etcdpb.RequestUnion_RequestPut{RequestPut: m}})
 		case *etcdpb.DeleteRangeRequest:
-			out = append(out, &etcdpb.RequestUnion{&etcdpb.RequestUnion_RequestDeleteRange{RequestDeleteRange: m}})
+			out = append(out, &etcdpb.RequestUnion{Request: &etcdpb.RequestUnion_RequestDeleteRange{RequestDeleteRange: m}})
 		default:
 			panic("cannot create this request option within a requestUnion")
 		}
