@@ -44,10 +44,9 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	b.mut.Lock()
 	defer b.mut.Unlock()
 	b.trie = iradix.New()
-	b.skip = false
+	b.skip = vol.Type != VolumeType
 	b.highwater = 0
-	if vol.Type != "block" {
-		b.skip = true
+	if b.skip {
 		return nil
 	}
 	mds, err := createBlockMetadata(b.srv.MDS, vol.Name, agro.VolumeID(vol.Id))

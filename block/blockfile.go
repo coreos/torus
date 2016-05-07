@@ -12,7 +12,7 @@ type BlockFile struct {
 }
 
 func (s *BlockVolume) OpenBlockFile() (*BlockFile, error) {
-	if s.volume.Type != "block" {
+	if s.volume.Type != VolumeType {
 		panic("Wrong type")
 	}
 	err := s.mds.Lock(s.srv.Lease())
@@ -39,7 +39,7 @@ func (s *BlockVolume) OpenBlockFile() (*BlockFile, error) {
 }
 
 func (s *BlockVolume) OpenSnapshot(name string) (*BlockFile, error) {
-	if s.volume.Type != "block" {
+	if s.volume.Type != VolumeType {
 		panic("wrong type")
 	}
 	snaps, err := s.mds.GetSnapshots()
