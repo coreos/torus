@@ -19,7 +19,6 @@ import (
 
 var (
 	etcdAddress       string
-	debug             bool
 	localBlockSizeStr string
 	localBlockSize    uint64
 	readCacheSizeStr  string
@@ -30,8 +29,6 @@ var (
 	httpAddr          string
 
 	cfg agro.Config
-
-	clog = capnslog.NewPackageLogger("github.com/coreos/agro", "agromount")
 )
 
 var rootCommand = &cobra.Command{

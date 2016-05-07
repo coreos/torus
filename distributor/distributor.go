@@ -13,10 +13,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 )
 
-const (
-	defaultINodeReplication = 3
-)
-
 var (
 	clog = capnslog.NewPackageLogger("github.com/coreos/agro", "distributor")
 )

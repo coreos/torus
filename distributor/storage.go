@@ -13,21 +13,6 @@ var (
 	ErrNoPeersBlock = errors.New("distributor: no peers available for a block")
 )
 
-func getRepFromContext(ctx context.Context) int {
-	if ctx == nil {
-		return 1
-	}
-	rep := ctx.Value("replication")
-	if rep == nil {
-		return 1
-	}
-	repInt, ok := rep.(int)
-	if !ok {
-		clog.Fatalf("Cannot convert context value of type %#v to int", rep)
-	}
-	return repInt
-}
-
 func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
 	d.mut.RLock()
 	defer d.mut.RUnlock()

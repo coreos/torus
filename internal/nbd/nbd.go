@@ -73,12 +73,6 @@ type request struct {
 	len    uint32
 }
 
-type reply struct {
-	magic  uint32
-	error  uint32
-	handle uint64
-}
-
 type NBD struct {
 	device    Device
 	size      int64

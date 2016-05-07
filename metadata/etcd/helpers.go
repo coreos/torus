@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/RoaringBitmap/roaring"
 	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 )
 
@@ -22,25 +21,6 @@ func Uint64ToBytes(x uint64) []byte {
 		panic(err)
 	}
 	return buf.Bytes()
-}
-
-func roaringToBytes(r *roaring.Bitmap) []byte {
-	buf := new(bytes.Buffer)
-	_, err := r.WriteTo(buf)
-	if err != nil {
-		panic(err)
-	}
-	return buf.Bytes()
-}
-
-func bytesToRoaring(b []byte) *roaring.Bitmap {
-	r := bytes.NewReader(b)
-	bm := roaring.NewBitmap()
-	_, err := bm.ReadFrom(r)
-	if err != nil {
-		panic(err)
-	}
-	return bm
 }
 
 func BytesToUint64(b []byte) uint64 {

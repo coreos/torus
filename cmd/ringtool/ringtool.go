@@ -11,11 +11,8 @@ import (
 	"github.com/coreos/agro/metadata"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
-	"github.com/coreos/pkg/capnslog"
 	"github.com/dustin/go-humanize"
 )
-
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "ringtool")
 
 var (
 	ringType       = flag.String("ring", "mod", "Ring Type")
