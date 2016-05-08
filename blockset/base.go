@@ -11,9 +11,10 @@ import (
 )
 
 type baseBlockset struct {
-	ids    uint64
-	blocks []agro.BlockRef
-	store  agro.BlockStore
+	ids       uint64
+	blocks    []agro.BlockRef
+	store     agro.BlockStore
+	blocksize uint64
 }
 
 var _ blockset = &baseBlockset{}
@@ -29,6 +30,9 @@ func newBaseBlockset(store agro.BlockStore) *baseBlockset {
 		blocks: make([]agro.BlockRef, 0),
 		store:  store,
 	}
+	if store != nil {
+		b.blocksize = store.BlockSize()
+	}
 	return b
 }
 
@@ -40,12 +44,17 @@ func (b *baseBlockset) Kind() uint32 {
 	return uint32(Base)
 }
 
+var zeroes = make([]byte, 1024*1024)
+
 func (b *baseBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	if i >= len(b.blocks) {
 		return nil, agro.ErrBlockNotExist
 	}
 	if b.blocks[i].IsZero() {
-		return make([]byte, b.store.BlockSize()), nil
+		for i := uint64(0); i < b.blocksize; i++ {
+			zeroes[i] = 0
+		}
+		return zeroes[:b.blocksize], nil
 	}
 	clog.Tracef("base: getting block %d at BlockID %s", i, b.blocks[i])
 	bytes, err := b.store.GetBlock(ctx, b.blocks[i])
@@ -102,6 +111,7 @@ func (b *baseBlockset) Marshal() ([]byte, error) {
 }
 
 func (b *baseBlockset) setStore(s agro.BlockStore) {
+	b.blocksize = s.BlockSize()
 	b.store = s
 }
 

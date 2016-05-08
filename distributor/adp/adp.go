@@ -84,6 +84,10 @@ func (s *Server) handle(conn net.Conn) {
 	for {
 		err := readConnIntoBuffer(conn, header)
 		if err != nil {
+			if err == io.EOF {
+				conn.Close()
+				return
+			}
 			if !s.closed {
 				clog.Errorf("Error handling: %v", err)
 				conn.Close()
@@ -96,10 +100,10 @@ func (s *Server) handle(conn net.Conn) {
 		case cmdBlock:
 			err = s.handleBlock(conn, refbuf)
 		case cmdPutBlock:
-			err = s.handlePutBlock(conn, refbuf)
+			databuf := make([]byte, s.handler.BlockSize())
+			err = s.handlePutBlock(conn, refbuf, databuf)
 		case cmdRebalanceCheck:
-			conn.SetReadDeadline(time.Now().Add(serverReadTimeout))
-			_, err = conn.Read(header)
+			err := readConnIntoBuffer(conn, header)
 			if err == nil {
 				err = s.handleRebalanceCheck(conn, int(header[0]), refbuf)
 			}
@@ -119,9 +123,8 @@ func (s *Server) handle(conn net.Conn) {
 func readConnIntoBuffer(conn net.Conn, buf []byte) error {
 	off := 0
 	for off != len(buf) {
-		conn.SetReadDeadline(time.Now().Add(serverReadTimeout))
 		n, err := conn.Read(buf[off:])
-		if err != nil && err != io.EOF {
+		if err != nil {
 			return err
 		}
 		off = off + n
@@ -151,12 +154,11 @@ func (s *Server) handleBlock(conn net.Conn, refbuf []byte) error {
 	return nil
 }
 
-func (s *Server) handlePutBlock(conn net.Conn, refbuf []byte) error {
+func (s *Server) handlePutBlock(conn net.Conn, refbuf []byte, data []byte) error {
 	err := readConnIntoBuffer(conn, refbuf)
 	if err != nil {
 		return err
 	}
-	data := make([]byte, int(s.handler.BlockSize()))
 	err = readConnIntoBuffer(conn, data)
 	if err != nil {
 		return err

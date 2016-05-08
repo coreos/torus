@@ -1,14 +1,12 @@
 package distributor
 
 import (
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/agro/distributor/adp"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -23,17 +21,15 @@ const (
 type distClient struct {
 	dist *Distributor
 	//TODO(barakmich): Better connection pooling
-	openConns   map[string]*grpc.ClientConn
-	openClients map[string]models.AgroStorageClient
-	mut         sync.Mutex
+	openConns map[string]*adp.Conn
+	mut       sync.Mutex
 }
 
 func newDistClient(d *Distributor) *distClient {
 
 	client := &distClient{
-		dist:        d,
-		openConns:   make(map[string]*grpc.ClientConn),
-		openClients: make(map[string]models.AgroStorageClient),
+		dist:      d,
+		openConns: make(map[string]*adp.Conn),
 	}
 	d.srv.AddTimeoutCallback(client.onPeerTimeout)
 	return client
@@ -46,7 +42,6 @@ func (d *distClient) onPeerTimeout(uuid string) {
 	if !ok {
 		return
 	}
-	delete(d.openClients, uuid)
 	err := conn.Close()
 	if err != nil {
 		clog.Errorf("peer timeout err on close: %s", err)
@@ -54,10 +49,10 @@ func (d *distClient) onPeerTimeout(uuid string) {
 	delete(d.openConns, uuid)
 
 }
-func (d *distClient) getConn(uuid string) models.AgroStorageClient {
+func (d *distClient) getConn(uuid string) *adp.Conn {
 	d.mut.Lock()
 	defer d.mut.Unlock()
-	if conn, ok := d.openClients[uuid]; ok {
+	if conn, ok := d.openConns[uuid]; ok {
 		return conn
 	}
 	pm := d.dist.srv.GetPeerMap()
@@ -74,18 +69,15 @@ func (d *distClient) getConn(uuid string) models.AgroStorageClient {
 	if pi.TimedOut {
 		return nil
 	}
-
 	d.mut.Unlock()
-	conn, err := grpc.Dial(pi.Address, grpc.WithInsecure(), grpc.WithTimeout(connectTimeout))
+	conn, err := adp.Dial(pi.Address, connectTimeout, d.dist.BlockSize())
 	d.mut.Lock()
 	if err != nil {
 		clog.Errorf("couldn't dial: %v", err)
 		return nil
 	}
-	m := models.NewAgroStorageClient(conn)
 	d.openConns[uuid] = conn
-	d.openClients[uuid] = m
-	return m
+	return conn
 }
 
 func (d *distClient) Close() error {
@@ -105,17 +97,12 @@ func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef)
 	if conn == nil {
 		return nil, agro.ErrNoPeer
 	}
-	resp, err := conn.Block(ctx, &models.BlockRequest{
-		BlockRef: b.ToProto(),
-	})
+	data, err := conn.Block(ctx, b)
 	if err != nil {
 		clog.Debug(err)
 		return nil, agro.ErrBlockUnavailable
 	}
-	if !resp.Ok {
-		return nil, agro.ErrBlockUnavailable
-	}
-	return resp.Data, nil
+	return data, nil
 }
 
 func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef, data []byte) error {
@@ -125,20 +112,13 @@ func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef,
 	}
 	newctx, cancel := context.WithTimeout(ctx, writeClientTimeout)
 	defer cancel()
-	resp, err := conn.PutBlock(newctx, &models.PutBlockRequest{
-		Refs:   []*models.BlockRef{b.ToProto()},
-		Blocks: [][]byte{data},
-	})
+	err := conn.PutBlock(newctx, b, data)
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return agro.ErrBlockUnavailable
 		}
-		return err
 	}
-	if !resp.Ok {
-		return errors.New(resp.Err)
-	}
-	return nil
+	return err
 }
 
 func (d *distClient) Check(ctx context.Context, uuid string, blks []agro.BlockRef) ([]bool, error) {
@@ -146,17 +126,11 @@ func (d *distClient) Check(ctx context.Context, uuid string, blks []agro.BlockRe
 	if conn == nil {
 		return nil, agro.ErrNoPeer
 	}
-	refs := make([]*models.BlockRef, 0, len(blks))
-	for _, x := range blks {
-		refs = append(refs, x.ToProto())
-	}
 	newctx, cancel := context.WithTimeout(ctx, rebalanceClientTimeout)
 	defer cancel()
-	resp, err := conn.RebalanceCheck(newctx, &models.RebalanceCheckRequest{
-		BlockRefs: refs,
-	})
+	resp, err := conn.RebalanceCheck(newctx, blks)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Valid, nil
+	return resp, nil
 }

@@ -1,15 +1,12 @@
 package distributor
 
 import (
-	"net"
 	"sync"
 
-	"google.golang.org/grpc"
-
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/distributor/adp"
 	"github.com/coreos/agro/distributor/rebalance"
 	"github.com/coreos/agro/gc"
-	"github.com/coreos/agro/models"
 	"github.com/coreos/pkg/capnslog"
 )
 
@@ -22,7 +19,7 @@ type Distributor struct {
 	blocks    agro.BlockStore
 	srv       *agro.Server
 	client    *distClient
-	grpcSrv   *grpc.Server
+	adpSrv    *adp.Server
 	readCache *cache
 
 	ring            agro.Ring
@@ -40,13 +37,10 @@ func newDistributor(srv *agro.Server, addr string, listen bool) (*Distributor, e
 		srv:    srv,
 	}
 	if listen {
-		lis, err := net.Listen("tcp", addr)
+		d.adpSrv, err = adp.Serve(addr, d)
 		if err != nil {
 			return nil, err
 		}
-		d.grpcSrv = grpc.NewServer()
-		models.RegisterAgroStorageServer(d.grpcSrv, d)
-		go d.grpcSrv.Serve(lis)
 	}
 	gmd, err := d.srv.MDS.GlobalMetadata()
 	if err != nil {
@@ -93,8 +87,8 @@ func (d *Distributor) Close() error {
 	}
 	close(d.rebalancerChan)
 	close(d.ringWatcherChan)
-	if d.grpcSrv != nil {
-		d.grpcSrv.Stop()
+	if d.adpSrv != nil {
+		d.adpSrv.Close()
 	}
 	d.client.Close()
 	err := d.blocks.Close()
