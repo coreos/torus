@@ -43,6 +43,7 @@ type Handler interface {
 	PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) error
 	RebalanceCheck(ctx context.Context, refs []agro.BlockRef) ([]bool, error)
 	BlockSize() uint64
+	WriteBuf(ctx context.Context, ref agro.BlockRef) ([]byte, error)
 }
 
 var _ Handler = &Conn{}
@@ -81,6 +82,8 @@ func (s *Server) serve() {
 func (s *Server) handle(conn net.Conn) {
 	header := make([]byte, 1)
 	refbuf := make([]byte, agro.BlockRefByteSize)
+	null := make([]byte, s.handler.BlockSize())
+	//	databuf := make([]byte, s.handler.BlockSize())
 	for {
 		err := readConnIntoBuffer(conn, header)
 		if err != nil {
@@ -100,8 +103,7 @@ func (s *Server) handle(conn net.Conn) {
 		case cmdBlock:
 			err = s.handleBlock(conn, refbuf)
 		case cmdPutBlock:
-			databuf := make([]byte, s.handler.BlockSize())
-			err = s.handlePutBlock(conn, refbuf, databuf)
+			err = s.handlePutBlock(conn, refbuf, null)
 		case cmdRebalanceCheck:
 			err := readConnIntoBuffer(conn, header)
 			if err == nil {
@@ -154,17 +156,24 @@ func (s *Server) handleBlock(conn net.Conn, refbuf []byte) error {
 	return nil
 }
 
-func (s *Server) handlePutBlock(conn net.Conn, refbuf []byte, data []byte) error {
+func (s *Server) handlePutBlock(conn net.Conn, refbuf []byte, null []byte) error {
 	err := readConnIntoBuffer(conn, refbuf)
 	if err != nil {
 		return err
+	}
+	ref := agro.BlockRefFromBytes(refbuf)
+	data, err := s.handler.WriteBuf(context.TODO(), ref)
+	if err != nil {
+		if err == agro.ErrExists {
+			data = null
+		} else {
+			return err
+		}
 	}
 	err = readConnIntoBuffer(conn, data)
 	if err != nil {
 		return err
 	}
-	ref := agro.BlockRefFromBytes(refbuf)
-	err = s.handler.PutBlock(context.TODO(), ref, data)
 	respheader := headerOk
 	if err != nil {
 		respheader = headerErr

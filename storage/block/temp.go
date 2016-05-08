@@ -104,6 +104,24 @@ func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockRef, data []b
 	return nil
 }
 
+func (t *tempBlockStore) WriteBuf(_ context.Context, s agro.BlockRef) ([]byte, error) {
+	t.mut.Lock()
+	defer t.mut.Unlock()
+
+	if t.store == nil {
+		promBlockWritesFailed.WithLabelValues(t.name).Inc()
+		return nil, agro.ErrClosed
+	}
+	if int(t.nBlocks) <= len(t.store) {
+		return nil, agro.ErrOutOfSpace
+	}
+	buf := make([]byte, t.blockSize)
+	t.store[s] = buf
+	promBlocks.WithLabelValues(t.name).Set(float64(len(t.store)))
+	promBlocksWritten.WithLabelValues(t.name).Inc()
+	return buf, nil
+}
+
 func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()

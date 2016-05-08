@@ -218,6 +218,7 @@ type BlockStore interface {
 	HasBlock(ctx context.Context, b BlockRef) (bool, error)
 	GetBlock(ctx context.Context, b BlockRef) ([]byte, error)
 	WriteBlock(ctx context.Context, b BlockRef, data []byte) error
+	WriteBuf(ctx context.Context, b BlockRef) ([]byte, error)
 	DeleteBlock(ctx context.Context, b BlockRef) error
 	NumBlocks() uint64
 	UsedBlocks() uint64

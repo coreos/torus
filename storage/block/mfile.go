@@ -122,16 +122,16 @@ func (m *mfileBlock) UsedBlocks() uint64 {
 }
 
 func (m *mfileBlock) Flush() error {
-	err := m.data.Flush()
+	// err := m.data.Flush()
 
-	if err != nil {
-		return err
-	}
-	err = m.blockMap.Flush()
-	if err != nil {
-		return err
-	}
-	promStorageFlushes.WithLabelValues(m.name).Inc()
+	// if err != nil {
+	// 	return err
+	// }
+	// err = m.blockMap.Flush()
+	// if err != nil {
+	// 	return err
+	// }
+	// promStorageFlushes.WithLabelValues(m.name).Inc()
 	return nil
 }
 
@@ -248,6 +248,39 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 	m.blockTrie = tx.Commit()
 	promBlocksWritten.WithLabelValues(m.name).Inc()
 	return nil
+}
+
+func (m *mfileBlock) WriteBuf(_ context.Context, s agro.BlockRef) ([]byte, error) {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	if m.closed {
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
+		return nil, agro.ErrClosed
+	}
+	index := m.findEmpty()
+	if index == -1 {
+		clog.Error("mfile: out of space")
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
+		return nil, agro.ErrOutOfSpace
+	}
+	clog.Tracef("mfile: writing block at index %d", index)
+	buf := m.data.GetBlock(uint64(index))
+	err := m.blockMap.WriteBlock(uint64(index), s.ToBytes())
+	if err != nil {
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
+		return nil, err
+	}
+	tx := m.blockTrie.Txn()
+	_, exists := tx.Insert(s.ToBytes(), index)
+	if exists {
+		clog.Debug("mfile: block already exists", s.ToBytes())
+		return nil, agro.ErrExists
+	}
+	m.size++
+	promBlocks.WithLabelValues(m.name).Inc()
+	m.blockTrie = tx.Commit()
+	promBlocksWritten.WithLabelValues(m.name).Inc()
+	return buf, nil
 }
 
 func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {

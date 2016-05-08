@@ -247,6 +247,10 @@ func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 	return nil
 }
 
+func (d *Distributor) WriteBuf(ctx context.Context, i agro.BlockRef) ([]byte, error) {
+	return d.blocks.WriteBuf(ctx, i)
+}
+
 func (d *Distributor) HasBlock(ctx context.Context, i agro.BlockRef) (bool, error) {
 	return false, errors.New("unimplemented -- finding if a block exists cluster-wide")
 }

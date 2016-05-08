@@ -191,6 +191,10 @@ func (c *Conn) Err() error {
 	return c.err
 }
 
+func (c *Conn) WriteBuf(_ context.Context, _ agro.BlockRef) ([]byte, error) {
+	panic("wtf")
+}
+
 func (c *Conn) Close() error {
 	close(c.close)
 	return nil
