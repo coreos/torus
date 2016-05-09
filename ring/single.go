@@ -8,8 +8,9 @@ import (
 )
 
 type single struct {
-	version int
-	peer    *models.PeerInfo
+	version     int
+	peer        *models.PeerInfo
+	permutation agro.PeerPermutation
 }
 
 func init() {
@@ -23,14 +24,15 @@ func makeSingle(r *models.Ring) (agro.Ring, error) {
 	return &single{
 		version: int(r.Version),
 		peer:    r.Peers[0],
+		permutation: agro.PeerPermutation{
+			Peers:       []string{r.Peers[0].UUID},
+			Replication: 1,
+		},
 	}, nil
 }
 
 func (s *single) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
-	return agro.PeerPermutation{
-		Peers:       []string{s.peer.UUID},
-		Replication: 1,
-	}, nil
+	return s.permutation, nil
 }
 
 func (s *single) Members() agro.PeerList { return []string{s.peer.UUID} }

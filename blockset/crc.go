@@ -1,7 +1,6 @@
 package blockset
 
 import (
-	"bytes"
 	"encoding/binary"
 	"hash/crc32"
 	"sync"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
+	"github.com/coreos/pkg/capnslog"
 )
 
 type crcBlockset struct {
@@ -89,7 +89,9 @@ func (b *crcBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, 
 	} else {
 		b.crcs[i] = crc
 	}
-	clog.Tracef("crc: setting crc %x at index %d", crc, i)
+	if clog.LevelAt(capnslog.TRACE) {
+		clog.Tracef("crc: setting crc %x at index %d", crc, i)
+	}
 	return nil
 }
 
@@ -109,33 +111,22 @@ func (b *crcBlockset) getStore() agro.BlockStore {
 func (b *crcBlockset) Marshal() ([]byte, error) {
 	b.mut.RLock()
 	defer b.mut.RUnlock()
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, int32(len(b.crcs)))
-	if err != nil {
-		return nil, err
+	buf := make([]byte, (len(b.crcs))*4)
+	order := binary.LittleEndian
+	for i, x := range b.crcs {
+		order.PutUint32(buf[(i*4):((i+1)*4)], x)
 	}
-	for _, x := range b.crcs {
-		err := binary.Write(buf, binary.LittleEndian, x)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return buf.Bytes(), nil
+	return buf, nil
 }
 
 func (b *crcBlockset) Unmarshal(data []byte) error {
 	b.mut.Lock()
 	defer b.mut.Unlock()
-	r := bytes.NewReader(data)
-	var l int32
-	err := binary.Read(r, binary.LittleEndian, &l)
-	if err != nil {
-		return err
-	}
+	l := len(data) / 4
 	out := make([]uint32, l)
-	err = binary.Read(r, binary.LittleEndian, &out)
-	if err != nil {
-		return err
+	order := binary.LittleEndian
+	for i := 0; i < l; i++ {
+		out[i] = order.Uint32(data[(i * 4) : (i+1)*4])
 	}
 	b.crcs = out
 	return nil

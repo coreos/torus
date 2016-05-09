@@ -1,14 +1,13 @@
 package blockset
 
 import (
-	"bytes"
-	"encoding/binary"
 	"sync/atomic"
 
 	"golang.org/x/net/context"
 
 	"github.com/RoaringBitmap/roaring"
 	"github.com/coreos/agro"
+	"github.com/coreos/pkg/capnslog"
 )
 
 type baseBlockset struct {
@@ -71,7 +70,9 @@ func (b *baseBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int,
 	// 	return nil
 	// }
 	newBlockID := b.makeID(inode)
-	clog.Tracef("base: writing block %d at BlockID %s", i, newBlockID)
+	if clog.LevelAt(capnslog.TRACE) {
+		clog.Tracef("base: writing block %d at BlockID %s", i, newBlockID)
+	}
 	err := b.store.WriteBlock(ctx, newBlockID, data)
 	if err != nil {
 		return err
@@ -93,18 +94,11 @@ func (b *baseBlockset) makeID(i agro.INodeRef) agro.BlockRef {
 }
 
 func (b *baseBlockset) Marshal() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, int32(len(b.blocks)))
-	if err != nil {
-		return nil, err
+	buf := make([]byte, len(b.blocks)*agro.BlockRefByteSize)
+	for i, x := range b.blocks {
+		x.ToBytesBuf(buf[(i * agro.BlockRefByteSize) : (i+1)*agro.BlockRefByteSize])
 	}
-	for _, x := range b.blocks {
-		_, err := buf.Write(x.ToBytes())
-		if err != nil {
-			return nil, err
-		}
-	}
-	return buf.Bytes(), nil
+	return buf, nil
 }
 
 func (b *baseBlockset) setStore(s agro.BlockStore) {
@@ -116,20 +110,10 @@ func (b *baseBlockset) getStore() agro.BlockStore {
 }
 
 func (b *baseBlockset) Unmarshal(data []byte) error {
-	r := bytes.NewReader(data)
-	var l int32
-	err := binary.Read(r, binary.LittleEndian, &l)
-	if err != nil {
-		return err
-	}
+	l := len(data) / agro.BlockRefByteSize
 	out := make([]agro.BlockRef, l)
-	for i := 0; i < int(l); i++ {
-		buf := make([]byte, agro.BlockRefByteSize)
-		_, err := r.Read(buf)
-		if err != nil {
-			return err
-		}
-		out[i] = agro.BlockRefFromBytes(buf)
+	for i := 0; i < l; i++ {
+		out[i] = agro.BlockRefFromBytes(data[(i * agro.BlockRefByteSize) : (i+1)*agro.BlockRefByteSize])
 	}
 	b.blocks = out
 	return nil
