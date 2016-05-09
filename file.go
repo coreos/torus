@@ -266,7 +266,9 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 
 	for toWrite >= int(f.blkSize) {
 		blkIndex := int(off / f.blkSize)
-		clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
+		if clog.LevelAt(capnslog.TRACE) {
+			clog.Tracef("bulk writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
+		}
 		start := time.Now()
 		err = f.blocks.PutBlock(f.getContext(), f.writeINodeRef, blkIndex, b[:f.blkSize])
 		if err != nil {

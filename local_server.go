@@ -7,7 +7,7 @@ import (
 	"github.com/coreos/agro/models"
 )
 
-func mkdirsFor(dir string) error {
+func MkdirsFor(dir string) error {
 	if dir == "" {
 		return nil
 	}
@@ -27,7 +27,7 @@ func mkdirsFor(dir string) error {
 }
 
 func NewServer(cfg Config, metadataServiceKind, blockStoreKind string) (*Server, error) {
-	err := mkdirsFor(cfg.DataDir)
+	err := MkdirsFor(cfg.DataDir)
 	if err != nil {
 		return nil, err
 	}
