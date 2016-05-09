@@ -42,6 +42,14 @@ func (m *mockBlockRPC) RebalanceCheck(ctx context.Context, refs []agro.BlockRef)
 	}
 	return out, nil
 }
+
+func (m *mockBlockRPC) WriteBuf(ctx context.Context, ref agro.BlockRef) ([]byte, error) {
+	if ref.INode != 2 && ref.Index != 3 {
+		return nil, errors.New("mismatch")
+	}
+	return m.data, nil
+}
+
 func (m *mockBlockRPC) BlockSize() uint64 {
 	return uint64(len(m.data))
 }
