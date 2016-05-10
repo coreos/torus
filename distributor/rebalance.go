@@ -27,8 +27,8 @@ exit:
 					// No problem. We're seeing the same ring.
 					continue
 				}
-				if newring.Version() != d.ring.Version()+1 {
-					panic("replacing old ring with ring in the far future!")
+				if newring.Version() < d.ring.Version() {
+					panic("replacing old ring with ring in the past!")
 				}
 				d.mut.Lock()
 				d.ring = newring

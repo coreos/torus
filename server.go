@@ -38,6 +38,7 @@ type Server struct {
 	closeChans    []chan interface{}
 	Cfg           Config
 	peerInfo      *models.PeerInfo
+	ctx           context.Context
 
 	lease            int64
 	heartbeating     bool
@@ -81,7 +82,10 @@ func (s *Server) Debug(w io.Writer) error {
 }
 
 func (s *Server) getContext() context.Context {
-	return s.ExtendContext(context.TODO())
+	if s.ctx == nil {
+		s.ctx = s.ExtendContext(context.TODO())
+	}
+	return s.ctx
 }
 
 func (s *Server) ExtendContext(ctx context.Context) context.Context {

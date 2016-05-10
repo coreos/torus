@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -18,17 +20,23 @@ import (
 )
 
 const (
-	StorageSize = 100 * 1024 * 1024
-	BlockSize   = 256
+	StorageSize = 512 * 1024 * 1024
+	BlockSize   = 256 * 1024
 )
 
-func newServer(md *temp.Server) *agro.Server {
+func newServer(t testing.TB, md *temp.Server) *agro.Server {
+	dir, _ := ioutil.TempDir("", "agro-integration")
+	agro.MkdirsFor(dir)
 	cfg := agro.Config{
 		StorageSize: StorageSize,
+		DataDir:     dir,
 	}
 	mds := temp.NewClient(cfg, md)
 	gmd, _ := mds.GlobalMetadata()
-	blocks, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
+	blocks, err := agro.CreateBlockStore("mfile", "current", cfg, gmd)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s, _ := agro.NewServerByImpl(cfg, mds, blocks)
 	return s
 }
@@ -37,7 +45,7 @@ func createN(t testing.TB, n int) ([]*agro.Server, *temp.Server) {
 	var out []*agro.Server
 	s := temp.NewServer()
 	for i := 0; i < n; i++ {
-		srv := newServer(s)
+		srv := newServer(t, s)
 		err := distributor.ListenReplication(srv, fmt.Sprintf("127.0.0.1:%d", 40000+i))
 		if err != nil {
 			t.Fatal(err)
@@ -88,6 +96,10 @@ func closeAll(t testing.TB, c ...*agro.Server) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		err = os.RemoveAll(x.Cfg.DataDir)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -122,7 +134,7 @@ func openVol(t *testing.T, server *agro.Server, volname string) *block.BlockFile
 
 func TestLoadAndDump(t *testing.T) {
 	servers, mds := ringN(t, 3)
-	client := newServer(mds)
+	client := newServer(t, mds)
 	err := distributor.OpenReplication(client)
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +179,7 @@ func TestLoadAndDump(t *testing.T) {
 }
 
 func compareBytes(t *testing.T, mds *temp.Server, data []byte, volume string) {
-	reader := newServer(mds)
+	reader := newServer(t, mds)
 	err := distributor.OpenReplication(reader)
 	if err != nil {
 		t.Fatal(err)
@@ -186,8 +198,8 @@ func compareBytes(t *testing.T, mds *temp.Server, data []byte, volume string) {
 }
 
 func TestRewrite(t *testing.T) {
-	servers, mds := ringThree(t)
-	client := newServer(mds)
+	servers, mds := ringN(t, 3)
+	client := newServer(t, mds)
 	err := distributor.OpenReplication(client)
 	if err != nil {
 		t.Fatal(err)
@@ -223,7 +235,7 @@ func BenchmarkLoadOne(b *testing.B) {
 	b.StopTimer()
 
 	servers, mds := ringN(b, 1)
-	client := newServer(mds)
+	client := newServer(b, mds)
 	err := distributor.OpenReplication(client)
 	if err != nil {
 		b.Fatal(err)
@@ -276,7 +288,7 @@ func BenchmarkLoadThree(b *testing.B) {
 	b.StopTimer()
 
 	servers, mds := ringN(b, 3)
-	client := newServer(mds)
+	client := newServer(b, mds)
 	err := distributor.OpenReplication(client)
 	if err != nil {
 		b.Fatal(err)
