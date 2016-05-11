@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	clientTimeout          = 100 * time.Millisecond
 	connectTimeout         = 2 * time.Second
 	rebalanceClientTimeout = 5 * time.Second
+	clientTimeout          = 100 * time.Millisecond
 	writeClientTimeout     = 2000 * time.Millisecond
 )
 
@@ -110,9 +110,7 @@ func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef,
 	if conn == nil {
 		return agro.ErrBlockUnavailable
 	}
-	newctx, cancel := context.WithTimeout(ctx, writeClientTimeout)
-	defer cancel()
-	err := conn.PutBlock(newctx, b, data)
+	err := conn.PutBlock(ctx, b, data)
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return agro.ErrBlockUnavailable
@@ -126,9 +124,7 @@ func (d *distClient) Check(ctx context.Context, uuid string, blks []agro.BlockRe
 	if conn == nil {
 		return nil, agro.ErrNoPeer
 	}
-	newctx, cancel := context.WithTimeout(ctx, rebalanceClientTimeout)
-	defer cancel()
-	resp, err := conn.RebalanceCheck(newctx, blks)
+	resp, err := conn.RebalanceCheck(ctx, blks)
 	if err != nil {
 		return nil, err
 	}
