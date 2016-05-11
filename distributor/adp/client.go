@@ -11,7 +11,13 @@ import (
 	"golang.org/x/net/context"
 )
 
-var keepalive = 2 * time.Second
+const (
+	keepalive              = 2 * time.Second
+	connectTimeout         = 2 * time.Second
+	rebalanceClientTimeout = 5 * time.Second
+	clientTimeout          = 200 * time.Millisecond
+	writeClientTimeout     = 2000 * time.Millisecond
+)
 
 type request interface {
 	Request() [][]byte
@@ -29,8 +35,7 @@ type Conn struct {
 	err       error
 	conn      net.Conn
 	blockSize int
-	singleBuf []byte
-	refBuf    []byte
+	buf       []byte
 }
 
 func Dial(addr string, timeout time.Duration, blockSize uint64) (*Conn, error) {
@@ -42,8 +47,7 @@ func Dial(addr string, timeout time.Duration, blockSize uint64) (*Conn, error) {
 		close:     make(chan bool),
 		conn:      c,
 		blockSize: int(blockSize),
-		singleBuf: make([]byte, 1),
-		refBuf:    make([]byte, agro.BlockRefByteSize),
+		buf:       make([]byte, agro.BlockRefByteSize+1),
 	}
 	go conn.mainLoop()
 	return conn, nil
@@ -62,6 +66,7 @@ func (c *Conn) mainLoop() {
 			}
 		case <-time.After(keepalive):
 			c.mut.Lock()
+			c.conn.SetDeadline(time.Now().Add(clientTimeout))
 			_, err := c.conn.Write([]byte{cmdKeepAlive})
 			if err != nil {
 				clog.Errorf("error sending keepalive: %v", err)
@@ -78,23 +83,19 @@ func (c *Conn) Block(_ context.Context, ref agro.BlockRef) ([]byte, error) {
 	}
 	c.mut.Lock()
 	defer c.mut.Unlock()
-	c.singleBuf[0] = cmdBlock
-	_, err := c.conn.Write(c.singleBuf)
+	c.conn.SetDeadline(time.Now().Add(clientTimeout))
+	c.buf[0] = cmdBlock
+	ref.ToBytesBuf(c.buf[1:])
+	_, err := c.conn.Write(c.buf)
 	if err != nil {
 		fmt.Println("couldn't write")
 		return nil, err
 	}
-	ref.ToBytesBuf(c.refBuf)
-	_, err = c.conn.Write(c.refBuf)
-	if err != nil {
-		fmt.Println("couldn't write")
-		return nil, err
-	}
-	err = readConnIntoBuffer(c.conn, c.singleBuf)
+	err = readConnIntoBuffer(c.conn, c.buf[:1])
 	if err != nil {
 		return nil, err
 	}
-	if c.singleBuf[0] == respErr {
+	if c.buf[0] == respErr {
 		return nil, errors.New("server error")
 	}
 	data := make([]byte, c.blockSize)
@@ -111,14 +112,10 @@ func (c *Conn) PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) err
 	}
 	c.mut.Lock()
 	defer c.mut.Unlock()
-	c.singleBuf[0] = cmdPutBlock
-	_, err := c.conn.Write(c.singleBuf)
-	if err != nil {
-		fmt.Println("couldn't write")
-		return err
-	}
-	ref.ToBytesBuf(c.refBuf)
-	_, err = c.conn.Write(c.refBuf)
+	c.conn.SetDeadline(time.Now().Add(writeClientTimeout))
+	c.buf[0] = cmdPutBlock
+	ref.ToBytesBuf(c.buf[1:])
+	_, err := c.conn.Write(c.buf)
 	if err != nil {
 		fmt.Println("couldn't write")
 		return err
@@ -128,11 +125,11 @@ func (c *Conn) PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) err
 		fmt.Println("couldn't write data")
 		return err
 	}
-	err = readConnIntoBuffer(c.conn, c.singleBuf)
+	err = readConnIntoBuffer(c.conn, c.buf[:1])
 	if err != nil {
 		return err
 	}
-	if c.singleBuf[0] == respErr {
+	if c.buf[0] == respErr {
 		return errors.New("server error")
 	}
 	return nil
@@ -147,32 +144,28 @@ func (c *Conn) RebalanceCheck(_ context.Context, refs []agro.BlockRef) ([]bool, 
 	}
 	c.mut.Lock()
 	defer c.mut.Unlock()
-	c.singleBuf[0] = cmdRebalanceCheck
-	_, err := c.conn.Write(c.singleBuf)
-	if err != nil {
-		fmt.Println("couldn't write")
-		return nil, err
-	}
-	c.singleBuf[0] = byte(len(refs))
-	_, err = c.conn.Write(c.singleBuf)
+	c.conn.SetDeadline(time.Now().Add(clientTimeout))
+	c.buf[0] = cmdRebalanceCheck
+	c.buf[1] = byte(len(refs))
+	_, err := c.conn.Write(c.buf[:2])
 	if err != nil {
 		fmt.Println("couldn't write")
 		return nil, err
 	}
 	for _, ref := range refs {
-		ref.ToBytesBuf(c.refBuf)
-		_, err = c.conn.Write(c.refBuf)
+		ref.ToBytesBuf(c.buf)
+		_, err = c.conn.Write(c.buf[:agro.BlockRefByteSize])
 		if err != nil {
 			fmt.Println("couldn't write ref")
 			return nil, err
 		}
 	}
 	size := ((len(refs) - 1) / 8) + 1
-	err = readConnIntoBuffer(c.conn, c.singleBuf)
+	err = readConnIntoBuffer(c.conn, c.buf[:1])
 	if err != nil {
 		return nil, err
 	}
-	if c.singleBuf[0] == respErr {
+	if c.buf[0] == respErr {
 		return nil, errors.New("server error")
 	}
 	data := make([]byte, size)
