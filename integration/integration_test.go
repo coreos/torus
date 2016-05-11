@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -18,26 +20,32 @@ import (
 )
 
 const (
-	StorageSize = 100 * 1024 * 1024
-	BlockSize   = 256
+	StorageSize = 512 * 1024 * 1024
+	BlockSize   = 256 * 1024
 )
 
-func newServer(md *temp.Server) *agro.Server {
+func newServer(t testing.TB, md *temp.Server) *agro.Server {
+	dir, _ := ioutil.TempDir("", "agro-integration")
+	agro.MkdirsFor(dir)
 	cfg := agro.Config{
 		StorageSize: StorageSize,
+		DataDir:     dir,
 	}
 	mds := temp.NewClient(cfg, md)
 	gmd, _ := mds.GlobalMetadata()
-	blocks, _ := agro.CreateBlockStore("temp", "current", cfg, gmd)
+	blocks, err := agro.CreateBlockStore("mfile", "current", cfg, gmd)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s, _ := agro.NewServerByImpl(cfg, mds, blocks)
 	return s
 }
 
-func createThree(t *testing.T) ([]*agro.Server, *temp.Server) {
+func createN(t testing.TB, n int) ([]*agro.Server, *temp.Server) {
 	var out []*agro.Server
 	s := temp.NewServer()
-	for i := 0; i < 3; i++ {
-		srv := newServer(s)
+	for i := 0; i < n; i++ {
+		srv := newServer(t, s)
 		err := distributor.ListenReplication(srv, fmt.Sprintf("127.0.0.1:%d", 40000+i))
 		if err != nil {
 			t.Fatal(err)
@@ -49,8 +57,8 @@ func createThree(t *testing.T) ([]*agro.Server, *temp.Server) {
 	return out, s
 }
 
-func ringThree(t *testing.T) ([]*agro.Server, *temp.Server) {
-	servers, mds := createThree(t)
+func ringN(t testing.TB, n int) ([]*agro.Server, *temp.Server) {
+	servers, mds := createN(t, n)
 	var peers agro.PeerInfoList
 	for _, s := range servers {
 		peers = append(peers, &models.PeerInfo{
@@ -58,10 +66,18 @@ func ringThree(t *testing.T) ([]*agro.Server, *temp.Server) {
 			TotalBlocks: StorageSize / BlockSize,
 		})
 	}
+
+	rep := 2
+	ringType := ring.Ketama
+	if n == 1 {
+		rep = 1
+		ringType = ring.Single
+	}
+
 	newRing, err := ring.CreateRing(&models.Ring{
-		Type:              uint32(ring.Ketama),
+		Type:              uint32(ringType),
 		Peers:             peers,
-		ReplicationFactor: 2,
+		ReplicationFactor: uint32(rep),
 		Version:           uint32(2),
 	})
 	if err != nil {
@@ -74,9 +90,13 @@ func ringThree(t *testing.T) ([]*agro.Server, *temp.Server) {
 	return servers, mds
 }
 
-func closeAll(t *testing.T, c ...*agro.Server) {
+func closeAll(t testing.TB, c ...*agro.Server) {
 	for _, x := range c {
 		err := x.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.RemoveAll(x.Cfg.DataDir)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -113,8 +133,8 @@ func openVol(t *testing.T, server *agro.Server, volname string) *block.BlockFile
 }
 
 func TestLoadAndDump(t *testing.T) {
-	servers, mds := ringThree(t)
-	client := newServer(mds)
+	servers, mds := ringN(t, 3)
+	client := newServer(t, mds)
 	err := distributor.OpenReplication(client)
 	if err != nil {
 		t.Fatal(err)
@@ -159,7 +179,7 @@ func TestLoadAndDump(t *testing.T) {
 }
 
 func compareBytes(t *testing.T, mds *temp.Server, data []byte, volume string) {
-	reader := newServer(mds)
+	reader := newServer(t, mds)
 	err := distributor.OpenReplication(reader)
 	if err != nil {
 		t.Fatal(err)
@@ -178,8 +198,8 @@ func compareBytes(t *testing.T, mds *temp.Server, data []byte, volume string) {
 }
 
 func TestRewrite(t *testing.T) {
-	servers, mds := ringThree(t)
-	client := newServer(mds)
+	servers, mds := ringN(t, 3)
+	client := newServer(t, mds)
 	err := distributor.OpenReplication(client)
 	if err != nil {
 		t.Fatal(err)
@@ -209,4 +229,111 @@ func TestRewrite(t *testing.T) {
 	}
 	compareBytes(t, mds, data, "testvol")
 	closeAll(t, servers...)
+}
+
+func BenchmarkLoadOne(b *testing.B) {
+	b.StopTimer()
+
+	servers, mds := ringN(b, 1)
+	client := newServer(b, mds)
+	err := distributor.OpenReplication(client)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer client.Close()
+	size := BlockSize * 1024
+	data := makeTestData(size)
+
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		input := bytes.NewReader(data)
+		volname := fmt.Sprintf("testvol-%d")
+
+		err = block.CreateBlockVolume(client.MDS, volname, uint64(size))
+		if err != nil {
+			b.Fatalf("couldn't create block volume %s: %v", volname, err)
+		}
+		blockvol, err := block.OpenBlockVolume(client, volname)
+		if err != nil {
+			b.Fatalf("couldn't open block volume %s: %v", volname, err)
+		}
+		f, err := blockvol.OpenBlockFile()
+		if err != nil {
+			b.Fatalf("couldn't open blockfile %s: %v", volname, err)
+		}
+		copied, err := io.Copy(f, input)
+		if err != nil {
+			b.Fatalf("couldn't copy: %v", err)
+		}
+		err = f.Sync()
+		if err != nil {
+			b.Fatalf("couldn't sync: %v", err)
+		}
+		err = f.Close()
+		if err != nil {
+			b.Fatalf("couldn't close: %v", err)
+		}
+
+		b.Logf("copied %d bytes", copied)
+	}
+
+	b.SetBytes(int64(size))
+
+	b.StopTimer()
+	closeAll(b, servers...)
+	b.StartTimer()
+}
+func BenchmarkLoadThree(b *testing.B) {
+	b.StopTimer()
+
+	servers, mds := ringN(b, 3)
+	client := newServer(b, mds)
+	err := distributor.OpenReplication(client)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer client.Close()
+	size := BlockSize * 1024
+	data := makeTestData(size)
+
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		input := bytes.NewReader(data)
+		volname := fmt.Sprintf("testvol-%d")
+
+		err = block.CreateBlockVolume(client.MDS, volname, uint64(size))
+		if err != nil {
+			b.Fatalf("couldn't create block volume %s: %v", volname, err)
+		}
+		blockvol, err := block.OpenBlockVolume(client, volname)
+		if err != nil {
+			b.Fatalf("couldn't open block volume %s: %v", volname, err)
+		}
+		f, err := blockvol.OpenBlockFile()
+		if err != nil {
+			b.Fatalf("couldn't open blockfile %s: %v", volname, err)
+		}
+		copied, err := io.Copy(f, input)
+		if err != nil {
+			b.Fatalf("couldn't copy: %v", err)
+		}
+		err = f.Sync()
+		if err != nil {
+			b.Fatalf("couldn't sync: %v", err)
+		}
+		err = f.Close()
+		if err != nil {
+			b.Fatalf("couldn't close: %v", err)
+		}
+
+		b.Logf("copied %d bytes", copied)
+	}
+
+	b.SetBytes(int64(size))
+
+	b.StopTimer()
+	closeAll(b, servers...)
+	b.StartTimer()
 }

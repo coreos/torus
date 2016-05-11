@@ -105,11 +105,15 @@ const BlockRefByteSize = 8 * 3
 
 func (b BlockRef) ToBytes() []byte {
 	buf := make([]byte, BlockRefByteSize)
+	b.ToBytesBuf(buf)
+	return buf
+}
+
+func (b BlockRef) ToBytesBuf(buf []byte) {
 	order := binary.LittleEndian
 	order.PutUint64(buf[0:8], uint64(b.volume))
 	order.PutUint64(buf[8:16], uint64(b.INode))
 	order.PutUint64(buf[16:24], uint64(b.Index))
-	return buf
 }
 
 func BlockRefFromBytes(b []byte) BlockRef {
@@ -214,6 +218,7 @@ type BlockStore interface {
 	HasBlock(ctx context.Context, b BlockRef) (bool, error)
 	GetBlock(ctx context.Context, b BlockRef) ([]byte, error)
 	WriteBlock(ctx context.Context, b BlockRef, data []byte) error
+	WriteBuf(ctx context.Context, b BlockRef) ([]byte, error)
 	DeleteBlock(ctx context.Context, b BlockRef) error
 	NumBlocks() uint64
 	UsedBlocks() uint64

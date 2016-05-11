@@ -7,9 +7,7 @@ run:
 	./agro --etcd 127.0.0.1:2378 --debug --debug-mkfs --peer-address 127.0.0.1:40000
 
 clean:
-	rm -rf local-cluster/agro1
-	rm -rf local-cluster/agro2
-	rm -rf local-cluster/agro3
+	rm -rf ./local-cluster
 
 cleanall: clean
 	rm -rf /tmp/etcd

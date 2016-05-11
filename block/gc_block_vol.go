@@ -6,11 +6,11 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/betawaffle/trie"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/gc"
 	"github.com/coreos/agro/models"
-	"github.com/hashicorp/go-immutable-radix"
 )
 
 func init() {
@@ -21,7 +21,7 @@ type blockvolGC struct {
 	mut       sync.Mutex
 	srv       *agro.Server
 	inodes    gc.INodeFetcher
-	trie      *iradix.Tree
+	trie      *trie.Node
 	highwater agro.INodeID
 	skip      bool
 	curRefs   []agro.INodeRef
@@ -43,7 +43,7 @@ func (b *blockvolGC) getContext() context.Context {
 func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	b.mut.Lock()
 	defer b.mut.Unlock()
-	b.trie = iradix.New()
+	b.trie = nil
 	b.skip = vol.Type != VolumeType
 	b.highwater = 0
 	if b.skip {
@@ -83,8 +83,9 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 		if err != nil {
 			return err
 		}
-		tx := b.trie.Txn()
+		tx := new(trie.Txn)
 		refs := set.GetAllBlockRefs()
+		tx.Prealloc(len(refs))
 		for _, ref := range refs {
 			if ref.IsZero() {
 				continue
@@ -92,7 +93,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 			if ref.INode > b.highwater {
 				b.highwater = ref.INode
 			}
-			tx.Insert(ref.ToBytes(), true)
+			tx.Put(ref.ToBytes(), true)
 		}
 		b.trie = tx.Commit()
 	}
@@ -120,7 +121,7 @@ func (b *blockvolGC) IsDead(ref agro.BlockRef) bool {
 	if ref.INode >= b.topRef.INode {
 		return false
 	}
-	if _, ok := b.trie.Get(ref.ToBytes()); ok {
+	if v, ok := b.trie.Get(ref.ToBytes()).(bool); v && ok {
 		return false
 	}
 	clog.Tracef("%s is dead", ref)

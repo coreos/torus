@@ -33,7 +33,7 @@ func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		promDistBlockFailures.Inc()
 		return nil, ErrNoPeersBlock
 	}
-	writeLevel := getWriteFromContext(ctx)
+	writeLevel := d.getWriteFromServer()
 	for _, p := range peers.Peers[:peers.Replication] {
 		if p == d.UUID() || writeLevel == agro.WriteLocal {
 			b, err := d.blocks.GetBlock(ctx, i)
@@ -46,7 +46,7 @@ func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 		}
 	}
 	var blk []byte
-	readLevel := getReadFromContext(ctx)
+	readLevel := d.getReadFromServer()
 	switch readLevel {
 	case agro.ReadBlock:
 		blk, err = d.readWithBackoff(ctx, i, peers)
@@ -166,20 +166,12 @@ func (d *Distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer st
 	return nil, err
 }
 
-func getWriteFromContext(ctx context.Context) agro.WriteLevel {
-	v, ok := ctx.Value(agro.CtxWriteLevel).(agro.WriteLevel)
-	if ok {
-		return v
-	}
-	return agro.WriteAll
+func (d *Distributor) getWriteFromServer() agro.WriteLevel {
+	return d.srv.Cfg.WriteLevel
 }
 
-func getReadFromContext(ctx context.Context) agro.ReadLevel {
-	v, ok := ctx.Value(agro.CtxReadLevel).(agro.ReadLevel)
-	if ok {
-		return v
-	}
-	return agro.ReadBlock
+func (d *Distributor) getReadFromServer() agro.ReadLevel {
+	return d.srv.Cfg.ReadLevel
 }
 
 func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {
@@ -192,7 +184,7 @@ func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 	if len(peers.Peers) == 0 {
 		return agro.ErrOutOfSpace
 	}
-	switch getWriteFromContext(ctx) {
+	switch d.getWriteFromServer() {
 	case agro.WriteLocal:
 		err = d.blocks.WriteBlock(ctx, i, data)
 		if err == nil {
@@ -245,6 +237,10 @@ func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 		clog.Warningf("only wrote block to %d/%d peers", toWrite, peers.Replication)
 	}
 	return nil
+}
+
+func (d *Distributor) WriteBuf(ctx context.Context, i agro.BlockRef) ([]byte, error) {
+	return d.blocks.WriteBuf(ctx, i)
 }
 
 func (d *Distributor) HasBlock(ctx context.Context, i agro.BlockRef) (bool, error) {

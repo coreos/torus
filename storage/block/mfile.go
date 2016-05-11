@@ -11,10 +11,10 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/betawaffle/trie"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/storage"
 	"github.com/coreos/pkg/capnslog"
-	"github.com/hashicorp/go-immutable-radix"
 )
 
 var _ agro.BlockStore = &mfileBlock{}
@@ -27,7 +27,7 @@ type mfileBlock struct {
 	mut       sync.RWMutex
 	data      *storage.MFile
 	blockMap  *storage.MFile
-	blockTrie *iradix.Tree
+	blockTrie *trie.Node
 	closed    bool
 	lastFree  int
 	size      uint64
@@ -38,9 +38,8 @@ type mfileBlock struct {
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
-func loadTrie(m *storage.MFile) (*iradix.Tree, uint64, error) {
-	t := iradix.New()
-	tx := t.Txn()
+func loadTrie(m *storage.MFile) (*trie.Node, uint64, error) {
+	var t *trie.Node
 	clog.Infof("loading trie...")
 	size := uint64(0)
 	var membefore uint64
@@ -56,7 +55,7 @@ func loadTrie(m *storage.MFile) (*iradix.Tree, uint64, error) {
 		if bytes.Equal(blank, b) {
 			continue
 		}
-		tx.Insert(b, int(i))
+		t = t.Put(b, int(i))
 		size++
 	}
 	if clog.LevelAt(capnslog.DEBUG) {
@@ -65,7 +64,7 @@ func loadTrie(m *storage.MFile) (*iradix.Tree, uint64, error) {
 		clog.Debugf("trie memory usage: %dK", ((mem.Alloc - membefore) / 1024))
 	}
 	clog.Infof("done loading trie")
-	return tx.Commit(), size, nil
+	return t, size, nil
 }
 
 func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
@@ -122,16 +121,16 @@ func (m *mfileBlock) UsedBlocks() uint64 {
 }
 
 func (m *mfileBlock) Flush() error {
-	err := m.data.Flush()
+	// err := m.data.Flush()
 
-	if err != nil {
-		return err
-	}
-	err = m.blockMap.Flush()
-	if err != nil {
-		return err
-	}
-	promStorageFlushes.WithLabelValues(m.name).Inc()
+	// if err != nil {
+	// 	return err
+	// }
+	// err = m.blockMap.Flush()
+	// if err != nil {
+	// 	return err
+	// }
+	// promStorageFlushes.WithLabelValues(m.name).Inc()
 	return nil
 }
 
@@ -161,8 +160,8 @@ func (m *mfileBlock) close() error {
 func (m *mfileBlock) findIndex(s agro.BlockRef) int {
 	id := s.ToBytes()
 	clog.Tracef("finding blockid %s", s)
-	if v, ok := m.blockTrie.Get(id); ok {
-		return v.(int)
+	if v, ok := m.blockTrie.Get(id).(int); ok {
+		return v
 	}
 	return -1
 }
@@ -230,13 +229,14 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
-	tx := m.blockTrie.Txn()
-	old, exists := tx.Insert(s.ToBytes(), index)
-	if exists {
-		clog.Debug("mfile: block already exists", s.ToBytes())
-		olddata := m.data.GetBlock(uint64(old.(int)))
+	tx := m.blockTrie
+	refbytes := s.ToBytes()
+	if oldval := tx.Get(refbytes); oldval != nil {
+		// we already have it
+		clog.Debug("mfile: block already exists", s)
+		olddata := m.data.GetBlock(uint64(oldval.(int)))
 		if !bytes.Equal(olddata, data) {
-			clog.Error("getting wrong data for block", s.ToBytes())
+			clog.Error("getting wrong data for block", s)
 			clog.Errorf("%s, %s", olddata[:10], data[:10])
 			return agro.ErrExists
 		}
@@ -245,9 +245,44 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 	}
 	m.size++
 	promBlocks.WithLabelValues(m.name).Inc()
-	m.blockTrie = tx.Commit()
+	m.blockTrie = tx.Put(refbytes, index)
 	promBlocksWritten.WithLabelValues(m.name).Inc()
 	return nil
+}
+
+func (m *mfileBlock) WriteBuf(_ context.Context, s agro.BlockRef) ([]byte, error) {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	if m.closed {
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
+		return nil, agro.ErrClosed
+	}
+	index := m.findEmpty()
+	if index == -1 {
+		clog.Error("mfile: out of space")
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
+		return nil, agro.ErrOutOfSpace
+	}
+	clog.Tracef("mfile: writing block at index %d", index)
+	buf := m.data.GetBlock(uint64(index))
+	err := m.blockMap.WriteBlock(uint64(index), s.ToBytes())
+	if err != nil {
+		promBlockWritesFailed.WithLabelValues(m.name).Inc()
+		return nil, err
+	}
+	tx := m.blockTrie
+	refbytes := s.ToBytes()
+	if oldval := tx.Get(refbytes); oldval != nil {
+		// we already have it
+		clog.Debug("mfile: block already exists", s)
+		// Not an error, if we already have it
+		return nil, agro.ErrExists
+	}
+	m.size++
+	promBlocks.WithLabelValues(m.name).Inc()
+	m.blockTrie = tx.Put(refbytes, index)
+	promBlocksWritten.WithLabelValues(m.name).Inc()
+	return buf, nil
 }
 
 func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
@@ -267,15 +302,14 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
-	tx := m.blockTrie.Txn()
-	_, exists := tx.Delete(s.ToBytes())
-	if !exists {
+	tx := m.blockTrie.Delete(s.ToBytes())
+	if tx == m.blockTrie {
 		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		return errors.New("mfile: deleting non-existent thing?")
 	}
 	m.size--
 	promBlocks.WithLabelValues(m.name).Dec()
-	m.blockTrie = tx.Commit()
+	m.blockTrie = tx
 	promBlocksDeleted.WithLabelValues(m.name).Inc()
 	return nil
 }
@@ -284,36 +318,46 @@ func (m *mfileBlock) BlockIterator() agro.BlockIterator {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	return &mfileIterator{
-		tx: m.blockTrie.Txn(),
+		tx: m.blockTrie,
 	}
 }
 
 type mfileIterator struct {
-	tx     *iradix.Txn
+	tx     *trie.Node
 	err    error
-	it     *iradix.Iterator
-	result []byte
+	c      chan *trie.Node
+	result *trie.Node
+	done   bool
 }
 
 func (i *mfileIterator) Err() error { return i.err }
 
 func (i *mfileIterator) Next() bool {
-	if i.err != nil || i.tx == nil {
+	if i.done {
 		return false
 	}
-	if i.it == nil {
-		i.it = i.tx.Root().Iterator()
+	if i.c == nil {
+		i.c = make(chan *trie.Node)
+		go i.tx.WalkChan(i.c)
 	}
 	var ok bool
-	i.result, _, ok = i.it.Next()
+	i.result, ok = <-i.c
+	if !ok {
+		i.done = true
+	}
 	return ok
 }
 
 func (i *mfileIterator) BlockRef() agro.BlockRef {
-	return agro.BlockRefFromBytes(i.result)
+	return agro.BlockRefFromBytes(i.result.Key())
 }
 
 func (i *mfileIterator) Close() error {
-	i.tx = nil
+	if i.done {
+		return nil
+	}
+	for _ = range i.c {
+	}
+	i.done = true
 	return nil
 }

@@ -11,9 +11,10 @@ import (
 )
 
 type baseBlockset struct {
-	ids    uint64
-	blocks []agro.BlockRef
-	store  agro.BlockStore
+	ids       uint64
+	blocks    []agro.BlockRef
+	store     agro.BlockStore
+	blocksize uint64
 }
 
 var _ blockset = &baseBlockset{}
@@ -28,6 +29,9 @@ func newBaseBlockset(store agro.BlockStore) *baseBlockset {
 	b := &baseBlockset{
 		blocks: make([]agro.BlockRef, 0),
 		store:  store,
+	}
+	if store != nil {
+		b.blocksize = store.BlockSize()
 	}
 	return b
 }
@@ -102,6 +106,7 @@ func (b *baseBlockset) Marshal() ([]byte, error) {
 }
 
 func (b *baseBlockset) setStore(s agro.BlockStore) {
+	b.blocksize = s.BlockSize()
 	b.store = s
 }
 
