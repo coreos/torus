@@ -83,10 +83,6 @@ func devToUnitName(dev string) string {
 	return "agro-" + unit.UnitNamePathEscape(dev) + ".service"
 }
 
-func pathToMountName(path string) string {
-	return unit.UnitNamePathEscape(path) + ".mount"
-}
-
 type systemd struct {
 	*dbus.Conn
 	evChan  <-chan map[string]*dbus.UnitStatus

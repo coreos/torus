@@ -7,6 +7,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+const VolumeType = "block"
+
 type BlockVolume struct {
 	srv    *agro.Server
 	mds    blockMetadata
@@ -25,7 +27,7 @@ func CreateBlockVolume(mds agro.MetadataService, volume string, size uint64) err
 	return blkmd.CreateBlockVolume(&models.Volume{
 		Name:     volume,
 		Id:       uint64(id),
-		Type:     "block",
+		Type:     VolumeType,
 		MaxBytes: size,
 	})
 }

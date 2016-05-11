@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/RoaringBitmap/roaring"
 	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 )
 
@@ -22,25 +21,6 @@ func Uint64ToBytes(x uint64) []byte {
 		panic(err)
 	}
 	return buf.Bytes()
-}
-
-func roaringToBytes(r *roaring.Bitmap) []byte {
-	buf := new(bytes.Buffer)
-	_, err := r.WriteTo(buf)
-	if err != nil {
-		panic(err)
-	}
-	return buf.Bytes()
-}
-
-func bytesToRoaring(b []byte) *roaring.Bitmap {
-	r := bytes.NewReader(b)
-	bm := roaring.NewBitmap()
-	_, err := bm.ReadFrom(r)
-	if err != nil {
-		panic(err)
-	}
-	return bm
 }
 
 func BytesToUint64(b []byte) uint64 {
@@ -76,11 +56,11 @@ func requestUnion(comps ...interface{}) []*etcdpb.RequestUnion {
 	for _, v := range comps {
 		switch m := v.(type) {
 		case *etcdpb.RangeRequest:
-			out = append(out, &etcdpb.RequestUnion{&etcdpb.RequestUnion_RequestRange{RequestRange: m}})
+			out = append(out, &etcdpb.RequestUnion{Request: &etcdpb.RequestUnion_RequestRange{RequestRange: m}})
 		case *etcdpb.PutRequest:
-			out = append(out, &etcdpb.RequestUnion{&etcdpb.RequestUnion_RequestPut{RequestPut: m}})
+			out = append(out, &etcdpb.RequestUnion{Request: &etcdpb.RequestUnion_RequestPut{RequestPut: m}})
 		case *etcdpb.DeleteRangeRequest:
-			out = append(out, &etcdpb.RequestUnion{&etcdpb.RequestUnion_RequestDeleteRange{RequestDeleteRange: m}})
+			out = append(out, &etcdpb.RequestUnion{Request: &etcdpb.RequestUnion_RequestDeleteRange{RequestDeleteRange: m}})
 		default:
 			panic("cannot create this request option within a requestUnion")
 		}

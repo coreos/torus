@@ -82,7 +82,7 @@ func UnmarshalFromProto(layers []*models.BlockLayer, store agro.BlockStore) (agr
 	for i := l - 1; i >= 0; i-- {
 		m := layers[i]
 		// Options must be stored by the blockset when serialized
-		newl, err := createBlockset(agro.BlockLayer{agro.BlockLayerKind(m.Type), ""}, store, layer)
+		newl, err := createBlockset(agro.BlockLayer{Kind: agro.BlockLayerKind(m.Type), Options: ""}, store, layer)
 		if err != nil {
 			return nil, err
 		}

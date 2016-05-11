@@ -29,6 +29,9 @@ func benchmarkWrites(b *testing.B, flush bool) {
 	}
 	defer os.Remove(n)
 	m, err := OpenMFile(n, 1024) // Block Size: 1 KB
+	if err != nil {
+		b.Fatal(err)
+	}
 	defer m.Close()
 
 	b.ResetTimer()
@@ -61,6 +64,9 @@ func TestWrites(t *testing.T) {
 	}
 	defer os.Remove(n)
 	m, err := OpenMFile(n, 1024) // Block Size: 1 KB
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer m.Close()
 
 	data := []byte("some data")

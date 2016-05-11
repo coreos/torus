@@ -73,12 +73,6 @@ type request struct {
 	len    uint32
 }
 
-type reply struct {
-	magic  uint32
-	error  uint32
-	handle uint64
-}
-
 type NBD struct {
 	device    Device
 	size      int64
@@ -115,9 +109,9 @@ func (nbd *NBD) GetSize() int64 {
 // set the size of the NBD
 func (nbd *NBD) Size(size int64, blocksize int64) (err error) {
 	if err = ioctl(nbd.nbd.Fd(), NBD_SET_BLKSIZE, uintptr(blocksize)); err != nil {
-		err = &os.PathError{nbd.nbd.Name(), "ioctl NBD_SET_BLKSIZE", err}
+		err = &os.PathError{Path: nbd.nbd.Name(), Op: "ioctl NBD_SET_BLKSIZE", Err: err}
 	} else if err = ioctl(nbd.nbd.Fd(), NBD_SET_SIZE_BLOCKS, uintptr(size/blocksize)); err != nil {
-		err = &os.PathError{nbd.nbd.Name(), "ioctl NBD_SET_SIZE_BLOCKS", err}
+		err = &os.PathError{Path: nbd.nbd.Name(), Op: "ioctl NBD_SET_SIZE_BLOCKS", Err: err}
 	}
 
 	return err
@@ -171,7 +165,7 @@ func (nbd *NBD) Serve() (err error) {
 	}
 	err = ioctl(nbd.nbd.Fd(), NBD_SET_FLAGS, uintptr(NBD_FLAG_SEND_FLUSH|NBD_FLAG_SEND_TRIM))
 	if err != nil {
-		return &os.PathError{nbd.nbd.Name(), "ioctl NBD_SET_FLAGS", err}
+		return &os.PathError{Path: nbd.nbd.Name(), Op: "ioctl NBD_SET_FLAGS", Err: err}
 	}
 
 	if nbd.closer != nil {
@@ -204,11 +198,11 @@ func (nbd *NBD) do_it() {
 
 	// NBD_DO_IT does not return until disconnect
 	if err := ioctl(nbd.nbd.Fd(), NBD_DO_IT, 0); err != nil {
-		nbd.closer <- &os.PathError{nbd.nbd.Name(), "ioctl NBD_DO_IT", err}
+		nbd.closer <- &os.PathError{Path: nbd.nbd.Name(), Op: "ioctl NBD_DO_IT", Err: err}
 	} else if err = ioctl(nbd.nbd.Fd(), NBD_DISCONNECT, 0); err != nil {
-		nbd.closer <- &os.PathError{nbd.nbd.Name(), "ioctl NBD_DISCONNECT", err}
+		nbd.closer <- &os.PathError{Path: nbd.nbd.Name(), Op: "ioctl NBD_DISCONNECT", Err: err}
 	} else if err = ioctl(nbd.nbd.Fd(), NBD_CLEAR_SOCK, 0); err != nil {
-		nbd.closer <- &os.PathError{nbd.nbd.Name(), "ioctl NBD_CLEAR_SOCK", err}
+		nbd.closer <- &os.PathError{Path: nbd.nbd.Name(), Op: "ioctl NBD_CLEAR_SOCK", Err: err}
 	}
 	close(nbd.closer)
 }

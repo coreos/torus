@@ -5,12 +5,9 @@ import (
 
 	"github.com/DeanThompson/ginpprof"
 	"github.com/coreos/agro"
-	"github.com/coreos/pkg/capnslog"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 )
-
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "http")
 
 type Server struct {
 	router      *gin.Engine

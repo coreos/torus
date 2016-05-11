@@ -16,11 +16,6 @@ import (
 )
 
 var (
-	aborter          = errors.New("abort update")
-	writingToDeleted = errors.New("writing to deleted file")
-)
-
-var (
 	promOpenINodes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "agro_server_open_inodes",
 		Help: "Number of open inodes reported on last update to mds",
@@ -305,7 +300,6 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 		promFileWrittenBytes.WithLabelValues(f.volume.Name).Add(float64(n))
 		return n, errors.New("Couldn't write all of the last block")
 	}
-	b = b[wrote:]
 	n += wrote
 	off += int64(wrote)
 	promFileWrittenBytes.WithLabelValues(f.volume.Name).Add(float64(n))
