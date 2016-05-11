@@ -197,7 +197,9 @@ func (f *File) Write(b []byte) (n int, err error) {
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
-	clog.Trace("begin write: offset ", off, " size ", len(b))
+	if clog.LevelAt(capnslog.TRACE) {
+		clog.Trace("begin write: offset ", off, " size ", len(b))
+	}
 	toWrite := len(b)
 	err = f.openWrite()
 	if err != nil {
@@ -215,8 +217,10 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	blkIndex := int(off / f.blkSize)
 
 	if f.blocks.Length() < blkIndex && blkIndex != f.openIdx+1 {
-		clog.Debug("begin write: offset ", off, " size ", len(b))
-		clog.Debug("end of file ", f.blocks.Length(), " blkIndex ", blkIndex)
+		if clog.LevelAt(capnslog.DEBUG) {
+			clog.Debug("begin write: offset ", off, " size ", len(b))
+			clog.Debug("end of file ", f.blocks.Length(), " blkIndex ", blkIndex)
+		}
 		promFileWrittenBytes.WithLabelValues(f.volume.Name).Add(float64(n))
 		err := f.Truncate(off)
 		if err != nil {
@@ -295,7 +299,9 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 		return n, err
 	}
 	wrote := f.writeToBlock(0, toWrite, b)
-	clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
+	if clog.LevelAt(capnslog.TRACE) {
+		clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
+	}
 	if wrote != toWrite {
 		promFileWrittenBytes.WithLabelValues(f.volume.Name).Add(float64(n))
 		return n, errors.New("Couldn't write all of the last block")
