@@ -15,7 +15,7 @@ const (
 	keepalive              = 2 * time.Second
 	connectTimeout         = 2 * time.Second
 	rebalanceClientTimeout = 5 * time.Second
-	clientTimeout          = 200 * time.Millisecond
+	clientTimeout          = 500 * time.Millisecond
 	writeClientTimeout     = 2000 * time.Millisecond
 )
 
@@ -144,7 +144,7 @@ func (c *Conn) RebalanceCheck(_ context.Context, refs []agro.BlockRef) ([]bool, 
 	}
 	c.mut.Lock()
 	defer c.mut.Unlock()
-	c.conn.SetDeadline(time.Now().Add(clientTimeout))
+	c.conn.SetDeadline(time.Now().Add(rebalanceClientTimeout))
 	c.buf[0] = cmdRebalanceCheck
 	c.buf[1] = byte(len(refs))
 	_, err := c.conn.Write(c.buf[:2])

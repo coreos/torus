@@ -12,7 +12,7 @@ import (
 const (
 	connectTimeout         = 2 * time.Second
 	rebalanceClientTimeout = 5 * time.Second
-	clientTimeout          = 100 * time.Millisecond
+	clientTimeout          = 500 * time.Millisecond
 	writeClientTimeout     = 2000 * time.Millisecond
 )
 
@@ -80,6 +80,20 @@ func (d *distClient) getConn(uuid string) *adp.Conn {
 	return conn
 }
 
+func (d *distClient) resetConn(uuid string) {
+	d.mut.Lock()
+	defer d.mut.Unlock()
+	conn, ok := d.openConns[uuid]
+	if !ok {
+		return
+	}
+	delete(d.openConns, uuid)
+	err := conn.Close()
+	if err != nil {
+		clog.Errorf("error resetConn: %s", err)
+	}
+}
+
 func (d *distClient) Close() error {
 	d.mut.Lock()
 	defer d.mut.Unlock()
@@ -99,6 +113,7 @@ func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef)
 	}
 	data, err := conn.Block(ctx, b)
 	if err != nil {
+		d.resetConn(uuid)
 		clog.Debug(err)
 		return nil, agro.ErrBlockUnavailable
 	}
@@ -112,6 +127,7 @@ func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef,
 	}
 	err := conn.PutBlock(ctx, b, data)
 	if err != nil {
+		d.resetConn(uuid)
 		if err == context.DeadlineExceeded {
 			return agro.ErrBlockUnavailable
 		}
@@ -126,6 +142,7 @@ func (d *distClient) Check(ctx context.Context, uuid string, blks []agro.BlockRe
 	}
 	resp, err := conn.RebalanceCheck(ctx, blks)
 	if err != nil {
+		d.resetConn(uuid)
 		return nil, err
 	}
 	return resp, nil
