@@ -44,17 +44,12 @@ func (b *baseBlockset) Kind() uint32 {
 	return uint32(Base)
 }
 
-var zeroes = make([]byte, 1024*1024)
-
 func (b *baseBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	if i >= len(b.blocks) {
 		return nil, agro.ErrBlockNotExist
 	}
 	if b.blocks[i].IsZero() {
-		for i := uint64(0); i < b.blocksize; i++ {
-			zeroes[i] = 0
-		}
-		return zeroes[:b.blocksize], nil
+		return make([]byte, b.store.BlockSize()), nil
 	}
 	clog.Tracef("base: getting block %d at BlockID %s", i, b.blocks[i])
 	bytes, err := b.store.GetBlock(ctx, b.blocks[i])
