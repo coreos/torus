@@ -23,6 +23,9 @@ func init() {
 }
 
 func listPeersAction(cmd *cobra.Command, args []string) {
+	var totalStorage uint64
+	var usedStorage uint64
+
 	mds := mustConnectToMDS()
 	gmd, err := mds.GlobalMetadata()
 	if err != nil {
@@ -65,6 +68,8 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 		if x.RebalanceInfo.Rebalancing {
 			rebalancing = true
 		}
+		totalStorage += x.TotalBlocks * gmd.BlockSize
+		usedStorage += x.UsedBlocks * gmd.BlockSize
 	}
 
 	for _, x := range members {
@@ -90,5 +95,5 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 		})
 	}
 	table.Render()
-	fmt.Printf("Balanced: %v\n", !rebalancing)
+	fmt.Printf("Balanced: %v Usage: %5.2f%%\n", !rebalancing, (float64(usedStorage) / float64(totalStorage) * 100.0))
 }

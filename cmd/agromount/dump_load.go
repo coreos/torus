@@ -4,25 +4,36 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
+	"time"
 
 	"github.com/coreos/agro/block"
+
+	"github.com/coreos/pkg/progressutil"
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 )
 
-var dumpCommand = &cobra.Command{
-	Use:   "dump VOLUME OUTPUT_FILE",
-	Short: "dump the contents of a volume to an output file",
-	Run:   dumpAction,
-}
+var (
+	dumpCommand = &cobra.Command{
+		Use:   "dump VOLUME OUTPUT_FILE",
+		Short: "dump the contents of a volume to an output file",
+		Run:   dumpAction,
+	}
 
-var loadCommand = &cobra.Command{
-	Use:   "load INPUT_FILE VOLUME",
-	Short: "load the contents of a file into a new volume",
-	Run:   loadAction,
-}
+	loadCommand = &cobra.Command{
+		Use:   "load INPUT_FILE VOLUME [SIZE]",
+		Short: "load the contents of a file into a new volume",
+		Run:   loadAction,
+	}
+
+	progress bool
+)
 
 func init() {
+	dumpCommand.Flags().BoolVarP(&progress, "progress", "p", false, "show progress")
 	rootCommand.AddCommand(dumpCommand)
+	loadCommand.Flags().BoolVarP(&progress, "progress", "p", false, "show progress")
 	rootCommand.AddCommand(loadCommand)
 }
 
@@ -49,15 +60,31 @@ func dumpAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't open snapshot: %v", err)
 	}
-	copied, err := io.Copy(output, bf)
-	if err != nil {
-		die("couldn't copy: %v", err)
+
+	size := int64(bf.Size())
+	if progress {
+		pb := new(progressutil.CopyProgressPrinter)
+		pb.AddCopy(bf, path.Base(args[0]), size, output)
+		err := pb.PrintAndWait(os.Stdout, 500*time.Millisecond, nil)
+		if err != nil {
+			die("couldn't copy: %v", err)
+		}
+	} else {
+		n, err := io.Copy(output, bf)
+		if err != nil {
+			die("couldn't copy: %v", err)
+		}
+
+		if n != size {
+			die("short read of %q", args[0])
+		}
 	}
+
 	err = blockvol.DeleteSnapshot(tempsnap)
 	if err != nil {
 		die("couldn't delete snapshot: %v", err)
 	}
-	fmt.Printf("copied %d bytes", copied)
+	fmt.Printf("copied %d bytes\n", size)
 }
 
 func getReaderFromArg(arg string) (*os.File, error) {
@@ -72,7 +99,7 @@ func getWriterFromArg(arg string) (io.Writer, error) {
 }
 
 func loadAction(cmd *cobra.Command, args []string) {
-	if len(args) != 2 {
+	if len(args) != 2 && len(args) != 3 {
 		cmd.Usage()
 		os.Exit(1)
 	}
@@ -86,7 +113,22 @@ func loadAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't stat input file: %v", err)
 	}
-	err = block.CreateBlockVolume(srv.MDS, args[1], uint64(fi.Size()))
+
+	size := uint64(fi.Size())
+	if len(args) == 3 {
+		expSize, err := humanize.ParseBytes(args[2])
+		if err != nil {
+			die("error parsing size %s: %v", args[2], err)
+		}
+
+		if expSize < size {
+			die("size must be larger than input file")
+		}
+
+		size = expSize
+	}
+
+	err = block.CreateBlockVolume(srv.MDS, args[1], size)
 	if err != nil {
 		die("couldn't create block volume %s: %v", args[1], err)
 	}
@@ -98,10 +140,21 @@ func loadAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't open blockfile %s: %v", args[1], err)
 	}
-	copied, err := io.Copy(f, input)
-	if err != nil {
-		die("couldn't copy: %v", err)
+
+	if progress {
+		pb := new(progressutil.CopyProgressPrinter)
+		pb.AddCopy(input, path.Base(args[0]), fi.Size(), f)
+		err := pb.PrintAndWait(os.Stdout, 500*time.Millisecond, nil)
+		if err != nil {
+			die("couldn't copy: %v", err)
+		}
+	} else {
+		_, err := io.Copy(f, input)
+		if err != nil {
+			die("couldn't copy: %v", err)
+		}
 	}
+
 	err = f.Sync()
 	if err != nil {
 		die("couldn't sync: %v", err)
@@ -110,5 +163,5 @@ func loadAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't close: %v", err)
 	}
-	fmt.Printf("copied %d bytes", copied)
+	fmt.Printf("copied %d bytes\n", fi.Size())
 }
