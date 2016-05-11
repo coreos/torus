@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/edsrzf/mmap-go"
+	"github.com/barakmich/mmap-go"
 )
 
 type MFile struct {
@@ -99,7 +99,7 @@ func (m *MFile) WriteBlock(n uint64, data []byte) error {
 }
 
 func (m *MFile) Flush() error {
-	return m.mmap.Flush()
+	return m.mmap.FlushAsync()
 }
 
 func (m *MFile) Close() error {
