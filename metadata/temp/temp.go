@@ -11,7 +11,6 @@ import (
 	"github.com/coreos/agro/metadata"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
-	"github.com/hashicorp/go-immutable-radix"
 )
 
 func init() {
@@ -24,7 +23,6 @@ type Server struct {
 	inode map[agro.VolumeID]agro.INodeID
 	vol   agro.VolumeID
 
-	tree     *iradix.Tree
 	volIndex map[string]*models.Volume
 	global   agro.GlobalMetadata
 	peers    agro.PeerInfoList
@@ -53,7 +51,6 @@ func NewServer() *Server {
 	}
 	return &Server{
 		volIndex: make(map[string]*models.Volume),
-		tree:     iradix.New(),
 		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
 		global: agro.GlobalMetadata{
 			BlockSize:        256,
