@@ -1,6 +1,7 @@
 package adp
 
 import (
+	"errors"
 	"io"
 	"net"
 	"time"
@@ -110,7 +111,7 @@ func (s *Server) handle(conn net.Conn) {
 				err = s.handleRebalanceCheck(conn, int(header[0]), refbuf)
 			}
 		default:
-			panic("unhandled")
+			err = errors.New("unknown message on the data port")
 		}
 		if err != nil {
 			if !s.closed {
