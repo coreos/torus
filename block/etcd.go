@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	etcdv3 "github.com/coreos/etcd/clientv3"
 	"golang.org/x/net/context"
 
 	"github.com/coreos/agro"
@@ -18,7 +19,7 @@ type blockEtcd struct {
 }
 
 func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
-	new, err := b.AtomicModifyKey(etcd.MkKey("meta", "volumeminter"), etcd.BytesAddOne)
+	new, err := b.AtomicModifyKey([]byte(etcd.MkKey("meta", "volumeminter")), etcd.BytesAddOne)
 	volume.Id = new.(uint64)
 	if err != nil {
 		return err
@@ -28,15 +29,16 @@ func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
 		return err
 	}
 	inodeBytes := agro.NewINodeRef(agro.VolumeID(volume.Id), 1).ToBytes()
-	do := etcd.Tx().If(
-		etcd.KeyNotExists(etcd.MkKey("volumes", volume.Name)),
+
+	do := b.Etcd.Client.Txn(b.getContext()).If(
+		etcdv3.Compare(etcdv3.Version(etcd.MkKey("volumes", volume.Name)), "=", 0),
 	).Then(
-		etcd.SetKey(etcd.MkKey("volumes", volume.Name), etcd.Uint64ToBytes(volume.Id)),
-		etcd.SetKey(etcd.MkKey("volumeid", etcd.Uint64ToHex(volume.Id)), vbytes),
-		etcd.SetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(volume.Id), "inode"), etcd.Uint64ToBytes(1)),
-		etcd.SetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(volume.Id), "blockinode"), inodeBytes),
-	).Tx()
-	resp, err := b.Etcd.KV.Txn(b.getContext(), do)
+		etcdv3.OpPut(etcd.MkKey("volumes", volume.Name), string(etcd.Uint64ToBytes(volume.Id))),
+		etcdv3.OpPut(etcd.MkKey("volumeid", etcd.Uint64ToHex(volume.Id)), string(vbytes)),
+		etcdv3.OpPut(etcd.MkKey("volumemeta", etcd.Uint64ToHex(volume.Id), "inode"), string(etcd.Uint64ToBytes(1))),
+		etcdv3.OpPut(etcd.MkKey("volumemeta", etcd.Uint64ToHex(volume.Id), "blockinode"), string(inodeBytes)),
+	)
+	resp, err := do.Commit()
 	if err != nil {
 		return err
 	}
@@ -48,14 +50,14 @@ func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
 
 func (b *blockEtcd) DeleteVolume() error {
 	vid := uint64(b.vid)
-	tx := etcd.Tx().If(
-		etcd.KeyNotExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
+	tx := b.Etcd.Client.Txn(b.getContext()).If(
+		etcdv3.Compare(etcdv3.Version(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")), "=", 0),
 	).Then(
-		etcd.DeleteKey(etcd.MkKey("volumes", b.name)),
-		etcd.DeleteKey(etcd.MkKey("volumeid", etcd.Uint64ToHex(vid))),
-		etcd.DeletePrefix(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid))),
-	).Tx()
-	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
+		etcdv3.OpDelete(etcd.MkKey("volumes", b.name)),
+		etcdv3.OpDelete(etcd.MkKey("volumeid", etcd.Uint64ToHex(vid))),
+		etcdv3.OpDelete(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid)), etcdv3.WithPrefix()),
+	)
+	resp, err := tx.Commit()
 	if err != nil {
 		return err
 	}
@@ -74,12 +76,13 @@ func (b *blockEtcd) Lock(lease int64) error {
 	if lease == 0 {
 		return agro.ErrInvalid
 	}
-	tx := etcd.Tx().If(
-		etcd.KeyNotExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blocklock")),
+	k := etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blocklock")
+	tx := b.Etcd.Client.Txn(b.getContext()).If(
+		etcdv3.Compare(etcdv3.Version(k), "=", 0),
 	).Then(
-		etcd.SetLeasedKey(lease, etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blocklock"), []byte(b.Etcd.UUID())),
-	).Tx()
-	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
+		etcdv3.OpPut(k, b.Etcd.UUID(), etcdv3.WithLease(etcdv3.LeaseID(lease))),
+	)
+	resp, err := tx.Commit()
 	if err != nil {
 		return err
 	}
@@ -90,7 +93,7 @@ func (b *blockEtcd) Lock(lease int64) error {
 }
 
 func (b *blockEtcd) GetINode() (agro.INodeRef, error) {
-	resp, err := b.Etcd.KV.Range(b.getContext(), etcd.GetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blockinode")))
+	resp, err := b.Etcd.Client.Get(b.getContext(), etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blockinode"))
 	if err != nil {
 		return agro.NewINodeRef(0, 0), err
 	}
@@ -102,14 +105,15 @@ func (b *blockEtcd) GetINode() (agro.INodeRef, error) {
 
 func (b *blockEtcd) SyncINode(inode agro.INodeRef) error {
 	vid := uint64(inode.Volume())
-	inodeBytes := inode.ToBytes()
-	tx := etcd.Tx().If(
-		etcd.KeyExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
-		etcd.KeyEquals(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock"), []byte(b.Etcd.UUID())),
+	inodeBytes := string(inode.ToBytes())
+	k := etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")
+	tx := b.Etcd.Client.Txn(b.getContext()).If(
+		etcdv3.Compare(etcdv3.Version(k), ">", 0),
+		etcdv3.Compare(etcdv3.Value(k), "=", b.Etcd.UUID()),
 	).Then(
-		etcd.SetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blockinode"), inodeBytes),
-	).Tx()
-	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
+		etcdv3.OpPut(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blockinode"), inodeBytes),
+	)
+	resp, err := tx.Commit()
 	if err != nil {
 		return err
 	}
@@ -121,13 +125,14 @@ func (b *blockEtcd) SyncINode(inode agro.INodeRef) error {
 
 func (b *blockEtcd) Unlock() error {
 	vid := uint64(b.vid)
-	tx := etcd.Tx().If(
-		etcd.KeyExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
-		etcd.KeyEquals(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock"), []byte(b.Etcd.UUID())),
+	k := etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")
+	tx := b.Etcd.Client.Txn(b.getContext()).If(
+		etcdv3.Compare(etcdv3.Version(k), ">", 0),
+		etcdv3.Compare(etcdv3.Value(k), "=", b.Etcd.UUID()),
 	).Then(
-		etcd.DeleteKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
-	).Tx()
-	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
+		etcdv3.OpDelete(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")),
+	)
+	resp, err := tx.Commit()
 	if err != nil {
 		return err
 	}
@@ -140,19 +145,21 @@ func (b *blockEtcd) Unlock() error {
 func (b *blockEtcd) SaveSnapshot(name string) error {
 	vid := uint64(b.vid)
 	for {
-		tx := etcd.Tx().If(
-			etcd.KeyNotExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name)),
+		sshotKey := etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name)
+		inoKey := etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blockinode")
+		tx := b.Etcd.Client.Txn(b.getContext()).If(
+			etcdv3.Compare(etcdv3.Version(sshotKey), "=", 0),
 		).Then(
-			etcd.GetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blockinode")),
-		).Tx()
-		resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
+			etcdv3.OpGet(inoKey),
+		)
+		resp, err := tx.Commit()
 		if err != nil {
 			return err
 		}
 		if !resp.Succeeded {
 			return agro.ErrExists
 		}
-		v := resp.GetResponses()[0].GetResponseRange().Kvs[0]
+		v := resp.Responses[0].GetResponseRange().Kvs[0]
 		inode := Snapshot{
 			Name:     name,
 			INodeRef: v.Value,
@@ -161,12 +168,12 @@ func (b *blockEtcd) SaveSnapshot(name string) error {
 		if err != nil {
 			return err
 		}
-		tx = etcd.Tx().If(
-			etcd.KeyIsVersion(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blockinode"), v.Version),
+		tx = b.Etcd.Client.Txn(b.getContext()).If(
+			etcdv3.Compare(etcdv3.Version(inoKey), "=", v.Version),
 		).Then(
-			etcd.SetKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name), bytes),
-		).Tx()
-		resp, err = b.Etcd.KV.Txn(b.getContext(), tx)
+			etcdv3.OpPut(sshotKey, string(bytes)),
+		)
+		resp, err = tx.Commit()
 		if err != nil {
 			return err
 		}
@@ -179,7 +186,9 @@ func (b *blockEtcd) SaveSnapshot(name string) error {
 }
 
 func (b *blockEtcd) GetSnapshots() ([]Snapshot, error) {
-	resp, err := b.Etcd.KV.Range(b.getContext(), etcd.GetPrefix(etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "snapshots")))
+	resp, err := b.Etcd.Client.Get(b.getContext(),
+		etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "snapshots"),
+		etcdv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -195,12 +204,13 @@ func (b *blockEtcd) GetSnapshots() ([]Snapshot, error) {
 
 func (b *blockEtcd) DeleteSnapshot(name string) error {
 	vid := uint64(b.vid)
-	tx := etcd.Tx().If(
-		etcd.KeyExists(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name)),
+	k := etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name)
+	tx := b.Etcd.Client.Txn(b.getContext()).If(
+		etcdv3.Compare(etcdv3.Version(k), ">", 0),
 	).Then(
-		etcd.DeleteKey(etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "snapshots", name)),
-	).Tx()
-	resp, err := b.Etcd.KV.Txn(b.getContext(), tx)
+		etcdv3.OpDelete(k),
+	)
+	resp, err := tx.Commit()
 	if err != nil {
 		return err
 	}
