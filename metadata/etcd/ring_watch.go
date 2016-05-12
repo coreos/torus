@@ -1,51 +1,31 @@
 package etcd
 
 import (
-	"io"
-
 	"golang.org/x/net/context"
 
-	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
+	"github.com/coreos/agro"
 	"github.com/coreos/agro/ring"
 )
 
 func (e *Etcd) watchRingUpdates() error {
-	wAPI := etcdpb.NewWatchClient(e.conn)
-	wStream, err := wAPI.Watch(context.TODO())
-	if err != nil {
-		return err
-	}
-	go e.watchRing(wStream)
-
-	p := &etcdpb.WatchRequest{
-		RequestUnion: &etcdpb.WatchRequest_CreateRequest{
-			CreateRequest: &etcdpb.WatchCreateRequest{
-				Key: MkKey("meta", "the-one-ring"),
-			},
-		},
-	}
-	err = wStream.Send(p)
-	return err
-}
-
-func (e *Etcd) watchRing(wStream etcdpb.Watch_WatchClient) {
 	r, err := e.GetRing()
 	if err != nil {
 		clog.Errorf("can't get inital ring: %s", err)
-		return
+		return err
 	}
-	for {
-		resp, err := wStream.Recv()
-		if err == io.EOF {
-			return
-		}
-		if err != nil {
+	go e.watchRing(r)
+	return nil
+}
+
+func (e *Etcd) watchRing(r agro.Ring) {
+	ctx, cancel := context.WithCancel(e.getContext())
+	defer cancel()
+	wch := e.Client.Watch(ctx, MkKey("meta", "the-one-ring"))
+
+	for resp := range wch {
+		if err := resp.Err(); err != nil {
 			clog.Errorf("error watching ring: %s", err)
-			break
-		}
-		switch {
-		case resp.Created, resp.Canceled, resp.Compacted:
-			continue
+			return
 		}
 		for _, ev := range resp.Events {
 			newRing, err := ring.Unmarshal(ev.Kv.Value)
@@ -67,5 +47,4 @@ func (e *Etcd) watchRing(wStream etcdpb.Watch_WatchClient) {
 			e.mut.RUnlock()
 		}
 	}
-
 }
