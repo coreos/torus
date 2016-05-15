@@ -46,7 +46,33 @@ const (
 	NBD_REQUEST_MAGIC = 0x25609513
 	NBD_REPLY_MAGIC   = 0x67446698
 	// Do *not* use magics: 0x12560953 0x96744668.
+
+	// option reply types
+	NBD_REP_ACK       = 1
+	NBD_REP_SERVER    = 2
+	NBD_REP_ERR_UNSUP = 0x80000001
+
+	// error codes
+	NBD_EIO    = 5
+	NBD_EINVAL = 22
 )
+
+var cmdStrings = map[uint32]string{
+	NBD_CMD_READ:  "read",
+	NBD_CMD_WRITE: "write",
+	NBD_CMD_DISC:  "disconnect",
+	NBD_CMD_FLUSH: "flush",
+	NBD_CMD_TRIM:  "trim",
+}
+
+func cmdString(cmd uint32) string {
+	s, ok := cmdStrings[cmd]
+	if ok {
+		return s
+	}
+
+	return "invalid"
+}
 
 // ioctl() helper function
 func ioctl(a1, a2, a3 uintptr) (err error) {
@@ -63,6 +89,8 @@ type Device interface {
 	WriteAt(b []byte, off int64) (n int, err error)
 	Sync() error
 	Trim(off, len int64) error
+	Size() uint64
+	Close() error
 }
 
 type request struct {
@@ -242,7 +270,12 @@ func (nbd *NBD) handle(closer chan error) {
 				binary.BigEndian.PutUint32(buf[4:8], 0)
 				syscall.Write(nbd.socket, buf[0:16])
 			case NBD_CMD_DISC:
-				panic("Disconnect")
+				err := nbd.device.Sync()
+				if err != nil {
+					fmt.Println("sync error", err)
+				}
+				closer <- nil
+				return
 			case NBD_CMD_TRIM:
 				err := nbd.device.Trim(int64(x.from), int64(x.len))
 				if err != nil {
@@ -262,6 +295,10 @@ func (nbd *NBD) handle(closer chan error) {
 			}
 		default:
 			// We're done
+			err := nbd.device.Sync()
+			if err != nil {
+				fmt.Println("sync error", err)
+			}
 			closer <- nil
 			return
 		}
