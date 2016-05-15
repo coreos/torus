@@ -42,9 +42,9 @@ const (
 )
 
 const (
+	flagHasFlags  = (1 << 0) // nbd-server supports flags
 	flagSendFlush = (1 << 2) // can flush writeback cache
 	flagSendTrim  = (1 << 5) // Send TRIM (discard)
-	// flagHasFlags   = (1 << 0) // nbd-server supports flags
 	// flagReadOnly   = (1 << 1) // device is read-only
 	// flagSendFUA    = (1 << 3) // Send FUA (Force Unit Access)
 	// flagRotational = (1 << 4) // Use elevator algorithm - rotational media
@@ -75,6 +75,8 @@ type Device interface {
 	WriteAt(b []byte, off int64) (n int, err error)
 	Sync() error
 	Trim(off, len int64) error
+	Size() uint64
+	Close() error
 }
 
 type NBD struct {
