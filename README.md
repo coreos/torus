@@ -44,7 +44,7 @@ You need a *recent* [etcd](https://github.com/coreos/etcd), as agro uses the v3 
 
 Make sure to run etcd with the v3 API turned on:
 ```
-etcd --experimental-v3demo --experimental-gRPC-addr 127.0.0.1:2378 --data-dir /tmp/etcd
+etcd --experimental-v3demo --experimental-gRPC-addr 127.0.0.1:2378 --datadir /tmp/etcd
 ```
 
 [Clustering etcd v2.3 is left as an exercise to the reader](https://github.com/coreos/etcd/blob/master/Documentation/clustering.md) but it's a pretty common thing to do if you're running on CoreOS.
@@ -76,7 +76,7 @@ will tell you more.
 ### 3) Run some storage nodes
 #### Running manually
 ```
-./agro --etcd 127.0.0.1:2378 --peer-address $MY_IP:40000 --data-dir /path/to/data --size 20GiB
+./agro --etcd 127.0.0.1:2378 --peer-address $MY_IP:40000 --datadir /path/to/data --size 20GiB
 ```
 This runs a storage node without HTTP. Add `--host` and `--port` to open the HTTP endpoint
 
