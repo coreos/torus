@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/pkg/capnslog"
 )
 
 const maxIters = 50
@@ -87,12 +88,15 @@ outer:
 				}
 				n++
 				ctx, cancel := context.WithTimeout(context.TODO(), rebalanceTimeout)
+				if agro.BlockLog.LevelAt(capnslog.TRACE) {
+					agro.BlockLog.Tracef("rebalance: sending block %s to %s", v[i], k)
+				}
 				err = r.cs.PutBlock(ctx, k, v[i], data)
 				cancel()
 				if err != nil {
 					// Continue for now
 					toDelete[v[i]] = false
-					clog.Error(err)
+					clog.Errorf("couldn't rebalance block %s: %v", v[i], err)
 				}
 			}
 		}
@@ -100,6 +104,9 @@ outer:
 
 	for k, v := range toDelete {
 		if v {
+			if agro.BlockLog.LevelAt(capnslog.TRACE) {
+				agro.BlockLog.Tracef("rebalance: deleting block %s", k)
+			}
 			err := r.bs.DeleteBlock(context.TODO(), k)
 			if err != nil {
 				clog.Error("couldn't delete local block")

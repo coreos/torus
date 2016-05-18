@@ -2,6 +2,7 @@ package distributor
 
 import (
 	"github.com/coreos/agro"
+	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 )
 
@@ -10,8 +11,11 @@ func (d *Distributor) Block(ctx context.Context, ref agro.BlockRef) ([]byte, err
 	data, err := d.blocks.GetBlock(ctx, ref)
 	if err != nil {
 		promDistBlockRPCFailures.Inc()
-		clog.Warningf("remote asking for non-existent block")
+		clog.Warningf("remote asking for non-existent block: %s", ref)
 		return nil, agro.ErrBlockUnavailable
+	}
+	if agro.BlockLog.LevelAt(capnslog.TRACE) {
+		agro.BlockLog.Tracef("rpc: retrieved block %s", ref)
 	}
 	return data, nil
 }
@@ -38,6 +42,9 @@ func (d *Distributor) PutBlock(ctx context.Context, ref agro.BlockRef, data []by
 	err = d.blocks.WriteBlock(ctx, ref, data)
 	if err != nil {
 		return err
+	}
+	if agro.BlockLog.LevelAt(capnslog.TRACE) {
+		agro.BlockLog.Tracef("rpc: saving block %s", ref)
 	}
 	return d.Flush()
 }

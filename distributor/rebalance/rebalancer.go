@@ -64,6 +64,7 @@ func (r *rebalancer) UseVolume(vol *models.Volume) error {
 func (r *rebalancer) DeleteUnusedVolumes(liveVolumes []*models.Volume, highwater agro.VolumeID) error {
 	live := make(map[agro.VolumeID]bool)
 	for _, x := range liveVolumes {
+		clog.Debugf("%d is live", x.Id)
 		live[agro.VolumeID(x.Id)] = true
 	}
 	tempIt := r.bs.BlockIterator()

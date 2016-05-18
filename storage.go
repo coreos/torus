@@ -8,7 +8,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/agro/models"
+	"github.com/coreos/pkg/capnslog"
 )
+
+var BlockLog = capnslog.NewPackageLogger("github.com/coreos/agro", "blocklog")
 
 type (
 	// VolumeID represents a unique identifier for a Volume.

@@ -51,7 +51,9 @@ func (b *baseBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	if b.blocks[i].IsZero() {
 		return make([]byte, b.store.BlockSize()), nil
 	}
-	clog.Tracef("base: getting block %d at BlockID %s", i, b.blocks[i])
+	if agro.BlockLog.LevelAt(capnslog.TRACE) {
+		agro.BlockLog.Tracef("base: getting block %d at BlockID %s", i, b.blocks[i])
+	}
 	bytes, err := b.store.GetBlock(ctx, b.blocks[i])
 	if err != nil {
 		promBaseFail.Inc()
@@ -74,8 +76,8 @@ func (b *baseBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int,
 	// 	return nil
 	// }
 	newBlockID := b.makeID(inode)
-	if clog.LevelAt(capnslog.TRACE) {
-		clog.Tracef("base: writing block %d at BlockID %s", i, newBlockID)
+	if agro.BlockLog.LevelAt(capnslog.TRACE) {
+		agro.BlockLog.Tracef("base: writing block %d at BlockID %s", i, b.blocks[i])
 	}
 	err := b.store.WriteBlock(ctx, newBlockID, data)
 	if err != nil {

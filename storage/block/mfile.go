@@ -2,7 +2,6 @@ package block
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -305,7 +304,7 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	tx := m.blockTrie.Delete(s.ToBytes())
 	if tx == m.blockTrie {
 		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
-		return errors.New("mfile: deleting non-existent thing?")
+		return fmt.Errorf("mfile: deleting non-existent thing? %s", s)
 	}
 	m.size--
 	promBlocks.WithLabelValues(m.name).Dec()
