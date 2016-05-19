@@ -20,7 +20,7 @@ var rootCommand = &cobra.Command{
 }
 
 func init() {
-	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2378", "hostname:port to the etcd instance storing the metadata")
+	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2379", "hostname:port to the etcd instance storing the metadata")
 	rootCommand.AddCommand(mkfsCommand)
 	rootCommand.AddCommand(listPeersCommand)
 	rootCommand.AddCommand(ringCommand)

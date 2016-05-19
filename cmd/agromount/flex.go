@@ -136,7 +136,7 @@ func parseJSONArg(s string) VolumeData {
 		vol.FSType = "ext4"
 	}
 	if vol.Etcd == "" {
-		vol.Etcd = "127.0.0.1:2378"
+		vol.Etcd = "127.0.0.1:2379"
 	}
 	return vol
 }

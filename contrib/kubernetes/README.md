@@ -29,13 +29,13 @@ And you're done.
 Grab the [latest release](https://github.com/coreos/agro/releases) and use the included `agroctl` tool. Or just build it from source.
 
 ```
-agroctl -C $IP_IN_CLUSTER:32378 list-peers
+agroctl -C $IP_IN_CLUSTER:32379 list-peers
 ```
 
 Which should tell you everything about the cluster. Create a volume, eg:
 
 ```
-agroctl -C $IP_IN_CLUSTER:32378 volume create-block pg1 2GiB
+agroctl -C $IP_IN_CLUSTER:32379 volume create-block pg1 2GiB
 ```
 
 ## 5) Run Postgres
