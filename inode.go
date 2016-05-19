@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/coreos/agro/models"
+	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 )
@@ -65,6 +66,9 @@ func (b *INodeStore) WriteINode(ctx context.Context, i INodeRef, inode *models.I
 			Index:    IndexID(index),
 		}
 		ref.SetBlockType(TypeINode)
+		if BlockLog.LevelAt(capnslog.TRACE) {
+			BlockLog.Tracef("writing inode block: %s", ref)
+		}
 		err := b.bs.WriteBlock(ctx, ref, buf)
 		if err != nil {
 			return err

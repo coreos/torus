@@ -77,7 +77,7 @@ func (b *baseBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int,
 	// }
 	newBlockID := b.makeID(inode)
 	if agro.BlockLog.LevelAt(capnslog.TRACE) {
-		agro.BlockLog.Tracef("base: writing block %d at BlockID %s", i, b.blocks[i])
+		agro.BlockLog.Tracef("base: writing block %d at BlockID %s", i, newBlockID)
 	}
 	err := b.store.WriteBlock(ctx, newBlockID, data)
 	if err != nil {
