@@ -184,6 +184,7 @@ func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 	if len(peers.Peers) == 0 {
 		return agro.ErrOutOfSpace
 	}
+	d.readCache.Put(string(i.ToBytes()), data)
 	switch d.getWriteFromServer() {
 	case agro.WriteLocal:
 		err = d.blocks.WriteBlock(ctx, i, data)
