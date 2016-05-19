@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 
 	"github.com/coreos/agro"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
-
-	etcdpb "github.com/coreos/agro/internal/etcdproto/etcdserverpb"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
+
+	etcdv3 "github.com/coreos/etcd/clientv3"
+	"golang.org/x/net/context"
 )
 
 func mkfs(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) error {
@@ -29,27 +28,27 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) erro
 	if err != nil {
 		return err
 	}
-	tx := Tx().If(
-		KeyNotExists(MkKey("meta", "globalmetadata")),
-	).Then(
-		SetKey(MkKey("meta", "volumeminter"), Uint64ToBytes(1)),
-		SetKey(MkKey("meta", "globalmetadata"), gmdbytes),
-	).Tx()
-	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())
+
+	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}})
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
-	client := etcdpb.NewKVClient(conn)
-	resp, err := client.Txn(context.Background(), tx)
+	defer client.Close()
+
+	txn := client.Txn(context.Background())
+	resp, err := txn.If(
+		etcdv3.Compare(etcdv3.Version(MkKey("meta", "globalmetadata")), "=", 0),
+	).Then(
+		etcdv3.OpPut(MkKey("meta", "volumeminter"), string(Uint64ToBytes(1))),
+		etcdv3.OpPut(MkKey("meta", "globalmetadata"), string(gmdbytes)),
+	).Commit()
 	if err != nil {
 		return err
 	}
 	if !resp.Succeeded {
 		return agro.ErrExists
 	}
-	_, err = client.Put(context.Background(),
-		SetKey(MkKey("meta", "the-one-ring"), ringb))
+	_, err = client.Put(context.Background(), MkKey("meta", "the-one-ring"), string(ringb))
 	if err != nil {
 		return err
 	}
@@ -57,13 +56,13 @@ func mkfs(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) erro
 }
 
 func setRing(cfg agro.Config, r agro.Ring) error {
-	conn, err := grpc.Dial(cfg.MetadataAddress, grpc.WithInsecure())
+	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}})
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
-	client := etcdpb.NewKVClient(conn)
-	resp, err := client.Range(context.Background(), GetKey(MkKey("meta", "the-one-ring")))
+	defer client.Close()
+
+	resp, err := client.Get(context.Background(), MkKey("meta", "the-one-ring"))
 	if err != nil {
 		return err
 	}
@@ -81,6 +80,6 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 	if err != nil {
 		return err
 	}
-	_, err = client.Put(context.Background(), SetKey(MkKey("meta", "the-one-ring"), b))
+	_, err = client.Put(context.Background(), MkKey("meta", "the-one-ring"), string(b))
 	return err
 }
