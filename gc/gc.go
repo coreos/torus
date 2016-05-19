@@ -40,7 +40,9 @@ func NewGCController(srv *agro.Server, inodes INodeFetcher) GC {
 }
 
 func (c *controller) PrepVolume(vol *models.Volume) error {
+	n := 0
 	for _, x := range c.gcs {
+		n++
 		err := x.PrepVolume(vol)
 		if err != nil {
 			return err

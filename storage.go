@@ -49,6 +49,10 @@ type INodeRef struct {
 	INode  INodeID
 }
 
+func (i INodeRef) Equals(x INodeRef) bool {
+	return (i.volume == x.volume) && (i.INode == x.INode)
+}
+
 func (i INodeRef) Volume() VolumeID {
 	return i.volume & VolumeMax
 }

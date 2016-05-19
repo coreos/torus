@@ -16,37 +16,31 @@ var rebalanceTimeout = 5 * time.Second
 
 func (r *rebalancer) Tick() (int, error) {
 	if r.it == nil {
-		r.version = r.r.Ring().Version()
 		r.it = r.bs.BlockIterator()
+		r.ring = r.r.Ring()
 	}
 	m := make(map[string][]agro.BlockRef)
 	toDelete := make(map[agro.BlockRef]bool)
-	ring := r.r.Ring()
+	dead := make(map[agro.BlockRef]bool)
+	itDone := false
 
-outer:
 	for i := 0; i < maxIters; i++ {
 		var ref agro.BlockRef
-		for {
-			ok := r.it.Next()
-			if !ok {
-				err := r.it.Err()
-				if err != nil {
-					return 0, err
-				}
-				r.it = nil
-				break outer
+		ok := r.it.Next()
+		if !ok {
+			err := r.it.Err()
+			if err != nil {
+				return 0, err
 			}
-			ref = r.it.BlockRef()
-			if r.vol.Id != 0 && ref.Volume() == agro.VolumeID(r.vol.Id) {
-				break
-			}
+			itDone = true
+			break
 		}
+		ref = r.it.BlockRef()
 		if r.gc.IsDead(ref) {
-			toDelete[ref] = true
-			i--
+			dead[ref] = true
 			continue
 		}
-		perm, err := ring.GetPeers(ref)
+		perm, err := r.ring.GetPeers(ref)
 		if err != nil {
 			return 0, err
 		}
@@ -81,9 +75,7 @@ outer:
 			if !ok {
 				data, err := r.bs.GetBlock(context.TODO(), v[i])
 				if err != nil {
-					clog.Debug("couldn't get local block")
-					// The GC came around underneath us. It's okay
-					// to keep working as normal.
+					clog.Warning("couldn't get local block -- why would this happen?")
 					continue
 				}
 				n++
@@ -105,7 +97,7 @@ outer:
 	for k, v := range toDelete {
 		if v {
 			if agro.BlockLog.LevelAt(capnslog.TRACE) {
-				agro.BlockLog.Tracef("rebalance: deleting block %s", k)
+				agro.BlockLog.Tracef("rebalance: deleting replicated block %s", k)
 			}
 			err := r.bs.DeleteBlock(context.TODO(), k)
 			if err != nil {
@@ -115,8 +107,22 @@ outer:
 		}
 	}
 
+	for k, v := range dead {
+		if v {
+			if agro.BlockLog.LevelAt(capnslog.TRACE) {
+				agro.BlockLog.Tracef("rebalance: deleting dead block %s", k)
+			}
+			err := r.bs.DeleteBlock(context.TODO(), k)
+			if err != nil {
+				clog.Error("couldn't delete local block")
+				return n, err
+			}
+		}
+	}
+	r.bs.Flush()
+
 	var outerr error
-	if r.it == nil {
+	if itDone {
 		outerr = io.EOF
 	}
 	return n, outerr

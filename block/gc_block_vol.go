@@ -1,7 +1,6 @@
 package block
 
 import (
-	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -11,6 +10,7 @@ import (
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/gc"
 	"github.com/coreos/agro/models"
+	"github.com/coreos/pkg/capnslog"
 )
 
 func init() {
@@ -18,21 +18,20 @@ func init() {
 }
 
 type blockvolGC struct {
-	mut       sync.Mutex
-	srv       *agro.Server
-	inodes    gc.INodeFetcher
-	trie      *trie.Node
-	highwater agro.INodeID
-	skip      bool
-	curRefs   []agro.INodeRef
-	topRef    agro.INodeRef
+	srv        *agro.Server
+	inodes     gc.INodeFetcher
+	trie       *trie.Node
+	highwaters map[agro.VolumeID]agro.INodeID
+	curINodes  []agro.INodeRef
 }
 
 func NewBlockVolGC(srv *agro.Server, inodes gc.INodeFetcher) (gc.GC, error) {
-	return &blockvolGC{
+	b := &blockvolGC{
 		srv:    srv,
 		inodes: inodes,
-	}, nil
+	}
+	b.Clear()
+	return b, nil
 }
 
 func (b *blockvolGC) getContext() context.Context {
@@ -41,12 +40,7 @@ func (b *blockvolGC) getContext() context.Context {
 }
 
 func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
-	b.mut.Lock()
-	defer b.mut.Unlock()
-	b.trie = nil
-	b.skip = vol.Type != VolumeType
-	b.highwater = 0
-	if b.skip {
+	if vol.Type != VolumeType {
 		return nil
 	}
 	mds, err := createBlockMetadata(b.srv.MDS, vol.Name, agro.VolumeID(vol.Id))
@@ -57,13 +51,12 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	if err != nil {
 		return err
 	}
+	b.highwaters[curRef.Volume()] = 0
 	if curRef.INode <= 1 {
-		b.skip = true
 		return nil
 	}
 
-	b.curRefs = []agro.INodeRef{curRef}
-	b.topRef = curRef
+	curINodes := []agro.INodeRef{curRef}
 
 	snaps, err := mds.GetSnapshots()
 	if err != nil {
@@ -71,10 +64,10 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	}
 
 	for _, x := range snaps {
-		b.curRefs = append(b.curRefs, agro.INodeRefFromBytes(x.INodeRef))
+		curINodes = append(curINodes, agro.INodeRefFromBytes(x.INodeRef))
 	}
 
-	for _, x := range b.curRefs {
+	for _, x := range curINodes {
 		inode, err := b.inodes.GetINode(b.getContext(), x)
 		if err != nil {
 			return err
@@ -90,42 +83,61 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 			if ref.IsZero() {
 				continue
 			}
-			if ref.INode > b.highwater {
-				b.highwater = ref.INode
+			if ref.INode > b.highwaters[ref.Volume()] {
+				b.highwaters[ref.Volume()] = ref.INode
 			}
 			tx.Put(ref.ToBytes(), true)
 		}
+		tx.Merge(b.trie)
 		b.trie = tx.Commit()
 	}
-
+	b.curINodes = append(b.curINodes, curINodes...)
 	return nil
 }
 
 func (b *blockvolGC) IsDead(ref agro.BlockRef) bool {
-	b.mut.Lock()
-	defer b.mut.Unlock()
-	if b.skip {
+	v, ok := b.highwaters[ref.Volume()]
+	if !ok {
+		if clog.LevelAt(capnslog.TRACE) {
+			clog.Tracef("%s doesn't exist anymore", ref)
+		}
+		// Volume doesn't exist anymore
+		return true
+	}
+	// If it's a new block or INode, let it be.
+	if ref.INode >= v {
+		if clog.LevelAt(capnslog.TRACE) {
+			clog.Tracef("%s is new compared to %d", ref, v)
+		}
 		return false
 	}
+	// If it's an INode block, and it's not in our list
 	if ref.BlockType() == agro.TypeINode {
-		if ref.INode >= b.topRef.INode {
-			return false
-		}
-		for _, x := range b.curRefs {
-			if ref.INode == x.INode {
+		for _, x := range b.curINodes {
+			if ref.HasINode(x, agro.TypeINode) {
+				if clog.LevelAt(capnslog.TRACE) {
+					clog.Tracef("%s is in %s", ref, x)
+				}
 				return false
 			}
 		}
+		if clog.LevelAt(capnslog.TRACE) {
+			clog.Tracef("%s is a dead INode", ref)
+		}
 		return true
 	}
-	if ref.INode >= b.topRef.INode {
-		return false
-	}
+	// If it's a data block
 	if v, ok := b.trie.Get(ref.ToBytes()).(bool); v && ok {
 		return false
 	}
-	clog.Tracef("%s is dead", ref)
+	if clog.LevelAt(capnslog.TRACE) {
+		clog.Tracef("%s is dead", ref)
+	}
 	return true
 }
 
-func (b *blockvolGC) Clear() {}
+func (b *blockvolGC) Clear() {
+	b.highwaters = make(map[agro.VolumeID]agro.INodeID)
+	b.curINodes = make([]agro.INodeRef, 0, len(b.curINodes))
+	b.trie = nil
+}

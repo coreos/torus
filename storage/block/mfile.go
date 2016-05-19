@@ -37,6 +37,8 @@ type mfileBlock struct {
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
+var blankRefBytes = make([]byte, agro.BlockRefByteSize)
+
 func loadTrie(m *storage.MFile) (*trie.Node, uint64, error) {
 	var t *trie.Node
 	clog.Infof("loading trie...")
@@ -48,10 +50,9 @@ func loadTrie(m *storage.MFile) (*trie.Node, uint64, error) {
 		membefore = mem.Alloc
 	}
 
-	blank := make([]byte, agro.BlockRefByteSize)
 	for i := uint64(0); i < m.NumBlocks(); i++ {
 		b := m.GetBlock(i)
-		if bytes.Equal(blank, b) {
+		if bytes.Equal(blankRefBytes, b) {
 			continue
 		}
 		t = t.Put(b, int(i))
@@ -120,16 +121,16 @@ func (m *mfileBlock) UsedBlocks() uint64 {
 }
 
 func (m *mfileBlock) Flush() error {
-	// err := m.data.Flush()
+	err := m.data.Flush()
 
-	// if err != nil {
-	// 	return err
-	// }
-	// err = m.blockMap.Flush()
-	// if err != nil {
-	// 	return err
-	// }
-	// promStorageFlushes.WithLabelValues(m.name).Inc()
+	if err != nil {
+		return err
+	}
+	err = m.blockMap.Flush()
+	if err != nil {
+		return err
+	}
+	promStorageFlushes.WithLabelValues(m.name).Inc()
 	return nil
 }
 
@@ -158,7 +159,9 @@ func (m *mfileBlock) close() error {
 
 func (m *mfileBlock) findIndex(s agro.BlockRef) int {
 	id := s.ToBytes()
-	clog.Tracef("finding blockid %s", s)
+	if clog.LevelAt(capnslog.TRACE) {
+		clog.Tracef("finding blockid %s", s)
+	}
 	if v, ok := m.blockTrie.Get(id).(int); ok {
 		return v
 	}
@@ -294,21 +297,17 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	index := m.findIndex(s)
 	if index == -1 {
 		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
+		clog.Errorf("mfile: deleting non-existent thing? %s", s)
 		return agro.ErrBlockNotExist
 	}
-	err := m.blockMap.WriteBlock(uint64(index), make([]byte, agro.BlockRefByteSize))
+	err := m.blockMap.WriteBlock(uint64(index), blankRefBytes)
 	if err != nil {
 		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
-	tx := m.blockTrie.Delete(s.ToBytes())
-	if tx == m.blockTrie {
-		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
-		return fmt.Errorf("mfile: deleting non-existent thing? %s", s)
-	}
 	m.size--
 	promBlocks.WithLabelValues(m.name).Dec()
-	m.blockTrie = tx
+	m.blockTrie = m.blockTrie.Delete(s.ToBytes())
 	promBlocksDeleted.WithLabelValues(m.name).Inc()
 	return nil
 }

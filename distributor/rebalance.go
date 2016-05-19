@@ -44,31 +44,20 @@ func (d *Distributor) rebalanceTicker(closer chan struct{}) {
 	n := 0
 	total := 0
 	time.Sleep(time.Duration(250+rand.Intn(250)) * time.Millisecond)
-	volIdx := 0
-	var volset []*models.Volume
-	var volhighwater agro.VolumeID
-	var err error
 exit:
 	for {
-		if volIdx == len(volset) {
-			err = d.rebalancer.DeleteUnusedVolumes(volset, volhighwater)
-			if err != nil {
-				clog.Error(err)
-			}
-			volIdx = 0
-			volset, volhighwater, err = d.srv.MDS.GetVolumes()
-			if err != nil {
-				clog.Error(err)
-			}
-			time.Sleep(time.Duration(rand.Intn(250)) * time.Millisecond)
-			continue
-		}
-		err := d.rebalancer.UseVolume(volset[volIdx])
+		clog.Tracef("starting rebalance/gc cycle")
+		volset, _, err := d.srv.MDS.GetVolumes()
 		if err != nil {
-			clog.Errorf("gc prep failed: %s", err)
+			clog.Error(err)
 		}
-		clog.Tracef("starting rebalance/gc for %s", volset[volIdx])
-	volume:
+		for _, x := range volset {
+			err := d.rebalancer.PrepVolume(x)
+			if err != nil {
+				clog.Errorf("gc prep failed: %s", err)
+			}
+		}
+	ratelimit:
 		for {
 			timeout := 2 * time.Duration(n+1) * time.Millisecond
 			select {
@@ -95,17 +84,16 @@ exit:
 						info.Rebalancing = false
 					}
 					d.srv.UpdateRebalanceInfo(info)
-					break volume
+					break ratelimit
 				} else if err != nil {
 					// This is usually really bad
 					clog.Error(err)
 				}
 				n = written
-				clog.Trace(n)
 				d.srv.UpdateRebalanceInfo(info)
 			}
 		}
 		time.Sleep(time.Duration(rand.Intn(3)) * time.Second)
-		volIdx++
+		d.rebalancer.Reset()
 	}
 }

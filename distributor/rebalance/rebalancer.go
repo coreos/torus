@@ -18,8 +18,8 @@ type Ringer interface {
 type Rebalancer interface {
 	Tick() (int, error)
 	VersionStart() int
-	UseVolume(*models.Volume) error
-	DeleteUnusedVolumes(livevols []*models.Volume, highwater agro.VolumeID) error
+	PrepVolume(*models.Volume) error
+	Reset() error
 }
 
 type CheckAndSender interface {
@@ -29,63 +29,38 @@ type CheckAndSender interface {
 
 func NewRebalancer(r Ringer, bs agro.BlockStore, cs CheckAndSender, gc gc.GC) Rebalancer {
 	return &rebalancer{
-		r:       r,
-		bs:      bs,
-		cs:      cs,
-		gc:      gc,
-		vol:     nil,
-		version: 0,
+		r:  r,
+		bs: bs,
+		cs: cs,
+		gc: gc,
 	}
 }
 
 type rebalancer struct {
-	r       Ringer
-	bs      agro.BlockStore
-	cs      CheckAndSender
-	it      agro.BlockIterator
-	gc      gc.GC
-	vol     *models.Volume
-	version int
+	r    Ringer
+	bs   agro.BlockStore
+	cs   CheckAndSender
+	it   agro.BlockIterator
+	gc   gc.GC
+	ring agro.Ring
 }
 
 func (r *rebalancer) VersionStart() int {
-	if r.version == 0 {
+	if r.ring == nil {
 		return r.r.Ring().Version()
 	}
-	return r.version
+	return r.ring.Version()
 }
 
-func (r *rebalancer) UseVolume(vol *models.Volume) error {
-	r.vol = vol
-	r.gc.Clear()
+func (r *rebalancer) PrepVolume(vol *models.Volume) error {
 	return r.gc.PrepVolume(vol)
 }
 
-func (r *rebalancer) DeleteUnusedVolumes(liveVolumes []*models.Volume, highwater agro.VolumeID) error {
-	live := make(map[agro.VolumeID]bool)
-	for _, x := range liveVolumes {
-		clog.Tracef("%d is live", x.Id)
-		live[agro.VolumeID(x.Id)] = true
+func (r *rebalancer) Reset() error {
+	if r.it != nil {
+		r.it.Close()
+		r.it = nil
 	}
-	tempIt := r.bs.BlockIterator()
-	for {
-		ok := tempIt.Next()
-		if !ok {
-			err := tempIt.Err()
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		ref := tempIt.BlockRef()
-		if ref.Volume() > highwater {
-			continue
-		}
-		if !live[ref.Volume()] {
-			err := r.bs.DeleteBlock(context.TODO(), ref)
-			if err != nil {
-				return err
-			}
-		}
-	}
+	r.gc.Clear()
+	return nil
 }

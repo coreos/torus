@@ -5,7 +5,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "block")
+var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "storage-block")
 
 var (
 	promBlocks = prometheus.NewGaugeVec(prometheus.GaugeOpts{
