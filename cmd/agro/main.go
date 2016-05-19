@@ -186,13 +186,12 @@ func runServer(cmd *cobra.Command, args []string) {
 	signal.Notify(signalChan, os.Interrupt)
 
 	if peerAddress != "" {
-		distributor.ListenReplication(srv, peerAddress)
+		err = distributor.ListenReplication(srv, peerAddress)
 	} else {
-		distributor.OpenReplication(srv)
+		err = distributor.OpenReplication(srv)
 	}
 
 	defer srv.Close()
-
 	go func() {
 		for _ = range signalChan {
 			fmt.Println("\nReceived an interrupt, stopping services...")
@@ -202,7 +201,7 @@ func runServer(cmd *cobra.Command, args []string) {
 
 	if err != nil {
 		fmt.Println("couldn't use server as filesystem:", err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 	http.ServeHTTP(httpAddress, srv)
 }

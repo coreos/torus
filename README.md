@@ -39,15 +39,15 @@ make
 Either way you'll find the binaries `agro`, `agromount` and `agroctl`.
 
 ### 1) Get etcd
-You need a *recent* [etcd](https://github.com/coreos/etcd), as agro uses the v3 API natively and depends on some fixes therein. 
-[etcd v2.3.0-alpha1](https://github.com/coreos/etcd/releases/tag/v2.3.0-alpha.1) or above is required. 
+You need a *v3.0* [etcd](https://github.com/coreos/etcd), as agro uses the v3 API natively and depends on some fixes therein. 
+[etcd v3.0.0-beta.0](https://github.com/coreos/etcd/releases/tag/v3.0.0-beta.0) or above is required. 
 
-Make sure to run etcd with the v3 API turned on:
+3.0 natively understands the v3 API.
 ```
-etcd --experimental-v3demo --experimental-gRPC-addr 127.0.0.1:2378 --data-dir /tmp/etcd
+etcd --data-dir /tmp/etcd
 ```
 
-[Clustering etcd v2.3 is left as an exercise to the reader](https://github.com/coreos/etcd/blob/master/Documentation/clustering.md) but it's a pretty common thing to do if you're running on CoreOS.
+[Clustering etcd v3.0 is left as an exercise to the reader](https://github.com/coreos/etcd/blob/master/Documentation/clustering.md) but it's a pretty common thing to do if you're running on CoreOS.
 
 ### 2) mkfs
 
@@ -62,7 +62,7 @@ And you're ready!
 If `agroctl` can't connect to etcd, it takes the `-C` flag, just like `etcdctl`
 
 ```
-agroctl -C $ETCD_IP:2378 mkfs
+agroctl -C $ETCD_IP:2379 mkfs
 ```
 
 (This remains true for all uses of agro binaries)
@@ -76,7 +76,7 @@ will tell you more.
 ### 3) Run some storage nodes
 #### Running manually
 ```
-./agro --etcd 127.0.0.1:2378 --peer-address $MY_IP:40000 --data-dir /path/to/data --size 20GiB
+./agro --etcd 127.0.0.1:2379 --peer-address $MY_IP:40000 --data-dir /path/to/data --size 20GiB
 ```
 This runs a storage node without HTTP. Add `--host` and `--port` to open the HTTP endpoint
 
@@ -171,7 +171,7 @@ This creates a 10GiB virtual blockfile for use. It will be safely replicated and
 
 ```
 sudo modprobe nbd
-sudo agromount --etcd 127.0.0.1:2378 nbd myVolume /dev/nbd0
+sudo agromount --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
 ```
 
 Specifying `/dev/nbd0` is optional -- it will pick the first available.

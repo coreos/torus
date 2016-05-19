@@ -11,10 +11,6 @@ spec:
       name: etcd-client
       targetPort: etcd-client
       nodePort: 32379
-    - port: 2378
-      name: etcd-v3
-      targetPort: etcd-v3
-      nodePort: 32378
   selector:
     name: etcd-agro
 ---
@@ -30,9 +26,6 @@ spec:
     - port: 2379
       name: etcd-client
       targetPort: etcd-client
-    - port: 2378
-      name: etcd-v3
-      targetPort: etcd-v3
   selector:
     name: etcd-agro
 ---
@@ -57,15 +50,13 @@ metadata:
   name: etcd-agro
 spec:
   containers:
-  - image: quay.io/coreos/etcd:v2.3.2
+  - image: quay.io/coreos/etcd:v3.0.0-beta.0
     name: etcd-agro
     ports:
     - name: etcd-peers
       containerPort: 2380
     - name: etcd-client
       containerPort: 2379
-    - name: etcd-v3
-      containerPort: 2378
     volumeMounts:
     - name: data
       mountPath: /var/lib/etcd
@@ -88,10 +79,6 @@ spec:
       value: http://0.0.0.0:2379
     - name: ETCD_LISTEN_PEER_URLS
       value: http://$(POD_IP):2380
-    - name: ETCD_EXPERIMENTAL_V3DEMO
-      value: "true"
-    - name: ETCD_EXPERIMENTAL_GRPC_ADDR
-      value: $(POD_IP):2378
   volumes:
     - name: data
       emptyDir: {}

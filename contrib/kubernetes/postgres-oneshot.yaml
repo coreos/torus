@@ -51,4 +51,4 @@ spec:
             fsType: "ext4"
             options:
               volume: "pg1"
-              etcd: "10.3.0.100:2378"
+              etcd: "10.3.0.100:2379"
