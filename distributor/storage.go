@@ -17,12 +17,10 @@ func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	promDistBlockRequests.Inc()
-	if d.readCache != nil {
-		bcache, ok := d.readCache.Get(string(i.ToBytes()))
-		if ok {
-			promDistBlockCacheHits.Inc()
-			return bcache.([]byte), nil
-		}
+	bcache, ok := d.readCache.Get(string(i.ToBytes()))
+	if ok {
+		promDistBlockCacheHits.Inc()
+		return bcache.([]byte), nil
 	}
 	peers, err := d.ring.GetPeers(i)
 	if err != nil {
@@ -157,9 +155,7 @@ func (d *Distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer st
 	blk, err := d.client.GetBlock(ctx, peer, i)
 	// If we're successful, store that.
 	if err == nil {
-		if d.readCache != nil {
-			d.readCache.Put(string(i.ToBytes()), blk)
-		}
+		d.readCache.Put(string(i.ToBytes()), blk)
 		promDistBlockPeerHits.WithLabelValues(peer).Inc()
 		return blk, nil
 	}

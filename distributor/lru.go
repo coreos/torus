@@ -27,6 +27,9 @@ func newCache(size int) *cache {
 }
 
 func (lru *cache) Put(key string, value interface{}) {
+	if lru == nil {
+		return
+	}
 	lru.mut.Lock()
 	defer lru.mut.Unlock()
 	if _, ok := lru.get(key); ok {
@@ -40,6 +43,9 @@ func (lru *cache) Put(key string, value interface{}) {
 }
 
 func (lru *cache) Get(key string) (interface{}, bool) {
+	if lru == nil {
+		return nil, false
+	}
 	lru.mut.Lock()
 	defer lru.mut.Unlock()
 	return lru.get(key)

@@ -5,7 +5,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/betawaffle/trie"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/blockset"
 	"github.com/coreos/agro/gc"
@@ -20,7 +19,7 @@ func init() {
 type blockvolGC struct {
 	srv        *agro.Server
 	inodes     gc.INodeFetcher
-	trie       *trie.Node
+	set        map[agro.BlockRef]bool
 	highwaters map[agro.VolumeID]agro.INodeID
 	curINodes  []agro.INodeRef
 }
@@ -76,9 +75,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 		if err != nil {
 			return err
 		}
-		tx := new(trie.Txn)
 		refs := set.GetAllBlockRefs()
-		tx.Prealloc(len(refs))
 		for _, ref := range refs {
 			if ref.IsZero() {
 				continue
@@ -86,10 +83,8 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 			if ref.INode > b.highwaters[ref.Volume()] {
 				b.highwaters[ref.Volume()] = ref.INode
 			}
-			tx.Put(ref.ToBytes(), true)
+			b.set[ref] = true
 		}
-		tx.Merge(b.trie)
-		b.trie = tx.Commit()
 	}
 	b.curINodes = append(b.curINodes, curINodes...)
 	return nil
@@ -127,7 +122,7 @@ func (b *blockvolGC) IsDead(ref agro.BlockRef) bool {
 		return true
 	}
 	// If it's a data block
-	if v, ok := b.trie.Get(ref.ToBytes()).(bool); v && ok {
+	if v := b.set[ref]; v {
 		return false
 	}
 	if clog.LevelAt(capnslog.TRACE) {
@@ -139,5 +134,5 @@ func (b *blockvolGC) IsDead(ref agro.BlockRef) bool {
 func (b *blockvolGC) Clear() {
 	b.highwaters = make(map[agro.VolumeID]agro.INodeID)
 	b.curINodes = make([]agro.INodeRef, 0, len(b.curINodes))
-	b.trie = nil
+	b.set = make(map[agro.BlockRef]bool)
 }

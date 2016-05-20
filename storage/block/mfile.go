@@ -10,7 +10,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/betawaffle/trie"
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/storage"
 	"github.com/coreos/pkg/capnslog"
@@ -24,47 +23,45 @@ func init() {
 
 type mfileBlock struct {
 	mut       sync.RWMutex
-	data      *storage.MFile
-	blockMap  *storage.MFile
-	blockTrie *trie.Node
+	dataFile  *storage.MFile
+	refFile   *storage.MFile
+	refIndex  map[agro.BlockRef]int
 	closed    bool
 	lastFree  int
-	size      uint64
 	dfilename string
 	mfilename string
 	name      string
 	blocksize uint64
+
+	itPool sync.Pool
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
 var blankRefBytes = make([]byte, agro.BlockRefByteSize)
 
-func loadTrie(m *storage.MFile) (*trie.Node, uint64, error) {
-	var t *trie.Node
-	clog.Infof("loading trie...")
-	size := uint64(0)
+func loadIndex(m *storage.MFile) (map[agro.BlockRef]int, error) {
+	clog.Infof("loading block index...")
 	var membefore uint64
 	if clog.LevelAt(capnslog.DEBUG) {
 		var mem runtime.MemStats
 		runtime.ReadMemStats(&mem)
 		membefore = mem.Alloc
 	}
-
+	out := make(map[agro.BlockRef]int)
 	for i := uint64(0); i < m.NumBlocks(); i++ {
 		b := m.GetBlock(i)
 		if bytes.Equal(blankRefBytes, b) {
 			continue
 		}
-		t = t.Put(b, int(i))
-		size++
+		out[agro.BlockRefFromBytes(b)] = int(i)
 	}
 	if clog.LevelAt(capnslog.DEBUG) {
 		var mem runtime.MemStats
 		runtime.ReadMemStats(&mem)
-		clog.Debugf("trie memory usage: %dK", ((mem.Alloc - membefore) / 1024))
+		clog.Debugf("index memory usage: %dK", ((mem.Alloc - membefore) / 1024))
 	}
-	clog.Infof("done loading trie")
-	return t, size, nil
+	clog.Infof("done loading block index")
+	return out, nil
 }
 
 func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
@@ -81,19 +78,18 @@ func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) 
 	if err != nil {
 		return nil, err
 	}
-	trie, size, err := loadTrie(m)
+	refIndex, err := loadIndex(m)
 	if err != nil {
 		return nil, err
 	}
 	if m.NumBlocks() != d.NumBlocks() {
 		panic("non-equal number of blocks between data and metadata")
 	}
-	promBlocks.WithLabelValues(name).Set(float64(size))
+	promBlocks.WithLabelValues(name).Set(float64(len(refIndex)))
 	return &mfileBlock{
-		data:      d,
-		blockMap:  m,
-		blockTrie: trie,
-		size:      size,
+		dataFile:  d,
+		refFile:   m,
+		refIndex:  refIndex,
 		dfilename: dpath,
 		mfilename: mpath,
 		name:      name,
@@ -113,20 +109,20 @@ func (m *mfileBlock) BlockSize() uint64 {
 }
 
 func (m *mfileBlock) numBlocks() uint64 {
-	return m.data.NumBlocks()
+	return m.dataFile.NumBlocks()
 }
 
 func (m *mfileBlock) UsedBlocks() uint64 {
-	return m.size
+	return uint64(len(m.refIndex))
 }
 
 func (m *mfileBlock) Flush() error {
-	err := m.data.Flush()
+	err := m.dataFile.Flush()
 
 	if err != nil {
 		return err
 	}
-	err = m.blockMap.Flush()
+	err = m.refFile.Flush()
 	if err != nil {
 		return err
 	}
@@ -145,11 +141,11 @@ func (m *mfileBlock) close() error {
 	if m.closed {
 		return nil
 	}
-	err := m.data.Close()
+	err := m.dataFile.Close()
 	if err != nil {
 		return err
 	}
-	err = m.blockMap.Close()
+	err = m.refFile.Close()
 	if err != nil {
 		return err
 	}
@@ -158,11 +154,10 @@ func (m *mfileBlock) close() error {
 }
 
 func (m *mfileBlock) findIndex(s agro.BlockRef) int {
-	id := s.ToBytes()
 	if clog.LevelAt(capnslog.TRACE) {
 		clog.Tracef("finding blockid %s", s)
 	}
-	if v, ok := m.blockTrie.Get(id).(int); ok {
+	if v, ok := m.refIndex[s]; ok {
 		return v
 	}
 	return -1
@@ -171,7 +166,7 @@ func (m *mfileBlock) findIndex(s agro.BlockRef) int {
 func (m *mfileBlock) findEmpty() int {
 	emptyBlock := make([]byte, agro.BlockRefByteSize)
 	for i := uint64(0); i < m.numBlocks(); i++ {
-		b := m.blockMap.GetBlock((i + uint64(m.lastFree) + 1) % m.numBlocks())
+		b := m.refFile.GetBlock((i + uint64(m.lastFree) + 1) % m.numBlocks())
 		if bytes.Equal(b, emptyBlock) {
 			m.lastFree = int((i + uint64(m.lastFree) + 1) % m.numBlocks())
 			return m.lastFree
@@ -204,7 +199,7 @@ func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error
 	}
 	clog.Tracef("mfile: getting block at index %d", index)
 	promBlocksRetrieved.WithLabelValues(m.name).Inc()
-	return m.data.GetBlock(uint64(index)), nil
+	return m.dataFile.GetBlock(uint64(index)), nil
 }
 
 func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte) error {
@@ -221,22 +216,20 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 		return agro.ErrOutOfSpace
 	}
 	clog.Tracef("mfile: writing block at index %d", index)
-	err := m.data.WriteBlock(uint64(index), data)
+	err := m.dataFile.WriteBlock(uint64(index), data)
 	if err != nil {
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
-	err = m.blockMap.WriteBlock(uint64(index), s.ToBytes())
+	err = m.refFile.WriteBlock(uint64(index), s.ToBytes())
 	if err != nil {
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
-	tx := m.blockTrie
-	refbytes := s.ToBytes()
-	if oldval := tx.Get(refbytes); oldval != nil {
+	if v := m.findIndex(s); v != -1 {
 		// we already have it
 		clog.Debug("mfile: block already exists", s)
-		olddata := m.data.GetBlock(uint64(oldval.(int)))
+		olddata := m.dataFile.GetBlock(uint64(v))
 		if !bytes.Equal(olddata, data) {
 			clog.Error("getting wrong data for block", s)
 			clog.Errorf("%s, %s", olddata[:10], data[:10])
@@ -245,9 +238,8 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 		// Not an error, if we already have it
 		return nil
 	}
-	m.size++
 	promBlocks.WithLabelValues(m.name).Inc()
-	m.blockTrie = tx.Put(refbytes, index)
+	m.refIndex[s] = index
 	promBlocksWritten.WithLabelValues(m.name).Inc()
 	return nil
 }
@@ -266,23 +258,20 @@ func (m *mfileBlock) WriteBuf(_ context.Context, s agro.BlockRef) ([]byte, error
 		return nil, agro.ErrOutOfSpace
 	}
 	clog.Tracef("mfile: writing block at index %d", index)
-	buf := m.data.GetBlock(uint64(index))
-	err := m.blockMap.WriteBlock(uint64(index), s.ToBytes())
+	buf := m.dataFile.GetBlock(uint64(index))
+	err := m.refFile.WriteBlock(uint64(index), s.ToBytes())
 	if err != nil {
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return nil, err
 	}
-	tx := m.blockTrie
-	refbytes := s.ToBytes()
-	if oldval := tx.Get(refbytes); oldval != nil {
+	if v := m.findIndex(s); v != -1 {
 		// we already have it
 		clog.Debug("mfile: block already exists", s)
 		// Not an error, if we already have it
 		return nil, agro.ErrExists
 	}
-	m.size++
 	promBlocks.WithLabelValues(m.name).Inc()
-	m.blockTrie = tx.Put(refbytes, index)
+	m.refIndex[s] = index
 	promBlocksWritten.WithLabelValues(m.name).Inc()
 	return buf, nil
 }
@@ -300,62 +289,55 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 		clog.Errorf("mfile: deleting non-existent thing? %s", s)
 		return agro.ErrBlockNotExist
 	}
-	err := m.blockMap.WriteBlock(uint64(index), blankRefBytes)
+	err := m.refFile.WriteBlock(uint64(index), blankRefBytes)
 	if err != nil {
 		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
-	m.size--
 	promBlocks.WithLabelValues(m.name).Dec()
-	m.blockTrie = m.blockTrie.Delete(s.ToBytes())
+	delete(m.refIndex, s)
 	promBlocksDeleted.WithLabelValues(m.name).Inc()
 	return nil
 }
 
 func (m *mfileBlock) BlockIterator() agro.BlockIterator {
-	m.mut.Lock()
-	defer m.mut.Unlock()
+	m.mut.RLock()
+	defer m.mut.RUnlock()
+	// TODO(barakmich): Amortize this alloc, eg, with Close() and a sync.Pool
+	l := make([]agro.BlockRef, len(m.refIndex))
+	i := 0
+	for k := range m.refIndex {
+		l[i] = k
+		i++
+	}
 	return &mfileIterator{
-		tx: m.blockTrie,
+		set: l,
+		i:   -1,
 	}
 }
 
 type mfileIterator struct {
-	tx     *trie.Node
-	err    error
-	c      chan *trie.Node
-	result *trie.Node
-	done   bool
+	set  []agro.BlockRef
+	i    int
+	done bool
 }
 
-func (i *mfileIterator) Err() error { return i.err }
+func (i *mfileIterator) Err() error { return nil }
 
 func (i *mfileIterator) Next() bool {
 	if i.done {
 		return false
 	}
-	if i.c == nil {
-		i.c = make(chan *trie.Node)
-		go i.tx.WalkChan(i.c)
-	}
-	var ok bool
-	i.result, ok = <-i.c
-	if !ok {
+	i.i++
+	if i.i == len(i.set) {
 		i.done = true
+		return false
 	}
-	return ok
+	return true
 }
 
 func (i *mfileIterator) BlockRef() agro.BlockRef {
-	return agro.BlockRefFromBytes(i.result.Key())
+	return i.set[i.i]
 }
 
-func (i *mfileIterator) Close() error {
-	if i.done {
-		return nil
-	}
-	for _ = range i.c {
-	}
-	i.done = true
-	return nil
-}
+func (i *mfileIterator) Close() error { return nil }
