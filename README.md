@@ -169,6 +169,8 @@ This creates a 10GiB virtual blockfile for use. It will be safely replicated and
 
 ### 7) Mount that volume via NBD
 
+#### Local NBD
+
 ```
 sudo modprobe nbd
 sudo agromount --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
@@ -188,3 +190,48 @@ sudo mount /dev/nbd0 -o discard,noatime /mnt/agro
 It supports the TRIM SSD command for garbage collecting; `-o discard` enables this.
 
 It is recommended (though not required) to use a log-structured filesystem on these devices, to minimize the chance of corruption. [F2FS](https://en.wikipedia.org/wiki/F2FS) is a good choice, and included in the kernel.
+
+#### NBD Server
+
+To run an NBD server:
+
+```
+agromount --etcd 127.0.0.1:2378 nbdserver
+```
+
+The server listens on the standard NBD port by default, 10809.
+
+To use the NBD server, you need an NBD client. (NBD userspace tools)[https://github.com/yoe/nbd] and [QEMU](https://github.com/qemu/qemu).
+
+For example, we'll load a CoreOS image into agro, list the volume via NBD userspace tools, and boot it in QEMU.
+
+Put CoreOS in a 10 GiB agro volume:
+
+```
+curl -s -o /tmp/coreos_production_image.bin.bz2 http://alpha.release.core-os.net/amd64-usr/current/coreos_production_image.bin.bz2
+bunzip2 /tmp/coreos_production_image.bin.bz2
+agromount --etcd 127.0.0.1:2378 load /tmp/coreos_production_image.bin.bz2 coreos-1 10GiB
+rm /tmp/coreos_production_image.bin
+```
+
+List volumes in the server using NBD userspace tools:
+
+```
+nbd-client -l 127.0.0.1                                                                                                                                                                                           
+```
+
+You can now boot CoreOS from the NBD server in QEMU. To ensure discard commands are passed through, QEMU needs `discard=on` for the block device, and the mount in the VM needs to be mounted with `-o discard`, as above.
+
+
+```
+sudo qemu-system-x86_64 \
+	-enable-kvm \
+	-machine q35 \
+	-m 1024 \
+	-device virtio-scsi-pci,id=scsi \
+	-device scsi-hd,drive=hd \
+	-drive if=none,discard=on,id=hd,format=raw,file=nbd:127.0.0.1:10809:exportname=coreos-1 \
+	-display sdl \
+	-serial mon:stdio
+```
+

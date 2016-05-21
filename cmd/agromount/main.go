@@ -44,7 +44,6 @@ var rootCommand = &cobra.Command{
 
 func init() {
 	rootCommand.AddCommand(aoeCommand)
-	rootCommand.AddCommand(nbdCommand)
 	rootCommand.AddCommand(initCommand)
 	rootCommand.AddCommand(attachCommand)
 	rootCommand.AddCommand(detachCommand)
