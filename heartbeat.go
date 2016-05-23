@@ -3,6 +3,7 @@ package agro
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"time"
 
 	"github.com/coreos/agro/models"
@@ -33,17 +34,22 @@ func init() {
 }
 
 // BeginHeartbeat spawns a goroutine for heartbeats. Non-blocking.
-func (s *Server) BeginHeartbeat(addr string, listen bool) error {
+func (s *Server) BeginHeartbeat(addr *url.URL) error {
 	if s.heartbeating {
 		return nil
 	}
-	if addr != "" {
-		ipaddr, port, err := net.SplitHostPort(addr)
+	if addr != nil {
+		ipaddr, port, err := net.SplitHostPort(addr.Host)
 		if err != nil {
 			return err
 		}
 		ipaddr = autodetectIP(ipaddr)
-		s.peerInfo.Address = fmt.Sprintf("%s:%s", ipaddr, port)
+		advertiseURI := *addr
+		advertiseURI.Host = ipaddr
+		if port != "" {
+			advertiseURI.Host = fmt.Sprintf("%s:%s", ipaddr, port)
+		}
+		s.peerInfo.Address = advertiseURI.String()
 	}
 	var err error
 	s.lease, err = s.MDS.GetLease()

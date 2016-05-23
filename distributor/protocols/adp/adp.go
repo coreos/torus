@@ -33,30 +33,31 @@ var (
 )
 
 type Server struct {
-	handler Handler
-	lst     net.Listener
-	conns   []net.Conn
-	closed  bool
+	handler   Handler
+	lst       net.Listener
+	conns     []net.Conn
+	closed    bool
+	blocksize uint64
 }
 
 type Handler interface {
 	Block(ctx context.Context, ref agro.BlockRef) ([]byte, error)
 	PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) error
 	RebalanceCheck(ctx context.Context, refs []agro.BlockRef) ([]bool, error)
-	BlockSize() uint64
 	WriteBuf(ctx context.Context, ref agro.BlockRef) ([]byte, error)
 }
 
 var _ Handler = &Conn{}
 
-func Serve(addr string, handler Handler) (*Server, error) {
+func Serve(addr string, handler Handler, blocksize uint64) (*Server, error) {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
 	srv := &Server{
-		lst:     l,
-		handler: handler,
+		lst:       l,
+		handler:   handler,
+		blocksize: blocksize,
 	}
 	go srv.serve()
 	return srv, nil
@@ -83,7 +84,7 @@ func (s *Server) serve() {
 func (s *Server) handle(conn net.Conn) {
 	header := make([]byte, 1)
 	refbuf := make([]byte, agro.BlockRefByteSize)
-	null := make([]byte, s.handler.BlockSize())
+	null := make([]byte, s.blocksize)
 	//	databuf := make([]byte, s.handler.BlockSize())
 	for {
 		err := readConnIntoBuffer(conn, header)

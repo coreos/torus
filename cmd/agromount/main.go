@@ -9,10 +9,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/coreos/agro"
-
-	// Register all the drivers.
 	"github.com/coreos/agro/distributor"
 	"github.com/coreos/agro/internal/http"
+
+	// Register all the drivers.
+	_ "github.com/coreos/agro/distributor/protocols"
 	_ "github.com/coreos/agro/metadata/etcd"
 	_ "github.com/coreos/agro/storage/block"
 )

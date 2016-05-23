@@ -1,11 +1,11 @@
 package distributor
 
 import (
+	"net/url"
 	"sync"
 	"time"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/distributor/adp"
 	"golang.org/x/net/context"
 )
 
@@ -21,7 +21,7 @@ const (
 type distClient struct {
 	dist *Distributor
 	//TODO(barakmich): Better connection pooling
-	openConns map[string]*adp.Conn
+	openConns map[string]RPC
 	mut       sync.Mutex
 }
 
@@ -29,7 +29,7 @@ func newDistClient(d *Distributor) *distClient {
 
 	client := &distClient{
 		dist:      d,
-		openConns: make(map[string]*adp.Conn),
+		openConns: make(map[string]RPC),
 	}
 	d.srv.AddTimeoutCallback(client.onPeerTimeout)
 	return client
@@ -49,7 +49,7 @@ func (d *distClient) onPeerTimeout(uuid string) {
 	delete(d.openConns, uuid)
 
 }
-func (d *distClient) getConn(uuid string) *adp.Conn {
+func (d *distClient) getConn(uuid string) RPC {
 	d.mut.Lock()
 	defer d.mut.Unlock()
 	if conn, ok := d.openConns[uuid]; ok {
@@ -69,8 +69,18 @@ func (d *distClient) getConn(uuid string) *adp.Conn {
 	if pi.TimedOut {
 		return nil
 	}
+	uri, err := url.Parse(pi.Address)
+	if err != nil {
+		clog.Errorf("couldn't parse address: %s", pi.Address)
+		return nil
+	}
+	gmd, err := d.dist.srv.MDS.GlobalMetadata()
+	if err != nil {
+		clog.Errorf("couldn't get GMD: %s", err)
+		return nil
+	}
 	d.mut.Unlock()
-	conn, err := adp.Dial(pi.Address, connectTimeout, d.dist.BlockSize())
+	conn, err := DialRPC(uri, connectTimeout, gmd)
 	d.mut.Lock()
 	if err != nil {
 		clog.Errorf("couldn't dial: %v", err)
