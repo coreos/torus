@@ -25,6 +25,7 @@ const (
 	ioctlSetBlockSize  = 43777
 	ioctlDoIt          = 43779
 	ioctlClearSock     = 43780
+	ioctlClearQueue    = 43781
 	ioctlSetSizeBlocks = 43783
 	ioctlDisconnect    = 43784
 	ioctlSetFlags      = 43786
@@ -195,8 +196,23 @@ func (nbd *NBD) Close() error {
 	// FIXME: Now I understand what these did, and it terrifies me.
 	// syscall.Write(nbd.setsocket, make([]byte, 28))
 	// syscall.Close(nbd.setsocket)
+	nbd.Disconnect()
 	syscall.Close(nbd.socket)
 	return nbd.nbd.Close()
+}
+
+func (nbd *NBD) Disconnect() error {
+	if nbd.nbd == nil {
+		return nil
+	}
+	if err := ioctl(nbd.nbd.Fd(), ioctlDisconnect, 0); err != nil {
+		return &os.PathError{
+			Path: nbd.nbd.Name(),
+			Op:   "ioctl NBD_DISCONNECT",
+			Err:  err,
+		}
+	}
+	return nil
 }
 
 func waitDisconnect(f *os.File) error {
@@ -211,10 +227,10 @@ func waitDisconnect(f *os.File) error {
 			Err:  err,
 		}
 	}
-	if err := ioctl(f.Fd(), ioctlDisconnect, 0); err != nil {
+	if err := ioctl(f.Fd(), ioctlClearQueue, 0); err != nil {
 		return &os.PathError{
 			Path: f.Name(),
-			Op:   "ioctl NBD_DISCONNECT",
+			Op:   "ioctl NBD_CLEAR_QUEUE",
 			Err:  err,
 		}
 	}
@@ -277,6 +293,7 @@ func (c *serverConn) serveLoop(dev Device, wg *sync.WaitGroup) error {
 			} else {
 				hdr.putReplyHeader(buf, 0)
 			}
+			buf = buf[:16]
 		case cmdTrim:
 			if err := dev.Trim(hdr.offset(), int64(hdr.length())); err != nil {
 				log.Printf("nbd: trim error: %s", err)
@@ -309,6 +326,10 @@ type reqHeader [28]byte
 
 func (h *reqHeader) command() (cmd, flags uint16) {
 	return binary.BigEndian.Uint16(h[6:8]), binary.BigEndian.Uint16(h[4:6])
+}
+
+func (h *reqHeader) handle() uint64 {
+	return binary.BigEndian.Uint64(h[8:16])
 }
 
 func (h *reqHeader) length() uint32 {
