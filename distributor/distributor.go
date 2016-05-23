@@ -1,10 +1,10 @@
 package distributor
 
 import (
+	"net/url"
 	"sync"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/distributor/adp"
 	"github.com/coreos/agro/distributor/rebalance"
 	"github.com/coreos/agro/gc"
 	"github.com/coreos/pkg/capnslog"
@@ -19,7 +19,7 @@ type Distributor struct {
 	blocks    agro.BlockStore
 	srv       *agro.Server
 	client    *distClient
-	adpSrv    *adp.Server
+	rpcSrv    RPCServer
 	readCache *cache
 
 	ring            agro.Ring
@@ -30,21 +30,21 @@ type Distributor struct {
 	rebalancing     bool
 }
 
-func newDistributor(srv *agro.Server, addr string, listen bool) (*Distributor, error) {
+func newDistributor(srv *agro.Server, addr *url.URL) (*Distributor, error) {
 	var err error
 	d := &Distributor{
 		blocks: srv.Blocks,
 		srv:    srv,
 	}
-	if listen {
-		d.adpSrv, err = adp.Serve(addr, d)
-		if err != nil {
-			return nil, err
-		}
-	}
 	gmd, err := d.srv.MDS.GlobalMetadata()
 	if err != nil {
 		return nil, err
+	}
+	if addr != nil {
+		d.rpcSrv, err = ListenRPC(addr, d, gmd)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if srv.Cfg.ReadCacheSize != 0 {
 		size := srv.Cfg.ReadCacheSize / gmd.BlockSize
@@ -87,8 +87,8 @@ func (d *Distributor) Close() error {
 	}
 	close(d.rebalancerChan)
 	close(d.ringWatcherChan)
-	if d.adpSrv != nil {
-		d.adpSrv.Close()
+	if d.rpcSrv != nil {
+		d.rpcSrv.Close()
 	}
 	d.client.Close()
 	err := d.blocks.Close()

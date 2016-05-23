@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 
@@ -18,6 +19,7 @@ import (
 
 	// Register all the possible drivers.
 	_ "github.com/coreos/agro/block"
+	_ "github.com/coreos/agro/distributor/protocols"
 	_ "github.com/coreos/agro/metadata/etcd"
 	_ "github.com/coreos/agro/metadata/temp"
 	_ "github.com/coreos/agro/storage/block"
@@ -186,7 +188,12 @@ func runServer(cmd *cobra.Command, args []string) {
 	signal.Notify(signalChan, os.Interrupt)
 
 	if peerAddress != "" {
-		err = distributor.ListenReplication(srv, peerAddress)
+		u, err := url.Parse(peerAddress)
+		if err != nil {
+			fmt.Printf("Couldn't parse peer address %s: %s\n", peerAddress, err)
+			os.Exit(1)
+		}
+		err = distributor.ListenReplication(srv, u)
 	} else {
 		err = distributor.OpenReplication(srv)
 	}
