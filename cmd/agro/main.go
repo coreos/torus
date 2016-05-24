@@ -54,7 +54,7 @@ var rootCommand = &cobra.Command{
 }
 
 func init() {
-	rootCommand.PersistentFlags().StringVarP(&dataDir, "datadir", "", "/tmp/agro", "Path to the data directory")
+	rootCommand.PersistentFlags().StringVarP(&dataDir, "data-dir", "", "", "Path to the data directory")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
 	rootCommand.PersistentFlags().BoolVarP(&mkfs, "debug-mkfs", "", false, "Run a default mkfs if one doesn't exist")
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "", "", "Address for talking to etcd")
