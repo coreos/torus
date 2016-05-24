@@ -178,7 +178,10 @@ func (nbd *NBD) Serve() error {
 	c := &serverConn{
 		rw: os.NewFile(uintptr(nbd.socket), "<nbd socket>"),
 	}
-	n := runtime.GOMAXPROCS(0)
+	// TODO(barakmich): Scale up NBD by handling multiple requests.
+	// Requires thread-safety across the block.BlockFile/agro.File
+	//n := runtime.GOMAXPROCS(0) - 1
+	n := 1
 
 	wg := new(sync.WaitGroup)
 	wg.Add(n)
