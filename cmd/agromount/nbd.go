@@ -81,7 +81,7 @@ func connectNBD(srv *agro.Server, f *block.BlockFile, target string, closer chan
 		}
 	}
 
-	dev, err := handle.ConnectDevice(target)
+	dev, err := handle.OpenDevice(target)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -90,8 +90,13 @@ func connectNBD(srv *agro.Server, f *block.BlockFile, target string, closer chan
 
 	go func(n *nbd.NBD) {
 		<-closer
-		n.Close()
+		n.Disconnect()
 	}(handle)
 
-	return handle.Serve()
+	err = handle.Serve()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error from nbd server: %s\n", err)
+		os.Exit(1)
+	}
+	return handle.Close()
 }
