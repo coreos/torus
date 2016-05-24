@@ -133,6 +133,12 @@ func configureServer(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "invalid writelevel; use one of 'one', 'all', or 'local'")
 		os.Exit(1)
 	}
+
+	if dataDir == "" {
+		fmt.Fprintf(os.Stderr, "invalid data-dir: must be a non-empty string")
+		os.Exit(1)
+	}
+
 	cfg = agro.Config{
 		DataDir:         dataDir,
 		StorageSize:     size,
