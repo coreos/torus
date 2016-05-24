@@ -2,11 +2,13 @@ package distributor
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/metadata/temp"
+
 	_ "github.com/coreos/agro/storage/block"
 )
 
@@ -26,7 +28,12 @@ func createThree(t *testing.T) ([]*agro.Server, *temp.Server) {
 	s := temp.NewServer()
 	for i := 0; i < 3; i++ {
 		srv := newServer(s)
-		err := ListenReplication(srv, fmt.Sprintf("127.0.0.1:%d", 40000+i))
+		addr := fmt.Sprintf("adp://127.0.0.1:%d", 40000+i)
+		uri, err := url.Parse(addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = ListenReplication(srv, uri)
 		if err != nil {
 			t.Fatal(err)
 		}

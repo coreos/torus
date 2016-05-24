@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/coreos/agro/metadata/temp"
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
+
 	_ "github.com/coreos/agro/storage/block"
 )
 
@@ -46,7 +48,12 @@ func createN(t testing.TB, n int) ([]*agro.Server, *temp.Server) {
 	s := temp.NewServer()
 	for i := 0; i < n; i++ {
 		srv := newServer(t, s)
-		err := distributor.ListenReplication(srv, fmt.Sprintf("127.0.0.1:%d", 40000+i))
+		addr := fmt.Sprintf("adp://127.0.0.1:%d", 40000+i)
+		uri, err := url.Parse(addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = distributor.ListenReplication(srv, uri)
 		if err != nil {
 			t.Fatal(err)
 		}

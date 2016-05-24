@@ -7,24 +7,24 @@ import (
 	"time"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/distributor"
+	"github.com/coreos/agro/distributor/protocols"
 )
 
 const defaultPort = "40000"
 
 func init() {
-	distributor.RegisterRPCListener("adp", adpRPCListener)
-	distributor.RegisterRPCDialer("adp", adpRPCDialer)
+	protocols.RegisterRPCListener("adp", adpRPCListener)
+	protocols.RegisterRPCDialer("adp", adpRPCDialer)
 }
 
-func adpRPCListener(url *url.URL, handler distributor.RPC, gmd agro.GlobalMetadata) (distributor.RPCServer, error) {
+func adpRPCListener(url *url.URL, handler protocols.RPC, gmd agro.GlobalMetadata) (protocols.RPCServer, error) {
 	if strings.Contains(url.Host, ":") {
 		return Serve(url.Host, handler, gmd.BlockSize)
 	}
 	return Serve(net.JoinHostPort(url.Host, defaultPort), handler, gmd.BlockSize)
 }
 
-func adpRPCDialer(url *url.URL, timeout time.Duration, gmd agro.GlobalMetadata) (distributor.RPC, error) {
+func adpRPCDialer(url *url.URL, timeout time.Duration, gmd agro.GlobalMetadata) (protocols.RPC, error) {
 	if strings.Contains(url.Host, ":") {
 		return Dial(url.Host, timeout, gmd.BlockSize)
 	}

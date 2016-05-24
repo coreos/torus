@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/distributor/protocols"
 	"golang.org/x/net/context"
 )
 
@@ -21,7 +22,7 @@ const (
 type distClient struct {
 	dist *Distributor
 	//TODO(barakmich): Better connection pooling
-	openConns map[string]RPC
+	openConns map[string]protocols.RPC
 	mut       sync.Mutex
 }
 
@@ -29,7 +30,7 @@ func newDistClient(d *Distributor) *distClient {
 
 	client := &distClient{
 		dist:      d,
-		openConns: make(map[string]RPC),
+		openConns: make(map[string]protocols.RPC),
 	}
 	d.srv.AddTimeoutCallback(client.onPeerTimeout)
 	return client
@@ -49,7 +50,7 @@ func (d *distClient) onPeerTimeout(uuid string) {
 	delete(d.openConns, uuid)
 
 }
-func (d *distClient) getConn(uuid string) RPC {
+func (d *distClient) getConn(uuid string) protocols.RPC {
 	d.mut.Lock()
 	defer d.mut.Unlock()
 	if conn, ok := d.openConns[uuid]; ok {
@@ -80,7 +81,7 @@ func (d *distClient) getConn(uuid string) RPC {
 		return nil
 	}
 	d.mut.Unlock()
-	conn, err := DialRPC(uri, connectTimeout, gmd)
+	conn, err := protocols.DialRPC(uri, connectTimeout, gmd)
 	d.mut.Lock()
 	if err != nil {
 		clog.Errorf("couldn't dial: %v", err)

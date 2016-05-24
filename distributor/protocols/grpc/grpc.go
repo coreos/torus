@@ -11,18 +11,18 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/agro"
-	"github.com/coreos/agro/distributor"
+	"github.com/coreos/agro/distributor/protocols"
 	"github.com/coreos/agro/models"
 )
 
 const defaultPort = "40000"
 
 func init() {
-	distributor.RegisterRPCListener("http", grpcRPCListener)
-	distributor.RegisterRPCDialer("http", grpcRPCDialer)
+	protocols.RegisterRPCListener("http", grpcRPCListener)
+	protocols.RegisterRPCDialer("http", grpcRPCDialer)
 }
 
-func grpcRPCListener(url *url.URL, hdl distributor.RPC, gmd agro.GlobalMetadata) (distributor.RPCServer, error) {
+func grpcRPCListener(url *url.URL, hdl protocols.RPC, gmd agro.GlobalMetadata) (protocols.RPCServer, error) {
 	out := &handler{
 		handle: hdl,
 	}
@@ -40,7 +40,7 @@ func grpcRPCListener(url *url.URL, hdl distributor.RPC, gmd agro.GlobalMetadata)
 	return out, nil
 }
 
-func grpcRPCDialer(url *url.URL, timeout time.Duration, gmd agro.GlobalMetadata) (distributor.RPC, error) {
+func grpcRPCDialer(url *url.URL, timeout time.Duration, gmd agro.GlobalMetadata) (protocols.RPC, error) {
 	h := url.Host
 	if !strings.Contains(h, ":") {
 		h = net.JoinHostPort(h, defaultPort)
@@ -103,7 +103,7 @@ func (c *client) WriteBuf(ctx context.Context, ref agro.BlockRef) ([]byte, error
 }
 
 type handler struct {
-	handle distributor.RPC
+	handle protocols.RPC
 	grpc   *grpc.Server
 }
 

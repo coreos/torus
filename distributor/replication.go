@@ -5,6 +5,10 @@ import (
 	"strings"
 
 	"github.com/coreos/agro"
+
+	// Import all the protocols we understand
+	_ "github.com/coreos/agro/distributor/protocols/adp"
+	_ "github.com/coreos/agro/distributor/protocols/grpc"
 )
 
 // ListenReplication opens the internal networking port and connects to the cluster

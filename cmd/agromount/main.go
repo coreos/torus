@@ -13,7 +13,6 @@ import (
 	"github.com/coreos/agro/internal/http"
 
 	// Register all the drivers.
-	_ "github.com/coreos/agro/distributor/protocols"
 	_ "github.com/coreos/agro/metadata/etcd"
 	_ "github.com/coreos/agro/storage/block"
 )

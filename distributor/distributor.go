@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/coreos/agro"
+	"github.com/coreos/agro/distributor/protocols"
 	"github.com/coreos/agro/distributor/rebalance"
 	"github.com/coreos/agro/gc"
 	"github.com/coreos/pkg/capnslog"
@@ -19,7 +20,7 @@ type Distributor struct {
 	blocks    agro.BlockStore
 	srv       *agro.Server
 	client    *distClient
-	rpcSrv    RPCServer
+	rpcSrv    protocols.RPCServer
 	readCache *cache
 
 	ring            agro.Ring
@@ -41,7 +42,7 @@ func newDistributor(srv *agro.Server, addr *url.URL) (*Distributor, error) {
 		return nil, err
 	}
 	if addr != nil {
-		d.rpcSrv, err = ListenRPC(addr, d, gmd)
+		d.rpcSrv, err = protocols.ListenRPC(addr, d, gmd)
 		if err != nil {
 			return nil, err
 		}
