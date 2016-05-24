@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	StorageSize = 512 * 1024 * 1024
-	BlockSize   = 256 * 1024
+	StorageSize = 512 * 1024 * 100
+	BlockSize   = 256
 )
 
 func newServer(t testing.TB, md *temp.Server) *agro.Server {
@@ -48,7 +48,7 @@ func createN(t testing.TB, n int) ([]*agro.Server, *temp.Server) {
 	s := temp.NewServer()
 	for i := 0; i < n; i++ {
 		srv := newServer(t, s)
-		addr := fmt.Sprintf("adp://127.0.0.1:%d", 40000+i)
+		addr := fmt.Sprintf("http://127.0.0.1:%d", 40000+i)
 		uri, err := url.Parse(addr)
 		if err != nil {
 			t.Fatal(err)
@@ -165,22 +165,6 @@ func TestLoadAndDump(t *testing.T) {
 	}
 	fmt.Printf("copied %d bytes\n", copied)
 
-	for _, x := range servers {
-		it := x.Blocks.BlockIterator()
-		for {
-			ok := it.Next()
-			if !ok {
-				err := it.Err()
-				if err != nil {
-					t.Fatal(err)
-				}
-				break
-			}
-			ref := it.BlockRef()
-			t.Log(ref)
-		}
-	}
-
 	compareBytes(t, mds, data, "testvol")
 	closeAll(t, servers...)
 }
@@ -248,7 +232,7 @@ func BenchmarkLoadOne(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer client.Close()
-	size := BlockSize * 1024
+	size := BlockSize * 100
 	data := makeTestData(size)
 
 	b.StartTimer()
@@ -301,7 +285,7 @@ func BenchmarkLoadThree(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer client.Close()
-	size := BlockSize * 1024
+	size := BlockSize * 100
 	data := makeTestData(size)
 
 	b.StartTimer()

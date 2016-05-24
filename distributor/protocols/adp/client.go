@@ -32,6 +32,7 @@ type result struct {
 type Conn struct {
 	mut       sync.Mutex
 	close     chan bool
+	closed    bool
 	err       error
 	conn      net.Conn
 	blockSize int
@@ -189,6 +190,11 @@ func (c *Conn) WriteBuf(_ context.Context, _ agro.BlockRef) ([]byte, error) {
 }
 
 func (c *Conn) Close() error {
-	close(c.close)
+	c.mut.Lock()
+	defer c.mut.Unlock()
+	if !c.closed {
+		close(c.close)
+	}
+	c.closed = true
 	return nil
 }
