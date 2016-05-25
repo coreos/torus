@@ -31,7 +31,7 @@ if [ ${DROP_MOUNT_BIN} -eq "1" ]; then
   cp `which agroblock` /plugin/coreos.com~agro/agro
 fi
 
-if [ ${LOG_FLAGS} != "" ]; then
+if [ "${LOG_FLAGS}" != "" ]; then
   AGRO_FLAGS="$AGRO_FLAGS --logpkg=${LOG_FLAGS}"
 fi
 

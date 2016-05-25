@@ -51,7 +51,11 @@ func nbdAction(cmd *cobra.Command, args []string) {
 
 	f, err := blockvol.OpenBlockFile()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
+		if err == agro.ErrLocked {
+			fmt.Fprintf(os.Stderr, "volume %s is already mounted on another host\n", args[0])
+		} else {
+			fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
+		}
 		os.Exit(1)
 	}
 	defer f.Close()
