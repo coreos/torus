@@ -94,29 +94,29 @@ func CreateMetadataService(name string, cfg Config) (MetadataService, error) {
 	return nil, fmt.Errorf("agro: the metadata service %q doesn't exist", name)
 }
 
-// MkfsFunc is the signature of a function which preformats a metadata service.
-type MkfsFunc func(cfg Config, gmd GlobalMetadata, ringType RingType) error
+// InitMDSFunc is the signature of a function which preformats a metadata service.
+type InitMDSFunc func(cfg Config, gmd GlobalMetadata, ringType RingType) error
 
-var mkfsFuncs map[string]MkfsFunc
+var initMDSFuncs map[string]InitMDSFunc
 
-// RegisterMkfs is the hook used for implementions of
+// RegisterMetadataInit is the hook used for implementions of
 // MetadataServices to register their ways of creating base metadata to the system.
-func RegisterMkfs(name string, newFunc MkfsFunc) {
-	if mkfsFuncs == nil {
-		mkfsFuncs = make(map[string]MkfsFunc)
+func RegisterMetadataInit(name string, newFunc InitMDSFunc) {
+	if initMDSFuncs == nil {
+		initMDSFuncs = make(map[string]InitMDSFunc)
 	}
 
-	if _, ok := mkfsFuncs[name]; ok {
-		panic("agro: attempted to register MkfsFunc " + name + " twice")
+	if _, ok := initMDSFuncs[name]; ok {
+		panic("agro: attempted to register InitMDSFunc " + name + " twice")
 	}
 
-	mkfsFuncs[name] = newFunc
+	initMDSFuncs[name] = newFunc
 }
 
-// Mkfs calls the specific Mkfs function provided by a metadata package.
-func Mkfs(name string, cfg Config, gmd GlobalMetadata, ringType RingType) error {
-	clog.Debugf("running mkfs for service type: %s", name)
-	return mkfsFuncs[name](cfg, gmd, ringType)
+// InitMDS calls the specific init function provided by a metadata package.
+func InitMDS(name string, cfg Config, gmd GlobalMetadata, ringType RingType) error {
+	clog.Debugf("running InitMDS for service type: %s", name)
+	return initMDSFuncs[name](cfg, gmd, ringType)
 }
 
 type SetRingFunc func(cfg Config, r Ring) error

@@ -9,7 +9,7 @@ set -e
 : ${DEBUG:=0}
 : ${STORAGE_SIZE:=2GiB}
 : ${AUTO_JOIN:=0}
-: ${DEBUG_MKFS:=0}
+: ${DEBUG_INIT:=0}
 : ${DROP_MOUNT_BIN:=0}
 : ${LOG_FLAGS:=""}
 
@@ -22,8 +22,8 @@ if [ ${AUTO_JOIN} -eq "1" ]; then
   AGRO_FLAGS="$AGRO_FLAGS --auto-join"
 fi
 
-if [ ${DEBUG_MKFS} -eq "1" ]; then
-  AGRO_FLAGS="$AGRO_FLAGS --debug-mkfs"
+if [ ${DEBUG_INIT} -eq "1" ]; then
+  AGRO_FLAGS="$AGRO_FLAGS --debug-init"
 fi
 
 if [ ${DROP_MOUNT_BIN} -eq "1" ]; then

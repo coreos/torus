@@ -115,7 +115,7 @@ spec:
               fieldPath: status.podIP
         - name: AUTO_JOIN
           value: "1"
-        - name: DEBUG_MKFS
+        - name: DEBUG_INIT
           value: "1"
         - name: DROP_MOUNT_BIN
           value: "0"

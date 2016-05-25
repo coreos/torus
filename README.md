@@ -49,12 +49,12 @@ etcd --data-dir /tmp/etcd
 
 [Clustering etcd v3.0 is left as an exercise to the reader](https://github.com/coreos/etcd/blob/master/Documentation/op-guide/clustering.md) but it's a pretty common thing to do if you're running on CoreOS.
 
-### 2) mkfs
+### 2) init
 
 We need to initialize the storage keys in etcd. This sets the fixed, global settings for the storage cluster, much like formatting a block device. Fortunately, the default settings should suffice for most cases.
 
 ```
-agroctl mkfs
+agroctl init
 ```
 
 And you're ready!
@@ -62,14 +62,14 @@ And you're ready!
 If `agroctl` can't connect to etcd, it takes the `-C` flag, just like `etcdctl`
 
 ```
-agroctl -C $ETCD_IP:2379 mkfs
+agroctl -C $ETCD_IP:2379 init
 ```
 
 (This remains true for all uses of agro binaries)
 
 If you're curious about the other settings, 
 ```
-agroctl mkfs --help
+agroctl init --help
 ```
 will tell you more.
 

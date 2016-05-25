@@ -20,21 +20,21 @@ var (
 	noMakeRing       bool
 )
 
-var mkfsCommand = &cobra.Command{
-	Use:    "mkfs",
-	Short:  "Prepare a new filesystem by creating the metadata",
-	PreRun: mkfsPreRun,
-	Run:    mkfsAction,
+var initCommand = &cobra.Command{
+	Use:    "init",
+	Short:  "Prepare a new agro cluster by creating the metadata",
+	PreRun: initPreRun,
+	Run:    initAction,
 }
 
 func init() {
-	mkfsCommand.Flags().StringVarP(&blockSizeStr, "block-size", "", "512KiB", "size of all data blocks in this filesystem")
-	mkfsCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this filesystem")
-	mkfsCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
-	mkfsCommand.Flags().BoolVar(&noMakeRing, "no-ring", false, "do not create the default ring as part of mkfs")
+	initCommand.Flags().StringVarP(&blockSizeStr, "block-size", "", "512KiB", "size of all data blocks in this filesystem")
+	initCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this filesystem")
+	initCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
+	initCommand.Flags().BoolVar(&noMakeRing, "no-ring", false, "do not create the default ring as part of init")
 }
 
-func mkfsPreRun(cmd *cobra.Command, args []string) {
+func initPreRun(cmd *cobra.Command, args []string) {
 	// We *always* need base.
 	if !strings.HasSuffix(blockSpec, ",base") {
 		blockSpec += ",base"
@@ -46,7 +46,7 @@ func mkfsPreRun(cmd *cobra.Command, args []string) {
 	}
 }
 
-func mkfsAction(cmd *cobra.Command, args []string) {
+func initAction(cmd *cobra.Command, args []string) {
 	var err error
 	md := agro.GlobalMetadata{}
 	md.BlockSize = blockSize
@@ -63,7 +63,7 @@ func mkfsAction(cmd *cobra.Command, args []string) {
 	if noMakeRing {
 		ringType = ring.Empty
 	}
-	err = agro.Mkfs("etcd", cfg, md, ringType)
+	err = agro.InitMDS("etcd", cfg, md, ringType)
 	if err != nil {
 		die("error writing metadata: %v", err)
 	}

@@ -4,7 +4,7 @@ build:
 	go build ./cmd/agromount
 
 run:
-	./agro --etcd 127.0.0.1:2379 --debug --debug-mkfs --peer-address 127.0.0.1:40000
+	./agro --etcd 127.0.0.1:2379 --debug --debug-init --peer-address 127.0.0.1:40000
 
 clean:
 	rm -rf ./local-cluster

@@ -35,7 +35,7 @@ var (
 	size             uint64
 	host             string
 	port             int
-	mkfs             bool
+	debugInit        bool
 	autojoin         bool
 	logpkg           string
 	readLevel        string
@@ -56,7 +56,7 @@ var rootCommand = &cobra.Command{
 func init() {
 	rootCommand.PersistentFlags().StringVarP(&dataDir, "datadir", "", "/tmp/agro", "Path to the data directory")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
-	rootCommand.PersistentFlags().BoolVarP(&mkfs, "debug-mkfs", "", false, "Run a default mkfs if one doesn't exist")
+	rootCommand.PersistentFlags().BoolVarP(&debugInit, "debug-init", "", false, "Run a default init for the MDS if one doesn't exist")
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "", "", "Address for talking to etcd")
 	rootCommand.PersistentFlags().StringVarP(&host, "host", "", "127.0.0.1", "Host to listen on for HTTP")
 	rootCommand.PersistentFlags().IntVarP(&port, "port", "", 4321, "Port to listen on for HTTP")
@@ -152,17 +152,17 @@ func runServer(cmd *cobra.Command, args []string) {
 	switch {
 	case etcdAddress == "":
 		srv, err = agro.NewServer(cfg, "temp", "mfile")
-	case mkfs:
-		err = agro.Mkfs("etcd", cfg, agro.GlobalMetadata{
+	case debugInit:
+		err = agro.InitMDS("etcd", cfg, agro.GlobalMetadata{
 			BlockSize:        512 * 1024,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 			INodeReplication: 2,
 		}, ring.Ketama)
 		if err != nil {
 			if err == agro.ErrExists {
-				fmt.Println("debug-mkfs: Already exists")
+				fmt.Println("debug-init: Already exists")
 			} else {
-				fmt.Printf("Couldn't debug-mkfs: %s\n", err)
+				fmt.Printf("Couldn't debug-init: %s\n", err)
 				os.Exit(1)
 			}
 		}

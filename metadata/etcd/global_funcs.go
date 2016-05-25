@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func mkfs(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) error {
+func initEtcdMetadata(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) error {
 	gmdbytes, err := json.Marshal(gmd)
 	if err != nil {
 		return err

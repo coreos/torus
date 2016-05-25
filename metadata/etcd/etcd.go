@@ -40,7 +40,7 @@ var (
 
 func init() {
 	agro.RegisterMetadataService("etcd", newEtcdMetadata)
-	agro.RegisterMkfs("etcd", mkfs)
+	agro.RegisterMetadataInit("etcd", initEtcdMetadata)
 	agro.RegisterSetRing("etcd", setRing)
 
 	prometheus.MustRegister(promAtomicRetries)

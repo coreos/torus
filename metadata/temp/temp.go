@@ -51,7 +51,6 @@ func NewServer() *Server {
 	}
 	return &Server{
 		volIndex: make(map[string]*models.Volume),
-		// TODO(barakmich): Allow creating of dynamic GMD via mkfs to the metadata directory.
 		global: agro.GlobalMetadata{
 			BlockSize:        256,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
