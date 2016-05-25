@@ -44,5 +44,5 @@ func addrToUri(addr string) (*url.URL, error) {
 		// Looks like a full uri
 		return url.Parse(addr)
 	}
-	return url.Parse("adp://" + addr)
+	return url.Parse("http://" + addr)
 }

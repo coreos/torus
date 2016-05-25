@@ -28,7 +28,7 @@ func createThree(t *testing.T) ([]*agro.Server, *temp.Server) {
 	s := temp.NewServer()
 	for i := 0; i < 3; i++ {
 		srv := newServer(s)
-		addr := fmt.Sprintf("adp://127.0.0.1:%d", 40000+i)
+		addr := fmt.Sprintf("http://127.0.0.1:%d", 40000+i)
 		uri, err := url.Parse(addr)
 		if err != nil {
 			t.Fatal(err)

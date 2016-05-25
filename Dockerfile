@@ -9,7 +9,7 @@ ADD . .
 RUN go get -d ./...
 RUN go install -v github.com/coreos/agro/cmd/agro
 RUN go install -v github.com/coreos/agro/cmd/agroctl
-RUN go install -v github.com/coreos/agro/cmd/agromount
+RUN go install -v github.com/coreos/agro/cmd/agroblock
 
 # Expose the port and volume for configuration and data persistence.
 VOLUME ["/data", "/plugin"]

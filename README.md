@@ -26,7 +26,7 @@ Then one of:
 ```
 go install -v github.com/coreos/agro/cmd/agro
 go install -v github.com/coreos/agro/cmd/agroctl
-go install -v github.com/coreos/agro/cmd/agromount
+go install -v github.com/coreos/agro/cmd/agroblock
 ```
 
 or 
@@ -36,7 +36,7 @@ cd $GOPATH/src/github.com/coreos/agro
 make
 ```
 
-Either way you'll find the binaries `agro`, `agromount` and `agroctl`.
+Either way you'll find the binaries `agro`, `agromount` and `agroblock`.
 
 ### 1) Get etcd
 You need a *v3.0* [etcd](https://github.com/coreos/etcd), as agro uses the v3 API natively and depends on some fixes therein. 
@@ -162,7 +162,7 @@ Even better fault tolerance with erasure codes and parity is an advanced topic T
 ### 6) Create a volume
 
 ```
-agroctl volume create-block myVolume 10GiB
+agroblock volume create myVolume 10GiB
 ```
 
 This creates a 10GiB virtual blockfile for use. It will be safely replicated and CRC checked, by default. 
@@ -171,7 +171,7 @@ This creates a 10GiB virtual blockfile for use. It will be safely replicated and
 
 ```
 sudo modprobe nbd
-sudo agromount --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
+sudo agroblock --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
 ```
 
 Specifying `/dev/nbd0` is optional -- it will pick the first available.

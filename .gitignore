@@ -31,7 +31,7 @@ _testmain.go
 # Binaries in root dir
 agro
 agroctl
-agromount
+agroblock
 
 # local-cluster information
 /local-cluster

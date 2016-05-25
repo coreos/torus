@@ -1,7 +1,7 @@
 build:
 	go build ./cmd/agro
 	go build ./cmd/agroctl
-	go build ./cmd/agromount
+	go build ./cmd/agroblock
 
 run:
 	./agro --etcd 127.0.0.1:2379 --debug --debug-init --peer-address 127.0.0.1:40000

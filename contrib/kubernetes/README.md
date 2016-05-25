@@ -35,7 +35,7 @@ agroctl -C $IP_IN_CLUSTER:32379 list-peers
 Which should tell you everything about the cluster. Create a volume, eg:
 
 ```
-agroctl -C $IP_IN_CLUSTER:32379 volume create-block pg1 2GiB
+agroblock -C $IP_IN_CLUSTER:32379 volume create pg1 2GiB
 ```
 
 ## 5) Run Postgres

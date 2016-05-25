@@ -28,11 +28,11 @@ fi
 
 if [ ${DROP_MOUNT_BIN} -eq "1" ]; then
   mkdir -p /plugin/coreos.com~agro
-  cp `which agromount` /plugin/coreos.com~agro/agro
+  cp `which agroblock` /plugin/coreos.com~agro/agro
 fi
 
 if [ ${LOG_FLAGS} != "" ]; then
   AGRO_FLAGS="$AGRO_FLAGS --logpkg=${LOG_FLAGS}"
 fi
 
-agro --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port $LISTEN_HTTP_PORT --datadir /data --peer-address $LISTEN_HOST:$LISTEN_PEER_PORT --size $STORAGE_SIZE $AGRO_FLAGS
+agro --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port $LISTEN_HTTP_PORT --datadir /data --peer-address http://$LISTEN_HOST:$LISTEN_PEER_PORT --size $STORAGE_SIZE $AGRO_FLAGS

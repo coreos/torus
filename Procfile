@@ -3,4 +3,4 @@ agro2: ./agro --etcd 127.0.0.1:2379 --debug --debug-init --port 4322 --datadir l
 agro3: ./agro --etcd 127.0.0.1:2379 --debug --debug-init --port 4323 --datadir local-cluster/agro3 --peer-address http://127.0.0.1:40002 --size 5GiB --read-cache-size=200MiB --auto-join
 #agro4: ./agro --etcd 127.0.0.1:2379 --debug --debug-init --port 4324 --datadir local-cluster/agro4 --peer-address 127.0.0.1:40003 --size 5GiB --read-cache-size=200MiB --auto-join
 #agro5: ./agro --etcd 127.0.0.1:2379 --debug --debug-init --port 4325 --datadir local-cluster/agro5 --peer-address 127.0.0.1:40004 --size 5GiB --read-cache-size=200MiB --auto-join
-#agromount: sudo ./agromount nbd blockvol /dev/nbd2 --write-level local --write-cache-size 1GiB
+#agroblock: sudo ./agroblock nbd blockvol /dev/nbd2 --write-level local --write-cache-size 1GiB

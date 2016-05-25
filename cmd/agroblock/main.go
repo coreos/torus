@@ -32,9 +32,9 @@ var (
 )
 
 var rootCommand = &cobra.Command{
-	Use:              "agromount",
-	Short:            "Mount volumes from the agro filesystem",
-	Long:             `Daemon to mount volumes from the agro distributed filesystem.`,
+	Use:              "agroblock",
+	Short:            "agro block volume tool",
+	Long:             "Control block volumes on the agro distributed storage system",
 	PersistentPreRun: configureServer,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Usage()
@@ -45,6 +45,9 @@ var rootCommand = &cobra.Command{
 func init() {
 	rootCommand.AddCommand(aoeCommand)
 	rootCommand.AddCommand(nbdCommand)
+	rootCommand.AddCommand(volumeCommand)
+
+	// Flexvolume commands
 	rootCommand.AddCommand(initCommand)
 	rootCommand.AddCommand(attachCommand)
 	rootCommand.AddCommand(detachCommand)
