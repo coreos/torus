@@ -47,7 +47,7 @@ You need a *v3.0* [etcd](https://github.com/coreos/etcd), as agro uses the v3 AP
 etcd --data-dir /tmp/etcd
 ```
 
-[Clustering etcd v3.0 is left as an exercise to the reader](https://github.com/coreos/etcd/blob/master/Documentation/clustering.md) but it's a pretty common thing to do if you're running on CoreOS.
+[Clustering etcd v3.0 is left as an exercise to the reader](https://github.com/coreos/etcd/blob/master/Documentation/op-guide/clustering.md) but it's a pretty common thing to do if you're running on CoreOS.
 
 ### 2) mkfs
 
