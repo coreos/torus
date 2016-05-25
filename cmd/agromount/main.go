@@ -14,7 +14,7 @@ import (
 
 	// Register all the drivers.
 	_ "github.com/coreos/agro/metadata/etcd"
-	_ "github.com/coreos/agro/storage/block"
+	_ "github.com/coreos/agro/storage"
 )
 
 var (

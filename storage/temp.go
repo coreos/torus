@@ -1,4 +1,4 @@
-package block
+package storage
 
 import (
 	"sync"

@@ -9,7 +9,7 @@ import (
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/metadata/temp"
 
-	_ "github.com/coreos/agro/storage/block"
+	_ "github.com/coreos/agro/storage"
 )
 
 func newServer(md *temp.Server) *agro.Server {

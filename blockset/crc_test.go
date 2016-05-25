@@ -8,7 +8,7 @@ import (
 	"github.com/coreos/agro"
 
 	// Register storage drivers.
-	_ "github.com/coreos/agro/storage/block"
+	_ "github.com/coreos/agro/storage"
 )
 
 func TestCRCReadWrite(t *testing.T) {

@@ -18,7 +18,7 @@ import (
 	"github.com/coreos/agro/models"
 	"github.com/coreos/agro/ring"
 
-	_ "github.com/coreos/agro/storage/block"
+	_ "github.com/coreos/agro/storage"
 )
 
 const (

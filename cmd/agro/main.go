@@ -21,7 +21,7 @@ import (
 	_ "github.com/coreos/agro/block"
 	_ "github.com/coreos/agro/metadata/etcd"
 	_ "github.com/coreos/agro/metadata/temp"
-	_ "github.com/coreos/agro/storage/block"
+	_ "github.com/coreos/agro/storage"
 )
 
 var (
