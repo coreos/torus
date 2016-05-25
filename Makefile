@@ -19,9 +19,9 @@ run3:
 	goreman start
 
 run4: 
-	./agro --etcd 127.0.0.1:2379 --debug --port 4324 --datadir /srv/agro4 --peer-address 0.0.0.0:40003
+	./agro --etcd 127.0.0.1:2379 --debug --port 4324 --data-dir /srv/agro4 --peer-address 0.0.0.0:40003
 
 run5: 
-	./agro --etcd 127.0.0.1:2379 --debug --port 4325 --datadir /srv/agro5 --peer-address 0.0.0.0:40004
+	./agro --etcd 127.0.0.1:2379 --debug --port 4325 --data-dir /srv/agro5 --peer-address 0.0.0.0:40004
 
 cleanrun: clean run

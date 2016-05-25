@@ -54,7 +54,7 @@ var rootCommand = &cobra.Command{
 }
 
 func init() {
-	rootCommand.PersistentFlags().StringVarP(&dataDir, "datadir", "", "/tmp/agro", "Path to the data directory")
+	rootCommand.PersistentFlags().StringVarP(&dataDir, "data-dir", "", "", "Path to the data directory")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
 	rootCommand.PersistentFlags().BoolVarP(&mkfs, "debug-mkfs", "", false, "Run a default mkfs if one doesn't exist")
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "", "", "Address for talking to etcd")
@@ -133,6 +133,12 @@ func configureServer(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "invalid writelevel; use one of 'one', 'all', or 'local'")
 		os.Exit(1)
 	}
+
+	if dataDir == "" {
+		fmt.Fprintf(os.Stderr, "invalid data-dir: must be a non-empty string")
+		os.Exit(1)
+	}
+
 	cfg = agro.Config{
 		DataDir:         dataDir,
 		StorageSize:     size,
