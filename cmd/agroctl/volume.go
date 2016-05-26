@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/coreos/agro/block"
+	"github.com/dustin/go-humanize"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -29,6 +30,7 @@ var volumeListCommand = &cobra.Command{
 func init() {
 	volumeCommand.AddCommand(volumeDeleteCommand)
 	volumeCommand.AddCommand(volumeListCommand)
+	volumeListCommand.Flags().BoolVarP(&outputAsCSV, "csv", "", false, "output as csv instead")
 }
 
 func volumeAction(cmd *cobra.Command, args []string) {
@@ -46,9 +48,20 @@ func volumeListAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("error listing volumes: %v\n", err)
 	}
-	for _, x := range vols {
-		fmt.Println(x)
+	table := tablewriter.NewWriter(os.Stdout)
+	if outputAsCSV {
+		table.SetBorder(false)
+		table.SetColumnSeparator(",")
+	} else {
+		table.SetHeader([]string{"Volume Name", "Size"})
 	}
+	for _, x := range vols {
+		table.Append([]string{
+			x.Name,
+			humanize.IBytes(x.MaxBytes),
+		})
+	}
+	table.Render()
 }
 
 func volumeDeleteAction(cmd *cobra.Command, args []string) {

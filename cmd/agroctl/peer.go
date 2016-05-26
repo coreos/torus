@@ -18,6 +18,12 @@ var peerCommand = &cobra.Command{
 	Run:   peerAction,
 }
 
+var peerListCommand = &cobra.Command{
+	Use:   "list",
+	Short: "list peers in the cluster",
+	Run:   listPeersAction,
+}
+
 var peerAddCommand = &cobra.Command{
 	Use:    "add",
 	Short:  "add a peer to the cluster",
@@ -33,7 +39,7 @@ var peerRemoveCommand = &cobra.Command{
 }
 
 func init() {
-	peerCommand.AddCommand(peerAddCommand, peerRemoveCommand)
+	peerCommand.AddCommand(peerAddCommand, peerRemoveCommand, peerListCommand)
 	peerAddCommand.Flags().BoolVar(&allPeers, "all-peers", false, "add all peers")
 }
 

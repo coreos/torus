@@ -20,21 +20,17 @@ type Ring interface {
 }
 
 type ModifyableRing interface {
-	ChangeReplication(r int)
-}
-
-type RingModification interface {
-	ModifyRing(ModifyableRing)
+	ChangeReplication(r int) (Ring, error)
 }
 
 type RingAdder interface {
 	ModifyableRing
-	AddPeers(PeerInfoList, ...RingModification) (Ring, error)
+	AddPeers(PeerInfoList) (Ring, error)
 }
 
 type RingRemover interface {
 	ModifyableRing
-	RemovePeers(PeerList, ...RingModification) (Ring, error)
+	RemovePeers(PeerList) (Ring, error)
 }
 
 type PeerPermutation struct {

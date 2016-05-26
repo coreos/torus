@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/coreos/agro"
 	"github.com/coreos/agro/models"
@@ -25,8 +26,14 @@ var ringCommand = &cobra.Command{
 	Run:   ringAction,
 }
 
+var ringChangeReplicationCommand = &cobra.Command{
+	Use:   "set-replication [AMOUNT]",
+	Short: "set the replication count for the cluster",
+	Run:   ringChangeReplicationAction,
+}
+
 var ringChangeCommand = &cobra.Command{
-	Use:    "change",
+	Use:    "manual-change",
 	Short:  "apply a new ring to the cluster",
 	PreRun: ringChangePreRun,
 	Run:    ringChangeAction,
@@ -39,6 +46,7 @@ var ringGetCommand = &cobra.Command{
 }
 
 func init() {
+	ringCommand.AddCommand(ringChangeReplicationCommand)
 	ringCommand.AddCommand(ringChangeCommand)
 	ringCommand.AddCommand(ringGetCommand)
 	ringChangeCommand.Flags().StringSliceVar(&uuids, "uuids", []string{}, "uuids to incorporate in the ring")
@@ -153,5 +161,32 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 		}
 	default:
 		die(`invalid ring type %s (try "empty", "mod" or "single")`, ringType)
+	}
+}
+
+func ringChangeReplicationAction(cmd *cobra.Command, args []string) {
+	amount, err := strconv.Atoi(args[0])
+	if err != nil {
+		die("not an integer number of replicas: %s", args[0])
+	}
+	if mds == nil {
+		mds = mustConnectToMDS()
+	}
+	currentRing, err := mds.GetRing()
+	if err != nil {
+		die("couldn't get ring: %v", err)
+	}
+	var newRing agro.Ring
+	if r, ok := currentRing.(agro.ModifyableRing); ok {
+		newRing, err = r.ChangeReplication(amount)
+	} else {
+		die("current ring type cannot support changing the replication amount")
+	}
+	if err != nil {
+		die("couldn't change replication amount: %v", err)
+	}
+	err = mds.SetRing(newRing)
+	if err != nil {
+		die("couldn't set new ring: %v", err)
 	}
 }

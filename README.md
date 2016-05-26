@@ -36,18 +36,19 @@ cd $GOPATH/src/github.com/coreos/agro
 make
 ```
 
-Either way you'll find the binaries `agro`, `agromount` and `agroblock`.
+Either way you'll find the binaries `agro`, `agroctl` and `agroblock`.
 
 ### 1) Get etcd
 You need a *v3.0* [etcd](https://github.com/coreos/etcd), as agro uses the v3 API natively and depends on some fixes therein. 
 [etcd v3.0.0-beta.0](https://github.com/coreos/etcd/releases/tag/v3.0.0-beta.0) or above is required. 
 
-3.0 natively understands the v3 API.
+3.0 natively understands the v3 API. To run a single node cluster locally, etcd is ready to work:
+
 ```
 etcd --data-dir /tmp/etcd
 ```
 
-[Clustering etcd v3.0 is left as an exercise to the reader](https://github.com/coreos/etcd/blob/master/Documentation/op-guide/clustering.md) but it's a pretty common thing to do if you're running on CoreOS.
+[Clustering etcd v3.0 for high availability is documented by the etcd project](https://github.com/coreos/etcd/blob/master/Documentation/op-guide/clustering.md) but it's a pretty common thing to do if you're running on CoreOS.
 
 ### 2) init
 
@@ -76,7 +77,7 @@ will tell you more.
 ### 3) Run some storage nodes
 #### Running manually
 ```
-./agro --etcd 127.0.0.1:2379 --peer-address $MY_IP:40000 --data-dir /path/to/data --size 20GiB
+./agro --etcd 127.0.0.1:2379 --peer-address http://$MY_IP:40000 --data-dir /path/to/data --size 20GiB
 ```
 This runs a storage node without HTTP. Add `--host` and `--port` to open the HTTP endpoint
 
@@ -122,15 +123,14 @@ agroctl list-peers
 
 Should show your data nodes and their reporting status. Eg:
 ```
-+-----------------+--------------------------------------+---------+------+---------------+--------------+
-|     ADDRESS     |                 UUID                 |  SIZE   | USED |    UPDATED    | REB/REP DATA |
-+-----------------+--------------------------------------+---------+------+---------------+--------------+
-| 127.0.0.1:40000 | babecd8e-d4fc-11e5-a91f-5ce0c5527cf4 | 2.0 GiB | 0 B  | 2 seconds ago | 0 B/sec      |
-| 127.0.0.1:40001 | babee2dd-d4fc-11e5-b486-5ce0c5527cf4 | 2.0 GiB | 0 B  | 2 seconds ago | 0 B/sec      |
-| 127.0.0.1:40002 | babee99a-d4fc-11e5-a3e3-5ce0c5527cf4 | 1.0 GiB | 0 B  | 2 seconds ago | 0 B/sec      |
-| 127.0.0.1:40003 | cb6ee7cb-d4fc-11e5-aff4-5ce0c5527cf4 | 1.0 GiB | 0 B  | 4 seconds ago | 0 B/sec      |
-+-----------------+--------------------------------------+---------+------+---------------+--------------+
-Balanced: true
++------------------------+--------------------------------------+---------+------+--------+---------------+--------------+
+|        ADDRESS         |                 UUID                 |  SIZE   | USED | MEMBER |    UPDATED    | REB/REP DATA |
++------------------------+--------------------------------------+---------+------+--------+---------------+--------------+
+| http://127.0.0.1:40002 | b529f87e-2370-11e6-97ca-5ce0c5527cf4 | 5.0 GiB | 0 B  | Avail  | 2 seconds ago | 0 B/sec      |
+| http://127.0.0.1:40001 | b52a8e4c-2370-11e6-8b0a-5ce0c5527cf4 | 5.0 GiB | 0 B  | Avail  | 2 seconds ago | 0 B/sec      |
+| http://127.0.0.1:40000 | b52b8cf6-2370-11e6-8e88-5ce0c5527cf4 | 5.0 GiB | 0 B  | Avail  | 2 seconds ago | 0 B/sec      |
++------------------------+--------------------------------------+---------+------+--------+---------------+--------------+
+Balanced: true Usage:  0.00%
 ```
 ### 5) Activate storage on the peers
 
@@ -138,10 +138,12 @@ Balanced: true
 agroctl peer add --all-peers
 ```
 
+You'll notice if you run `agroctl peer list` again, the `MEMBER` column will have changed from `Avail` to `OK`. These nodes are now storing data.
+
 Will immediately impress the peers shown in `list-peers` into service, storing data. Peers can be added one (or a couple) at a time via:
 
 ```
-agroctl peer add $PEER_IP:$PEER_PORT [$PEER_UUID...]
+agroctl peer add http://$PEER_IP:$PEER_PORT [$PEER_UUID...]
 ```
 
 To see which peers are in service (and other sharding details):
@@ -152,7 +154,7 @@ agroctl ring get
 
 To remove a node from service:
 ```
-agroctl peer remove $PEER_IP:$PEER_PORT
+agroctl peer remove http://$PEER_IP:$PEER_PORT
 ```
 
 Draining of peers will happen automatically. If this is a hard removal (ie, the node is gone forever) just remove it, and data will rereplicate automatically. Doing multiple hard removals above the replication threshold may result in data loss. However, this is common practice to anyone that's ever worked with the fault tolerance in [RAID levels.](https://en.wikipedia.org/wiki/Standard_RAID_levels#Comparison).

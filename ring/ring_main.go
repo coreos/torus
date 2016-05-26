@@ -57,13 +57,3 @@ func RingTypeFromString(s string) (agro.RingType, bool) {
 	v, ok := ringNames[s]
 	return v, ok
 }
-
-type changeReplication struct{ to int }
-
-func (c changeReplication) ModifyRing(r agro.ModifyableRing) {
-	r.ChangeReplication(c.to)
-}
-
-func ReplicationLevel(x int) agro.RingModification {
-	return changeReplication{to: x}
-}

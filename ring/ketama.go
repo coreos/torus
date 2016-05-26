@@ -69,7 +69,7 @@ func (k *ketama) Marshal() ([]byte, error) {
 	return out.Marshal()
 }
 
-func (k *ketama) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification) (agro.Ring, error) {
+func (k *ketama) AddPeers(peers agro.PeerInfoList) (agro.Ring, error) {
 	newPeers := k.peers.Union(peers)
 	if reflect.DeepEqual(newPeers.PeerList(), k.peers.PeerList()) {
 		return nil, agro.ErrExists
@@ -80,13 +80,10 @@ func (k *ketama) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification
 		peers:   newPeers,
 		ring:    hashring.NewWithWeights(newPeers.GetWeights()),
 	}
-	for _, x := range mods {
-		x.ModifyRing(newk)
-	}
 	return newk, nil
 }
 
-func (k *ketama) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
+func (k *ketama) RemovePeers(pl agro.PeerList) (agro.Ring, error) {
 	newPeers := k.peers.AndNot(pl)
 	if len(newPeers) == len(k.Members()) {
 		return nil, agro.ErrNotExist
@@ -98,12 +95,15 @@ func (k *ketama) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (a
 		peers:   newPeers,
 		ring:    hashring.NewWithWeights(newPeers.GetWeights()),
 	}
-	for _, x := range mods {
-		x.ModifyRing(newk)
-	}
 	return newk, nil
 }
 
-func (k *ketama) ChangeReplication(r int) {
-	k.rep = r
+func (k *ketama) ChangeReplication(r int) (agro.Ring, error) {
+	newk := &ketama{
+		version: k.version + 1,
+		rep:     r,
+		peers:   k.peers,
+		ring:    k.ring,
+	}
+	return newk, nil
 }

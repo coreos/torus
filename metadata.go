@@ -119,6 +119,29 @@ func InitMDS(name string, cfg Config, gmd GlobalMetadata, ringType RingType) err
 	return initMDSFuncs[name](cfg, gmd, ringType)
 }
 
+type WipeMDSFunc func(cfg Config) error
+
+var wipeMDSFuncs map[string]WipeMDSFunc
+
+// RegisterMetadataWipe is the hook used for implementions of
+// MetadataServices to register their ways of deleting their metadata from the consistent store
+func RegisterMetadataWipe(name string, newFunc WipeMDSFunc) {
+	if wipeMDSFuncs == nil {
+		wipeMDSFuncs = make(map[string]WipeMDSFunc)
+	}
+
+	if _, ok := wipeMDSFuncs[name]; ok {
+		panic("agro: attempted to register WipeMDSFunc " + name + " twice")
+	}
+
+	wipeMDSFuncs[name] = newFunc
+}
+
+func WipeMDS(name string, cfg Config) error {
+	clog.Debugf("running WipeMDS for service type: %s", name)
+	return wipeMDSFuncs[name](cfg)
+}
+
 type SetRingFunc func(cfg Config, r Ring) error
 
 var setRingFuncs map[string]SetRingFunc

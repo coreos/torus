@@ -55,6 +55,19 @@ func initEtcdMetadata(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.Ri
 	return nil
 }
 
+func wipeEtcdMetadata(cfg agro.Config) error {
+	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}})
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	_, err = client.Delete(context.Background(), MkKey(), etcdv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func setRing(cfg agro.Config, r agro.Ring) error {
 	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}})
 	if err != nil {

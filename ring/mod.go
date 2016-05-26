@@ -70,7 +70,7 @@ func (m *mod) Marshal() ([]byte, error) {
 	return out.Marshal()
 }
 
-func (m *mod) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification) (agro.Ring, error) {
+func (m *mod) AddPeers(peers agro.PeerInfoList) (agro.Ring, error) {
 	newPeers := m.peers.Union(peers)
 	if reflect.DeepEqual(newPeers.PeerList(), m.peers.PeerList()) {
 		return nil, agro.ErrExists
@@ -82,13 +82,10 @@ func (m *mod) AddPeers(peers agro.PeerInfoList, mods ...agro.RingModification) (
 		peerlist: sort.StringSlice([]string(newPeers.PeerList())),
 		npeers:   len(newPeers),
 	}
-	for _, x := range mods {
-		x.ModifyRing(newm)
-	}
 	return newm, nil
 }
 
-func (m *mod) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (agro.Ring, error) {
+func (m *mod) RemovePeers(pl agro.PeerList) (agro.Ring, error) {
 	newPeers := m.peers.AndNot(pl)
 	if len(newPeers) == len(m.peers) {
 		return nil, agro.ErrNotExist
@@ -101,12 +98,16 @@ func (m *mod) RemovePeers(pl agro.PeerList, mods ...agro.RingModification) (agro
 		peerlist: sort.StringSlice([]string(newPeers.PeerList())),
 		npeers:   len(newPeers),
 	}
-	for _, x := range mods {
-		x.ModifyRing(newm)
-	}
 	return newm, nil
 }
 
-func (m *mod) ChangeReplication(r int) {
-	m.rep = r
+func (m *mod) ChangeReplication(r int) (agro.Ring, error) {
+	newm := &mod{
+		version:  m.version + 1,
+		rep:      r,
+		peers:    m.peers,
+		peerlist: sort.StringSlice([]string(m.peers.PeerList())),
+		npeers:   len(m.peers),
+	}
+	return newm, nil
 }
