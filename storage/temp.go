@@ -140,7 +140,7 @@ func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 func (t *tempBlockStore) BlockIterator() agro.BlockIterator {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
-	var blocks []agro.BlockRef
+	blocks := make([]agro.BlockRef, 0, len(t.store))
 	for k := range t.store {
 		blocks = append(blocks, k)
 	}
