@@ -55,13 +55,13 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 		return nil
 	}
 
-	curINodes := []agro.INodeRef{curRef}
-
 	snaps, err := mds.GetSnapshots()
 	if err != nil {
 		return err
 	}
 
+	curINodes := make([]agro.INodeRef, 0, len(snaps)+1)
+	curINodes = append(curINodes, curRef)
 	for _, x := range snaps {
 		curINodes = append(curINodes, agro.INodeRefFromBytes(x.INodeRef))
 	}
