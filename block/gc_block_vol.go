@@ -5,11 +5,11 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/blockset"
 	"github.com/coreos/torus/gc"
 	"github.com/coreos/torus/models"
-	"github.com/coreos/pkg/capnslog"
 )
 
 func init() {
@@ -55,13 +55,13 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 		return nil
 	}
 
-	curINodes := []torus.INodeRef{curRef}
-
 	snaps, err := mds.GetSnapshots()
 	if err != nil {
 		return err
 	}
 
+	curINodes := make([]torus.INodeRef, 0, len(snaps)+1)
+	curINodes = append(curINodes, curRef)
 	for _, x := range snaps {
 		curINodes = append(curINodes, torus.INodeRefFromBytes(x.INodeRef))
 	}
