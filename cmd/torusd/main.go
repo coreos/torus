@@ -42,7 +42,8 @@ var (
 	writeLevel       string
 	cfg              torus.Config
 
-	debug bool
+	debug   bool
+	version bool
 )
 
 var rootCommand = &cobra.Command{
@@ -67,6 +68,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&readLevel, "readlevel", "", "block", "Read replication level")
 	rootCommand.PersistentFlags().StringVarP(&writeLevel, "writelevel", "", "all", "Write replication level")
 	rootCommand.PersistentFlags().BoolVarP(&autojoin, "auto-join", "", false, "Automatically join the storage pool")
+	rootCommand.PersistentFlags().BoolVarP(&version, "version", "", false, "Print version info and exit")
 }
 
 func main() {
@@ -77,6 +79,10 @@ func main() {
 }
 
 func configureServer(cmd *cobra.Command, args []string) {
+	if version {
+		fmt.Printf("torusd\nVersion: %s\n", torus.Version)
+		os.Exit(0)
+	}
 	switch {
 	case debug:
 		capnslog.SetGlobalLogLevel(capnslog.DEBUG)

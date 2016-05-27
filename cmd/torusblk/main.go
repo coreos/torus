@@ -42,10 +42,20 @@ var rootCommand = &cobra.Command{
 	},
 }
 
+var versionCommand = &cobra.Command{
+	Use:   "version",
+	Short: "print version",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("torusblk\nVersion: %s\n", torus.Version)
+		os.Exit(0)
+	},
+}
+
 func init() {
 	rootCommand.AddCommand(aoeCommand)
 	rootCommand.AddCommand(nbdCommand)
 	rootCommand.AddCommand(volumeCommand)
+	rootCommand.AddCommand(versionCommand)
 
 	// Flexvolume commands
 	rootCommand.AddCommand(initCommand)

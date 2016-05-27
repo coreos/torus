@@ -1,5 +1,5 @@
-hash: 915f0969158be266bfc992019a35171e775890f0b3ac20f170e4693e42f984e9
-updated: 2016-05-27T13:43:43.248730539-07:00
+hash: 4e13a264ee3e9bff2ca9b97c6abb61ff017e92cf3a3ab24e334a8d3786dfc6d5
+updated: 2016-05-27T14:10:45.843273117-07:00
 imports:
 - name: github.com/barakmich/mmap-go
   version: c4bd255520e591ff7549ab916c59206da5735e56
@@ -103,13 +103,13 @@ imports:
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: f315505cf3349909cdf013ea56690da34e96a451
+  version: 30db96677b74e24b967e23f911eb3364fc61a011
   subpackages:
-  - context
   - http2
+  - lex/httplex
+  - context
   - trace
   - http2/hpack
-  - lex/httplex
   - internal/timeseries
 - name: golang.org/x/time
   version: a4bde12657593d5e90d0533a3e4fd95e635124cb

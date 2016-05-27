@@ -34,5 +34,6 @@ import:
 - package: github.com/spf13/cobra
 - package: golang.org/x/net
   subpackages:
-  - context
+  - http2
+  - lex/httplex
 - package: google.golang.org/grpc

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/coreos/torus"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +21,15 @@ var rootCommand = &cobra.Command{
 	},
 }
 
+var versionCommand = &cobra.Command{
+	Use:   "version",
+	Short: "print version",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("torusctl\nVersion: %s\n", torus.Version)
+		os.Exit(0)
+	},
+}
+
 func init() {
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2379", "hostname:port to the etcd instance storing the metadata")
 	rootCommand.AddCommand(initCommand)
@@ -26,6 +37,7 @@ func init() {
 	rootCommand.AddCommand(ringCommand)
 	rootCommand.AddCommand(peerCommand)
 	rootCommand.AddCommand(volumeCommand)
+	rootCommand.AddCommand(versionCommand)
 }
 
 func main() {

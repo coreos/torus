@@ -1,7 +1,12 @@
+ifeq ($(origin VERSION), undefined)
+  VERSION != git rev-parse --short HEAD
+endif
+REPOPATH = github.com/coreos/torus
+
 build:
-	go build ./cmd/torusd
-	go build ./cmd/torusctl
-	go build ./cmd/torusblk
+	go build -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusd 
+	go build -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusctl 
+	go build -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusblk 
 
 run:
 	./torusd --etcd 127.0.0.1:2379 --debug --debug-init --peer-address 127.0.0.1:40000
@@ -18,10 +23,6 @@ etcdrun:
 run3:
 	goreman start
 
-run4: 
-	./torusd --etcd 127.0.0.1:2379 --debug --port 4324 --datadir /srv/torus4 --peer-address 0.0.0.0:40003
-
-run5: 
-	./torusd --etcd 127.0.0.1:2379 --debug --port 4325 --datadir /srv/torus5 --peer-address 0.0.0.0:40004
-
-cleanrun: clean run
+release:
+	mkdir -p release
+	goxc -d ./release -tasks-=go-vet,go-test -os="linux darwin" -pv=$(VERSION) -build-ldflags="-X $(REPOPATH).Version=$(VERSION)" -resources-include="README.md,docs,LICENSE,contrib" -main-dirs-exclude="vendor,cmd/ringtool"
