@@ -30,17 +30,12 @@ spec:
     name: etcd-torus
 ---
 apiVersion: v1
-data:
-  .dockercfg: eyJxdWF5LmlvIjp7InVzZXJuYW1lIjoiY29yZW9zK2Fncm8iLCJwYXNzd29yZCI6IjBFOTBMMEZHWTNQMjNFU05JWk9RWEkxREhDM1EwRzczNE5MQUREWTdVRTBDS0ZMUFRUWFowOEJFNUYzRDNXOVYiLCJlbWFpbCI6ImFncm9AY29yZW9zLmNvbSIsImF1dGgiOiJZMjl5Wlc5eksyRm5jbTg2TUVVNU1Fd3dSa2RaTTFBeU0wVlRUa2xhVDFGWVNURkVTRU16VVRCSE56TTBUa3hCUkVSWk4xVkZNRU5MUmt4UVZGUllXakE0UWtVMVJqTkVNMWM1Vmc9PSJ9fQ==
 kind: Secret
 metadata:
-  creationTimestamp: 2016-04-26T23:56:10Z
   name: quay-torus
-  namespace: default
-  resourceVersion: "1115"
-  selfLink: /api/v1/namespaces/default/secrets/quay-torus
-  uid: 739013b2-0c0a-11e6-854f-0cc47a15dc2a
-type: kubernetes.io/dockercfg
+data:
+  .dockerconfigjson: ewogICJhdXRocyI6IHsKICAgICJxdWF5LmlvIjogewogICAgICAiYXV0aCI6ICJZMjl5Wlc5ekszUnZjblZ6T2xGT1NFODFUMDVCVEVwUU0xSk1UVWxXVkVjNE0xcExWMVpMUlRKWVJUTldOMUpLT1VRNE5qVTBUelZXU2tJMU1ERlVPVFZKU2t4Sk9FazVVVmRFTmxRPSIsCiAgICAgICJlbWFpbCI6ICIiCiAgICB9CiAgfQp9
+type: kubernetes.io/dockerconfigjson
 ---
 apiVersion: v1
 kind: Pod
