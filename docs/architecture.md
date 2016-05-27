@@ -5,7 +5,7 @@
 * **Data Nodes**
   * Provide actual storage (torus)                       -
 * **Client Nodes**
-  * Connect to data nodes and the MDS to provide access to the storage (eg, torusblock) 
+  * Connect to data nodes and the MDS to provide access to the storage (eg, torusblk) 
 
 ### High-Level Data Model
 

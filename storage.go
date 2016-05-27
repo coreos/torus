@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/coreos/torus/models"
 )
 
 var BlockLog = capnslog.NewPackageLogger("github.com/coreos/torus", "blocklog")
@@ -43,7 +43,7 @@ type Store interface {
 	Close() error
 }
 
-// INodeRef is a reference to a unique INode in the filesystem.
+// INodeRef is a reference to a unique INode in the cluster.
 type INodeRef struct {
 	volume VolumeID
 	INode  INodeID
@@ -102,7 +102,7 @@ func INodeRefFromBytes(b []byte) INodeRef {
 	}
 }
 
-// BlockRef is the identifier for a unique block in the filesystem.
+// BlockRef is the identifier for a unique block in the cluster.
 type BlockRef struct {
 	INodeRef
 	Index IndexID

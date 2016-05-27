@@ -32,7 +32,7 @@ var (
 )
 
 var rootCommand = &cobra.Command{
-	Use:              "torusblock",
+	Use:              "torusblk",
 	Short:            "torus block volume tool",
 	Long:             "Control block volumes on the torus distributed storage system",
 	PersistentPreRun: configureServer,

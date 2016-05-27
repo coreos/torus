@@ -11,8 +11,8 @@ var etcdAddress string
 
 var rootCommand = &cobra.Command{
 	Use:   "torusctl",
-	Short: "Administer the torus filesystem",
-	Long:  `Admin utility for the torus distributed filesystem.`,
+	Short: "Administer the torus storage cluster",
+	Long:  `Admin utility for the torus distributed storage cluster.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Usage()
 		os.Exit(1)

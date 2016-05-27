@@ -46,9 +46,9 @@ var (
 )
 
 var rootCommand = &cobra.Command{
-	Use:    "torus",
-	Short:  "Torus distributed filesystem",
-	Long:   `The torus distributed filesystem server.`,
+	Use:    "torusd",
+	Short:  "Torus distributed storage",
+	Long:   `The torus distributed storage server.`,
 	PreRun: configureServer,
 	Run:    runServer,
 }
@@ -206,7 +206,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	}()
 
 	if err != nil {
-		fmt.Println("couldn't use server as filesystem:", err)
+		fmt.Println("couldn't use server:", err)
 		os.Exit(1)
 	}
 	http.ServeHTTP(httpAddress, srv)
