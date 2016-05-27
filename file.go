@@ -1,4 +1,4 @@
-package agro
+package torus
 
 import (
 	"errors"
@@ -12,37 +12,37 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus/models"
 )
 
 var (
 	promOpenINodes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "agro_server_open_inodes",
+		Name: "torus_server_open_inodes",
 		Help: "Number of open inodes reported on last update to mds",
 	}, []string{"volume"})
 	promOpenFiles = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "agro_server_open_files",
+		Name: "torus_server_open_files",
 		Help: "Number of open files",
 	}, []string{"volume"})
 	promFileSyncs = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "agro_server_file_syncs",
+		Name: "torus_server_file_syncs",
 		Help: "Number of times a file has been synced on this server",
 	}, []string{"volume"})
 	promFileChangedSyncs = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "agro_server_file_changed_syncs",
+		Name: "torus_server_file_changed_syncs",
 		Help: "Number of times a file has been synced on this server, and the file has changed underneath it",
 	}, []string{"volume"})
 	promFileWrittenBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "agro_server_file_written_bytes",
+		Name: "torus_server_file_written_bytes",
 		Help: "Number of bytes written to a file on this server",
 	}, []string{"volume"})
 	promFileBlockRead = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "agro_server_file_block_read_us",
+		Name:    "torus_server_file_block_read_us",
 		Help:    "Histogram of ms taken to read a block through the layers and into the file abstraction",
 		Buckets: prometheus.ExponentialBuckets(50.0, 2, 20),
 	})
 	promFileBlockWrite = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "agro_server_file_block_write_us",
+		Name:    "torus_server_file_block_write_us",
 		Help:    "Histogram of ms taken to write a block through the layers and into the file abstraction",
 		Buckets: prometheus.ExponentialBuckets(50.0, 2, 20),
 	})

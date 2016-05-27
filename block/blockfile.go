@@ -1,13 +1,13 @@
 package block
 
 import (
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/blockset"
 	"golang.org/x/net/context"
 )
 
 type BlockFile struct {
-	*agro.File
+	*torus.File
 	vol *BlockVolume
 }
 
@@ -57,9 +57,9 @@ func (s *BlockVolume) OpenSnapshot(name string) (*BlockFile, error) {
 		}
 	}
 	if found.Name != name {
-		return nil, agro.ErrNotExist
+		return nil, torus.ErrNotExist
 	}
-	ref := agro.INodeRefFromBytes(found.INodeRef)
+	ref := torus.INodeRefFromBytes(found.INodeRef)
 	inode, err := s.getOrCreateBlockINode(ref)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (f *BlockFile) Close() error {
 }
 
 func (f *BlockFile) inodeContext() context.Context {
-	return context.WithValue(context.TODO(), agro.CtxWriteLevel, agro.WriteAll)
+	return context.WithValue(context.TODO(), torus.CtxWriteLevel, torus.WriteAll)
 }
 
 func (f *BlockFile) Sync() error {

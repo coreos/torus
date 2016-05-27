@@ -3,9 +3,9 @@
 * **Metadata Service (MDS)**
   * A consistent store and distributed lockserver. (etcd)
 * **Data Nodes**
-  * Provide actual storage (agro)                       -
+  * Provide actual storage (torus)                       -
 * **Client Nodes**
-  * Connect to data nodes and the MDS to provide access to the storage (eg, agroblock) 
+  * Connect to data nodes and the MDS to provide access to the storage (eg, torusblock) 
 
 ### High-Level Data Model
 

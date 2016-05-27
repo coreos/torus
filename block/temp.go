@@ -3,20 +3,20 @@ package block
 import (
 	"fmt"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/metadata/temp"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/metadata/temp"
+	"github.com/coreos/torus/models"
 )
 
 type blockTempMetadata struct {
 	*temp.Client
 	name string
-	vid  agro.VolumeID
+	vid  torus.VolumeID
 }
 
 type blockTempVolumeData struct {
 	locked string
-	id     agro.INodeRef
+	id     torus.INodeRef
 	snaps  []Snapshot
 }
 
@@ -25,12 +25,12 @@ func (b *blockTempMetadata) CreateBlockVolume(volume *models.Volume) error {
 	defer b.UnlockData()
 	_, ok := b.GetData(fmt.Sprint(volume.Id))
 	if ok {
-		return agro.ErrExists
+		return torus.ErrExists
 	}
 	b.CreateVolume(volume)
 	b.SetData(fmt.Sprint(volume.Id), &blockTempVolumeData{
 		locked: "",
-		id:     agro.NewINodeRef(agro.VolumeID(volume.Id), 1),
+		id:     torus.NewINodeRef(torus.VolumeID(volume.Id), 1),
 	})
 	return nil
 }
@@ -40,37 +40,37 @@ func (b *blockTempMetadata) Lock(lease int64) error {
 	defer b.UnlockData()
 	v, ok := b.GetData(fmt.Sprint(b.vid))
 	if !ok {
-		return agro.ErrNotExist
+		return torus.ErrNotExist
 	}
 	d := v.(*blockTempVolumeData)
 	if d.locked != "" {
-		return agro.ErrLocked
+		return torus.ErrLocked
 	}
 	d.locked = b.UUID()
 	return nil
 }
 
-func (b *blockTempMetadata) GetINode() (agro.INodeRef, error) {
+func (b *blockTempMetadata) GetINode() (torus.INodeRef, error) {
 	b.LockData()
 	defer b.UnlockData()
 	v, ok := b.GetData(fmt.Sprint(b.vid))
 	if !ok {
-		return agro.ZeroINode(), agro.ErrNotExist
+		return torus.ZeroINode(), torus.ErrNotExist
 	}
 	d := v.(*blockTempVolumeData)
 	return d.id, nil
 }
 
-func (b *blockTempMetadata) SyncINode(inode agro.INodeRef) error {
+func (b *blockTempMetadata) SyncINode(inode torus.INodeRef) error {
 	b.LockData()
 	defer b.UnlockData()
 	v, ok := b.GetData(fmt.Sprint(b.vid))
 	if !ok {
-		return agro.ErrNotExist
+		return torus.ErrNotExist
 	}
 	d := v.(*blockTempVolumeData)
 	if d.locked != b.UUID() {
-		return agro.ErrLocked
+		return torus.ErrLocked
 	}
 	d.id = inode
 	return nil
@@ -81,11 +81,11 @@ func (b *blockTempMetadata) Unlock() error {
 	defer b.UnlockData()
 	v, ok := b.GetData(fmt.Sprint(b.vid))
 	if !ok {
-		return agro.ErrNotExist
+		return torus.ErrNotExist
 	}
 	d := v.(*blockTempVolumeData)
 	if d.locked != b.UUID() {
-		return agro.ErrLocked
+		return torus.ErrLocked
 	}
 	d.locked = ""
 	return nil
@@ -96,11 +96,11 @@ func (b *blockTempMetadata) DeleteVolume() error {
 	defer b.UnlockData()
 	v, ok := b.GetData(fmt.Sprint(b.vid))
 	if !ok {
-		return agro.ErrNotExist
+		return torus.ErrNotExist
 	}
 	d := v.(*blockTempVolumeData)
 	if d.locked != b.UUID() {
-		return agro.ErrLocked
+		return torus.ErrLocked
 	}
 	return b.Client.DeleteVolume(b.name)
 }
@@ -110,12 +110,12 @@ func (b *blockTempMetadata) SaveSnapshot(name string) error {
 	defer b.UnlockData()
 	v, ok := b.GetData(fmt.Sprint(b.vid))
 	if !ok {
-		return agro.ErrNotExist
+		return torus.ErrNotExist
 	}
 	d := v.(*blockTempVolumeData)
 	for _, x := range d.snaps {
 		if x.Name == name {
-			return agro.ErrExists
+			return torus.ErrExists
 		}
 	}
 	snap := Snapshot{
@@ -130,7 +130,7 @@ func (b *blockTempMetadata) GetSnapshots() ([]Snapshot, error) {
 	defer b.UnlockData()
 	v, ok := b.GetData(fmt.Sprint(b.vid))
 	if !ok {
-		return nil, agro.ErrNotExist
+		return nil, torus.ErrNotExist
 	}
 	d := v.(*blockTempVolumeData)
 	out := make([]Snapshot, len(d.snaps))
@@ -142,7 +142,7 @@ func (b *blockTempMetadata) DeleteSnapshot(name string) error {
 	defer b.UnlockData()
 	v, ok := b.GetData(fmt.Sprint(b.vid))
 	if !ok {
-		return agro.ErrNotExist
+		return torus.ErrNotExist
 	}
 	d := v.(*blockTempVolumeData)
 	for i, x := range d.snaps {
@@ -151,10 +151,10 @@ func (b *blockTempMetadata) DeleteSnapshot(name string) error {
 			return nil
 		}
 	}
-	return agro.ErrNotExist
+	return torus.ErrNotExist
 }
 
-func createBlockTempMetadata(mds agro.MetadataService, name string, vid agro.VolumeID) (blockMetadata, error) {
+func createBlockTempMetadata(mds torus.MetadataService, name string, vid torus.VolumeID) (blockMetadata, error) {
 	if t, ok := mds.(*temp.Client); ok {
 		return &blockTempMetadata{
 			Client: t,

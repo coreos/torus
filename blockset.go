@@ -1,8 +1,8 @@
-package agro
+package torus
 
 import (
 	"github.com/RoaringBitmap/roaring"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus/models"
 	"golang.org/x/net/context"
 )
 

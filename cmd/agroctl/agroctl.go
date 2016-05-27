@@ -10,9 +10,9 @@ import (
 var etcdAddress string
 
 var rootCommand = &cobra.Command{
-	Use:   "agroctl",
-	Short: "Administer the agro filesystem",
-	Long:  `Admin utility for the agro distributed filesystem.`,
+	Use:   "torusctl",
+	Short: "Administer the torus filesystem",
+	Long:  `Admin utility for the torus distributed filesystem.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Usage()
 		os.Exit(1)

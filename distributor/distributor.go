@@ -4,26 +4,26 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/distributor/protocols"
-	"github.com/coreos/agro/distributor/rebalance"
-	"github.com/coreos/agro/gc"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/distributor/protocols"
+	"github.com/coreos/torus/distributor/rebalance"
+	"github.com/coreos/torus/gc"
 	"github.com/coreos/pkg/capnslog"
 )
 
 var (
-	clog = capnslog.NewPackageLogger("github.com/coreos/agro", "distributor")
+	clog = capnslog.NewPackageLogger("github.com/coreos/torus", "distributor")
 )
 
 type Distributor struct {
 	mut       sync.RWMutex
-	blocks    agro.BlockStore
-	srv       *agro.Server
+	blocks    torus.BlockStore
+	srv       *torus.Server
 	client    *distClient
 	rpcSrv    protocols.RPCServer
 	readCache *cache
 
-	ring            agro.Ring
+	ring            torus.Ring
 	closed          bool
 	rebalancerChan  chan struct{}
 	ringWatcherChan chan struct{}
@@ -31,7 +31,7 @@ type Distributor struct {
 	rebalancing     bool
 }
 
-func newDistributor(srv *agro.Server, addr *url.URL) (*Distributor, error) {
+func newDistributor(srv *torus.Server, addr *url.URL) (*Distributor, error) {
 	var err error
 	d := &Distributor{
 		blocks: srv.Blocks,
@@ -63,7 +63,7 @@ func newDistributor(srv *agro.Server, addr *url.URL) (*Distributor, error) {
 	d.ringWatcherChan = make(chan struct{})
 	go d.ringWatcher(d.rebalancerChan)
 	d.client = newDistClient(d)
-	g := gc.NewGCController(d.srv, agro.NewINodeStore(d))
+	g := gc.NewGCController(d.srv, torus.NewINodeStore(d))
 	d.rebalancer = rebalance.NewRebalancer(d, d.blocks, d.client, g)
 	d.rebalancerChan = make(chan struct{})
 	go d.rebalanceTicker(d.rebalancerChan)
@@ -74,7 +74,7 @@ func (d *Distributor) UUID() string {
 	return d.srv.MDS.UUID()
 }
 
-func (d *Distributor) Ring() agro.Ring {
+func (d *Distributor) Ring() torus.Ring {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	return d.ring

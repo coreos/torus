@@ -10,21 +10,21 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"github.com/coreos/pkg/capnslog"
 )
 
-var _ agro.BlockStore = &mfileBlock{}
+var _ torus.BlockStore = &mfileBlock{}
 
 func init() {
-	agro.RegisterBlockStore("mfile", newMFileBlockStore)
+	torus.RegisterBlockStore("mfile", newMFileBlockStore)
 }
 
 type mfileBlock struct {
 	mut       sync.RWMutex
 	dataFile  *MFile
 	refFile   *MFile
-	refIndex  map[agro.BlockRef]int
+	refIndex  map[torus.BlockRef]int
 	closed    bool
 	lastFree  int
 	dfilename string
@@ -36,9 +36,9 @@ type mfileBlock struct {
 	// NB: Still room for improvement. Free lists, smart allocation, etc.
 }
 
-var blankRefBytes = make([]byte, agro.BlockRefByteSize)
+var blankRefBytes = make([]byte, torus.BlockRefByteSize)
 
-func loadIndex(m *MFile) (map[agro.BlockRef]int, error) {
+func loadIndex(m *MFile) (map[torus.BlockRef]int, error) {
 	clog.Infof("loading block index...")
 	var membefore uint64
 	if clog.LevelAt(capnslog.DEBUG) {
@@ -46,13 +46,13 @@ func loadIndex(m *MFile) (map[agro.BlockRef]int, error) {
 		runtime.ReadMemStats(&mem)
 		membefore = mem.Alloc
 	}
-	out := make(map[agro.BlockRef]int)
+	out := make(map[torus.BlockRef]int)
 	for i := uint64(0); i < m.NumBlocks(); i++ {
 		b := m.GetBlock(i)
 		if bytes.Equal(blankRefBytes, b) {
 			continue
 		}
-		out[agro.BlockRefFromBytes(b)] = int(i)
+		out[torus.BlockRefFromBytes(b)] = int(i)
 	}
 	if clog.LevelAt(capnslog.DEBUG) {
 		var mem runtime.MemStats
@@ -63,7 +63,7 @@ func loadIndex(m *MFile) (map[agro.BlockRef]int, error) {
 	return out, nil
 }
 
-func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) (agro.BlockStore, error) {
+func newMFileBlockStore(name string, cfg torus.Config, meta torus.GlobalMetadata) (torus.BlockStore, error) {
 	nBlocks := cfg.StorageSize / meta.BlockSize
 	promBytesPerBlock.Set(float64(meta.BlockSize))
 	promBlocksAvail.WithLabelValues(name).Set(float64(nBlocks))
@@ -73,7 +73,7 @@ func newMFileBlockStore(name string, cfg agro.Config, meta agro.GlobalMetadata) 
 	if err != nil {
 		return nil, err
 	}
-	m, err := CreateOrOpenMFile(mpath, nBlocks*agro.BlockRefByteSize, agro.BlockRefByteSize)
+	m, err := CreateOrOpenMFile(mpath, nBlocks*torus.BlockRefByteSize, torus.BlockRefByteSize)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (m *mfileBlock) close() error {
 	return nil
 }
 
-func (m *mfileBlock) findIndex(s agro.BlockRef) int {
+func (m *mfileBlock) findIndex(s torus.BlockRef) int {
 	if clog.LevelAt(capnslog.TRACE) {
 		clog.Tracef("finding blockid %s", s)
 	}
@@ -163,7 +163,7 @@ func (m *mfileBlock) findIndex(s agro.BlockRef) int {
 }
 
 func (m *mfileBlock) findEmpty() int {
-	emptyBlock := make([]byte, agro.BlockRefByteSize)
+	emptyBlock := make([]byte, torus.BlockRefByteSize)
 	for i := uint64(0); i < m.numBlocks(); i++ {
 		b := m.refFile.GetBlock((i + uint64(m.lastFree) + 1) % m.numBlocks())
 		if bytes.Equal(b, emptyBlock) {
@@ -174,7 +174,7 @@ func (m *mfileBlock) findEmpty() int {
 	return -1
 }
 
-func (m *mfileBlock) HasBlock(_ context.Context, s agro.BlockRef) (bool, error) {
+func (m *mfileBlock) HasBlock(_ context.Context, s torus.BlockRef) (bool, error) {
 	m.mut.RLock()
 	defer m.mut.RUnlock()
 	index := m.findIndex(s)
@@ -184,35 +184,35 @@ func (m *mfileBlock) HasBlock(_ context.Context, s agro.BlockRef) (bool, error) 
 	return true, nil
 }
 
-func (m *mfileBlock) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error) {
+func (m *mfileBlock) GetBlock(_ context.Context, s torus.BlockRef) ([]byte, error) {
 	m.mut.RLock()
 	defer m.mut.RUnlock()
 	if m.closed {
 		promBlocksFailed.WithLabelValues(m.name).Inc()
-		return nil, agro.ErrClosed
+		return nil, torus.ErrClosed
 	}
 	index := m.findIndex(s)
 	if index == -1 {
 		promBlocksFailed.WithLabelValues(m.name).Inc()
-		return nil, agro.ErrBlockNotExist
+		return nil, torus.ErrBlockNotExist
 	}
 	clog.Tracef("mfile: getting block at index %d", index)
 	promBlocksRetrieved.WithLabelValues(m.name).Inc()
 	return m.dataFile.GetBlock(uint64(index)), nil
 }
 
-func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte) error {
+func (m *mfileBlock) WriteBlock(_ context.Context, s torus.BlockRef, data []byte) error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
-		return agro.ErrClosed
+		return torus.ErrClosed
 	}
 	index := m.findEmpty()
 	if index == -1 {
 		clog.Error("mfile: out of space")
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
-		return agro.ErrOutOfSpace
+		return torus.ErrOutOfSpace
 	}
 	clog.Tracef("mfile: writing block at index %d", index)
 	err := m.dataFile.WriteBlock(uint64(index), data)
@@ -232,7 +232,7 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 		if !bytes.Equal(olddata, data) {
 			clog.Error("getting wrong data for block", s)
 			clog.Errorf("%s, %s", olddata[:10], data[:10])
-			return agro.ErrExists
+			return torus.ErrExists
 		}
 		// Not an error, if we already have it
 		return nil
@@ -243,18 +243,18 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s agro.BlockRef, data []byte)
 	return nil
 }
 
-func (m *mfileBlock) WriteBuf(_ context.Context, s agro.BlockRef) ([]byte, error) {
+func (m *mfileBlock) WriteBuf(_ context.Context, s torus.BlockRef) ([]byte, error) {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
-		return nil, agro.ErrClosed
+		return nil, torus.ErrClosed
 	}
 	index := m.findEmpty()
 	if index == -1 {
 		clog.Error("mfile: out of space")
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
-		return nil, agro.ErrOutOfSpace
+		return nil, torus.ErrOutOfSpace
 	}
 	clog.Tracef("mfile: writing block at index %d", index)
 	buf := m.dataFile.GetBlock(uint64(index))
@@ -267,7 +267,7 @@ func (m *mfileBlock) WriteBuf(_ context.Context, s agro.BlockRef) ([]byte, error
 		// we already have it
 		clog.Debug("mfile: block already exists", s)
 		// Not an error, if we already have it
-		return nil, agro.ErrExists
+		return nil, torus.ErrExists
 	}
 	promBlocks.WithLabelValues(m.name).Inc()
 	m.refIndex[s] = index
@@ -275,18 +275,18 @@ func (m *mfileBlock) WriteBuf(_ context.Context, s agro.BlockRef) ([]byte, error
 	return buf, nil
 }
 
-func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
+func (m *mfileBlock) DeleteBlock(_ context.Context, s torus.BlockRef) error {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	if m.closed {
 		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
-		return agro.ErrClosed
+		return torus.ErrClosed
 	}
 	index := m.findIndex(s)
 	if index == -1 {
 		promBlockDeletesFailed.WithLabelValues(m.name).Inc()
 		clog.Errorf("mfile: deleting non-existent thing? %s", s)
-		return agro.ErrBlockNotExist
+		return torus.ErrBlockNotExist
 	}
 	err := m.refFile.WriteBlock(uint64(index), blankRefBytes)
 	if err != nil {
@@ -299,11 +299,11 @@ func (m *mfileBlock) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	return nil
 }
 
-func (m *mfileBlock) BlockIterator() agro.BlockIterator {
+func (m *mfileBlock) BlockIterator() torus.BlockIterator {
 	m.mut.RLock()
 	defer m.mut.RUnlock()
 	// TODO(barakmich): Amortize this alloc, eg, with Close() and a sync.Pool
-	l := make([]agro.BlockRef, len(m.refIndex))
+	l := make([]torus.BlockRef, len(m.refIndex))
 	i := 0
 	for k := range m.refIndex {
 		l[i] = k
@@ -316,7 +316,7 @@ func (m *mfileBlock) BlockIterator() agro.BlockIterator {
 }
 
 type mfileIterator struct {
-	set  []agro.BlockRef
+	set  []torus.BlockRef
 	i    int
 	done bool
 }
@@ -335,7 +335,7 @@ func (i *mfileIterator) Next() bool {
 	return true
 }
 
-func (i *mfileIterator) BlockRef() agro.BlockRef {
+func (i *mfileIterator) BlockRef() torus.BlockRef {
 	return i.set[i.i]
 }
 

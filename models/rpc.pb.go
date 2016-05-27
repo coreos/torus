@@ -539,112 +539,112 @@ func (this *RebalanceCheckResponse) Equal(that interface{}) bool {
 var _ context.Context
 var _ grpc.ClientConn
 
-// Client API for AgroStorage service
+// Client API for TorusStorage service
 
-type AgroStorageClient interface {
+type TorusStorageClient interface {
 	Block(ctx context.Context, in *BlockRequest, opts ...grpc.CallOption) (*BlockResponse, error)
 	PutBlock(ctx context.Context, in *PutBlockRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	RebalanceCheck(ctx context.Context, in *RebalanceCheckRequest, opts ...grpc.CallOption) (*RebalanceCheckResponse, error)
 }
 
-type agroStorageClient struct {
+type torusStorageClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewAgroStorageClient(cc *grpc.ClientConn) AgroStorageClient {
-	return &agroStorageClient{cc}
+func NewTorusStorageClient(cc *grpc.ClientConn) TorusStorageClient {
+	return &torusStorageClient{cc}
 }
 
-func (c *agroStorageClient) Block(ctx context.Context, in *BlockRequest, opts ...grpc.CallOption) (*BlockResponse, error) {
+func (c *torusStorageClient) Block(ctx context.Context, in *BlockRequest, opts ...grpc.CallOption) (*BlockResponse, error) {
 	out := new(BlockResponse)
-	err := grpc.Invoke(ctx, "/models.AgroStorage/Block", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/models.TorusStorage/Block", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *agroStorageClient) PutBlock(ctx context.Context, in *PutBlockRequest, opts ...grpc.CallOption) (*PutResponse, error) {
+func (c *torusStorageClient) PutBlock(ctx context.Context, in *PutBlockRequest, opts ...grpc.CallOption) (*PutResponse, error) {
 	out := new(PutResponse)
-	err := grpc.Invoke(ctx, "/models.AgroStorage/PutBlock", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/models.TorusStorage/PutBlock", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *agroStorageClient) RebalanceCheck(ctx context.Context, in *RebalanceCheckRequest, opts ...grpc.CallOption) (*RebalanceCheckResponse, error) {
+func (c *torusStorageClient) RebalanceCheck(ctx context.Context, in *RebalanceCheckRequest, opts ...grpc.CallOption) (*RebalanceCheckResponse, error) {
 	out := new(RebalanceCheckResponse)
-	err := grpc.Invoke(ctx, "/models.AgroStorage/RebalanceCheck", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/models.TorusStorage/RebalanceCheck", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for AgroStorage service
+// Server API for TorusStorage service
 
-type AgroStorageServer interface {
+type TorusStorageServer interface {
 	Block(context.Context, *BlockRequest) (*BlockResponse, error)
 	PutBlock(context.Context, *PutBlockRequest) (*PutResponse, error)
 	RebalanceCheck(context.Context, *RebalanceCheckRequest) (*RebalanceCheckResponse, error)
 }
 
-func RegisterAgroStorageServer(s *grpc.Server, srv AgroStorageServer) {
-	s.RegisterService(&_AgroStorage_serviceDesc, srv)
+func RegisterTorusStorageServer(s *grpc.Server, srv TorusStorageServer) {
+	s.RegisterService(&_TorusStorage_serviceDesc, srv)
 }
 
-func _AgroStorage_Block_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+func _TorusStorage_Block_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BlockRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
-	out, err := srv.(AgroStorageServer).Block(ctx, in)
+	out, err := srv.(TorusStorageServer).Block(ctx, in)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func _AgroStorage_PutBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+func _TorusStorage_PutBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PutBlockRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
-	out, err := srv.(AgroStorageServer).PutBlock(ctx, in)
+	out, err := srv.(TorusStorageServer).PutBlock(ctx, in)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func _AgroStorage_RebalanceCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+func _TorusStorage_RebalanceCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RebalanceCheckRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
-	out, err := srv.(AgroStorageServer).RebalanceCheck(ctx, in)
+	out, err := srv.(TorusStorageServer).RebalanceCheck(ctx, in)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-var _AgroStorage_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "models.AgroStorage",
-	HandlerType: (*AgroStorageServer)(nil),
+var _TorusStorage_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "models.TorusStorage",
+	HandlerType: (*TorusStorageServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "Block",
-			Handler:    _AgroStorage_Block_Handler,
+			Handler:    _TorusStorage_Block_Handler,
 		},
 		{
 			MethodName: "PutBlock",
-			Handler:    _AgroStorage_PutBlock_Handler,
+			Handler:    _TorusStorage_PutBlock_Handler,
 		},
 		{
 			MethodName: "RebalanceCheck",
-			Handler:    _AgroStorage_RebalanceCheck_Handler,
+			Handler:    _TorusStorage_RebalanceCheck_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{},

@@ -1,21 +1,21 @@
 package block
 
 import (
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/blockset"
+	"github.com/coreos/torus/models"
 	"golang.org/x/net/context"
 )
 
 const VolumeType = "block"
 
 type BlockVolume struct {
-	srv    *agro.Server
+	srv    *torus.Server
 	mds    blockMetadata
 	volume *models.Volume
 }
 
-func CreateBlockVolume(mds agro.MetadataService, volume string, size uint64) error {
+func CreateBlockVolume(mds torus.MetadataService, volume string, size uint64) error {
 	id, err := mds.NewVolumeID()
 	if err != nil {
 		return err
@@ -32,12 +32,12 @@ func CreateBlockVolume(mds agro.MetadataService, volume string, size uint64) err
 	})
 }
 
-func OpenBlockVolume(s *agro.Server, volume string) (*BlockVolume, error) {
+func OpenBlockVolume(s *torus.Server, volume string) (*BlockVolume, error) {
 	vol, err := s.MDS.GetVolume(volume)
 	if err != nil {
 		return nil, err
 	}
-	mds, err := createBlockMetadata(s.MDS, vol.Name, agro.VolumeID(vol.Id))
+	mds, err := createBlockMetadata(s.MDS, vol.Name, torus.VolumeID(vol.Id))
 	if err != nil {
 		return nil, err
 	}
@@ -48,12 +48,12 @@ func OpenBlockVolume(s *agro.Server, volume string) (*BlockVolume, error) {
 	}, nil
 }
 
-func DeleteBlockVolume(mds agro.MetadataService, volume string) error {
+func DeleteBlockVolume(mds torus.MetadataService, volume string) error {
 	vol, err := mds.GetVolume(volume)
 	if err != nil {
 		return err
 	}
-	bmds, err := createBlockMetadata(mds, vol.Name, agro.VolumeID(vol.Id))
+	bmds, err := createBlockMetadata(mds, vol.Name, torus.VolumeID(vol.Id))
 	if err != nil {
 		return err
 	}
@@ -68,8 +68,8 @@ func (s *BlockVolume) getContext() context.Context {
 	return context.TODO()
 }
 
-func (s *BlockVolume) getOrCreateBlockINode(ref agro.INodeRef) (*models.INode, error) {
-	if ref.Volume() != agro.VolumeID(s.volume.Id) {
+func (s *BlockVolume) getOrCreateBlockINode(ref torus.INodeRef) (*models.INode, error) {
+	if ref.Volume() != torus.VolumeID(s.volume.Id) {
 		panic("ids managed by metadata didn't match, how is that possible?")
 	}
 	if ref.INode != 1 {
@@ -95,6 +95,6 @@ func (s *BlockVolume) getOrCreateBlockINode(ref agro.INodeRef) (*models.INode, e
 	inode.INode = 1
 	inode.Volume = s.volume.Id
 	inode.Filesize = s.volume.MaxBytes
-	inode.Blocks, err = agro.MarshalBlocksetToProto(bs)
+	inode.Blocks, err = torus.MarshalBlocksetToProto(bs)
 	return inode, err
 }

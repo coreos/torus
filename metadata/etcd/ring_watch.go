@@ -3,8 +3,8 @@ package etcd
 import (
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/ring"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/ring"
 )
 
 func (e *Etcd) watchRingUpdates() error {
@@ -17,7 +17,7 @@ func (e *Etcd) watchRingUpdates() error {
 	return nil
 }
 
-func (e *Etcd) watchRing(r agro.Ring) {
+func (e *Etcd) watchRing(r torus.Ring) {
 	ctx, cancel := context.WithCancel(e.getContext())
 	defer cancel()
 	wch := e.Client.Watch(ctx, MkKey("meta", "the-one-ring"))

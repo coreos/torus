@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"golang.org/x/net/context"
 )
 
@@ -13,7 +13,7 @@ var (
 	ErrNoPeersBlock = errors.New("distributor: no peers available for a block")
 )
 
-func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, error) {
+func (d *Distributor) GetBlock(ctx context.Context, i torus.BlockRef) ([]byte, error) {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	promDistBlockRequests.Inc()
@@ -33,7 +33,7 @@ func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	}
 	writeLevel := d.getWriteFromServer()
 	for _, p := range peers.Peers[:peers.Replication] {
-		if p == d.UUID() || writeLevel == agro.WriteLocal {
+		if p == d.UUID() || writeLevel == torus.WriteLocal {
 			b, err := d.blocks.GetBlock(ctx, i)
 			if err == nil {
 				promDistBlockLocalHits.Inc()
@@ -46,11 +46,11 @@ func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	var blk []byte
 	readLevel := d.getReadFromServer()
 	switch readLevel {
-	case agro.ReadBlock:
+	case torus.ReadBlock:
 		blk, err = d.readWithBackoff(ctx, i, peers)
-	case agro.ReadSequential:
+	case torus.ReadSequential:
 		blk, err = d.readSequential(ctx, i, peers, clientTimeout)
-	case agro.ReadSpread:
+	case torus.ReadSpread:
 		blk, err = d.readSpread(ctx, i, peers)
 	default:
 		panic("unhandled read level")
@@ -63,7 +63,7 @@ func (d *Distributor) GetBlock(ctx context.Context, i agro.BlockRef) ([]byte, er
 	return blk, err
 }
 
-func (d *Distributor) readWithBackoff(ctx context.Context, ref agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
+func (d *Distributor) readWithBackoff(ctx context.Context, ref torus.BlockRef, peers torus.PeerPermutation) ([]byte, error) {
 	for i := uint(0); i < 10; i++ {
 		timeout := clientTimeout * (1 << i)
 		blk, err := d.readSequential(ctx, ref, peers, timeout)
@@ -74,7 +74,7 @@ func (d *Distributor) readWithBackoff(ctx context.Context, ref agro.BlockRef, pe
 	return nil, ErrNoPeersBlock
 }
 
-func (d *Distributor) readSequential(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation, timeout time.Duration) ([]byte, error) {
+func (d *Distributor) readSequential(ctx context.Context, i torus.BlockRef, peers torus.PeerPermutation, timeout time.Duration) ([]byte, error) {
 	for _, p := range peers.Peers {
 		// If it's local, just try to get it.
 		if p == d.UUID() {
@@ -98,7 +98,7 @@ func (d *Distributor) readSequential(ctx context.Context, i agro.BlockRef, peers
 		}
 
 		// If this peer didn't have it, continue
-		if err == agro.ErrBlockUnavailable || err == agro.ErrNoPeer {
+		if err == torus.ErrBlockUnavailable || err == torus.ErrNoPeer {
 			clog.Warningf("block %s from %s failed, trying next peer", i, p)
 			promDistBlockPeerFailures.WithLabelValues(p).Inc()
 			continue
@@ -112,7 +112,7 @@ func (d *Distributor) readSequential(ctx context.Context, i agro.BlockRef, peers
 	return nil, ErrNoPeersBlock
 }
 
-func (d *Distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agro.PeerPermutation) ([]byte, error) {
+func (d *Distributor) readSpread(ctx context.Context, i torus.BlockRef, peers torus.PeerPermutation) ([]byte, error) {
 	resch := make(chan []byte)
 	errch := make(chan error, peers.Replication)
 	var once sync.Once
@@ -151,7 +151,7 @@ func (d *Distributor) readSpread(ctx context.Context, i agro.BlockRef, peers agr
 	}
 }
 
-func (d *Distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer string) ([]byte, error) {
+func (d *Distributor) readFromPeer(ctx context.Context, i torus.BlockRef, peer string) ([]byte, error) {
 	blk, err := d.client.GetBlock(ctx, peer, i)
 	// If we're successful, store that.
 	if err == nil {
@@ -162,15 +162,15 @@ func (d *Distributor) readFromPeer(ctx context.Context, i agro.BlockRef, peer st
 	return nil, err
 }
 
-func (d *Distributor) getWriteFromServer() agro.WriteLevel {
+func (d *Distributor) getWriteFromServer() torus.WriteLevel {
 	return d.srv.Cfg.WriteLevel
 }
 
-func (d *Distributor) getReadFromServer() agro.ReadLevel {
+func (d *Distributor) getReadFromServer() torus.ReadLevel {
 	return d.srv.Cfg.ReadLevel
 }
 
-func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []byte) error {
+func (d *Distributor) WriteBlock(ctx context.Context, i torus.BlockRef, data []byte) error {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	peers, err := d.ring.GetPeers(i)
@@ -178,19 +178,19 @@ func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 		return err
 	}
 	if len(peers.Peers) == 0 {
-		return agro.ErrOutOfSpace
+		return torus.ErrOutOfSpace
 	}
 	d.readCache.Put(string(i.ToBytes()), data)
 	switch d.getWriteFromServer() {
-	case agro.WriteLocal:
+	case torus.WriteLocal:
 		err = d.blocks.WriteBlock(ctx, i, data)
 		if err == nil {
 			return nil
 		}
 		clog.Tracef("Couldn't write locally; writing to cluster")
 		// fallthrough is evil
-		return d.WriteBlock(context.WithValue(ctx, agro.CtxWriteLevel, agro.WriteOne), i, data)
-	case agro.WriteOne:
+		return d.WriteBlock(context.WithValue(ctx, torus.CtxWriteLevel, torus.WriteOne), i, data)
+	case torus.WriteOne:
 		for _, p := range peers.Peers[:peers.Replication] {
 			// If we're one of the desired peers, we count, write here first.
 			if p == d.UUID() {
@@ -209,8 +209,8 @@ func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 			}
 			clog.Noticef("WriteOne error, remote: %s", err)
 		}
-		return agro.ErrNoPeer
-	case agro.WriteAll:
+		return torus.ErrNoPeer
+	case torus.WriteAll:
 		toWrite := peers.Replication
 		for _, p := range peers.Peers {
 			var err error
@@ -236,15 +236,15 @@ func (d *Distributor) WriteBlock(ctx context.Context, i agro.BlockRef, data []by
 	return nil
 }
 
-func (d *Distributor) WriteBuf(ctx context.Context, i agro.BlockRef) ([]byte, error) {
+func (d *Distributor) WriteBuf(ctx context.Context, i torus.BlockRef) ([]byte, error) {
 	return d.blocks.WriteBuf(ctx, i)
 }
 
-func (d *Distributor) HasBlock(ctx context.Context, i agro.BlockRef) (bool, error) {
+func (d *Distributor) HasBlock(ctx context.Context, i torus.BlockRef) (bool, error) {
 	return false, errors.New("unimplemented -- finding if a block exists cluster-wide")
 }
 
-func (d *Distributor) DeleteBlock(ctx context.Context, i agro.BlockRef) error {
+func (d *Distributor) DeleteBlock(ctx context.Context, i torus.BlockRef) error {
 	return d.blocks.DeleteBlock(ctx, i)
 }
 
@@ -260,7 +260,7 @@ func (d *Distributor) UsedBlocks() uint64 {
 	return d.blocks.UsedBlocks()
 }
 
-func (d *Distributor) BlockIterator() agro.BlockIterator {
+func (d *Distributor) BlockIterator() torus.BlockIterator {
 	return d.blocks.BlockIterator()
 }
 

@@ -2,11 +2,11 @@ Some good benchmarks to run:
 
 Linear write speed
 
-`dd if=/dev/zero of=/mnt/agro/testfile bs=1K count=4000000`
+`dd if=/dev/zero of=/mnt/torus/testfile bs=1K count=4000000`
 
 Traditional benchmark
 
-`bonnie++ -d /mnt/agro/test -s 8G -u core`
+`bonnie++ -d /mnt/torus/test -s 8G -u core`
 
 Painful benchmark
 

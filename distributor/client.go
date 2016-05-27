@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/distributor/protocols"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/distributor/protocols"
 	"golang.org/x/net/context"
 )
 
@@ -117,39 +117,39 @@ func (d *distClient) Close() error {
 	return nil
 }
 
-func (d *distClient) GetBlock(ctx context.Context, uuid string, b agro.BlockRef) ([]byte, error) {
+func (d *distClient) GetBlock(ctx context.Context, uuid string, b torus.BlockRef) ([]byte, error) {
 	conn := d.getConn(uuid)
 	if conn == nil {
-		return nil, agro.ErrNoPeer
+		return nil, torus.ErrNoPeer
 	}
 	data, err := conn.Block(ctx, b)
 	if err != nil {
 		d.resetConn(uuid)
 		clog.Debug(err)
-		return nil, agro.ErrBlockUnavailable
+		return nil, torus.ErrBlockUnavailable
 	}
 	return data, nil
 }
 
-func (d *distClient) PutBlock(ctx context.Context, uuid string, b agro.BlockRef, data []byte) error {
+func (d *distClient) PutBlock(ctx context.Context, uuid string, b torus.BlockRef, data []byte) error {
 	conn := d.getConn(uuid)
 	if conn == nil {
-		return agro.ErrBlockUnavailable
+		return torus.ErrBlockUnavailable
 	}
 	err := conn.PutBlock(ctx, b, data)
 	if err != nil {
 		d.resetConn(uuid)
 		if err == context.DeadlineExceeded {
-			return agro.ErrBlockUnavailable
+			return torus.ErrBlockUnavailable
 		}
 	}
 	return err
 }
 
-func (d *distClient) Check(ctx context.Context, uuid string, blks []agro.BlockRef) ([]bool, error) {
+func (d *distClient) Check(ctx context.Context, uuid string, blks []torus.BlockRef) ([]bool, error) {
 	conn := d.getConn(uuid)
 	if conn == nil {
-		return nil, agro.ErrNoPeer
+		return nil, torus.ErrNoPeer
 	}
 	resp, err := conn.RebalanceCheck(ctx, blks)
 	if err != nil {

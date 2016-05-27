@@ -3,13 +3,13 @@ package main
 import (
 	"strings"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
-	"github.com/coreos/agro/ring"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/blockset"
+	"github.com/coreos/torus/ring"
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
-	_ "github.com/coreos/agro/metadata/etcd"
+	_ "github.com/coreos/torus/metadata/etcd"
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 
 var initCommand = &cobra.Command{
 	Use:    "init",
-	Short:  "Prepare a new agro cluster by creating the metadata",
+	Short:  "Prepare a new torus cluster by creating the metadata",
 	PreRun: initPreRun,
 	Run:    initAction,
 }
@@ -48,7 +48,7 @@ func initPreRun(cmd *cobra.Command, args []string) {
 
 func initAction(cmd *cobra.Command, args []string) {
 	var err error
-	md := agro.GlobalMetadata{}
+	md := torus.GlobalMetadata{}
 	md.BlockSize = blockSize
 	md.DefaultBlockSpec, err = blockset.ParseBlockLayerSpec(blockSpec)
 	md.INodeReplication = inodeReplication
@@ -56,14 +56,14 @@ func initAction(cmd *cobra.Command, args []string) {
 		die("error parsing block-spec: %v", err)
 	}
 
-	cfg := agro.Config{
+	cfg := torus.Config{
 		MetadataAddress: etcdAddress,
 	}
 	ringType := ring.Ketama
 	if noMakeRing {
 		ringType = ring.Empty
 	}
-	err = agro.InitMDS("etcd", cfg, md, ringType)
+	err = torus.InitMDS("etcd", cfg, md, ringType)
 	if err != nil {
 		die("error writing metadata: %v", err)
 	}

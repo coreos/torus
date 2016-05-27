@@ -6,28 +6,28 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/RoaringBitmap/roaring"
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"github.com/coreos/pkg/capnslog"
 )
 
 type baseBlockset struct {
 	ids       uint64
-	blocks    []agro.BlockRef
-	store     agro.BlockStore
+	blocks    []torus.BlockRef
+	store     torus.BlockStore
 	blocksize uint64
 }
 
 var _ blockset = &baseBlockset{}
 
 func init() {
-	RegisterBlockset(Base, func(_ string, store agro.BlockStore, _ blockset) (blockset, error) {
+	RegisterBlockset(Base, func(_ string, store torus.BlockStore, _ blockset) (blockset, error) {
 		return newBaseBlockset(store), nil
 	})
 }
 
-func newBaseBlockset(store agro.BlockStore) *baseBlockset {
+func newBaseBlockset(store torus.BlockStore) *baseBlockset {
 	b := &baseBlockset{
-		blocks: make([]agro.BlockRef, 0),
+		blocks: make([]torus.BlockRef, 0),
 		store:  store,
 	}
 	if store != nil {
@@ -46,13 +46,13 @@ func (b *baseBlockset) Kind() uint32 {
 
 func (b *baseBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	if i >= len(b.blocks) {
-		return nil, agro.ErrBlockNotExist
+		return nil, torus.ErrBlockNotExist
 	}
 	if b.blocks[i].IsZero() {
 		return make([]byte, b.store.BlockSize()), nil
 	}
-	if agro.BlockLog.LevelAt(capnslog.TRACE) {
-		agro.BlockLog.Tracef("base: getting block %d at BlockID %s", i, b.blocks[i])
+	if torus.BlockLog.LevelAt(capnslog.TRACE) {
+		torus.BlockLog.Tracef("base: getting block %d at BlockID %s", i, b.blocks[i])
 	}
 	bytes, err := b.store.GetBlock(ctx, b.blocks[i])
 	if err != nil {
@@ -62,22 +62,22 @@ func (b *baseBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	return bytes, err
 }
 
-func (b *baseBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, data []byte) error {
+func (b *baseBlockset) PutBlock(ctx context.Context, inode torus.INodeRef, i int, data []byte) error {
 	if i > len(b.blocks) {
-		return agro.ErrBlockNotExist
+		return torus.ErrBlockNotExist
 	}
 	// if v, ok := ctx.Value("isEmpty").(bool); ok && v {
 	// 	clog.Debug("copying empty block")
 	// 	if i == len(b.blocks) {
-	// 		b.blocks = append(b.blocks, agro.ZeroBlock())
+	// 		b.blocks = append(b.blocks, torus.ZeroBlock())
 	// 	} else {
-	// 		b.blocks[i] = agro.ZeroBlock()
+	// 		b.blocks[i] = torus.ZeroBlock()
 	// 	}
 	// 	return nil
 	// }
 	newBlockID := b.makeID(inode)
-	if agro.BlockLog.LevelAt(capnslog.TRACE) {
-		agro.BlockLog.Tracef("base: writing block %d at BlockID %s", i, newBlockID)
+	if torus.BlockLog.LevelAt(capnslog.TRACE) {
+		torus.BlockLog.Tracef("base: writing block %d at BlockID %s", i, newBlockID)
 	}
 	err := b.store.WriteBlock(ctx, newBlockID, data)
 	if err != nil {
@@ -91,42 +91,42 @@ func (b *baseBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int,
 	return nil
 }
 
-func (b *baseBlockset) makeID(i agro.INodeRef) agro.BlockRef {
+func (b *baseBlockset) makeID(i torus.INodeRef) torus.BlockRef {
 	id := atomic.AddUint64(&b.ids, 1)
-	return agro.BlockRef{
+	return torus.BlockRef{
 		INodeRef: i,
-		Index:    agro.IndexID(id),
+		Index:    torus.IndexID(id),
 	}
 }
 
 func (b *baseBlockset) Marshal() ([]byte, error) {
-	buf := make([]byte, len(b.blocks)*agro.BlockRefByteSize)
+	buf := make([]byte, len(b.blocks)*torus.BlockRefByteSize)
 	for i, x := range b.blocks {
-		x.ToBytesBuf(buf[(i * agro.BlockRefByteSize) : (i+1)*agro.BlockRefByteSize])
+		x.ToBytesBuf(buf[(i * torus.BlockRefByteSize) : (i+1)*torus.BlockRefByteSize])
 	}
 	return buf, nil
 }
 
-func (b *baseBlockset) setStore(s agro.BlockStore) {
+func (b *baseBlockset) setStore(s torus.BlockStore) {
 	b.blocksize = s.BlockSize()
 	b.store = s
 }
 
-func (b *baseBlockset) getStore() agro.BlockStore {
+func (b *baseBlockset) getStore() torus.BlockStore {
 	return b.store
 }
 
 func (b *baseBlockset) Unmarshal(data []byte) error {
-	l := len(data) / agro.BlockRefByteSize
-	out := make([]agro.BlockRef, l)
+	l := len(data) / torus.BlockRefByteSize
+	out := make([]torus.BlockRef, l)
 	for i := 0; i < l; i++ {
-		out[i] = agro.BlockRefFromBytes(data[(i * agro.BlockRefByteSize) : (i+1)*agro.BlockRefByteSize])
+		out[i] = torus.BlockRefFromBytes(data[(i * torus.BlockRefByteSize) : (i+1)*torus.BlockRefByteSize])
 	}
 	b.blocks = out
 	return nil
 }
 
-func (b *baseBlockset) GetSubBlockset() agro.Blockset { return nil }
+func (b *baseBlockset) GetSubBlockset() torus.Blockset { return nil }
 
 func (b *baseBlockset) GetLiveINodes() *roaring.Bitmap {
 	out := roaring.NewBitmap()
@@ -146,7 +146,7 @@ func (b *baseBlockset) Truncate(lastIndex int, _ uint64) error {
 	}
 	toadd := lastIndex - len(b.blocks)
 	for toadd != 0 {
-		b.blocks = append(b.blocks, agro.ZeroBlock())
+		b.blocks = append(b.blocks, torus.ZeroBlock())
 		toadd--
 	}
 	return nil
@@ -160,13 +160,13 @@ func (b *baseBlockset) Trim(from, to int) error {
 		to = len(b.blocks)
 	}
 	for i := from; i < to; i++ {
-		b.blocks[i] = agro.ZeroBlock()
+		b.blocks[i] = torus.ZeroBlock()
 	}
 	return nil
 }
 
-func (b *baseBlockset) GetAllBlockRefs() []agro.BlockRef {
-	out := make([]agro.BlockRef, len(b.blocks))
+func (b *baseBlockset) GetAllBlockRefs() []torus.BlockRef {
+	out := make([]torus.BlockRef, len(b.blocks))
 	copy(out, b.blocks)
 	return out
 }

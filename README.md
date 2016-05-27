@@ -1,45 +1,45 @@
-# agro
+# torus
 
 A Go Distributed Storage Engine
 
-See the [wiki](https://github.com/coreos/agro/wiki) for more details
+See the [wiki](https://github.com/coreos/torus/wiki) for more details
 
 ## Overview
 
-Agro is a distributed block storage engine that provides a resource pool and basic file primitives from daemons running atop a cluster. These primitives are made consistent by being append-only and coordinated by [etcd](https://github.com/coreos/etcd). From these primitives, an agro server can support multiple types of volumes, the semantics of which can be broken into subprojects. It ships with a simple block-device volume plugin.
+Torus is a distributed block storage engine that provides a resource pool and basic file primitives from daemons running atop a cluster. These primitives are made consistent by being append-only and coordinated by [etcd](https://github.com/coreos/etcd). From these primitives, an torus server can support multiple types of volumes, the semantics of which can be broken into subprojects. It ships with a simple block-device volume plugin.
 
-The goal from the start is simplicity; running agro should take at most 5 minutes for a developer to set up and understand, while being as robust as possible. 
+The goal from the start is simplicity; running torus should take at most 5 minutes for a developer to set up and understand, while being as robust as possible. 
 
 Sharding is done via a consistent hash function, controlled in the simple case by a hash ring algorithm, but fully extensible to arbitrary maps, rack-awareness, and other nice features.
 
 ## Getting Started
 
-### 0) Build agro
+### 0) Build torus
 
 ```
-go get github.com/coreos/agro
-go get -d github.com/coreos/agro
+go get github.com/coreos/torus
+go get -d github.com/coreos/torus
 ```
 
 Then one of:
 
 ```
-go install -v github.com/coreos/agro/cmd/agro
-go install -v github.com/coreos/agro/cmd/agroctl
-go install -v github.com/coreos/agro/cmd/agroblock
+go install -v github.com/coreos/torus/cmd/torus
+go install -v github.com/coreos/torus/cmd/torusctl
+go install -v github.com/coreos/torus/cmd/torusblock
 ```
 
 or 
 
 ```
-cd $GOPATH/src/github.com/coreos/agro
+cd $GOPATH/src/github.com/coreos/torus
 make
 ```
 
-Either way you'll find the binaries `agro`, `agroctl` and `agroblock`.
+Either way you'll find the binaries `torus`, `torusctl` and `torusblock`.
 
 ### 1) Get etcd
-You need a *v3.0* [etcd](https://github.com/coreos/etcd), as agro uses the v3 API natively and depends on some fixes therein. 
+You need a *v3.0* [etcd](https://github.com/coreos/etcd), as torus uses the v3 API natively and depends on some fixes therein. 
 [etcd v3.0.0-beta.0](https://github.com/coreos/etcd/releases/tag/v3.0.0-beta.0) or above is required. 
 
 3.0 natively understands the v3 API. To run a single node cluster locally, etcd is ready to work:
@@ -55,29 +55,29 @@ etcd --data-dir /tmp/etcd
 We need to initialize the storage keys in etcd. This sets the fixed, global settings for the storage cluster, much like formatting a block device. Fortunately, the default settings should suffice for most cases.
 
 ```
-agroctl init
+torusctl init
 ```
 
 And you're ready!
 
-If `agroctl` can't connect to etcd, it takes the `-C` flag, just like `etcdctl`
+If `torusctl` can't connect to etcd, it takes the `-C` flag, just like `etcdctl`
 
 ```
-agroctl -C $ETCD_IP:2379 init
+torusctl -C $ETCD_IP:2379 init
 ```
 
-(This remains true for all uses of agro binaries)
+(This remains true for all uses of torus binaries)
 
 If you're curious about the other settings, 
 ```
-agroctl init --help
+torusctl init --help
 ```
 will tell you more.
 
 ### 3) Run some storage nodes
 #### Running manually
 ```
-./agro --etcd 127.0.0.1:2379 --peer-address http://$MY_IP:40000 --data-dir /path/to/data --size 20GiB
+./torus --etcd 127.0.0.1:2379 --peer-address http://$MY_IP:40000 --data-dir /path/to/data --size 20GiB
 ```
 This runs a storage node without HTTP. Add `--host` and `--port` to open the HTTP endpoint
 
@@ -96,7 +96,7 @@ docker run \
 -e LISTEN_HTTP_PORT=4321 \
 -e LISTEN_PEER_PORT=40000 \
 -e ETCD_HOST=127.0.0.1 \
-quay.io/coreos/agro
+quay.io/coreos/torus
 ```
 If you want to run more than one storage node on the host, you can do so by offsetting the ports.
 
@@ -108,17 +108,17 @@ docker run \
 -v /path/to/data1:/data \
 -e STORAGE_SIZE=20GiB \
 -e ETCD_HOST=127.0.0.1 \
-quay.io/coreos/agro
+quay.io/coreos/torus
 ```
 
 #### Running on Kubernetes
 
-In the folder you'll find `agro-daemon-set.yaml`. This example daemonset is almost all you need. 
+In the folder you'll find `torus-daemon-set.yaml`. This example daemonset is almost all you need. 
 
 
 ### 4) Check that everything is reporting in
 ```
-agroctl list-peers
+torusctl list-peers
 ```
 
 Should show your data nodes and their reporting status. Eg:
@@ -135,26 +135,26 @@ Balanced: true Usage:  0.00%
 ### 5) Activate storage on the peers
 
 ```
-agroctl peer add --all-peers
+torusctl peer add --all-peers
 ```
 
-You'll notice if you run `agroctl peer list` again, the `MEMBER` column will have changed from `Avail` to `OK`. These nodes are now storing data.
+You'll notice if you run `torusctl peer list` again, the `MEMBER` column will have changed from `Avail` to `OK`. These nodes are now storing data.
 
 Will immediately impress the peers shown in `list-peers` into service, storing data. Peers can be added one (or a couple) at a time via:
 
 ```
-agroctl peer add http://$PEER_IP:$PEER_PORT [$PEER_UUID...]
+torusctl peer add http://$PEER_IP:$PEER_PORT [$PEER_UUID...]
 ```
 
 To see which peers are in service (and other sharding details):
 
 ```
-agroctl ring get
+torusctl ring get
 ```
 
 To remove a node from service:
 ```
-agroctl peer remove http://$PEER_IP:$PEER_PORT
+torusctl peer remove http://$PEER_IP:$PEER_PORT
 ```
 
 Draining of peers will happen automatically. If this is a hard removal (ie, the node is gone forever) just remove it, and data will rereplicate automatically. Doing multiple hard removals above the replication threshold may result in data loss. However, this is common practice to anyone that's ever worked with the fault tolerance in [RAID levels.](https://en.wikipedia.org/wiki/Standard_RAID_levels#Comparison).
@@ -164,7 +164,7 @@ Even better fault tolerance with erasure codes and parity is an advanced topic T
 ### 6) Create a volume
 
 ```
-agroblock volume create myVolume 10GiB
+torusblock volume create myVolume 10GiB
 ```
 
 This creates a 10GiB virtual blockfile for use. It will be safely replicated and CRC checked, by default. 
@@ -173,7 +173,7 @@ This creates a 10GiB virtual blockfile for use. It will be safely replicated and
 
 ```
 sudo modprobe nbd
-sudo agroblock --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
+sudo torusblock --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
 ```
 
 Specifying `/dev/nbd0` is optional -- it will pick the first available.
@@ -184,7 +184,7 @@ At this point, you have a replicated, highly-available block device connected to
 
 ```
 sudo mkfs.ext4 /dev/nbd0
-sudo mount /dev/nbd0 -o discard,noatime /mnt/agro
+sudo mount /dev/nbd0 -o discard,noatime /mnt/torus
 ```
 
 It supports the TRIM SSD command for garbage collecting; `-o discard` enables this.

@@ -1,4 +1,4 @@
-package agro
+package torus
 
 import (
 	"bytes"
@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/block"
-	"github.com/coreos/agro/distributor"
-	"github.com/coreos/agro/metadata/temp"
-	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/ring"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/block"
+	"github.com/coreos/torus/distributor"
+	"github.com/coreos/torus/metadata/temp"
+	"github.com/coreos/torus/models"
+	"github.com/coreos/torus/ring"
 
-	_ "github.com/coreos/agro/storage"
+	_ "github.com/coreos/torus/storage"
 )
 
 const (
@@ -26,25 +26,25 @@ const (
 	BlockSize   = 256
 )
 
-func newServer(t testing.TB, md *temp.Server) *agro.Server {
-	dir, _ := ioutil.TempDir("", "agro-integration")
-	agro.MkdirsFor(dir)
-	cfg := agro.Config{
+func newServer(t testing.TB, md *temp.Server) *torus.Server {
+	dir, _ := ioutil.TempDir("", "torus-integration")
+	torus.MkdirsFor(dir)
+	cfg := torus.Config{
 		StorageSize: StorageSize,
 		DataDir:     dir,
 	}
 	mds := temp.NewClient(cfg, md)
 	gmd, _ := mds.GlobalMetadata()
-	blocks, err := agro.CreateBlockStore("mfile", "current", cfg, gmd)
+	blocks, err := torus.CreateBlockStore("mfile", "current", cfg, gmd)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, _ := agro.NewServerByImpl(cfg, mds, blocks)
+	s, _ := torus.NewServerByImpl(cfg, mds, blocks)
 	return s
 }
 
-func createN(t testing.TB, n int) ([]*agro.Server, *temp.Server) {
-	var out []*agro.Server
+func createN(t testing.TB, n int) ([]*torus.Server, *temp.Server) {
+	var out []*torus.Server
 	s := temp.NewServer()
 	for i := 0; i < n; i++ {
 		srv := newServer(t, s)
@@ -64,9 +64,9 @@ func createN(t testing.TB, n int) ([]*agro.Server, *temp.Server) {
 	return out, s
 }
 
-func ringN(t testing.TB, n int) ([]*agro.Server, *temp.Server) {
+func ringN(t testing.TB, n int) ([]*torus.Server, *temp.Server) {
 	servers, mds := createN(t, n)
-	var peers agro.PeerInfoList
+	var peers torus.PeerInfoList
 	for _, s := range servers {
 		peers = append(peers, &models.PeerInfo{
 			UUID:        s.MDS.UUID(),
@@ -97,7 +97,7 @@ func ringN(t testing.TB, n int) ([]*agro.Server, *temp.Server) {
 	return servers, mds
 }
 
-func closeAll(t testing.TB, c ...*agro.Server) {
+func closeAll(t testing.TB, c ...*torus.Server) {
 	for _, x := range c {
 		err := x.Close()
 		if err != nil {
@@ -119,7 +119,7 @@ func makeTestData(size int) []byte {
 	return out
 }
 
-func createVol(t *testing.T, server *agro.Server, volname string, size uint64) *block.BlockFile {
+func createVol(t *testing.T, server *torus.Server, volname string, size uint64) *block.BlockFile {
 	err := block.CreateBlockVolume(server.MDS, volname, size)
 	if err != nil {
 		t.Fatalf("couldn't create block volume %s: %v", volname, err)
@@ -127,7 +127,7 @@ func createVol(t *testing.T, server *agro.Server, volname string, size uint64) *
 	return openVol(t, server, volname)
 }
 
-func openVol(t *testing.T, server *agro.Server, volname string) *block.BlockFile {
+func openVol(t *testing.T, server *torus.Server, volname string) *block.BlockFile {
 	blockvol, err := block.OpenBlockVolume(server, volname)
 	if err != nil {
 		t.Fatalf("couldn't open block volume %s: %v", volname, err)

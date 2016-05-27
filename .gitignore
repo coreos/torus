@@ -29,9 +29,9 @@ _testmain.go
 *.swo
 
 # Binaries in root dir
-agro
-agroctl
-agroblock
+torus
+torusctl
+torusblock
 
 # local-cluster information
 /local-cluster

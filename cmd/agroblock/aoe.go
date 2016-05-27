@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/block"
-	"github.com/coreos/agro/block/aoe"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/block"
+	"github.com/coreos/torus/block/aoe"
 )
 
 var aoeCommand = &cobra.Command{
@@ -50,7 +50,7 @@ func aoeAction(cmd *cobra.Command, args []string) {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 
-	go func(sv *agro.Server, iface *aoe.Interface) {
+	go func(sv *torus.Server, iface *aoe.Interface) {
 		for _ = range signalChan {
 			fmt.Println("\nReceived an interrupt, stopping services...")
 

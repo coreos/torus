@@ -10,9 +10,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/distributor/protocols"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/distributor/protocols"
+	"github.com/coreos/torus/models"
 )
 
 const defaultPort = "40000"
@@ -22,7 +22,7 @@ func init() {
 	protocols.RegisterRPCDialer("http", grpcRPCDialer)
 }
 
-func grpcRPCListener(url *url.URL, hdl protocols.RPC, gmd agro.GlobalMetadata) (protocols.RPCServer, error) {
+func grpcRPCListener(url *url.URL, hdl protocols.RPC, gmd torus.GlobalMetadata) (protocols.RPCServer, error) {
 	out := &handler{
 		handle: hdl,
 	}
@@ -35,12 +35,12 @@ func grpcRPCListener(url *url.URL, hdl protocols.RPC, gmd agro.GlobalMetadata) (
 		return nil, err
 	}
 	out.grpc = grpc.NewServer()
-	models.RegisterAgroStorageServer(out.grpc, out)
+	models.RegisterTorusStorageServer(out.grpc, out)
 	go out.grpc.Serve(lis)
 	return out, nil
 }
 
-func grpcRPCDialer(url *url.URL, timeout time.Duration, gmd agro.GlobalMetadata) (protocols.RPC, error) {
+func grpcRPCDialer(url *url.URL, timeout time.Duration, gmd torus.GlobalMetadata) (protocols.RPC, error) {
 	h := url.Host
 	if !strings.Contains(h, ":") {
 		h = net.JoinHostPort(h, defaultPort)
@@ -51,20 +51,20 @@ func grpcRPCDialer(url *url.URL, timeout time.Duration, gmd agro.GlobalMetadata)
 	}
 	return &client{
 		conn:    conn,
-		handler: models.NewAgroStorageClient(conn),
+		handler: models.NewTorusStorageClient(conn),
 	}, nil
 }
 
 type client struct {
 	conn    *grpc.ClientConn
-	handler models.AgroStorageClient
+	handler models.TorusStorageClient
 }
 
 func (c *client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *client) PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) error {
+func (c *client) PutBlock(ctx context.Context, ref torus.BlockRef, data []byte) error {
 	_, err := c.handler.PutBlock(ctx, &models.PutBlockRequest{
 		Refs: []*models.BlockRef{
 			ref.ToProto(),
@@ -76,7 +76,7 @@ func (c *client) PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) e
 	return err
 }
 
-func (c *client) Block(ctx context.Context, ref agro.BlockRef) ([]byte, error) {
+func (c *client) Block(ctx context.Context, ref torus.BlockRef) ([]byte, error) {
 	resp, err := c.handler.Block(ctx, &models.BlockRequest{
 		BlockRef: ref.ToProto(),
 	})
@@ -86,7 +86,7 @@ func (c *client) Block(ctx context.Context, ref agro.BlockRef) ([]byte, error) {
 	return resp.Data, nil
 }
 
-func (c *client) RebalanceCheck(ctx context.Context, refs []agro.BlockRef) ([]bool, error) {
+func (c *client) RebalanceCheck(ctx context.Context, refs []torus.BlockRef) ([]bool, error) {
 	req := &models.RebalanceCheckRequest{}
 	for _, x := range refs {
 		req.BlockRefs = append(req.BlockRefs, x.ToProto())
@@ -98,7 +98,7 @@ func (c *client) RebalanceCheck(ctx context.Context, refs []agro.BlockRef) ([]bo
 	return resp.Valid, nil
 }
 
-func (c *client) WriteBuf(ctx context.Context, ref agro.BlockRef) ([]byte, error) {
+func (c *client) WriteBuf(ctx context.Context, ref torus.BlockRef) ([]byte, error) {
 	panic("unimplemented")
 }
 
@@ -108,7 +108,7 @@ type handler struct {
 }
 
 func (h *handler) Block(ctx context.Context, req *models.BlockRequest) (*models.BlockResponse, error) {
-	data, err := h.handle.Block(ctx, agro.BlockFromProto(req.BlockRef))
+	data, err := h.handle.Block(ctx, torus.BlockFromProto(req.BlockRef))
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (h *handler) Block(ctx context.Context, req *models.BlockRequest) (*models.
 
 func (h *handler) PutBlock(ctx context.Context, req *models.PutBlockRequest) (*models.PutResponse, error) {
 	for i, ref := range req.Refs {
-		err := h.handle.PutBlock(ctx, agro.BlockFromProto(ref), req.Blocks[i])
+		err := h.handle.PutBlock(ctx, torus.BlockFromProto(ref), req.Blocks[i])
 		if err != nil {
 			return nil, err
 		}
@@ -129,9 +129,9 @@ func (h *handler) PutBlock(ctx context.Context, req *models.PutBlockRequest) (*m
 }
 
 func (h *handler) RebalanceCheck(ctx context.Context, req *models.RebalanceCheckRequest) (*models.RebalanceCheckResponse, error) {
-	check := make([]agro.BlockRef, len(req.BlockRefs))
+	check := make([]torus.BlockRef, len(req.BlockRefs))
 	for i, x := range req.BlockRefs {
-		check[i] = agro.BlockFromProto(x)
+		check[i] = torus.BlockFromProto(x)
 	}
 	out, err := h.handle.RebalanceCheck(ctx, check)
 	if err != nil {

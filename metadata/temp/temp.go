@@ -6,36 +6,36 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
-	"github.com/coreos/agro/metadata"
-	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/ring"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/blockset"
+	"github.com/coreos/torus/metadata"
+	"github.com/coreos/torus/models"
+	"github.com/coreos/torus/ring"
 )
 
 func init() {
-	agro.RegisterMetadataService("temp", NewTemp)
+	torus.RegisterMetadataService("temp", NewTemp)
 }
 
 type Server struct {
 	mut sync.Mutex
 
-	inode map[agro.VolumeID]agro.INodeID
-	vol   agro.VolumeID
+	inode map[torus.VolumeID]torus.INodeID
+	vol   torus.VolumeID
 
 	volIndex map[string]*models.Volume
-	global   agro.GlobalMetadata
-	peers    agro.PeerInfoList
-	ring     agro.Ring
-	newRing  agro.Ring
+	global   torus.GlobalMetadata
+	peers    torus.PeerInfoList
+	ring     torus.Ring
+	newRing  torus.Ring
 
 	keys map[string]interface{}
 
-	ringListeners []chan agro.Ring
+	ringListeners []chan torus.Ring
 }
 
 type Client struct {
-	cfg    agro.Config
+	cfg    torus.Config
 	uuid   string
 	srv    *Server
 	leader bool
@@ -51,18 +51,18 @@ func NewServer() *Server {
 	}
 	return &Server{
 		volIndex: make(map[string]*models.Volume),
-		global: agro.GlobalMetadata{
+		global: torus.GlobalMetadata{
 			BlockSize:        256,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 			INodeReplication: 2,
 		},
 		ring:  r,
 		keys:  make(map[string]interface{}),
-		inode: make(map[agro.VolumeID]agro.INodeID),
+		inode: make(map[torus.VolumeID]torus.INodeID),
 	}
 }
 
-func NewClient(cfg agro.Config, srv *Server) *Client {
+func NewClient(cfg torus.Config, srv *Server) *Client {
 	uuid, err := metadata.MakeOrGetUUID("")
 	if err != nil {
 		return nil
@@ -74,15 +74,15 @@ func NewClient(cfg agro.Config, srv *Server) *Client {
 	}
 }
 
-func NewTemp(cfg agro.Config) (agro.MetadataService, error) {
+func NewTemp(cfg torus.Config) (torus.MetadataService, error) {
 	return NewClient(cfg, NewServer()), nil
 }
 
-func (t *Client) Kind() agro.MetadataKind {
-	return agro.TempMetadata
+func (t *Client) Kind() torus.MetadataKind {
+	return torus.TempMetadata
 }
 
-func (t *Client) GlobalMetadata() (agro.GlobalMetadata, error) {
+func (t *Client) GlobalMetadata() (torus.GlobalMetadata, error) {
 	return t.srv.global, nil
 }
 
@@ -91,7 +91,7 @@ func (t *Client) UUID() string {
 }
 
 func (t *Client) GetLease() (int64, error) { return 1, nil }
-func (t *Client) GetPeers() (agro.PeerInfoList, error) {
+func (t *Client) GetPeers() (torus.PeerInfoList, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	return t.srv.peers, nil
@@ -110,7 +110,7 @@ func (t *Client) RegisterPeer(_ int64, pi *models.PeerInfo) error {
 	return nil
 }
 
-func (t *Client) NewVolumeID() (agro.VolumeID, error) {
+func (t *Client) NewVolumeID() (torus.VolumeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 
@@ -118,7 +118,7 @@ func (t *Client) NewVolumeID() (agro.VolumeID, error) {
 	return t.srv.vol, nil
 }
 
-func (t *Client) CommitINodeIndex(vol agro.VolumeID) (agro.INodeID, error) {
+func (t *Client) CommitINodeIndex(vol torus.VolumeID) (torus.INodeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 
@@ -126,7 +126,7 @@ func (t *Client) CommitINodeIndex(vol agro.VolumeID) (agro.INodeID, error) {
 	return t.srv.inode[vol], nil
 }
 
-func (t *Client) GetVolumes() ([]*models.Volume, agro.VolumeID, error) {
+func (t *Client) GetVolumes() ([]*models.Volume, torus.VolumeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 
@@ -140,7 +140,7 @@ func (t *Client) GetVolumes() ([]*models.Volume, agro.VolumeID, error) {
 
 func (t *Client) CreateVolume(volume *models.Volume) error {
 	t.srv.volIndex[volume.Name] = volume
-	t.srv.inode[agro.VolumeID(volume.Id)] = 1
+	t.srv.inode[torus.VolumeID(volume.Id)] = 1
 	return nil
 }
 
@@ -154,27 +154,27 @@ func (t *Client) GetVolume(volume string) (*models.Volume, error) {
 	return nil, errors.New("temp: no such volume exists")
 }
 
-func (t *Client) GetRing() (agro.Ring, error) {
+func (t *Client) GetRing() (torus.Ring, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	return t.srv.ring, nil
 }
 
-func (t *Client) SubscribeNewRings(ch chan agro.Ring) {
+func (t *Client) SubscribeNewRings(ch chan torus.Ring) {
 	t.srv.SubscribeNewRings(ch)
 }
 
-func (t *Client) UnsubscribeNewRings(ch chan agro.Ring) {
+func (t *Client) UnsubscribeNewRings(ch chan torus.Ring) {
 	t.srv.UnsubscribeNewRings(ch)
 }
 
-func (s *Server) SubscribeNewRings(ch chan agro.Ring) {
+func (s *Server) SubscribeNewRings(ch chan torus.Ring) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	s.ringListeners = append(s.ringListeners, ch)
 }
 
-func (s *Server) UnsubscribeNewRings(ch chan agro.Ring) {
+func (s *Server) UnsubscribeNewRings(ch chan torus.Ring) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	for i, c := range s.ringListeners {
@@ -192,15 +192,15 @@ func (t *Client) Close() error {
 	return nil
 }
 
-func (t *Client) SetRing(ring agro.Ring) error {
+func (t *Client) SetRing(ring torus.Ring) error {
 	return t.srv.SetRing(ring)
 }
 
-func (s *Server) SetRing(ring agro.Ring) error {
+func (s *Server) SetRing(ring torus.Ring) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	if ring.Version()-1 != s.ring.Version() {
-		return agro.ErrNonSequentialRing
+		return torus.ErrNonSequentialRing
 	}
 	s.ring = ring
 	for _, c := range s.ringListeners {
@@ -209,16 +209,16 @@ func (s *Server) SetRing(ring agro.Ring) error {
 	return nil
 }
 
-func (t *Client) GetINodeIndex(volume agro.VolumeID) (agro.INodeID, error) {
+func (t *Client) GetINodeIndex(volume torus.VolumeID) (torus.INodeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
 	return t.srv.inode[volume], nil
 }
 
-func (t *Client) GetINodeIndexes() (map[agro.VolumeID]agro.INodeID, error) {
+func (t *Client) GetINodeIndexes() (map[torus.VolumeID]torus.INodeID, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	out := make(map[agro.VolumeID]agro.INodeID)
+	out := make(map[torus.VolumeID]torus.INodeID)
 	for k, v := range t.srv.inode {
 		out[k] = v
 	}
@@ -229,7 +229,7 @@ func (s *Server) Close() error {
 	return nil
 }
 
-func (t *Client) WithContext(_ context.Context) agro.MetadataService {
+func (t *Client) WithContext(_ context.Context) torus.MetadataService {
 	return t
 }
 

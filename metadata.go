@@ -1,4 +1,4 @@
-package agro
+package torus
 
 import (
 	"fmt"
@@ -6,11 +6,11 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "agro")
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "torus")
 
 type MetadataKind int
 
@@ -76,7 +76,7 @@ func RegisterMetadataService(name string, newFunc CreateMetadataServiceFunc) {
 	}
 
 	if _, ok := metadataServices[name]; ok {
-		panic("agro: attempted to register MetadataService " + name + " twice")
+		panic("torus: attempted to register MetadataService " + name + " twice")
 	}
 
 	metadataServices[name] = newFunc
@@ -91,7 +91,7 @@ func CreateMetadataService(name string, cfg Config) (MetadataService, error) {
 		return mdsf(cfg)
 	}
 
-	return nil, fmt.Errorf("agro: the metadata service %q doesn't exist", name)
+	return nil, fmt.Errorf("torus: the metadata service %q doesn't exist", name)
 }
 
 // InitMDSFunc is the signature of a function which preformats a metadata service.
@@ -107,7 +107,7 @@ func RegisterMetadataInit(name string, newFunc InitMDSFunc) {
 	}
 
 	if _, ok := initMDSFuncs[name]; ok {
-		panic("agro: attempted to register InitMDSFunc " + name + " twice")
+		panic("torus: attempted to register InitMDSFunc " + name + " twice")
 	}
 
 	initMDSFuncs[name] = newFunc
@@ -131,7 +131,7 @@ func RegisterMetadataWipe(name string, newFunc WipeMDSFunc) {
 	}
 
 	if _, ok := wipeMDSFuncs[name]; ok {
-		panic("agro: attempted to register WipeMDSFunc " + name + " twice")
+		panic("torus: attempted to register WipeMDSFunc " + name + " twice")
 	}
 
 	wipeMDSFuncs[name] = newFunc
@@ -154,7 +154,7 @@ func RegisterSetRing(name string, newFunc SetRingFunc) {
 	}
 
 	if _, ok := setRingFuncs[name]; ok {
-		panic("agro: attempted to register SetRingFunc " + name + " twice")
+		panic("torus: attempted to register SetRingFunc " + name + " twice")
 	}
 
 	setRingFuncs[name] = newFunc

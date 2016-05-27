@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"github.com/coreos/pkg/capnslog"
 )
 
@@ -19,13 +19,13 @@ func (r *rebalancer) Tick() (int, error) {
 		r.it = r.bs.BlockIterator()
 		r.ring = r.r.Ring()
 	}
-	m := make(map[string][]agro.BlockRef)
-	toDelete := make(map[agro.BlockRef]bool)
-	dead := make(map[agro.BlockRef]bool)
+	m := make(map[string][]torus.BlockRef)
+	toDelete := make(map[torus.BlockRef]bool)
+	dead := make(map[torus.BlockRef]bool)
 	itDone := false
 
 	for i := 0; i < maxIters; i++ {
-		var ref agro.BlockRef
+		var ref torus.BlockRef
 		ok := r.it.Next()
 		if !ok {
 			err := r.it.Err()
@@ -44,7 +44,7 @@ func (r *rebalancer) Tick() (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		desired := agro.PeerList(perm.Peers[:perm.Replication])
+		desired := torus.PeerList(perm.Peers[:perm.Replication])
 		myIndex := desired.IndexAt(r.r.UUID())
 		for j, p := range desired {
 			if j == myIndex {
@@ -66,7 +66,7 @@ func (r *rebalancer) Tick() (int, error) {
 			for _, blk := range v {
 				toDelete[blk] = false
 			}
-			if err != agro.ErrNoPeer {
+			if err != torus.ErrNoPeer {
 				clog.Error(err)
 			}
 			continue
@@ -80,8 +80,8 @@ func (r *rebalancer) Tick() (int, error) {
 				}
 				n++
 				ctx, cancel := context.WithTimeout(context.TODO(), rebalanceTimeout)
-				if agro.BlockLog.LevelAt(capnslog.TRACE) {
-					agro.BlockLog.Tracef("rebalance: sending block %s to %s", v[i], k)
+				if torus.BlockLog.LevelAt(capnslog.TRACE) {
+					torus.BlockLog.Tracef("rebalance: sending block %s to %s", v[i], k)
 				}
 				err = r.cs.PutBlock(ctx, k, v[i], data)
 				cancel()
@@ -96,8 +96,8 @@ func (r *rebalancer) Tick() (int, error) {
 
 	for k, v := range toDelete {
 		if v {
-			if agro.BlockLog.LevelAt(capnslog.TRACE) {
-				agro.BlockLog.Tracef("rebalance: deleting replicated block %s", k)
+			if torus.BlockLog.LevelAt(capnslog.TRACE) {
+				torus.BlockLog.Tracef("rebalance: deleting replicated block %s", k)
 			}
 			err := r.bs.DeleteBlock(context.TODO(), k)
 			if err != nil {
@@ -109,8 +109,8 @@ func (r *rebalancer) Tick() (int, error) {
 
 	for k, v := range dead {
 		if v {
-			if agro.BlockLog.LevelAt(capnslog.TRACE) {
-				agro.BlockLog.Tracef("rebalance: deleting dead block %s", k)
+			if torus.BlockLog.LevelAt(capnslog.TRACE) {
+				torus.BlockLog.Tracef("rebalance: deleting dead block %s", k)
 			}
 			err := r.bs.DeleteBlock(context.TODO(), k)
 			if err != nil {

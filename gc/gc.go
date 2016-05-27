@@ -1,13 +1,13 @@
 package gc
 
 import (
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "gc")
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "gc")
 
 type controller struct {
 	gcs []GC
@@ -15,15 +15,15 @@ type controller struct {
 
 type GC interface {
 	PrepVolume(*models.Volume) error
-	IsDead(agro.BlockRef) bool
+	IsDead(torus.BlockRef) bool
 	Clear()
 }
 
 type INodeFetcher interface {
-	GetINode(context.Context, agro.INodeRef) (*models.INode, error)
+	GetINode(context.Context, torus.INodeRef) (*models.INode, error)
 }
 
-func NewGCController(srv *agro.Server, inodes INodeFetcher) GC {
+func NewGCController(srv *torus.Server, inodes INodeFetcher) GC {
 	var gcs []GC
 	for k, v := range gcFuncs {
 		clog.Debugf("creating %s gc", k)
@@ -51,7 +51,7 @@ func (c *controller) PrepVolume(vol *models.Volume) error {
 	return nil
 }
 
-func (c *controller) IsDead(ref agro.BlockRef) bool {
+func (c *controller) IsDead(ref torus.BlockRef) bool {
 	for _, x := range c.gcs {
 		if x.IsDead(ref) {
 			return true
@@ -66,7 +66,7 @@ func (c *controller) Clear() {
 	}
 }
 
-type CreateGCFunc func(srv *agro.Server, inodes INodeFetcher) (GC, error)
+type CreateGCFunc func(srv *torus.Server, inodes INodeFetcher) (GC, error)
 
 var gcFuncs map[string]CreateGCFunc
 

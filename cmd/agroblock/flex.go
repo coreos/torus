@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/internal/nbd"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/internal/nbd"
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/coreos/go-systemd/unit"
 	godbus "github.com/godbus/dbus"
@@ -80,7 +80,7 @@ func initAction(cmd *cobra.Command, args []string) {
 }
 
 func devToUnitName(dev string) string {
-	return "agro-" + unit.UnitNamePathEscape(dev) + ".service"
+	return "torus-" + unit.UnitNamePathEscape(dev) + ".service"
 }
 
 type systemd struct {
@@ -171,7 +171,7 @@ func attachAction(cmd *cobra.Command, args []string) {
 		dev,
 	}
 	if vol.WriteLevel != "" {
-		_, err := agro.ParseWriteLevel(vol.WriteLevel)
+		_, err := torus.ParseWriteLevel(vol.WriteLevel)
 		if err != nil {
 			onErr(err)
 		}

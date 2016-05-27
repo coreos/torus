@@ -5,24 +5,24 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 
 	// Register storage drivers.
-	_ "github.com/coreos/agro/storage"
+	_ "github.com/coreos/torus/storage"
 )
 
-type makeTestBlockset func(s agro.BlockStore) blockset
+type makeTestBlockset func(s torus.BlockStore) blockset
 
 func TestBaseReadWrite(t *testing.T) {
-	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{StorageSize: 300 * 1024}, agro.GlobalMetadata{BlockSize: 1024})
+	s, _ := torus.CreateBlockStore("temp", "test", torus.Config{StorageSize: 300 * 1024}, torus.GlobalMetadata{BlockSize: 1024})
 	b := newBaseBlockset(s)
 	readWriteTest(t, b)
 }
 
 func readWriteTest(t *testing.T, b blockset) {
-	inode := agro.NewINodeRef(1, 1)
+	inode := torus.NewINodeRef(1, 1)
 	b.PutBlock(context.TODO(), inode, 0, []byte("Some data"))
-	inode = agro.NewINodeRef(1, 2)
+	inode = torus.NewINodeRef(1, 2)
 	b.PutBlock(context.TODO(), inode, 1, []byte("Some more data"))
 	data, err := b.GetBlock(context.TODO(), 0)
 	if err != nil {
@@ -42,18 +42,18 @@ func readWriteTest(t *testing.T, b blockset) {
 }
 
 func TestBaseMarshal(t *testing.T) {
-	s, _ := agro.CreateBlockStore("temp", "test", agro.Config{StorageSize: 300 * 1024}, agro.GlobalMetadata{BlockSize: 1024})
+	s, _ := torus.CreateBlockStore("temp", "test", torus.Config{StorageSize: 300 * 1024}, torus.GlobalMetadata{BlockSize: 1024})
 	marshalTest(t, s, MustParseBlockLayerSpec("base"))
 }
 
-func marshalTest(t *testing.T, s agro.BlockStore, spec agro.BlockLayerSpec) {
+func marshalTest(t *testing.T, s torus.BlockStore, spec torus.BlockLayerSpec) {
 	b, err := CreateBlocksetFromSpec(spec, s)
 	if err != nil {
 		t.Fatal(err)
 	}
-	inode := agro.NewINodeRef(1, 1)
+	inode := torus.NewINodeRef(1, 1)
 	b.PutBlock(context.TODO(), inode, 0, []byte("Some data"))
-	marshal, err := agro.MarshalBlocksetToProto(b)
+	marshal, err := torus.MarshalBlocksetToProto(b)
 	if err != nil {
 		t.Fatal(err)
 	}

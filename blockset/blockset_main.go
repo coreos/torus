@@ -5,21 +5,21 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "blockset")
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "blockset")
 
 var (
 	promCRCFail = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "agro_blockset_crc_failed_blocks",
+		Name: "torus_blockset_crc_failed_blocks",
 		Help: "Number of blocks that failed due to CRC mismatch",
 	})
 	promBaseFail = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "agro_blockset_base_failed_blocks",
+		Name: "torus_blockset_base_failed_blocks",
 		Help: "Number of blocks that failed",
 	})
 )
@@ -30,35 +30,35 @@ func init() {
 }
 
 type blockset interface {
-	agro.Blockset
-	makeID(agro.INodeRef) agro.BlockRef
-	setStore(store agro.BlockStore)
-	getStore() agro.BlockStore
+	torus.Blockset
+	makeID(torus.INodeRef) torus.BlockRef
+	setStore(store torus.BlockStore)
+	getStore() torus.BlockStore
 }
 
 // Constants for each type of layer, for serializing/deserializing
 const (
-	Base agro.BlockLayerKind = iota
+	Base torus.BlockLayerKind = iota
 	CRC
 	Replication
 )
 
 // CreateBlocksetFunc is the signature of a constructor used to create
 // a BlockLayer.
-type CreateBlocksetFunc func(opts string, store agro.BlockStore, subLayer blockset) (blockset, error)
+type CreateBlocksetFunc func(opts string, store torus.BlockStore, subLayer blockset) (blockset, error)
 
-var blocklayerRegistry map[agro.BlockLayerKind]CreateBlocksetFunc
+var blocklayerRegistry map[torus.BlockLayerKind]CreateBlocksetFunc
 
 // RegisterBlockset is the hook used for implementions of
 // blocksets to register themselves to the system. This is usually
 // called in the init() of the package that implements the blockset.
-func RegisterBlockset(b agro.BlockLayerKind, newFunc CreateBlocksetFunc) {
+func RegisterBlockset(b torus.BlockLayerKind, newFunc CreateBlocksetFunc) {
 	if blocklayerRegistry == nil {
-		blocklayerRegistry = make(map[agro.BlockLayerKind]CreateBlocksetFunc)
+		blocklayerRegistry = make(map[torus.BlockLayerKind]CreateBlocksetFunc)
 	}
 
 	if _, ok := blocklayerRegistry[b]; ok {
-		panic("agro: attempted to register BlockLayer " + string(b) + " twice")
+		panic("torus: attempted to register BlockLayer " + string(b) + " twice")
 	}
 
 	blocklayerRegistry[b] = newFunc
@@ -66,14 +66,14 @@ func RegisterBlockset(b agro.BlockLayerKind, newFunc CreateBlocksetFunc) {
 
 // CreateBlockset creates a Blockset of type b, with serialized data, backing store, and subLayer, if any)
 // with the provided address.
-func CreateBlockset(b agro.BlockLayer, store agro.BlockStore, subLayer blockset) (agro.Blockset, error) {
+func CreateBlockset(b torus.BlockLayer, store torus.BlockStore, subLayer blockset) (torus.Blockset, error) {
 	return createBlockset(b, store, subLayer)
 }
-func createBlockset(b agro.BlockLayer, store agro.BlockStore, subLayer blockset) (blockset, error) {
+func createBlockset(b torus.BlockLayer, store torus.BlockStore, subLayer blockset) (blockset, error) {
 	return blocklayerRegistry[b.Kind](b.Options, store, subLayer)
 }
 
-func UnmarshalFromProto(layers []*models.BlockLayer, store agro.BlockStore) (agro.Blockset, error) {
+func UnmarshalFromProto(layers []*models.BlockLayer, store torus.BlockStore) (torus.Blockset, error) {
 	l := len(layers)
 	var layer blockset
 	if l == 0 {
@@ -82,7 +82,7 @@ func UnmarshalFromProto(layers []*models.BlockLayer, store agro.BlockStore) (agr
 	for i := l - 1; i >= 0; i-- {
 		m := layers[i]
 		// Options must be stored by the blockset when serialized
-		newl, err := createBlockset(agro.BlockLayer{Kind: agro.BlockLayerKind(m.Type), Options: ""}, store, layer)
+		newl, err := createBlockset(torus.BlockLayer{Kind: torus.BlockLayerKind(m.Type), Options: ""}, store, layer)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +95,7 @@ func UnmarshalFromProto(layers []*models.BlockLayer, store agro.BlockStore) (agr
 	return layer, nil
 }
 
-func CreateBlocksetFromSpec(spec agro.BlockLayerSpec, store agro.BlockStore) (agro.Blockset, error) {
+func CreateBlocksetFromSpec(spec torus.BlockLayerSpec, store torus.BlockStore) (torus.Blockset, error) {
 	l := len(spec)
 	var layer blockset
 	if l == 0 {
@@ -112,7 +112,7 @@ func CreateBlocksetFromSpec(spec agro.BlockLayerSpec, store agro.BlockStore) (ag
 	return layer, nil
 }
 
-func ParseBlockLayerKind(s string) (agro.BlockLayerKind, error) {
+func ParseBlockLayerKind(s string) (torus.BlockLayerKind, error) {
 	smalls := strings.ToLower(s)
 	switch smalls {
 	case "base":
@@ -122,12 +122,12 @@ func ParseBlockLayerKind(s string) (agro.BlockLayerKind, error) {
 	case "rep", "r":
 		return Replication, nil
 	default:
-		return agro.BlockLayerKind(-1), fmt.Errorf("no such block layer type: %s", s)
+		return torus.BlockLayerKind(-1), fmt.Errorf("no such block layer type: %s", s)
 	}
 }
 
-func ParseBlockLayerSpec(s string) (agro.BlockLayerSpec, error) {
-	var out agro.BlockLayerSpec
+func ParseBlockLayerSpec(s string) (torus.BlockLayerSpec, error) {
+	var out torus.BlockLayerSpec
 	ss := strings.Split(s, ",")
 	for _, x := range ss {
 		opts := strings.Split(x, "=")
@@ -139,7 +139,7 @@ func ParseBlockLayerSpec(s string) (agro.BlockLayerSpec, error) {
 		if len(opts) > 1 {
 			opt = opts[1]
 		}
-		out = append(out, agro.BlockLayer{
+		out = append(out, torus.BlockLayer{
 			Kind:    k,
 			Options: opt,
 		})
@@ -147,7 +147,7 @@ func ParseBlockLayerSpec(s string) (agro.BlockLayerSpec, error) {
 	return out, nil
 }
 
-func MustParseBlockLayerSpec(s string) agro.BlockLayerSpec {
+func MustParseBlockLayerSpec(s string) torus.BlockLayerSpec {
 	out, err := ParseBlockLayerSpec(s)
 	if err != nil {
 		panic(err)

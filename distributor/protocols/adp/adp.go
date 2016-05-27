@@ -6,12 +6,12 @@ import (
 	"net"
 	"time"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "adp")
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "adp")
 
 var serverReadTimeout = 5 * time.Second
 
@@ -41,10 +41,10 @@ type Server struct {
 }
 
 type Handler interface {
-	Block(ctx context.Context, ref agro.BlockRef) ([]byte, error)
-	PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) error
-	RebalanceCheck(ctx context.Context, refs []agro.BlockRef) ([]bool, error)
-	WriteBuf(ctx context.Context, ref agro.BlockRef) ([]byte, error)
+	Block(ctx context.Context, ref torus.BlockRef) ([]byte, error)
+	PutBlock(ctx context.Context, ref torus.BlockRef, data []byte) error
+	RebalanceCheck(ctx context.Context, refs []torus.BlockRef) ([]bool, error)
+	WriteBuf(ctx context.Context, ref torus.BlockRef) ([]byte, error)
 }
 
 var _ Handler = &Conn{}
@@ -83,7 +83,7 @@ func (s *Server) serve() {
 
 func (s *Server) handle(conn net.Conn) {
 	header := make([]byte, 1)
-	refbuf := make([]byte, agro.BlockRefByteSize)
+	refbuf := make([]byte, torus.BlockRefByteSize)
 	null := make([]byte, s.blocksize)
 	//	databuf := make([]byte, s.handler.BlockSize())
 	for {
@@ -141,7 +141,7 @@ func (s *Server) handleBlock(conn net.Conn, refbuf []byte) error {
 	if err != nil {
 		return err
 	}
-	ref := agro.BlockRefFromBytes(refbuf)
+	ref := torus.BlockRefFromBytes(refbuf)
 	data, err := s.handler.Block(context.TODO(), ref)
 	respheader := headerOk
 	if err != nil {
@@ -163,10 +163,10 @@ func (s *Server) handlePutBlock(conn net.Conn, refbuf []byte, null []byte) error
 	if err != nil {
 		return err
 	}
-	ref := agro.BlockRefFromBytes(refbuf)
+	ref := torus.BlockRefFromBytes(refbuf)
 	data, err := s.handler.WriteBuf(context.TODO(), ref)
 	if err != nil {
-		if err == agro.ErrExists {
+		if err == torus.ErrExists {
 			data = null
 		} else {
 			return err
@@ -185,13 +185,13 @@ func (s *Server) handlePutBlock(conn net.Conn, refbuf []byte, null []byte) error
 }
 
 func (s *Server) handleRebalanceCheck(conn net.Conn, len int, refbuf []byte) error {
-	refs := make([]agro.BlockRef, len)
+	refs := make([]torus.BlockRef, len)
 	for i := 0; i < len; i++ {
 		err := readConnIntoBuffer(conn, refbuf)
 		if err != nil {
 			return err
 		}
-		refs[i] = agro.BlockRefFromBytes(refbuf)
+		refs[i] = torus.BlockRefFromBytes(refbuf)
 	}
 	bools, err := s.handler.RebalanceCheck(context.TODO(), refs)
 	respheader := headerOk

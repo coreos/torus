@@ -1,4 +1,4 @@
-package agro
+package torus
 
 import (
 	"io"
@@ -6,13 +6,13 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus/models"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
 	promOps = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "agro_server_ops_total",
+		Name: "torus_server_ops_total",
 		Help: "Number of times an atomic update failed and needed to be retried",
 	}, []string{"kind"})
 )

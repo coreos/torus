@@ -3,12 +3,12 @@ package block
 import (
 	"errors"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "block")
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "block")
 
 type Snapshot struct {
 	Name     string
@@ -16,13 +16,13 @@ type Snapshot struct {
 }
 
 type blockMetadata interface {
-	agro.MetadataService
+	torus.MetadataService
 
 	Lock(lease int64) error
 	Unlock() error
 
-	GetINode() (agro.INodeRef, error)
-	SyncINode(agro.INodeRef) error
+	GetINode() (torus.INodeRef, error)
+	SyncINode(torus.INodeRef) error
 
 	CreateBlockVolume(vol *models.Volume) error
 	DeleteVolume() error
@@ -32,11 +32,11 @@ type blockMetadata interface {
 	DeleteSnapshot(name string) error
 }
 
-func createBlockMetadata(mds agro.MetadataService, name string, vid agro.VolumeID) (blockMetadata, error) {
+func createBlockMetadata(mds torus.MetadataService, name string, vid torus.VolumeID) (blockMetadata, error) {
 	switch mds.Kind() {
-	case agro.EtcdMetadata:
+	case torus.EtcdMetadata:
 		return createBlockEtcdMetadata(mds, name, vid)
-	case agro.TempMetadata:
+	case torus.TempMetadata:
 		return createBlockTempMetadata(mds, name, vid)
 	default:
 		return nil, errors.New("unimplemented for this kind of metadata")

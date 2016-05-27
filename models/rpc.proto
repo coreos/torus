@@ -3,7 +3,7 @@ syntax = "proto3";
 package models;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-import "agro.proto";
+import "torus.proto";
 
 option (gogoproto.equal_all) = true;
 option (gogoproto.verbose_equal_all) = true;
@@ -16,7 +16,7 @@ option (gogoproto.testgen_all) = true;
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
 
-service AgroStorage {
+service TorusStorage {
 	rpc Block (BlockRequest) returns (BlockResponse);
 	rpc PutBlock (PutBlockRequest) returns (PutResponse);
 	rpc RebalanceCheck (RebalanceCheckRequest) returns (RebalanceCheckResponse);

@@ -1,10 +1,10 @@
 build:
-	go build ./cmd/agro
-	go build ./cmd/agroctl
-	go build ./cmd/agroblock
+	go build ./cmd/torus
+	go build ./cmd/torusctl
+	go build ./cmd/torusblock
 
 run:
-	./agro --etcd 127.0.0.1:2379 --debug --debug-init --peer-address 127.0.0.1:40000
+	./torus --etcd 127.0.0.1:2379 --debug --debug-init --peer-address 127.0.0.1:40000
 
 clean:
 	rm -rf ./local-cluster
@@ -19,9 +19,9 @@ run3:
 	goreman start
 
 run4: 
-	./agro --etcd 127.0.0.1:2379 --debug --port 4324 --datadir /srv/agro4 --peer-address 0.0.0.0:40003
+	./torus --etcd 127.0.0.1:2379 --debug --port 4324 --datadir /srv/torus4 --peer-address 0.0.0.0:40003
 
 run5: 
-	./agro --etcd 127.0.0.1:2379 --debug --port 4325 --datadir /srv/agro5 --peer-address 0.0.0.0:40004
+	./torus --etcd 127.0.0.1:2379 --debug --port 4325 --datadir /srv/torus5 --peer-address 0.0.0.0:40004
 
 cleanrun: clean run

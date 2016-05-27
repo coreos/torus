@@ -2,18 +2,18 @@ apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
   labels:
-    app: agro
-  name: agro
+    app: torus
+  name: torus
 spec:
   template:
     metadata:
-      name: agro
+      name: torus
       labels:
-        daemon: agro
+        daemon: torus
     spec:
       containers:
-      - name: agro
-        image: quay.io/coreos/agro:latest
+      - name: torus
+        image: quay.io/coreos/torus:latest
         ports:
         - name: peer
           containerPort: 40000
@@ -21,7 +21,7 @@ spec:
           containerPort: 4321
         env:
         - name: ETCD_HOST
-          value: $(ETCD_AGRO_SERVICE_HOST)
+          value: $(ETCD_TORUS_SERVICE_HOST)
         - name: STORAGE_SIZE
           value: 20GiB
         - name: LISTEN_HOST
@@ -35,6 +35,6 @@ spec:
       volumes:
         - name: data
           hostPath:
-            path: /srv/agro
+            path: /srv/torus
       imagePullSecrets:
-        - name: quay-agro
+        - name: quay-torus

@@ -1,10 +1,10 @@
-package agro
+package torus
 
 import (
 	"os"
 	"path/filepath"
 
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus/models"
 )
 
 func MkdirsFor(dir string) error {

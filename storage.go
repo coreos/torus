@@ -1,4 +1,4 @@
-package agro
+package torus
 
 import (
 	"encoding/binary"
@@ -7,11 +7,11 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
 )
 
-var BlockLog = capnslog.NewPackageLogger("github.com/coreos/agro", "blocklog")
+var BlockLog = capnslog.NewPackageLogger("github.com/coreos/torus", "blocklog")
 
 type (
 	// VolumeID represents a unique identifier for a Volume.
@@ -251,7 +251,7 @@ func RegisterBlockStore(name string, newFunc NewBlockStoreFunc) {
 	}
 
 	if _, ok := blockStores[name]; ok {
-		panic("agro: attempted to register BlockStore " + name + " twice")
+		panic("torus: attempted to register BlockStore " + name + " twice")
 	}
 
 	blockStores[name] = newFunc

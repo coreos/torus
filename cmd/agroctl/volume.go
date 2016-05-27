@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/coreos/agro/block"
+	"github.com/coreos/torus/block"
 	"github.com/dustin/go-humanize"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"

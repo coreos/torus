@@ -1,4 +1,4 @@
-package agro
+package torus
 
 type Config struct {
 	DataDir         string

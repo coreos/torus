@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"golang.org/x/net/context"
 )
 
@@ -48,7 +48,7 @@ func Dial(addr string, timeout time.Duration, blockSize uint64) (*Conn, error) {
 		close:     make(chan bool),
 		conn:      c,
 		blockSize: int(blockSize),
-		buf:       make([]byte, agro.BlockRefByteSize+1),
+		buf:       make([]byte, torus.BlockRefByteSize+1),
 	}
 	go conn.mainLoop()
 	return conn, nil
@@ -78,7 +78,7 @@ func (c *Conn) mainLoop() {
 	}
 }
 
-func (c *Conn) Block(_ context.Context, ref agro.BlockRef) ([]byte, error) {
+func (c *Conn) Block(_ context.Context, ref torus.BlockRef) ([]byte, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
@@ -107,7 +107,7 @@ func (c *Conn) Block(_ context.Context, ref agro.BlockRef) ([]byte, error) {
 	return data, nil
 }
 
-func (c *Conn) PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) error {
+func (c *Conn) PutBlock(ctx context.Context, ref torus.BlockRef, data []byte) error {
 	if c.err != nil {
 		return c.err
 	}
@@ -136,7 +136,7 @@ func (c *Conn) PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) err
 	return nil
 }
 
-func (c *Conn) RebalanceCheck(_ context.Context, refs []agro.BlockRef) ([]bool, error) {
+func (c *Conn) RebalanceCheck(_ context.Context, refs []torus.BlockRef) ([]bool, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
@@ -155,7 +155,7 @@ func (c *Conn) RebalanceCheck(_ context.Context, refs []agro.BlockRef) ([]bool, 
 	}
 	for _, ref := range refs {
 		ref.ToBytesBuf(c.buf)
-		_, err = c.conn.Write(c.buf[:agro.BlockRefByteSize])
+		_, err = c.conn.Write(c.buf[:torus.BlockRefByteSize])
 		if err != nil {
 			fmt.Println("couldn't write ref")
 			return nil, err
@@ -185,7 +185,7 @@ func (c *Conn) Err() error {
 	return c.err
 }
 
-func (c *Conn) WriteBuf(_ context.Context, _ agro.BlockRef) ([]byte, error) {
+func (c *Conn) WriteBuf(_ context.Context, _ torus.BlockRef) ([]byte, error) {
 	panic("wtf")
 }
 

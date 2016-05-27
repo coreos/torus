@@ -5,9 +5,9 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/block"
-	"github.com/coreos/agro/internal/nbd"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/block"
+	"github.com/coreos/torus/internal/nbd"
 
 	"github.com/spf13/cobra"
 )
@@ -51,7 +51,7 @@ func nbdAction(cmd *cobra.Command, args []string) {
 
 	f, err := blockvol.OpenBlockFile()
 	if err != nil {
-		if err == agro.ErrLocked {
+		if err == torus.ErrLocked {
 			fmt.Fprintf(os.Stderr, "volume %s is already mounted on another host\n", args[0])
 		} else {
 			fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
@@ -66,7 +66,7 @@ func nbdAction(cmd *cobra.Command, args []string) {
 	}
 }
 
-func connectNBD(srv *agro.Server, f *block.BlockFile, target string, closer chan bool) error {
+func connectNBD(srv *torus.Server, f *block.BlockFile, target string, closer chan bool) error {
 	defer f.Close()
 	size := f.Size()
 

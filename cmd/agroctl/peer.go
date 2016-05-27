@@ -3,12 +3,12 @@ package main
 import (
 	"os"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"github.com/spf13/cobra"
 )
 
 var (
-	newPeers agro.PeerInfoList
+	newPeers torus.PeerInfoList
 	allPeers bool
 )
 
@@ -57,16 +57,16 @@ func peerChangePreRun(cmd *cobra.Command, args []string) {
 	if allPeers && len(args) > 0 {
 		die("can't have both --all-peers and a list of peers")
 	}
-	var out agro.PeerInfoList
+	var out torus.PeerInfoList
 	for _, arg := range args {
 		found := false
 		for _, p := range peers {
 			if p.Address != "" {
 				if p.Address == arg {
-					out = out.Union(agro.PeerInfoList{p})
+					out = out.Union(torus.PeerInfoList{p})
 					found = true
 				} else if p.UUID == arg {
-					out = out.Union(agro.PeerInfoList{p})
+					out = out.Union(torus.PeerInfoList{p})
 					found = true
 				}
 			}
@@ -78,7 +78,7 @@ func peerChangePreRun(cmd *cobra.Command, args []string) {
 	if allPeers {
 		for _, p := range peers {
 			if p.Address != "" {
-				out = out.Union(agro.PeerInfoList{p})
+				out = out.Union(torus.PeerInfoList{p})
 			}
 		}
 	}
@@ -93,8 +93,8 @@ func peerAddAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't get ring: %v", err)
 	}
-	var newRing agro.Ring
-	if r, ok := currentRing.(agro.RingAdder); ok {
+	var newRing torus.Ring
+	if r, ok := currentRing.(torus.RingAdder); ok {
 		newRing, err = r.AddPeers(newPeers)
 	} else {
 		die("current ring type cannot support adding")
@@ -116,8 +116,8 @@ func peerRemoveAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't get ring: %v", err)
 	}
-	var newRing agro.Ring
-	if r, ok := currentRing.(agro.RingRemover); ok {
+	var newRing torus.Ring
+	if r, ok := currentRing.(torus.RingRemover); ok {
 		newRing, err = r.RemovePeers(newPeers.PeerList())
 	} else {
 		die("current ring type cannot support removal")

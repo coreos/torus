@@ -1,4 +1,4 @@
-package agro
+package torus
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus/models"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"golang.org/x/net/context"
@@ -19,11 +19,11 @@ const (
 
 var (
 	promHeartbeats = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "agro_server_heartbeats",
+		Name: "torus_server_heartbeats",
 		Help: "Number of times this server has heartbeated to mds",
 	})
 	promServerPeers = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "agro_server_peers_total",
+		Name: "torus_server_peers_total",
 		Help: "Number of peers this server sees",
 	})
 )

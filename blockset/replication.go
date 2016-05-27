@@ -9,20 +9,20 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/RoaringBitmap/roaring"
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 )
 
 type replicationBlockset struct {
 	rep       int
 	sub       blockset
-	repBlocks [][]agro.BlockRef
-	bs        agro.BlockStore
+	repBlocks [][]torus.BlockRef
+	bs        torus.BlockStore
 }
 
 var _ blockset = &replicationBlockset{}
 
 func init() {
-	RegisterBlockset(Replication, func(opt string, bs agro.BlockStore, sub blockset) (blockset, error) {
+	RegisterBlockset(Replication, func(opt string, bs torus.BlockStore, sub blockset) (blockset, error) {
 		if opt == "" {
 			clog.Debugf("using default replication (0) to unmarshal")
 			return newReplicationBlockset(sub, bs, 0), nil
@@ -36,12 +36,12 @@ func init() {
 	})
 }
 
-func newReplicationBlockset(sub blockset, bs agro.BlockStore, r int) *replicationBlockset {
+func newReplicationBlockset(sub blockset, bs torus.BlockStore, r int) *replicationBlockset {
 	return &replicationBlockset{
 		rep:       r,
 		sub:       sub,
 		bs:        bs,
-		repBlocks: make([][]agro.BlockRef, r-1),
+		repBlocks: make([][]torus.BlockRef, r-1),
 	}
 }
 
@@ -55,11 +55,11 @@ func (b *replicationBlockset) Kind() uint32 {
 
 func (b *replicationBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	if b.rep == 0 {
-		return nil, agro.ErrBlockUnavailable
+		return nil, torus.ErrBlockUnavailable
 	}
 	newctx := context.WithValue(ctx, "replication", b.rep)
 	bytes, err := b.sub.GetBlock(newctx, i)
-	if err == nil || err == agro.ErrBlockNotExist {
+	if err == nil || err == torus.ErrBlockNotExist {
 		return bytes, err
 	}
 	for rep := 0; rep < (b.rep - 1); rep++ {
@@ -68,12 +68,12 @@ func (b *replicationBlockset) GetBlock(ctx context.Context, i int) ([]byte, erro
 			return bytes, nil
 		}
 	}
-	return nil, agro.ErrBlockUnavailable
+	return nil, torus.ErrBlockUnavailable
 }
 
-func (b *replicationBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, data []byte) error {
+func (b *replicationBlockset) PutBlock(ctx context.Context, inode torus.INodeRef, i int, data []byte) error {
 	if b.rep == 0 {
-		return agro.ErrBlockUnavailable
+		return torus.ErrBlockUnavailable
 	}
 	err := b.sub.PutBlock(ctx, inode, i, data)
 	if err != nil {
@@ -94,16 +94,16 @@ func (b *replicationBlockset) PutBlock(ctx context.Context, inode agro.INodeRef,
 	return nil
 }
 
-func (b *replicationBlockset) makeID(i agro.INodeRef) agro.BlockRef {
+func (b *replicationBlockset) makeID(i torus.INodeRef) torus.BlockRef {
 	return b.sub.makeID(i)
 }
 
-func (b *replicationBlockset) setStore(s agro.BlockStore) {
+func (b *replicationBlockset) setStore(s torus.BlockStore) {
 	b.bs = s
 	b.sub.setStore(s)
 }
 
-func (b *replicationBlockset) getStore() agro.BlockStore {
+func (b *replicationBlockset) getStore() torus.BlockStore {
 	return b.bs
 }
 
@@ -136,28 +136,28 @@ func (b *replicationBlockset) Unmarshal(data []byte) error {
 		return err
 	}
 	b.rep = int(rep)
-	b.repBlocks = make([][]agro.BlockRef, rep)
+	b.repBlocks = make([][]torus.BlockRef, rep)
 	for rep := 0; rep < (b.rep - 1); rep++ {
 		var l int32
 		err := binary.Read(r, binary.LittleEndian, &l)
 		if err != nil {
 			return err
 		}
-		out := make([]agro.BlockRef, l)
+		out := make([]torus.BlockRef, l)
 		for i := 0; i < int(l); i++ {
-			buf := make([]byte, agro.BlockRefByteSize)
+			buf := make([]byte, torus.BlockRefByteSize)
 			_, err := r.Read(buf)
 			if err != nil {
 				return err
 			}
-			out[i] = agro.BlockRefFromBytes(buf)
+			out[i] = torus.BlockRefFromBytes(buf)
 		}
 		b.repBlocks[rep] = out
 	}
 	return nil
 }
 
-func (b *replicationBlockset) GetSubBlockset() agro.Blockset { return b.sub }
+func (b *replicationBlockset) GetSubBlockset() torus.Blockset { return b.sub }
 
 func (b *replicationBlockset) GetLiveINodes() *roaring.Bitmap {
 	return b.sub.GetLiveINodes()
@@ -177,7 +177,7 @@ func (b *replicationBlockset) Truncate(lastIndex int, blocksize uint64) error {
 	for i := range b.repBlocks {
 		toadd := lastIndex - len(b.repBlocks[0])
 		for toadd != 0 {
-			b.repBlocks[i] = append(b.repBlocks[i], agro.ZeroBlock())
+			b.repBlocks[i] = append(b.repBlocks[i], torus.ZeroBlock())
 			toadd--
 		}
 	}
@@ -197,15 +197,15 @@ func (b *replicationBlockset) Trim(from, to int) error {
 	}
 	for i := from; i < to; i++ {
 		for _, blist := range b.repBlocks {
-			blist[i] = agro.ZeroBlock()
+			blist[i] = torus.ZeroBlock()
 		}
 	}
 	return nil
 }
 
-func (b *replicationBlockset) GetAllBlockRefs() []agro.BlockRef {
+func (b *replicationBlockset) GetAllBlockRefs() []torus.BlockRef {
 	sub := b.sub.GetAllBlockRefs()
-	out := make([]agro.BlockRef, len(b.repBlocks[0])*len(b.repBlocks))
+	out := make([]torus.BlockRef, len(b.repBlocks[0])*len(b.repBlocks))
 	nblocks := len(b.repBlocks[0])
 	for i, list := range b.repBlocks {
 		copy(out[i*nblocks:], list)

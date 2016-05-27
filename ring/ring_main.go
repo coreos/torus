@@ -1,19 +1,19 @@
 package ring
 
 import (
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
 )
 
 const (
-	Empty agro.RingType = iota
+	Empty torus.RingType = iota
 	Single
 	Mod
 	Union
 	Ketama
 )
 
-func Unmarshal(b []byte) (agro.Ring, error) {
+func Unmarshal(b []byte) (torus.Ring, error) {
 	var a models.Ring
 	err := a.Unmarshal(b)
 	if err != nil {
@@ -22,38 +22,38 @@ func Unmarshal(b []byte) (agro.Ring, error) {
 	return CreateRing(&a)
 }
 
-type createRingFunc func(r *models.Ring) (agro.Ring, error)
+type createRingFunc func(r *models.Ring) (torus.Ring, error)
 
-var ringRegistry map[agro.RingType]createRingFunc
-var ringNames map[string]agro.RingType
+var ringRegistry map[torus.RingType]createRingFunc
+var ringNames map[string]torus.RingType
 
-func registerRing(t agro.RingType, name string, newFunc createRingFunc) {
+func registerRing(t torus.RingType, name string, newFunc createRingFunc) {
 	if ringRegistry == nil {
-		ringRegistry = make(map[agro.RingType]createRingFunc)
+		ringRegistry = make(map[torus.RingType]createRingFunc)
 	}
 
 	if _, ok := ringRegistry[t]; ok {
-		panic("agro: attempted to register ring type " + string(t) + " twice")
+		panic("torus: attempted to register ring type " + string(t) + " twice")
 	}
 
 	ringRegistry[t] = newFunc
 
 	if ringNames == nil {
-		ringNames = make(map[string]agro.RingType)
+		ringNames = make(map[string]torus.RingType)
 	}
 
 	if _, ok := ringNames[name]; ok {
-		panic("agro: attempted to register ring name " + name + " twice")
+		panic("torus: attempted to register ring name " + name + " twice")
 	}
 
 	ringNames[name] = t
 }
 
-func CreateRing(r *models.Ring) (agro.Ring, error) {
-	return ringRegistry[agro.RingType(r.Type)](r)
+func CreateRing(r *models.Ring) (torus.Ring, error) {
+	return ringRegistry[torus.RingType(r.Type)](r)
 }
 
-func RingTypeFromString(s string) (agro.RingType, bool) {
+func RingTypeFromString(s string) (torus.RingType, bool) {
 	v, ok := ringNames[s]
 	return v, ok
 }

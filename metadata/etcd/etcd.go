@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/metadata"
-	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/ring"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/metadata"
+	"github.com/coreos/torus/models"
+	"github.com/coreos/torus/ring"
 
 	etcdv3 "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/pkg/capnslog"
@@ -20,28 +20,28 @@ import (
 // Package rule for etcd keys: always put the static parts first, followed by
 // the variables. This makes range gets a lot easier.
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "etcd")
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "etcd")
 
 const (
-	KeyPrefix      = "/github.com/coreos/agro/"
+	KeyPrefix      = "/github.com/coreos/torus/"
 	peerTimeoutMax = 50 * time.Second
 )
 
 var (
 	promAtomicRetries = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "agro_etcd_atomic_retries",
+		Name: "torus_etcd_atomic_retries",
 		Help: "Number of times an atomic update failed and needed to be retried",
 	}, []string{"key"})
 	promOps = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "agro_etcd_base_ops_total",
+		Name: "torus_etcd_base_ops_total",
 		Help: "Number of times an atomic update failed and needed to be retried",
 	}, []string{"kind"})
 )
 
 func init() {
-	agro.RegisterMetadataService("etcd", newEtcdMetadata)
-	agro.RegisterMetadataInit("etcd", initEtcdMetadata)
-	agro.RegisterSetRing("etcd", setRing)
+	torus.RegisterMetadataService("etcd", newEtcdMetadata)
+	torus.RegisterMetadataInit("etcd", initEtcdMetadata)
+	torus.RegisterSetRing("etcd", setRing)
 
 	prometheus.MustRegister(promAtomicRetries)
 	prometheus.MustRegister(promOps)
@@ -55,18 +55,18 @@ type etcdCtx struct {
 type Etcd struct {
 	etcdCtx
 	mut          sync.RWMutex
-	cfg          agro.Config
-	global       agro.GlobalMetadata
+	cfg          torus.Config
+	global       torus.GlobalMetadata
 	volumesCache map[string]*models.Volume
 
-	ringListeners []chan agro.Ring
+	ringListeners []chan torus.Ring
 
 	Client *etcdv3.Client
 
 	uuid string
 }
 
-func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
+func newEtcdMetadata(cfg torus.Config) (torus.MetadataService, error) {
 	uuid, err := metadata.MakeOrGetUUID(cfg.DataDir)
 	if err != nil {
 		return nil, err
@@ -95,8 +95,8 @@ func newEtcdMetadata(cfg agro.Config) (agro.MetadataService, error) {
 	return e, nil
 }
 
-func (e *etcdCtx) Kind() agro.MetadataKind {
-	return agro.EtcdMetadata
+func (e *etcdCtx) Kind() torus.MetadataKind {
+	return torus.EtcdMetadata
 }
 
 func (e *Etcd) Close() error {
@@ -117,10 +117,10 @@ func (e *Etcd) getGlobalMetadata() error {
 		return err
 	}
 	if !resp.Succeeded {
-		return agro.ErrNoGlobalMetadata
+		return torus.ErrNoGlobalMetadata
 	}
 
-	var gmd agro.GlobalMetadata
+	var gmd torus.GlobalMetadata
 	err = json.Unmarshal(resp.Responses[0].GetResponseRange().Kvs[0].Value, &gmd)
 	if err != nil {
 		return err
@@ -129,20 +129,20 @@ func (e *Etcd) getGlobalMetadata() error {
 	return nil
 }
 
-func (e *Etcd) WithContext(ctx context.Context) agro.MetadataService {
+func (e *Etcd) WithContext(ctx context.Context) torus.MetadataService {
 	return &etcdCtx{
 		etcd: e,
 		ctx:  ctx,
 	}
 }
 
-func (e *Etcd) SubscribeNewRings(ch chan agro.Ring) {
+func (e *Etcd) SubscribeNewRings(ch chan torus.Ring) {
 	e.mut.Lock()
 	defer e.mut.Unlock()
 	e.ringListeners = append(e.ringListeners, ch)
 }
 
-func (e *Etcd) UnsubscribeNewRings(ch chan agro.Ring) {
+func (e *Etcd) UnsubscribeNewRings(ch chan torus.Ring) {
 	e.mut.Lock()
 	defer e.mut.Unlock()
 	for i, c := range e.ringListeners {
@@ -161,7 +161,7 @@ func (c *etcdCtx) getContext() context.Context {
 	return c.ctx
 }
 
-func (c *etcdCtx) WithContext(ctx context.Context) agro.MetadataService {
+func (c *etcdCtx) WithContext(ctx context.Context) torus.MetadataService {
 	return c.etcd.WithContext(ctx)
 }
 
@@ -169,7 +169,7 @@ func (c *etcdCtx) Close() error {
 	return c.etcd.Close()
 }
 
-func (c *etcdCtx) GlobalMetadata() (agro.GlobalMetadata, error) {
+func (c *etcdCtx) GlobalMetadata() (torus.GlobalMetadata, error) {
 	return c.etcd.global, nil
 }
 
@@ -199,7 +199,7 @@ func (c *etcdCtx) RegisterPeer(lease int64, p *models.PeerInfo) error {
 	return err
 }
 
-func (c *etcdCtx) GetPeers() (agro.PeerInfoList, error) {
+func (c *etcdCtx) GetPeers() (torus.PeerInfoList, error) {
 	promOps.WithLabelValues("get-peers").Inc()
 	resp, err := c.etcd.Client.Get(c.getContext(), MkKey("nodes"), etcdv3.WithPrefix())
 	if err != nil {
@@ -220,7 +220,7 @@ func (c *etcdCtx) GetPeers() (agro.PeerInfoList, error) {
 		}
 		out = append(out, &p)
 	}
-	return agro.PeerInfoList(out), nil
+	return torus.PeerInfoList(out), nil
 }
 
 // AtomicModifyFunc is a class of commutative functions that, given the current
@@ -278,7 +278,7 @@ func BytesAddOne(in []byte) ([]byte, interface{}, error) {
 	return Uint64ToBytes(newval), newval, nil
 }
 
-func (c *etcdCtx) GetVolumes() ([]*models.Volume, agro.VolumeID, error) {
+func (c *etcdCtx) GetVolumes() ([]*models.Volume, torus.VolumeID, error) {
 	promOps.WithLabelValues("get-volumes").Inc()
 	txn := c.etcd.Client.Txn(c.getContext()).Then(
 		etcdv3.OpGet(MkKey("meta", "volumeminter")),
@@ -299,7 +299,7 @@ func (c *etcdCtx) GetVolumes() ([]*models.Volume, agro.VolumeID, error) {
 		}
 		out = append(out, v)
 	}
-	return out, agro.VolumeID(highwater), nil
+	return out, torus.VolumeID(highwater), nil
 }
 
 func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
@@ -344,18 +344,18 @@ func (c *etcdCtx) GetLease() (int64, error) {
 	return int64(resp.ID), nil
 }
 
-func (c *etcdCtx) GetRing() (agro.Ring, error) {
+func (c *etcdCtx) GetRing() (torus.Ring, error) {
 	r, _, err := c.getRing()
 	return r, err
 }
-func (c *etcdCtx) getRing() (agro.Ring, int64, error) {
+func (c *etcdCtx) getRing() (torus.Ring, int64, error) {
 	promOps.WithLabelValues("get-ring").Inc()
 	resp, err := c.etcd.Client.Get(c.getContext(), MkKey("meta", "the-one-ring"))
 	if err != nil {
 		return nil, 0, err
 	}
 	if len(resp.Kvs) == 0 {
-		return nil, 0, agro.ErrNoGlobalMetadata
+		return nil, 0, torus.ErrNoGlobalMetadata
 	}
 	ring, err := ring.Unmarshal(resp.Kvs[0].Value)
 	if err != nil {
@@ -364,18 +364,18 @@ func (c *etcdCtx) getRing() (agro.Ring, int64, error) {
 	return ring, resp.Kvs[0].Version, nil
 }
 
-func (c *etcdCtx) SubscribeNewRings(ch chan agro.Ring) {
+func (c *etcdCtx) SubscribeNewRings(ch chan torus.Ring) {
 	c.etcd.SubscribeNewRings(ch)
 }
 
-func (c *etcdCtx) UnsubscribeNewRings(ch chan agro.Ring) {
+func (c *etcdCtx) UnsubscribeNewRings(ch chan torus.Ring) {
 	c.etcd.UnsubscribeNewRings(ch)
 }
 
-func (c *etcdCtx) SetRing(ring agro.Ring) error {
+func (c *etcdCtx) SetRing(ring torus.Ring) error {
 	oldr, etcdver, err := c.getRing()
 	if oldr.Version() != ring.Version()-1 {
-		return agro.ErrNonSequentialRing
+		return torus.ErrNonSequentialRing
 	}
 	b, err := ring.Marshal()
 	if err != nil {
@@ -394,10 +394,10 @@ func (c *etcdCtx) SetRing(ring agro.Ring) error {
 	if resp.Succeeded {
 		return nil
 	}
-	return agro.ErrNonSequentialRing
+	return torus.ErrNonSequentialRing
 }
 
-func (c *etcdCtx) CommitINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
+func (c *etcdCtx) CommitINodeIndex(vid torus.VolumeID) (torus.INodeID, error) {
 	promOps.WithLabelValues("commit-inode-index").Inc()
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
@@ -406,10 +406,10 @@ func (c *etcdCtx) CommitINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
 	if err != nil {
 		return 0, err
 	}
-	return agro.INodeID(newID.(uint64)), nil
+	return torus.INodeID(newID.(uint64)), nil
 }
 
-func (c *etcdCtx) NewVolumeID() (agro.VolumeID, error) {
+func (c *etcdCtx) NewVolumeID() (torus.VolumeID, error) {
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
 	k := []byte(MkKey("meta", "volumeminter"))
@@ -417,20 +417,20 @@ func (c *etcdCtx) NewVolumeID() (agro.VolumeID, error) {
 	if err != nil {
 		return 0, err
 	}
-	return agro.VolumeID(newID.(uint64)), nil
+	return torus.VolumeID(newID.(uint64)), nil
 }
 
-func (c *etcdCtx) GetINodeIndex(vid agro.VolumeID) (agro.INodeID, error) {
+func (c *etcdCtx) GetINodeIndex(vid torus.VolumeID) (torus.INodeID, error) {
 	promOps.WithLabelValues("get-inode-index").Inc()
 	c.etcd.mut.Lock()
 	defer c.etcd.mut.Unlock()
 	resp, err := c.etcd.Client.Get(c.getContext(), MkKey("volumemeta", Uint64ToHex(uint64(vid)), "inode"))
 	if err != nil {
-		return agro.INodeID(0), err
+		return torus.INodeID(0), err
 	}
 	if len(resp.Kvs) != 1 {
-		return agro.INodeID(0), agro.ErrNotExist
+		return torus.INodeID(0), torus.ErrNotExist
 	}
 	id := BytesToUint64(resp.Kvs[0].Value)
-	return agro.INodeID(id), nil
+	return torus.INodeID(id), nil
 }

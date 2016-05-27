@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/coreos/agro"
-	_ "github.com/coreos/agro/metadata/etcd"
+	"github.com/coreos/torus"
+	_ "github.com/coreos/torus/metadata/etcd"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 )
 var wipeCommand = &cobra.Command{
 	Use:   "wipe",
-	Short: "Remove all agro metadata from etcd",
+	Short: "Remove all torus metadata from etcd",
 	Run:   wipeAction,
 }
 
@@ -27,17 +27,17 @@ func init() {
 func wipeAction(cmd *cobra.Command, args []string) {
 	if !yesIAmSurePleaseWipe {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Println("This will wipe all metadata for agro.\nPlease type `YES`, all caps to confirm: ")
+		fmt.Println("This will wipe all metadata for torus.\nPlease type `YES`, all caps to confirm: ")
 		text, _ := reader.ReadString('\n')
 		if text != "YES" {
 			fmt.Println("`YES` not entered, exiting")
 			os.Exit(1)
 		}
 	}
-	cfg := agro.Config{
+	cfg := torus.Config{
 		MetadataAddress: etcdAddress,
 	}
-	err := agro.WipeMDS("etcd", cfg)
+	err := torus.WipeMDS("etcd", cfg)
 	if err != nil {
 		die("error wiping metadata: %v", err)
 	}

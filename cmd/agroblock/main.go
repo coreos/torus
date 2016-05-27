@@ -8,13 +8,13 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/distributor"
-	"github.com/coreos/agro/internal/http"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/distributor"
+	"github.com/coreos/torus/internal/http"
 
 	// Register all the drivers.
-	_ "github.com/coreos/agro/metadata/etcd"
-	_ "github.com/coreos/agro/storage"
+	_ "github.com/coreos/torus/metadata/etcd"
+	_ "github.com/coreos/torus/storage"
 )
 
 var (
@@ -28,13 +28,13 @@ var (
 	logpkg            string
 	httpAddr          string
 
-	cfg agro.Config
+	cfg torus.Config
 )
 
 var rootCommand = &cobra.Command{
-	Use:              "agroblock",
-	Short:            "agro block volume tool",
-	Long:             "Control block volumes on the agro distributed storage system",
+	Use:              "torusblock",
+	Short:            "torus block volume tool",
+	Long:             "Control block volumes on the torus distributed storage system",
 	PersistentPreRun: configureServer,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Usage()
@@ -67,7 +67,7 @@ func init() {
 func configureServer(cmd *cobra.Command, args []string) {
 	capnslog.SetGlobalLogLevel(capnslog.NOTICE)
 	if logpkg != "" {
-		rl := capnslog.MustRepoLogger("github.com/coreos/agro")
+		rl := capnslog.MustRepoLogger("github.com/coreos/torus")
 		llc, err := rl.ParseLogLevelConfig(logpkg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error parsing logpkg: %s\n", err)
@@ -88,26 +88,26 @@ func configureServer(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	var rl agro.ReadLevel
+	var rl torus.ReadLevel
 	switch readLevel {
 	case "spread":
-		rl = agro.ReadSpread
+		rl = torus.ReadSpread
 	case "seq":
-		rl = agro.ReadSequential
+		rl = torus.ReadSequential
 	case "block":
-		rl = agro.ReadBlock
+		rl = torus.ReadBlock
 	default:
 		fmt.Fprintf(os.Stderr, "invalid readlevel; use one of 'spread', 'seq', or 'block'")
 		os.Exit(1)
 	}
 
-	wl, err := agro.ParseWriteLevel(writeLevel)
+	wl, err := torus.ParseWriteLevel(writeLevel)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 
-	cfg = agro.Config{
+	cfg = torus.Config{
 		StorageSize:     localBlockSize,
 		MetadataAddress: etcdAddress,
 		ReadCacheSize:   readCacheSize,
@@ -116,8 +116,8 @@ func configureServer(cmd *cobra.Command, args []string) {
 	}
 }
 
-func createServer() *agro.Server {
-	srv, err := agro.NewServer(cfg, "etcd", "temp")
+func createServer() *torus.Server {
+	srv, err := torus.NewServer(cfg, "etcd", "temp")
 	if err != nil {
 		fmt.Printf("Couldn't start: %s\n", err)
 		os.Exit(1)

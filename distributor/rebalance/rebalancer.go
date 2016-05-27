@@ -1,17 +1,17 @@
 package rebalance
 
 import (
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/gc"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/gc"
+	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/agro", "rebalance")
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "rebalance")
 
 type Ringer interface {
-	Ring() agro.Ring
+	Ring() torus.Ring
 	UUID() string
 }
 
@@ -23,11 +23,11 @@ type Rebalancer interface {
 }
 
 type CheckAndSender interface {
-	Check(ctx context.Context, peer string, refs []agro.BlockRef) ([]bool, error)
-	PutBlock(ctx context.Context, peer string, ref agro.BlockRef, data []byte) error
+	Check(ctx context.Context, peer string, refs []torus.BlockRef) ([]bool, error)
+	PutBlock(ctx context.Context, peer string, ref torus.BlockRef, data []byte) error
 }
 
-func NewRebalancer(r Ringer, bs agro.BlockStore, cs CheckAndSender, gc gc.GC) Rebalancer {
+func NewRebalancer(r Ringer, bs torus.BlockStore, cs CheckAndSender, gc gc.GC) Rebalancer {
 	return &rebalancer{
 		r:  r,
 		bs: bs,
@@ -38,11 +38,11 @@ func NewRebalancer(r Ringer, bs agro.BlockStore, cs CheckAndSender, gc gc.GC) Re
 
 type rebalancer struct {
 	r    Ringer
-	bs   agro.BlockStore
+	bs   torus.BlockStore
 	cs   CheckAndSender
-	it   agro.BlockIterator
+	it   torus.BlockIterator
 	gc   gc.GC
-	ring agro.Ring
+	ring torus.Ring
 }
 
 func (r *rebalancer) VersionStart() int {

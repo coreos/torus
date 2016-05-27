@@ -1,7 +1,7 @@
 {
   "id": 1,
-  "title": "Agro Monitoring Default",
-  "originalTitle": "Agro Monitoring Default",
+  "title": "Torus Monitoring Default",
+  "originalTitle": "Torus Monitoring Default",
   "tags": [],
   "style": "dark",
   "timezone": "browser",
@@ -61,7 +61,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(agro_storage_blocks{storage=\"current\"} * on(instance) up{}) * scalar(min(agro_storage_block_bytes))",
+              "expr": "sum(torus_storage_blocks{storage=\"current\"} * on(instance) up{}) * scalar(min(torus_storage_block_bytes))",
               "intervalFactor": 2,
               "legendFormat": "Used",
               "refId": "A",
@@ -69,7 +69,7 @@
               "metric": ""
             },
             {
-              "expr": "sum(agro_storage_blocks_total{storage=\"current\"} * on(instance) up{}) * scalar(min(agro_storage_block_bytes))",
+              "expr": "sum(torus_storage_blocks_total{storage=\"current\"} * on(instance) up{}) * scalar(min(torus_storage_block_bytes))",
               "hide": false,
               "intervalFactor": 2,
               "legendFormat": "Available",
@@ -137,14 +137,14 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(agro_storage_blocks{storage=\"current\"} * on(instance) up{}) by (instance) * scalar(min(agro_storage_block_bytes))",
+              "expr": "sum(torus_storage_blocks{storage=\"current\"} * on(instance) up{}) by (instance) * scalar(min(torus_storage_block_bytes))",
               "intervalFactor": 2,
               "legendFormat": "{{instance}}",
               "refId": "A",
               "step": 2
             },
             {
-              "expr": "sum(agro_storage_blocks_total{storage=\"current\"} * on(instance) up{}) by (instance)  * scalar(min(agro_storage_block_bytes))",
+              "expr": "sum(torus_storage_blocks_total{storage=\"current\"} * on(instance) up{}) by (instance)  * scalar(min(torus_storage_block_bytes))",
               "intervalFactor": 2,
               "legendFormat": "{{instance}}",
               "refId": "B",
@@ -218,7 +218,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(agro_storage_read_blocks[10s])) by (instance) * scalar(min(agro_storage_block_bytes))",
+              "expr": "sum(rate(torus_storage_read_blocks[10s])) by (instance) * scalar(min(torus_storage_block_bytes))",
               "interval": "2s",
               "intervalFactor": 2,
               "legendFormat": "{{instance}} - read",
@@ -227,7 +227,7 @@
               "step": 4
             },
             {
-              "expr": "sum(rate(agro_storage_written_blocks[10s])) by (instance) * scalar(min(agro_storage_block_bytes))",
+              "expr": "sum(rate(torus_storage_written_blocks[10s])) by (instance) * scalar(min(torus_storage_block_bytes))",
               "interval": "2s",
               "intervalFactor": 2,
               "legendFormat": "{{instance}} - write",
@@ -315,14 +315,14 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(rate(agro_distributor_block_requests_total{}[10s]))",
+              "expr": "sum(rate(torus_distributor_block_requests_total{}[10s]))",
               "intervalFactor": 2,
               "legendFormat": "All Requests",
               "step": 2
             },
             {
               "refId": "B",
-              "expr": "sum(rate(agro_distributor_block_request_failures{}[10s]))",
+              "expr": "sum(rate(torus_distributor_block_request_failures{}[10s]))",
               "intervalFactor": 2,
               "step": 2,
               "legendFormat": "All Failures"
@@ -388,14 +388,14 @@
           "targets": [
             {
               "refId": "C",
-              "expr": "sum(rate(agro_distributor_block_local_blocks{}[10s]))",
+              "expr": "sum(rate(torus_distributor_block_local_blocks{}[10s]))",
               "intervalFactor": 2,
               "legendFormat": "Local",
               "step": 2
             },
             {
               "refId": "A",
-              "expr": "sum(rate(agro_distributor_block_cached_blocks{}[10s]))",
+              "expr": "sum(rate(torus_distributor_block_cached_blocks{}[10s]))",
               "intervalFactor": 2,
               "step": 2,
               "legendFormat": "Caches",
@@ -403,7 +403,7 @@
             },
             {
               "refId": "B",
-              "expr": "sum(rate(agro_distributor_block_peer_blocks[10s])) by (peer)",
+              "expr": "sum(rate(torus_distributor_block_peer_blocks[10s])) by (peer)",
               "intervalFactor": 2,
               "step": 2,
               "legendFormat": "Peers {{peer}}",
@@ -470,7 +470,7 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "rate(agro_distributor_block_peer_block_fails{}[10s])",
+              "expr": "rate(torus_distributor_block_peer_block_fails{}[10s])",
               "intervalFactor": 2,
               "step": 2,
               "legendFormat": "{{instance}} -- {{peer}}"
@@ -544,7 +544,7 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "rate(agro_distributor_put_block_rpcs_total[10s]) * on(instance) up{}",
+              "expr": "rate(torus_distributor_put_block_rpcs_total[10s]) * on(instance) up{}",
               "intervalFactor": 2,
               "step": 2,
               "legendFormat": "{{instance}}"
@@ -610,7 +610,7 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "rate(agro_distributor_block_rpcs_total[10s]) * on(instance) up{}",
+              "expr": "rate(torus_distributor_block_rpcs_total[10s]) * on(instance) up{}",
               "intervalFactor": 2,
               "step": 2,
               "legendFormat": "{{instance}}"
@@ -676,7 +676,7 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "rate(agro_distributor_rebalance_rpcs_total[10s]) * on(instance) up{}",
+              "expr": "rate(torus_distributor_rebalance_rpcs_total[10s]) * on(instance) up{}",
               "intervalFactor": 2,
               "step": 2,
               "legendFormat": "{{instance}}"

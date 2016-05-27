@@ -2,8 +2,8 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    name: postgres-agro
-  name: postgres-agro
+    name: postgres-torus
+  name: postgres-torus
 spec:
   type: NodePort
   ports:
@@ -11,20 +11,20 @@ spec:
       targetPort: postgres-client
       nodePort: 30432
   selector:
-    name: postgres-agro
+    name: postgres-torus
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: postgres-agro
+  name: postgres-torus
   labels:
-    name: postgres-agro
+    name: postgres-torus
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: postgres-agro
+        app: postgres-torus
     spec:
       containers:
       - image: postgres
@@ -41,13 +41,13 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: POSTGRES_PASSWORD
-          value: testagro
+          value: testtorus
         - name: PGDATA
           value: "/var/lib/postgresql/data/pgdata"
       volumes:
         - name: data
           flexVolume:
-            driver: "coreos.com/agro"
+            driver: "coreos.com/torus"
             fsType: "ext4"
             options:
               volume: "pg1"

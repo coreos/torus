@@ -3,15 +3,15 @@ package etcd
 import (
 	"encoding/json"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/ring"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
+	"github.com/coreos/torus/ring"
 
 	etcdv3 "github.com/coreos/etcd/clientv3"
 	"golang.org/x/net/context"
 )
 
-func initEtcdMetadata(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.RingType) error {
+func initEtcdMetadata(cfg torus.Config, gmd torus.GlobalMetadata, ringType torus.RingType) error {
 	gmdbytes, err := json.Marshal(gmd)
 	if err != nil {
 		return err
@@ -46,7 +46,7 @@ func initEtcdMetadata(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.Ri
 		return err
 	}
 	if !resp.Succeeded {
-		return agro.ErrExists
+		return torus.ErrExists
 	}
 	_, err = client.Put(context.Background(), MkKey("meta", "the-one-ring"), string(ringb))
 	if err != nil {
@@ -55,7 +55,7 @@ func initEtcdMetadata(cfg agro.Config, gmd agro.GlobalMetadata, ringType agro.Ri
 	return nil
 }
 
-func wipeEtcdMetadata(cfg agro.Config) error {
+func wipeEtcdMetadata(cfg torus.Config) error {
 	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}})
 	if err != nil {
 		return err
@@ -68,7 +68,7 @@ func wipeEtcdMetadata(cfg agro.Config) error {
 	return nil
 }
 
-func setRing(cfg agro.Config, r agro.Ring) error {
+func setRing(cfg torus.Config, r torus.Ring) error {
 	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}})
 	if err != nil {
 		return err
@@ -80,14 +80,14 @@ func setRing(cfg agro.Config, r agro.Ring) error {
 		return err
 	}
 	if len(resp.Kvs) == 0 {
-		return agro.ErrNoGlobalMetadata
+		return torus.ErrNoGlobalMetadata
 	}
 	oldr, err := ring.Unmarshal(resp.Kvs[0].Value)
 	if err != nil {
 		return err
 	}
 	if oldr.Version() != r.Version()-1 {
-		return agro.ErrNonSequentialRing
+		return torus.ErrNonSequentialRing
 	}
 	b, err := r.Marshal()
 	if err != nil {

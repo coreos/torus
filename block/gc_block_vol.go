@@ -5,10 +5,10 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
-	"github.com/coreos/agro/gc"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/blockset"
+	"github.com/coreos/torus/gc"
+	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
 )
 
@@ -17,14 +17,14 @@ func init() {
 }
 
 type blockvolGC struct {
-	srv        *agro.Server
+	srv        *torus.Server
 	inodes     gc.INodeFetcher
-	set        map[agro.BlockRef]bool
-	highwaters map[agro.VolumeID]agro.INodeID
-	curINodes  []agro.INodeRef
+	set        map[torus.BlockRef]bool
+	highwaters map[torus.VolumeID]torus.INodeID
+	curINodes  []torus.INodeRef
 }
 
-func NewBlockVolGC(srv *agro.Server, inodes gc.INodeFetcher) (gc.GC, error) {
+func NewBlockVolGC(srv *torus.Server, inodes gc.INodeFetcher) (gc.GC, error) {
 	b := &blockvolGC{
 		srv:    srv,
 		inodes: inodes,
@@ -42,7 +42,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	if vol.Type != VolumeType {
 		return nil
 	}
-	mds, err := createBlockMetadata(b.srv.MDS, vol.Name, agro.VolumeID(vol.Id))
+	mds, err := createBlockMetadata(b.srv.MDS, vol.Name, torus.VolumeID(vol.Id))
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 		return nil
 	}
 
-	curINodes := []agro.INodeRef{curRef}
+	curINodes := []torus.INodeRef{curRef}
 
 	snaps, err := mds.GetSnapshots()
 	if err != nil {
@@ -63,7 +63,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	}
 
 	for _, x := range snaps {
-		curINodes = append(curINodes, agro.INodeRefFromBytes(x.INodeRef))
+		curINodes = append(curINodes, torus.INodeRefFromBytes(x.INodeRef))
 	}
 
 	for _, x := range curINodes {
@@ -90,7 +90,7 @@ func (b *blockvolGC) PrepVolume(vol *models.Volume) error {
 	return nil
 }
 
-func (b *blockvolGC) IsDead(ref agro.BlockRef) bool {
+func (b *blockvolGC) IsDead(ref torus.BlockRef) bool {
 	v, ok := b.highwaters[ref.Volume()]
 	if !ok {
 		if clog.LevelAt(capnslog.TRACE) {
@@ -107,9 +107,9 @@ func (b *blockvolGC) IsDead(ref agro.BlockRef) bool {
 		return false
 	}
 	// If it's an INode block, and it's not in our list
-	if ref.BlockType() == agro.TypeINode {
+	if ref.BlockType() == torus.TypeINode {
 		for _, x := range b.curINodes {
-			if ref.HasINode(x, agro.TypeINode) {
+			if ref.HasINode(x, torus.TypeINode) {
 				if clog.LevelAt(capnslog.TRACE) {
 					clog.Tracef("%s is in %s", ref, x)
 				}
@@ -132,7 +132,7 @@ func (b *blockvolGC) IsDead(ref agro.BlockRef) bool {
 }
 
 func (b *blockvolGC) Clear() {
-	b.highwaters = make(map[agro.VolumeID]agro.INodeID)
-	b.curINodes = make([]agro.INodeRef, 0, len(b.curINodes))
-	b.set = make(map[agro.BlockRef]bool)
+	b.highwaters = make(map[torus.VolumeID]torus.INodeID)
+	b.curINodes = make([]torus.INodeRef, 0, len(b.curINodes))
+	b.set = make(map[torus.BlockRef]bool)
 }

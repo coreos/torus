@@ -5,19 +5,19 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/ring"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
+	"github.com/coreos/torus/ring"
 	"github.com/spf13/cobra"
 )
 
 var (
 	ringType  string
-	peers     agro.PeerInfoList
+	peers     torus.PeerInfoList
 	uuids     []string
 	allUUIDs  bool
 	repFactor int
-	mds       agro.MetadataService
+	mds       torus.MetadataService
 )
 
 var ringCommand = &cobra.Command{
@@ -78,7 +78,7 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't get ring: %v", err)
 	}
-	var newRing agro.Ring
+	var newRing torus.Ring
 	switch ringType {
 	case "empty":
 		newRing, err = ring.CreateRing(&models.Ring{
@@ -111,10 +111,10 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't create new ring: %v", err)
 	}
-	cfg := agro.Config{
+	cfg := torus.Config{
 		MetadataAddress: etcdAddress,
 	}
-	err = agro.SetRing("etcd", cfg, newRing)
+	err = torus.SetRing("etcd", cfg, newRing)
 	if err != nil {
 		die("couldn't set new ring: %v", err)
 	}
@@ -176,8 +176,8 @@ func ringChangeReplicationAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't get ring: %v", err)
 	}
-	var newRing agro.Ring
-	if r, ok := currentRing.(agro.ModifyableRing); ok {
+	var newRing torus.Ring
+	if r, ok := currentRing.(torus.ModifyableRing); ok {
 		newRing, err = r.ChangeReplication(amount)
 	} else {
 		die("current ring type cannot support changing the replication amount")

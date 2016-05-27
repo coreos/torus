@@ -4,20 +4,20 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
 )
 
 type unionRing struct {
-	oldRing agro.Ring
-	newRing agro.Ring
+	oldRing torus.Ring
+	newRing torus.Ring
 }
 
 func init() {
 	registerRing(Union, "union", makeUnion)
 }
 
-func makeUnion(r *models.Ring) (agro.Ring, error) {
+func makeUnion(r *models.Ring) (torus.Ring, error) {
 	var err error
 	out := &unionRing{}
 	oldb, ok := r.Attrs["old"]
@@ -39,29 +39,29 @@ func makeUnion(r *models.Ring) (agro.Ring, error) {
 	return out, nil
 }
 
-func NewUnionRing(oldRing agro.Ring, newRing agro.Ring) agro.Ring {
+func NewUnionRing(oldRing torus.Ring, newRing torus.Ring) torus.Ring {
 	return &unionRing{
 		oldRing: oldRing,
 		newRing: newRing,
 	}
 }
 
-func (u *unionRing) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
+func (u *unionRing) GetPeers(key torus.BlockRef) (torus.PeerPermutation, error) {
 	n, err := u.newRing.GetPeers(key)
 	if err != nil {
-		return agro.PeerPermutation{}, err
+		return torus.PeerPermutation{}, err
 	}
 	o, err := u.oldRing.GetPeers(key)
 	if err != nil {
-		return agro.PeerPermutation{}, err
+		return torus.PeerPermutation{}, err
 	}
-	return agro.PeerPermutation{
+	return torus.PeerPermutation{
 		Peers:       o.Peers.Union(n.Peers),
 		Replication: n.Replication,
 	}, nil
 }
 
-func (u *unionRing) Members() agro.PeerList {
+func (u *unionRing) Members() torus.PeerList {
 	return u.newRing.Members().Union(u.oldRing.Members())
 }
 
@@ -72,7 +72,7 @@ func (u *unionRing) Describe() string {
 		u.newRing.Describe(),
 	)
 }
-func (u *unionRing) Type() agro.RingType {
+func (u *unionRing) Type() torus.RingType {
 	return Union
 }
 func (u *unionRing) Version() int {

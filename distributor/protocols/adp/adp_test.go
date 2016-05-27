@@ -10,8 +10,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
 	"golang.org/x/net/context"
 )
 
@@ -21,10 +21,10 @@ type mockBlockRPC struct {
 	data []byte
 }
 
-func (m *mockBlockRPC) Block(ctx context.Context, ref agro.BlockRef) ([]byte, error) {
+func (m *mockBlockRPC) Block(ctx context.Context, ref torus.BlockRef) ([]byte, error) {
 	return m.data, nil
 }
-func (m *mockBlockRPC) PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) error {
+func (m *mockBlockRPC) PutBlock(ctx context.Context, ref torus.BlockRef, data []byte) error {
 	if ref.INode != 2 && ref.Index != 3 {
 		return errors.New("mismatch")
 	}
@@ -33,7 +33,7 @@ func (m *mockBlockRPC) PutBlock(ctx context.Context, ref agro.BlockRef, data []b
 	}
 	return errors.New("mismatch")
 }
-func (m *mockBlockRPC) RebalanceCheck(ctx context.Context, refs []agro.BlockRef) ([]bool, error) {
+func (m *mockBlockRPC) RebalanceCheck(ctx context.Context, refs []torus.BlockRef) ([]bool, error) {
 	out := make([]bool, len(refs))
 	for i, x := range refs {
 		if x.INode%2 == 1 {
@@ -43,7 +43,7 @@ func (m *mockBlockRPC) RebalanceCheck(ctx context.Context, refs []agro.BlockRef)
 	return out, nil
 }
 
-func (m *mockBlockRPC) WriteBuf(ctx context.Context, ref agro.BlockRef) ([]byte, error) {
+func (m *mockBlockRPC) WriteBuf(ctx context.Context, ref torus.BlockRef) ([]byte, error) {
 	if ref.INode != 2 && ref.Index != 3 {
 		return nil, errors.New("mismatch")
 	}
@@ -66,7 +66,7 @@ func (g *mockBlockGRPC) Block(ctx context.Context, req *models.BlockRequest) (*m
 }
 
 func (g *mockBlockGRPC) PutBlock(ctx context.Context, req *models.PutBlockRequest) (*models.PutResponse, error) {
-	ref := agro.BlockFromProto(req.Refs[0])
+	ref := torus.BlockFromProto(req.Refs[0])
 	if ref.INode != 2 && ref.Index != 3 {
 		return &models.PutResponse{
 			Err: "bad ref",
@@ -85,7 +85,7 @@ func (g *mockBlockGRPC) PutBlock(ctx context.Context, req *models.PutBlockReques
 func (g *mockBlockGRPC) RebalanceCheck(ctx context.Context, req *models.RebalanceCheckRequest) (*models.RebalanceCheckResponse, error) {
 	out := make([]bool, len(req.BlockRefs))
 	for i, x := range req.BlockRefs {
-		p := agro.BlockFromProto(x)
+		p := torus.BlockFromProto(x)
 		if p.INode%2 == 1 {
 			out[i] = true
 		}
@@ -119,8 +119,8 @@ func TestBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	b, err := c.Block(context.TODO(), agro.BlockRef{
-		INodeRef: agro.NewINodeRef(1, 2),
+	b, err := c.Block(context.TODO(), torus.BlockRef{
+		INodeRef: torus.NewINodeRef(1, 2),
 		Index:    3,
 	})
 	if err != nil {
@@ -141,7 +141,7 @@ func TestBlockGRPC(t *testing.T) {
 		t.Fatal(err)
 	}
 	grpcSrv := grpc.NewServer()
-	models.RegisterAgroStorageServer(grpcSrv, m)
+	models.RegisterTorusStorageServer(grpcSrv, m)
 	go grpcSrv.Serve(lis)
 	defer grpcSrv.Stop()
 	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithTimeout(10*time.Second))
@@ -149,10 +149,10 @@ func TestBlockGRPC(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	client := models.NewAgroStorageClient(conn)
+	client := models.NewTorusStorageClient(conn)
 	resp, err := client.Block(context.TODO(), &models.BlockRequest{
-		BlockRef: agro.BlockRef{
-			INodeRef: agro.NewINodeRef(1, 2),
+		BlockRef: torus.BlockRef{
+			INodeRef: torus.NewINodeRef(1, 2),
 			Index:    3,
 		}.ToProto(),
 	})
@@ -179,8 +179,8 @@ func TestPutBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	err = c.PutBlock(context.TODO(), agro.BlockRef{
-		INodeRef: agro.NewINodeRef(1, 2),
+	err = c.PutBlock(context.TODO(), torus.BlockRef{
+		INodeRef: torus.NewINodeRef(1, 2),
 		Index:    3,
 	}, test)
 	if err != nil {
@@ -198,7 +198,7 @@ func TestPutBlockGRPC(t *testing.T) {
 		t.Fatal(err)
 	}
 	grpcSrv := grpc.NewServer()
-	models.RegisterAgroStorageServer(grpcSrv, m)
+	models.RegisterTorusStorageServer(grpcSrv, m)
 	go grpcSrv.Serve(lis)
 	defer grpcSrv.Stop()
 	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithTimeout(10*time.Second))
@@ -206,11 +206,11 @@ func TestPutBlockGRPC(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	client := models.NewAgroStorageClient(conn)
+	client := models.NewTorusStorageClient(conn)
 	resp, err := client.PutBlock(context.TODO(), &models.PutBlockRequest{
 		Refs: []*models.BlockRef{
-			agro.BlockRef{
-				INodeRef: agro.NewINodeRef(1, 2),
+			torus.BlockRef{
+				INodeRef: torus.NewINodeRef(1, 2),
 				Index:    3,
 			}.ToProto(),
 		},
@@ -227,11 +227,11 @@ func TestPutBlockGRPC(t *testing.T) {
 }
 
 func TestRebalanceCheck(t *testing.T) {
-	test := make([]agro.BlockRef, nchecks)
+	test := make([]torus.BlockRef, nchecks)
 	m := &mockBlockRPC{}
 	for i, _ := range test {
 		test[i].Index = 3
-		test[i].INodeRef = agro.NewINodeRef(1, agro.INodeID(rand.Intn(40)))
+		test[i].INodeRef = torus.NewINodeRef(1, torus.INodeID(rand.Intn(40)))
 	}
 	s, err := Serve("localhost:40000", m, m.BlockSize())
 	if err != nil {
@@ -278,8 +278,8 @@ func BenchmarkBlock(b *testing.B) {
 	total := 0
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		data, err := c.Block(context.TODO(), agro.BlockRef{
-			INodeRef: agro.NewINodeRef(1, 2),
+		data, err := c.Block(context.TODO(), torus.BlockRef{
+			INodeRef: torus.NewINodeRef(1, 2),
 			Index:    3,
 		})
 		if err != nil {
@@ -304,7 +304,7 @@ func BenchmarkGRPCBlock(b *testing.B) {
 		b.Fatal(err)
 	}
 	grpcSrv := grpc.NewServer()
-	models.RegisterAgroStorageServer(grpcSrv, m)
+	models.RegisterTorusStorageServer(grpcSrv, m)
 	go grpcSrv.Serve(lis)
 	defer grpcSrv.Stop()
 	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithTimeout(10*time.Second))
@@ -312,13 +312,13 @@ func BenchmarkGRPCBlock(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	client := models.NewAgroStorageClient(conn)
+	client := models.NewTorusStorageClient(conn)
 	total := 0
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		resp, err := client.Block(context.TODO(), &models.BlockRequest{
-			BlockRef: agro.BlockRef{
-				INodeRef: agro.NewINodeRef(1, 2),
+			BlockRef: torus.BlockRef{
+				INodeRef: torus.NewINodeRef(1, 2),
 				Index:    3,
 			}.ToProto(),
 		})
@@ -351,8 +351,8 @@ func BenchmarkPutBlock(b *testing.B) {
 	total := 0
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err = c.PutBlock(context.TODO(), agro.BlockRef{
-			INodeRef: agro.NewINodeRef(1, 2),
+		err = c.PutBlock(context.TODO(), torus.BlockRef{
+			INodeRef: torus.NewINodeRef(1, 2),
 			Index:    3,
 		}, test)
 		if err != nil {
@@ -373,7 +373,7 @@ func BenchmarkGRPCPutBlock(b *testing.B) {
 		b.Fatal(err)
 	}
 	grpcSrv := grpc.NewServer()
-	models.RegisterAgroStorageServer(grpcSrv, m)
+	models.RegisterTorusStorageServer(grpcSrv, m)
 	go grpcSrv.Serve(lis)
 	defer grpcSrv.Stop()
 	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithTimeout(10*time.Second))
@@ -381,14 +381,14 @@ func BenchmarkGRPCPutBlock(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer conn.Close()
-	client := models.NewAgroStorageClient(conn)
+	client := models.NewTorusStorageClient(conn)
 	total := 0
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		resp, err := client.PutBlock(context.TODO(), &models.PutBlockRequest{
 			Refs: []*models.BlockRef{
-				agro.BlockRef{
-					INodeRef: agro.NewINodeRef(1, 2),
+				torus.BlockRef{
+					INodeRef: torus.NewINodeRef(1, 2),
 					Index:    3,
 				}.ToProto(),
 			},
@@ -408,11 +408,11 @@ func BenchmarkGRPCPutBlock(b *testing.B) {
 }
 
 func BenchmarkRebalanceCheck(b *testing.B) {
-	test := make([]agro.BlockRef, nchecks)
+	test := make([]torus.BlockRef, nchecks)
 	m := &mockBlockRPC{}
 	for i, _ := range test {
 		test[i].Index = 3
-		test[i].INodeRef = agro.NewINodeRef(1, agro.INodeID(rand.Intn(40)))
+		test[i].INodeRef = torus.NewINodeRef(1, torus.INodeID(rand.Intn(40)))
 	}
 	s, err := Serve("localhost:40000", m, m.BlockSize())
 	if err != nil {
@@ -448,18 +448,18 @@ func BenchmarkRebalanceCheck(b *testing.B) {
 }
 
 func BenchmarkGRPCRebalanceCheck(b *testing.B) {
-	test := make([]agro.BlockRef, nchecks)
+	test := make([]torus.BlockRef, nchecks)
 	m := &mockBlockGRPC{}
 	for i, _ := range test {
 		test[i].Index = 3
-		test[i].INodeRef = agro.NewINodeRef(1, agro.INodeID(rand.Intn(40)))
+		test[i].INodeRef = torus.NewINodeRef(1, torus.INodeID(rand.Intn(40)))
 	}
 	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		b.Fatal(err)
 	}
 	grpcSrv := grpc.NewServer()
-	models.RegisterAgroStorageServer(grpcSrv, m)
+	models.RegisterTorusStorageServer(grpcSrv, m)
 	go grpcSrv.Serve(lis)
 	defer grpcSrv.Stop()
 	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithTimeout(10*time.Second))
@@ -467,7 +467,7 @@ func BenchmarkGRPCRebalanceCheck(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer conn.Close()
-	client := models.NewAgroStorageClient(conn)
+	client := models.NewTorusStorageClient(conn)
 	total := 0
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

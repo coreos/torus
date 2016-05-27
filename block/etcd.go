@@ -7,15 +7,15 @@ import (
 	etcdv3 "github.com/coreos/etcd/clientv3"
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/metadata/etcd"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/metadata/etcd"
+	"github.com/coreos/torus/models"
 )
 
 type blockEtcd struct {
 	*etcd.Etcd
 	name string
-	vid  agro.VolumeID
+	vid  torus.VolumeID
 }
 
 func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
@@ -28,7 +28,7 @@ func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
 	if err != nil {
 		return err
 	}
-	inodeBytes := agro.NewINodeRef(agro.VolumeID(volume.Id), 1).ToBytes()
+	inodeBytes := torus.NewINodeRef(torus.VolumeID(volume.Id), 1).ToBytes()
 
 	do := b.Etcd.Client.Txn(b.getContext()).If(
 		etcdv3.Compare(etcdv3.Version(etcd.MkKey("volumes", volume.Name)), "=", 0),
@@ -43,7 +43,7 @@ func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
 		return err
 	}
 	if !resp.Succeeded {
-		return agro.ErrExists
+		return torus.ErrExists
 	}
 	return nil
 }
@@ -62,7 +62,7 @@ func (b *blockEtcd) DeleteVolume() error {
 		return err
 	}
 	if !resp.Succeeded {
-		return agro.ErrLocked
+		return torus.ErrLocked
 	}
 	return nil
 
@@ -74,7 +74,7 @@ func (b *blockEtcd) getContext() context.Context {
 
 func (b *blockEtcd) Lock(lease int64) error {
 	if lease == 0 {
-		return agro.ErrInvalid
+		return torus.ErrInvalid
 	}
 	k := etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blocklock")
 	tx := b.Etcd.Client.Txn(b.getContext()).If(
@@ -87,23 +87,23 @@ func (b *blockEtcd) Lock(lease int64) error {
 		return err
 	}
 	if !resp.Succeeded {
-		return agro.ErrLocked
+		return torus.ErrLocked
 	}
 	return nil
 }
 
-func (b *blockEtcd) GetINode() (agro.INodeRef, error) {
+func (b *blockEtcd) GetINode() (torus.INodeRef, error) {
 	resp, err := b.Etcd.Client.Get(b.getContext(), etcd.MkKey("volumemeta", etcd.Uint64ToHex(uint64(b.vid)), "blockinode"))
 	if err != nil {
-		return agro.NewINodeRef(0, 0), err
+		return torus.NewINodeRef(0, 0), err
 	}
 	if len(resp.Kvs) != 1 {
-		return agro.NewINodeRef(0, 0), errors.New("unexpected metadata for volume")
+		return torus.NewINodeRef(0, 0), errors.New("unexpected metadata for volume")
 	}
-	return agro.INodeRefFromBytes(resp.Kvs[0].Value), nil
+	return torus.INodeRefFromBytes(resp.Kvs[0].Value), nil
 }
 
-func (b *blockEtcd) SyncINode(inode agro.INodeRef) error {
+func (b *blockEtcd) SyncINode(inode torus.INodeRef) error {
 	vid := uint64(inode.Volume())
 	inodeBytes := string(inode.ToBytes())
 	k := etcd.MkKey("volumemeta", etcd.Uint64ToHex(vid), "blocklock")
@@ -118,7 +118,7 @@ func (b *blockEtcd) SyncINode(inode agro.INodeRef) error {
 		return err
 	}
 	if !resp.Succeeded {
-		return agro.ErrLocked
+		return torus.ErrLocked
 	}
 	return nil
 }
@@ -137,7 +137,7 @@ func (b *blockEtcd) Unlock() error {
 		return err
 	}
 	if !resp.Succeeded {
-		return agro.ErrLocked
+		return torus.ErrLocked
 	}
 	return nil
 }
@@ -157,7 +157,7 @@ func (b *blockEtcd) SaveSnapshot(name string) error {
 			return err
 		}
 		if !resp.Succeeded {
-			return agro.ErrExists
+			return torus.ErrExists
 		}
 		v := resp.Responses[0].GetResponseRange().Kvs[0]
 		inode := Snapshot{
@@ -215,12 +215,12 @@ func (b *blockEtcd) DeleteSnapshot(name string) error {
 		return err
 	}
 	if !resp.Succeeded {
-		return agro.ErrLocked
+		return torus.ErrLocked
 	}
 	return nil
 }
 
-func createBlockEtcdMetadata(mds agro.MetadataService, name string, vid agro.VolumeID) (blockMetadata, error) {
+func createBlockEtcdMetadata(mds torus.MetadataService, name string, vid torus.VolumeID) (blockMetadata, error) {
 	if e, ok := mds.(*etcd.Etcd); ok {
 		return &blockEtcd{
 			Etcd: e,

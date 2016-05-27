@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/RoaringBitmap/roaring"
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"github.com/coreos/pkg/capnslog"
 )
 
@@ -22,7 +22,7 @@ type crcBlockset struct {
 var _ blockset = &crcBlockset{}
 
 func init() {
-	RegisterBlockset(CRC, func(_ string, _ agro.BlockStore, sub blockset) (blockset, error) {
+	RegisterBlockset(CRC, func(_ string, _ torus.BlockStore, sub blockset) (blockset, error) {
 		return newCRCBlockset(sub), nil
 	})
 }
@@ -53,7 +53,7 @@ func (b *crcBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 	defer b.mut.RUnlock()
 	if i >= len(b.crcs) {
 		clog.Trace("crc: requesting block off the edge of known blocks")
-		return nil, agro.ErrBlockNotExist
+		return nil, torus.ErrBlockNotExist
 	}
 	data, err := b.sub.GetBlock(ctx, i)
 	if err != nil {
@@ -65,16 +65,16 @@ func (b *crcBlockset) GetBlock(ctx context.Context, i int) ([]byte, error) {
 		clog.Warningf("crc: block %d did not pass crc", i)
 		clog.Debugf("crc: %x should be %x\ndata : %v\n\n", crc, b.crcs[i], data[:10])
 		promCRCFail.Inc()
-		return nil, agro.ErrBlockUnavailable
+		return nil, torus.ErrBlockUnavailable
 	}
 	return data, nil
 }
 
-func (b *crcBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, data []byte) error {
+func (b *crcBlockset) PutBlock(ctx context.Context, inode torus.INodeRef, i int, data []byte) error {
 	b.mut.Lock()
 	defer b.mut.Unlock()
 	if i > len(b.crcs) {
-		return agro.ErrBlockNotExist
+		return torus.ErrBlockNotExist
 	}
 	crc := crc32.ChecksumIEEE(data)
 	if crc == b.emptyCrc {
@@ -95,16 +95,16 @@ func (b *crcBlockset) PutBlock(ctx context.Context, inode agro.INodeRef, i int, 
 	return nil
 }
 
-func (b *crcBlockset) makeID(i agro.INodeRef) agro.BlockRef {
+func (b *crcBlockset) makeID(i torus.INodeRef) torus.BlockRef {
 	return b.sub.makeID(i)
 }
 
-func (b *crcBlockset) setStore(s agro.BlockStore) {
+func (b *crcBlockset) setStore(s torus.BlockStore) {
 	b.emptyCrc = crc32.ChecksumIEEE(make([]byte, s.BlockSize()))
 	b.sub.setStore(s)
 }
 
-func (b *crcBlockset) getStore() agro.BlockStore {
+func (b *crcBlockset) getStore() torus.BlockStore {
 	return b.sub.getStore()
 }
 
@@ -132,7 +132,7 @@ func (b *crcBlockset) Unmarshal(data []byte) error {
 	return nil
 }
 
-func (b *crcBlockset) GetSubBlockset() agro.Blockset { return b.sub }
+func (b *crcBlockset) GetSubBlockset() torus.Blockset { return b.sub }
 
 func (b *crcBlockset) GetLiveINodes() *roaring.Bitmap {
 	b.mut.RLock()
@@ -180,7 +180,7 @@ func (b *crcBlockset) Trim(from, to int) error {
 	return nil
 }
 
-func (b *crcBlockset) GetAllBlockRefs() []agro.BlockRef {
+func (b *crcBlockset) GetAllBlockRefs() []torus.BlockRef {
 	b.mut.Lock()
 	defer b.mut.Unlock()
 	return b.sub.GetAllBlockRefs()

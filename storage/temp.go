@@ -5,30 +5,30 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 )
 
-var _ agro.BlockStore = &tempBlockStore{}
+var _ torus.BlockStore = &tempBlockStore{}
 
 func init() {
-	agro.RegisterBlockStore("temp", openTempBlockStore)
+	torus.RegisterBlockStore("temp", openTempBlockStore)
 }
 
 type tempBlockStore struct {
 	mut       sync.RWMutex
-	store     map[agro.BlockRef][]byte
+	store     map[torus.BlockRef][]byte
 	nBlocks   uint64
 	name      string
 	blockSize uint64
 }
 
-func openTempBlockStore(name string, cfg agro.Config, gmd agro.GlobalMetadata) (agro.BlockStore, error) {
+func openTempBlockStore(name string, cfg torus.Config, gmd torus.GlobalMetadata) (torus.BlockStore, error) {
 	nBlocks := cfg.StorageSize / gmd.BlockSize
 	promBlocksAvail.WithLabelValues(name).Set(float64(nBlocks))
 	promBlocks.WithLabelValues(name).Set(0)
 	promBytesPerBlock.Set(float64(gmd.BlockSize))
 	return &tempBlockStore{
-		store:     make(map[agro.BlockRef][]byte),
+		store:     make(map[torus.BlockRef][]byte),
 		nBlocks:   nBlocks,
 		name:      name,
 		blockSize: gmd.BlockSize,
@@ -60,41 +60,41 @@ func (t *tempBlockStore) UsedBlocks() uint64 {
 	return uint64(len(t.store))
 }
 
-func (t *tempBlockStore) HasBlock(_ context.Context, s agro.BlockRef) (bool, error) {
+func (t *tempBlockStore) HasBlock(_ context.Context, s torus.BlockRef) (bool, error) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 	_, ok := t.store[s]
 	return ok, nil
 }
 
-func (t *tempBlockStore) GetBlock(_ context.Context, s agro.BlockRef) ([]byte, error) {
+func (t *tempBlockStore) GetBlock(_ context.Context, s torus.BlockRef) ([]byte, error) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 
 	if t.store == nil {
 		promBlocksFailed.WithLabelValues(t.name).Inc()
-		return nil, agro.ErrClosed
+		return nil, torus.ErrClosed
 	}
 
 	x, ok := t.store[s]
 	if !ok {
 		promBlocksFailed.WithLabelValues(t.name).Inc()
-		return nil, agro.ErrBlockNotExist
+		return nil, torus.ErrBlockNotExist
 	}
 	promBlocksRetrieved.WithLabelValues(t.name).Inc()
 	return x, nil
 }
 
-func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockRef, data []byte) error {
+func (t *tempBlockStore) WriteBlock(_ context.Context, s torus.BlockRef, data []byte) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 
 	if t.store == nil {
 		promBlockWritesFailed.WithLabelValues(t.name).Inc()
-		return agro.ErrClosed
+		return torus.ErrClosed
 	}
 	if int(t.nBlocks) <= len(t.store) {
-		return agro.ErrOutOfSpace
+		return torus.ErrOutOfSpace
 	}
 	buf := make([]byte, len(data))
 	copy(buf, data)
@@ -104,16 +104,16 @@ func (t *tempBlockStore) WriteBlock(_ context.Context, s agro.BlockRef, data []b
 	return nil
 }
 
-func (t *tempBlockStore) WriteBuf(_ context.Context, s agro.BlockRef) ([]byte, error) {
+func (t *tempBlockStore) WriteBuf(_ context.Context, s torus.BlockRef) ([]byte, error) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 
 	if t.store == nil {
 		promBlockWritesFailed.WithLabelValues(t.name).Inc()
-		return nil, agro.ErrClosed
+		return nil, torus.ErrClosed
 	}
 	if int(t.nBlocks) <= len(t.store) {
-		return nil, agro.ErrOutOfSpace
+		return nil, torus.ErrOutOfSpace
 	}
 	buf := make([]byte, t.blockSize)
 	t.store[s] = buf
@@ -122,13 +122,13 @@ func (t *tempBlockStore) WriteBuf(_ context.Context, s agro.BlockRef) ([]byte, e
 	return buf, nil
 }
 
-func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockRef) error {
+func (t *tempBlockStore) DeleteBlock(_ context.Context, s torus.BlockRef) error {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 
 	if t.store == nil {
 		promBlockDeletesFailed.WithLabelValues(t.name).Inc()
-		return agro.ErrClosed
+		return torus.ErrClosed
 	}
 
 	delete(t.store, s)
@@ -137,10 +137,10 @@ func (t *tempBlockStore) DeleteBlock(_ context.Context, s agro.BlockRef) error {
 	return nil
 }
 
-func (t *tempBlockStore) BlockIterator() agro.BlockIterator {
+func (t *tempBlockStore) BlockIterator() torus.BlockIterator {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
-	var blocks []agro.BlockRef
+	var blocks []torus.BlockRef
 	for k := range t.store {
 		blocks = append(blocks, k)
 	}
@@ -151,7 +151,7 @@ func (t *tempBlockStore) BlockIterator() agro.BlockIterator {
 }
 
 type tempIterator struct {
-	blocks []agro.BlockRef
+	blocks []torus.BlockRef
 	index  int
 }
 
@@ -165,6 +165,6 @@ func (i *tempIterator) Next() bool {
 	return true
 }
 
-func (i *tempIterator) BlockRef() agro.BlockRef { return i.blocks[i.index] }
+func (i *tempIterator) BlockRef() torus.BlockRef { return i.blocks[i.index] }
 
 func (i *tempIterator) Close() error { return nil }

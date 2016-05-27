@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
 
 	"github.com/serialx/hashring"
 )
@@ -14,7 +14,7 @@ import (
 type ketama struct {
 	version int
 	rep     int
-	peers   agro.PeerInfoList
+	peers   torus.PeerInfoList
 	ring    *hashring.HashRing
 }
 
@@ -22,12 +22,12 @@ func init() {
 	registerRing(Ketama, "ketama", makeKetama)
 }
 
-func makeKetama(r *models.Ring) (agro.Ring, error) {
+func makeKetama(r *models.Ring) (torus.Ring, error) {
 	rep := int(r.ReplicationFactor)
 	if rep == 0 {
 		rep = 1
 	}
-	pi := agro.PeerInfoList(r.Peers)
+	pi := torus.PeerInfoList(r.Peers)
 	return &ketama{
 		version: int(r.Version),
 		peers:   pi,
@@ -36,18 +36,18 @@ func makeKetama(r *models.Ring) (agro.Ring, error) {
 	}, nil
 }
 
-func (k *ketama) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
+func (k *ketama) GetPeers(key torus.BlockRef) (torus.PeerPermutation, error) {
 	s, ok := k.ring.GetNodes(string(key.ToBytes()), len(k.peers))
 	if !ok {
-		return agro.PeerPermutation{}, errors.New("couldn't get sufficient nodes")
+		return torus.PeerPermutation{}, errors.New("couldn't get sufficient nodes")
 	}
-	return agro.PeerPermutation{
+	return torus.PeerPermutation{
 		Peers:       s,
 		Replication: k.rep,
 	}, nil
 }
 
-func (k *ketama) Members() agro.PeerList { return k.peers.PeerList() }
+func (k *ketama) Members() torus.PeerList { return k.peers.PeerList() }
 
 func (k *ketama) Describe() string {
 	s := fmt.Sprintf("Ring: Ketama\nReplication:%d\nPeers:", k.rep)
@@ -56,7 +56,7 @@ func (k *ketama) Describe() string {
 	}
 	return s
 }
-func (k *ketama) Type() agro.RingType { return Ketama }
+func (k *ketama) Type() torus.RingType { return Ketama }
 func (k *ketama) Version() int        { return k.version }
 
 func (k *ketama) Marshal() ([]byte, error) {
@@ -69,10 +69,10 @@ func (k *ketama) Marshal() ([]byte, error) {
 	return out.Marshal()
 }
 
-func (k *ketama) AddPeers(peers agro.PeerInfoList) (agro.Ring, error) {
+func (k *ketama) AddPeers(peers torus.PeerInfoList) (torus.Ring, error) {
 	newPeers := k.peers.Union(peers)
 	if reflect.DeepEqual(newPeers.PeerList(), k.peers.PeerList()) {
-		return nil, agro.ErrExists
+		return nil, torus.ErrExists
 	}
 	newk := &ketama{
 		version: k.version + 1,
@@ -83,10 +83,10 @@ func (k *ketama) AddPeers(peers agro.PeerInfoList) (agro.Ring, error) {
 	return newk, nil
 }
 
-func (k *ketama) RemovePeers(pl agro.PeerList) (agro.Ring, error) {
+func (k *ketama) RemovePeers(pl torus.PeerList) (torus.Ring, error) {
 	newPeers := k.peers.AndNot(pl)
 	if len(newPeers) == len(k.Members()) {
-		return nil, agro.ErrNotExist
+		return nil, torus.ErrNotExist
 	}
 
 	newk := &ketama{
@@ -98,7 +98,7 @@ func (k *ketama) RemovePeers(pl agro.PeerList) (agro.Ring, error) {
 	return newk, nil
 }
 
-func (k *ketama) ChangeReplication(r int) (agro.Ring, error) {
+func (k *ketama) ChangeReplication(r int) (torus.Ring, error) {
 	newk := &ketama{
 		version: k.version + 1,
 		rep:     r,

@@ -4,18 +4,18 @@ import (
 	"net/http"
 
 	"github.com/DeanThompson/ginpprof"
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Server struct {
 	router      *gin.Engine
-	dfs         *agro.Server
+	dfs         *torus.Server
 	promHandler http.Handler
 }
 
-func NewServer(dfs *agro.Server) *Server {
+func NewServer(dfs *torus.Server) *Server {
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 	s := &Server{
@@ -36,7 +36,7 @@ func (s *Server) prometheus(c *gin.Context) {
 	s.promHandler.ServeHTTP(c.Writer, c.Request)
 }
 
-func ServeHTTP(addr string, srv *agro.Server) error {
+func ServeHTTP(addr string, srv *torus.Server) error {
 	return NewServer(srv).router.Run(addr)
 }
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 )
 
 func die(why string, args ...interface{}) {
@@ -12,11 +12,11 @@ func die(why string, args ...interface{}) {
 	os.Exit(1)
 }
 
-func mustConnectToMDS() agro.MetadataService {
-	cfg := agro.Config{
+func mustConnectToMDS() torus.MetadataService {
+	cfg := torus.Config{
 		MetadataAddress: etcdAddress,
 	}
-	mds, err := agro.CreateMetadataService("etcd", cfg)
+	mds, err := torus.CreateMetadataService("etcd", cfg)
 	if err != nil {
 		die("couldn't connect to etcd: %v", err)
 	}

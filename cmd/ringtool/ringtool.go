@@ -7,10 +7,10 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/metadata"
-	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/ring"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/metadata"
+	"github.com/coreos/torus/models"
+	"github.com/coreos/torus/ring"
 	"github.com/dustin/go-humanize"
 )
 
@@ -25,12 +25,12 @@ var (
 	partition      = flag.Int("rewrite-edge", 40, "Percentage of files with small writes")
 	blockSize      uint64
 	totalData      uint64
-	peers          agro.PeerInfoList
+	peers          torus.PeerInfoList
 )
 
 var maxIterations = 30
 
-type ClusterState map[string][]agro.BlockRef
+type ClusterState map[string][]torus.BlockRef
 
 type RebalanceStats struct {
 	BlocksKept uint64
@@ -66,17 +66,17 @@ func main() {
 		os.Exit(1)
 	}
 	nblocks := totalData / blockSize
-	var blocks []agro.BlockRef
-	inode := agro.INodeID(1)
+	var blocks []torus.BlockRef
+	inode := torus.INodeID(1)
 	part := float64(*partition) / 100.0
 	for len(blocks) < int(nblocks) {
 		perFile := rand.Intn(1000) + 1
 		f := rand.NormFloat64()
-		var out []agro.BlockRef
+		var out []torus.BlockRef
 		if f < part {
-			out, inode = generateRewrittenFile(agro.VolumeID(1), inode, perFile)
+			out, inode = generateRewrittenFile(torus.VolumeID(1), inode, perFile)
 		} else {
-			out, inode = generateLinearFile(agro.VolumeID(1), inode, perFile)
+			out, inode = generateLinearFile(torus.VolumeID(1), inode, perFile)
 		}
 		blocks = append(blocks, out...)
 	}
@@ -92,7 +92,7 @@ func main() {
 	rebalance.printStats()
 }
 
-func createRings() (agro.Ring, agro.Ring) {
+func createRings() (torus.Ring, torus.Ring) {
 	ftype, ok := ring.RingTypeFromString(*ringType)
 	if !ok {
 		fmt.Fprintf(os.Stderr, "unknown ring type: %s\n", *ringType)
@@ -109,7 +109,7 @@ func createRings() (agro.Ring, agro.Ring) {
 		os.Exit(1)
 	}
 
-	if v, ok := from.(agro.RingAdder); *delta > 0 && ok {
+	if v, ok := from.(torus.RingAdder); *delta > 0 && ok {
 		to, err := v.AddPeers(peers[*nodes:], ring.ReplicationLevel(*replicationEnd))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error adding peers to ring: %s\n", err)
@@ -117,7 +117,7 @@ func createRings() (agro.Ring, agro.Ring) {
 		}
 		return from, to
 	}
-	if v, ok := from.(agro.RingRemover); *delta <= 0 && ok {
+	if v, ok := from.(torus.RingRemover); *delta <= 0 && ok {
 		to, err := v.RemovePeers(peers[*nodes+*delta:].PeerList(), ring.ReplicationLevel(*replicationEnd))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error removing peers from ring: %s\n", err)
@@ -144,10 +144,10 @@ func createRings() (agro.Ring, agro.Ring) {
 	return from, to
 }
 
-func assignData(blocks []agro.BlockRef, r agro.Ring) ClusterState {
-	out := make(map[string][]agro.BlockRef)
+func assignData(blocks []torus.BlockRef, r torus.Ring) ClusterState {
+	out := make(map[string][]torus.BlockRef)
 	for _, p := range r.Members() {
-		out[p] = make([]agro.BlockRef, 0)
+		out[p] = make([]torus.BlockRef, 0)
 	}
 	for _, b := range blocks {
 		peers, err := r.GetPeers(b)
@@ -183,11 +183,11 @@ func (c ClusterState) printBalance() {
 	)
 }
 
-func (c ClusterState) Rebalance(oldRing, newRing agro.Ring) (ClusterState, RebalanceStats) {
+func (c ClusterState) Rebalance(oldRing, newRing torus.Ring) (ClusterState, RebalanceStats) {
 	var stats RebalanceStats
-	out := make(map[string][]agro.BlockRef)
+	out := make(map[string][]torus.BlockRef)
 	for _, p := range newRing.Members() {
-		out[p] = make([]agro.BlockRef, 0)
+		out[p] = make([]torus.BlockRef, 0)
 	}
 	for p, l := range c {
 		for _, ref := range l {
@@ -239,18 +239,18 @@ func (s RebalanceStats) printStats() {
 	fmt.Printf("Perfect Traffic: %s\n", humanize.IBytes(uint64(perfect)))
 }
 
-func generateLinearFile(vol agro.VolumeID, in agro.INodeID, size int) ([]agro.BlockRef, agro.INodeID) {
-	var out []agro.BlockRef
+func generateLinearFile(vol torus.VolumeID, in torus.INodeID, size int) ([]torus.BlockRef, torus.INodeID) {
+	var out []torus.BlockRef
 	for x := 1; x <= size; x++ {
-		out = append(out, agro.BlockRef{
-			INodeRef: agro.NewINodeRef(vol, in),
-			Index:    agro.IndexID(x),
+		out = append(out, torus.BlockRef{
+			INodeRef: torus.NewINodeRef(vol, in),
+			Index:    torus.IndexID(x),
 		})
 	}
 	return out, in + 1
 }
 
-func generateRewrittenFile(vol agro.VolumeID, inStart agro.INodeID, size int) ([]agro.BlockRef, agro.INodeID) {
+func generateRewrittenFile(vol torus.VolumeID, inStart torus.INodeID, size int) ([]torus.BlockRef, torus.INodeID) {
 	file, inode := generateLinearFile(vol, inStart, size)
 	its := rand.Intn(maxIterations)
 	for i := 0; i < its; i++ {

@@ -1,9 +1,9 @@
-package agro
+package torus
 
 import (
 	"encoding/binary"
 
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
@@ -12,11 +12,11 @@ import (
 var (
 	// INodes
 	promINodeRequests = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "agro_distributor_inode_requests_total",
+		Name: "torus_distributor_inode_requests_total",
 		Help: "Total number of inodes requested of the distributor layer",
 	})
 	promINodeFailures = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "agro_distributor_inode_request_failures",
+		Name: "torus_distributor_inode_request_failures",
 		Help: "Number of failed inode requests",
 	})
 )

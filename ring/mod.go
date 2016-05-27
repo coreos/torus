@@ -6,14 +6,14 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
 )
 
 type mod struct {
 	version  int
 	rep      int
-	peers    agro.PeerInfoList
+	peers    torus.PeerInfoList
 	peerlist []string
 	npeers   int
 }
@@ -22,12 +22,12 @@ func init() {
 	registerRing(Mod, "mod", makeMod)
 }
 
-func makeMod(r *models.Ring) (agro.Ring, error) {
+func makeMod(r *models.Ring) (torus.Ring, error) {
 	rep := int(r.ReplicationFactor)
 	if rep == 0 {
 		rep = 1
 	}
-	pil := agro.PeerInfoList(r.Peers)
+	pil := torus.PeerInfoList(r.Peers)
 	return &mod{
 		version:  int(r.Version),
 		peers:    pil,
@@ -36,19 +36,19 @@ func makeMod(r *models.Ring) (agro.Ring, error) {
 	}, nil
 }
 
-func (m *mod) GetPeers(key agro.BlockRef) (agro.PeerPermutation, error) {
+func (m *mod) GetPeers(key torus.BlockRef) (torus.PeerPermutation, error) {
 	permute := make([]string, len(m.peerlist))
 	crc := crc32.ChecksumIEEE(key.ToBytes())
 	sum := int(crc) % len(m.peers)
 	copy(permute, m.peerlist[sum:])
 	copy(permute[len(m.peerlist)-sum:], m.peerlist[:sum])
-	return agro.PeerPermutation{
+	return torus.PeerPermutation{
 		Peers:       permute,
 		Replication: m.rep,
 	}, nil
 }
 
-func (m *mod) Members() agro.PeerList { return m.peers.PeerList() }
+func (m *mod) Members() torus.PeerList { return m.peers.PeerList() }
 
 func (m *mod) Describe() string {
 	s := fmt.Sprintf("Ring: Mod\nReplication:%d\nPeers:", m.rep)
@@ -57,7 +57,7 @@ func (m *mod) Describe() string {
 	}
 	return s
 }
-func (m *mod) Type() agro.RingType { return Mod }
+func (m *mod) Type() torus.RingType { return Mod }
 func (m *mod) Version() int        { return m.version }
 
 func (m *mod) Marshal() ([]byte, error) {
@@ -70,10 +70,10 @@ func (m *mod) Marshal() ([]byte, error) {
 	return out.Marshal()
 }
 
-func (m *mod) AddPeers(peers agro.PeerInfoList) (agro.Ring, error) {
+func (m *mod) AddPeers(peers torus.PeerInfoList) (torus.Ring, error) {
 	newPeers := m.peers.Union(peers)
 	if reflect.DeepEqual(newPeers.PeerList(), m.peers.PeerList()) {
-		return nil, agro.ErrExists
+		return nil, torus.ErrExists
 	}
 	newm := &mod{
 		version:  m.version + 1,
@@ -85,10 +85,10 @@ func (m *mod) AddPeers(peers agro.PeerInfoList) (agro.Ring, error) {
 	return newm, nil
 }
 
-func (m *mod) RemovePeers(pl agro.PeerList) (agro.Ring, error) {
+func (m *mod) RemovePeers(pl torus.PeerList) (torus.Ring, error) {
 	newPeers := m.peers.AndNot(pl)
 	if len(newPeers) == len(m.peers) {
-		return nil, agro.ErrNotExist
+		return nil, torus.ErrNotExist
 	}
 
 	newm := &mod{
@@ -101,7 +101,7 @@ func (m *mod) RemovePeers(pl agro.PeerList) (agro.Ring, error) {
 	return newm, nil
 }
 
-func (m *mod) ChangeReplication(r int) (agro.Ring, error) {
+func (m *mod) ChangeReplication(r int) (torus.Ring, error) {
 	newm := &mod{
 		version:  m.version + 1,
 		rep:      r,

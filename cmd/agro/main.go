@@ -10,18 +10,18 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
-	"github.com/coreos/agro"
-	"github.com/coreos/agro/blockset"
-	"github.com/coreos/agro/distributor"
-	"github.com/coreos/agro/internal/http"
-	"github.com/coreos/agro/models"
-	"github.com/coreos/agro/ring"
+	"github.com/coreos/torus"
+	"github.com/coreos/torus/blockset"
+	"github.com/coreos/torus/distributor"
+	"github.com/coreos/torus/internal/http"
+	"github.com/coreos/torus/models"
+	"github.com/coreos/torus/ring"
 
 	// Register all the possible drivers.
-	_ "github.com/coreos/agro/block"
-	_ "github.com/coreos/agro/metadata/etcd"
-	_ "github.com/coreos/agro/metadata/temp"
-	_ "github.com/coreos/agro/storage"
+	_ "github.com/coreos/torus/block"
+	_ "github.com/coreos/torus/metadata/etcd"
+	_ "github.com/coreos/torus/metadata/temp"
+	_ "github.com/coreos/torus/storage"
 )
 
 var (
@@ -40,21 +40,21 @@ var (
 	logpkg           string
 	readLevel        string
 	writeLevel       string
-	cfg              agro.Config
+	cfg              torus.Config
 
 	debug bool
 )
 
 var rootCommand = &cobra.Command{
-	Use:    "agro",
-	Short:  "Agro distributed filesystem",
-	Long:   `The agro distributed filesystem server.`,
+	Use:    "torus",
+	Short:  "Torus distributed filesystem",
+	Long:   `The torus distributed filesystem server.`,
 	PreRun: configureServer,
 	Run:    runServer,
 }
 
 func init() {
-	rootCommand.PersistentFlags().StringVarP(&dataDir, "datadir", "", "/tmp/agro", "Path to the data directory")
+	rootCommand.PersistentFlags().StringVarP(&dataDir, "datadir", "", "/tmp/torus", "Path to the data directory")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
 	rootCommand.PersistentFlags().BoolVarP(&debugInit, "debug-init", "", false, "Run a default init for the MDS if one doesn't exist")
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "", "", "Address for talking to etcd")
@@ -85,7 +85,7 @@ func configureServer(cmd *cobra.Command, args []string) {
 	}
 	if logpkg != "" {
 		capnslog.SetGlobalLogLevel(capnslog.NOTICE)
-		rl := capnslog.MustRepoLogger("github.com/coreos/agro")
+		rl := capnslog.MustRepoLogger("github.com/coreos/torus")
 		llc, err := rl.ParseLogLevelConfig(logpkg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error parsing logpkg: %s\n", err)
@@ -108,32 +108,32 @@ func configureServer(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	var rl agro.ReadLevel
+	var rl torus.ReadLevel
 	switch readLevel {
 	case "spread":
-		rl = agro.ReadSpread
+		rl = torus.ReadSpread
 	case "seq":
-		rl = agro.ReadSequential
+		rl = torus.ReadSequential
 	case "block":
-		rl = agro.ReadBlock
+		rl = torus.ReadBlock
 	default:
 		fmt.Fprintf(os.Stderr, "invalid readlevel; use one of 'spread', 'seq', or 'block'")
 		os.Exit(1)
 	}
 
-	var wl agro.WriteLevel
+	var wl torus.WriteLevel
 	switch writeLevel {
 	case "all":
-		wl = agro.WriteAll
+		wl = torus.WriteAll
 	case "one":
-		wl = agro.WriteOne
+		wl = torus.WriteOne
 	case "local":
-		wl = agro.WriteLocal
+		wl = torus.WriteLocal
 	default:
 		fmt.Fprintf(os.Stderr, "invalid writelevel; use one of 'one', 'all', or 'local'")
 		os.Exit(1)
 	}
-	cfg = agro.Config{
+	cfg = torus.Config{
 		DataDir:         dataDir,
 		StorageSize:     size,
 		MetadataAddress: etcdAddress,
@@ -146,20 +146,20 @@ func configureServer(cmd *cobra.Command, args []string) {
 func runServer(cmd *cobra.Command, args []string) {
 
 	var (
-		srv *agro.Server
+		srv *torus.Server
 		err error
 	)
 	switch {
 	case etcdAddress == "":
-		srv, err = agro.NewServer(cfg, "temp", "mfile")
+		srv, err = torus.NewServer(cfg, "temp", "mfile")
 	case debugInit:
-		err = agro.InitMDS("etcd", cfg, agro.GlobalMetadata{
+		err = torus.InitMDS("etcd", cfg, torus.GlobalMetadata{
 			BlockSize:        512 * 1024,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
 			INodeReplication: 2,
 		}, ring.Ketama)
 		if err != nil {
-			if err == agro.ErrExists {
+			if err == torus.ErrExists {
 				fmt.Println("debug-init: Already exists")
 			} else {
 				fmt.Printf("Couldn't debug-init: %s\n", err)
@@ -168,7 +168,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		}
 		fallthrough
 	default:
-		srv, err = agro.NewServer(cfg, "etcd", "mfile")
+		srv, err = torus.NewServer(cfg, "etcd", "mfile")
 	}
 	if err != nil {
 		fmt.Printf("Couldn't start: %s\n", err)
@@ -212,16 +212,16 @@ func runServer(cmd *cobra.Command, args []string) {
 	http.ServeHTTP(httpAddress, srv)
 }
 
-func doAutojoin(s *agro.Server) error {
+func doAutojoin(s *torus.Server) error {
 	for {
 		ring, err := s.MDS.GetRing()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "couldn't get ring: %v\n", err)
 			return err
 		}
-		var newRing agro.Ring
-		if r, ok := ring.(agro.RingAdder); ok {
-			newRing, err = r.AddPeers(agro.PeerInfoList{
+		var newRing torus.Ring
+		if r, ok := ring.(torus.RingAdder); ok {
+			newRing, err = r.AddPeers(torus.PeerInfoList{
 				&models.PeerInfo{
 					UUID:        s.MDS.UUID(),
 					TotalBlocks: s.Blocks.NumBlocks(),
@@ -231,7 +231,7 @@ func doAutojoin(s *agro.Server) error {
 			fmt.Fprintf(os.Stderr, "current ring type cannot support auto-adding\n")
 			return err
 		}
-		if err == agro.ErrExists {
+		if err == torus.ErrExists {
 			// We're already a member; we're coming back up.
 			return nil
 		}
@@ -240,7 +240,7 @@ func doAutojoin(s *agro.Server) error {
 			return err
 		}
 		err = s.MDS.SetRing(newRing)
-		if err == agro.ErrNonSequentialRing {
+		if err == torus.ErrNonSequentialRing {
 			continue
 		}
 		return err

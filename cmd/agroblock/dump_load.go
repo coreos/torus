@@ -7,7 +7,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/coreos/agro/block"
+	"github.com/coreos/torus/block"
 
 	"github.com/coreos/pkg/progressutil"
 	"github.com/dustin/go-humanize"

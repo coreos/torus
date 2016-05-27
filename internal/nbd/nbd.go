@@ -179,7 +179,7 @@ func (nbd *NBD) Serve() error {
 		rw: os.NewFile(uintptr(nbd.socket), "<nbd socket>"),
 	}
 	// TODO(barakmich): Scale up NBD by handling multiple requests.
-	// Requires thread-safety across the block.BlockFile/agro.File
+	// Requires thread-safety across the block.BlockFile/torus.File
 	//n := runtime.GOMAXPROCS(0) - 1
 	n := 1
 

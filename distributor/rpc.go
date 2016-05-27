@@ -1,26 +1,26 @@
 package distributor
 
 import (
-	"github.com/coreos/agro"
+	"github.com/coreos/torus"
 	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 )
 
-func (d *Distributor) Block(ctx context.Context, ref agro.BlockRef) ([]byte, error) {
+func (d *Distributor) Block(ctx context.Context, ref torus.BlockRef) ([]byte, error) {
 	promDistBlockRPCs.Inc()
 	data, err := d.blocks.GetBlock(ctx, ref)
 	if err != nil {
 		promDistBlockRPCFailures.Inc()
 		clog.Warningf("remote asking for non-existent block: %s", ref)
-		return nil, agro.ErrBlockUnavailable
+		return nil, torus.ErrBlockUnavailable
 	}
-	if agro.BlockLog.LevelAt(capnslog.TRACE) {
-		agro.BlockLog.Tracef("rpc: retrieved block %s", ref)
+	if torus.BlockLog.LevelAt(capnslog.TRACE) {
+		torus.BlockLog.Tracef("rpc: retrieved block %s", ref)
 	}
 	return data, nil
 }
 
-func (d *Distributor) PutBlock(ctx context.Context, ref agro.BlockRef, data []byte) error {
+func (d *Distributor) PutBlock(ctx context.Context, ref torus.BlockRef, data []byte) error {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
 	promDistPutBlockRPCs.Inc()
@@ -43,13 +43,13 @@ func (d *Distributor) PutBlock(ctx context.Context, ref agro.BlockRef, data []by
 	if err != nil {
 		return err
 	}
-	if agro.BlockLog.LevelAt(capnslog.TRACE) {
-		agro.BlockLog.Tracef("rpc: saving block %s", ref)
+	if torus.BlockLog.LevelAt(capnslog.TRACE) {
+		torus.BlockLog.Tracef("rpc: saving block %s", ref)
 	}
 	return d.Flush()
 }
 
-func (d *Distributor) RebalanceCheck(ctx context.Context, refs []agro.BlockRef) ([]bool, error) {
+func (d *Distributor) RebalanceCheck(ctx context.Context, refs []torus.BlockRef) ([]bool, error) {
 	out := make([]bool, len(refs))
 	for i, x := range refs {
 		ok, err := d.blocks.HasBlock(ctx, x)

@@ -5,7 +5,7 @@
 │   ├── aoe
 ```
 
-The package for using agro as a block device. A reference example of block device volumes.
+The package for using torus as a block device. A reference example of block device volumes.
 `aoe` contains an implementation of an ATA-over-Ethernet server based on a block volume
 
 ```
@@ -16,20 +16,20 @@ Implementations of the Blockset interface.
 
 ```
 ├── cmd
-│   ├── agro
-│   ├── agroblock
-│   ├── agroctl
+│   ├── torus
+│   ├── torusblock
+│   ├── torusctl
 │   └── ringtool
 ```
 
-The `main` functions that each produce a binary. `agro` is the main server, `agroctl` manipulates and queries multiple servers through etcd, `agroblock` creates, attaches and mounts block devices, and `ringtool` is an experiment for measuring the rebalance properties of multiple rings.
+The `main` functions that each produce a binary. `torus` is the main server, `torusctl` manipulates and queries multiple servers through etcd, `torusblock` creates, attaches and mounts block devices, and `ringtool` is an experiment for measuring the rebalance properties of multiple rings.
 
 ```
 ├── contrib
 │   └── kubernetes
 ```
 
-Contributions, currently containing a guide for setting up agro on kubernetes
+Contributions, currently containing a guide for setting up torus on kubernetes
 
 ```
 ├── distributor
@@ -63,7 +63,7 @@ Long-running integration tests live here. They spin up a number of virtual nodes
 │   └── nbd
 ```
 
-Packages that are specific to agro. and shouldn't be imported from the outside. `http` defines HTTP routes for agro servers/clients to host, and `nbd` is a hard fork of an NBD library (greatly cleaned up) that may, in the future, be worth splitting into a proper repository.
+Packages that are specific to torus. and shouldn't be imported from the outside. `http` defines HTTP routes for torus servers/clients to host, and `nbd` is a hard fork of an NBD library (greatly cleaned up) that may, in the future, be worth splitting into a proper repository.
 
 ```
 ├── metadata

@@ -1,9 +1,9 @@
-package agro
+package torus
 
 import (
 	"math/big"
 
-	"github.com/coreos/agro/models"
+	"github.com/coreos/torus/models"
 )
 
 type RingType int

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/coreos/agro/block"
+	"github.com/coreos/torus/block"
 
 	"github.com/mdlayher/aoe"
 )
@@ -136,7 +136,7 @@ func (fd *FileDevice) Identify() ([512]byte, error) {
 	pstring(buf, 23, 8, "V0")
 
 	// Model number
-	pstring(buf, 27, 40, "agro AoE")
+	pstring(buf, 27, 40, "torus AoE")
 
 	l28 := lba28(sectors)
 	// 28-bit LBA sectors
