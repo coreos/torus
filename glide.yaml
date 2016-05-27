@@ -1,0 +1,38 @@
+package: github.com/coreos/torus
+import:
+- package: github.com/DeanThompson/ginpprof
+- package: github.com/RoaringBitmap/roaring
+- package: github.com/barakmich/mmap-go
+- package: github.com/coreos/etcd
+  subpackages:
+  - clientv3
+- package: github.com/coreos/go-systemd
+  subpackages:
+  - dbus
+  - unit
+- package: github.com/coreos/pkg
+  subpackages:
+  - capnslog
+  - progressutil
+- package: github.com/dustin/go-humanize
+- package: github.com/gin-gonic/gin
+- package: github.com/godbus/dbus
+- package: github.com/gogo/protobuf
+  subpackages:
+  - gogoproto
+  - proto
+- package: github.com/kardianos/osext
+- package: github.com/mdlayher/aoe
+- package: github.com/mdlayher/ethernet
+- package: github.com/mdlayher/raw
+- package: github.com/olekukonko/tablewriter
+- package: github.com/pborman/uuid
+- package: github.com/prometheus/client_golang
+  subpackages:
+  - prometheus
+- package: github.com/serialx/hashring
+- package: github.com/spf13/cobra
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: google.golang.org/grpc

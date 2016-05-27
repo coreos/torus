@@ -1,4 +1,4 @@
-# torus
+# Torus
 
 A Go Distributed Storage Engine
 

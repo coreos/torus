@@ -110,7 +110,7 @@ func createRings() (torus.Ring, torus.Ring) {
 	}
 
 	if v, ok := from.(torus.RingAdder); *delta > 0 && ok {
-		to, err := v.AddPeers(peers[*nodes:], ring.ReplicationLevel(*replicationEnd))
+		to, err := v.AddPeers(peers[*nodes:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error adding peers to ring: %s\n", err)
 			os.Exit(1)
@@ -118,7 +118,7 @@ func createRings() (torus.Ring, torus.Ring) {
 		return from, to
 	}
 	if v, ok := from.(torus.RingRemover); *delta <= 0 && ok {
-		to, err := v.RemovePeers(peers[*nodes+*delta:].PeerList(), ring.ReplicationLevel(*replicationEnd))
+		to, err := v.RemovePeers(peers[*nodes+*delta:].PeerList())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error removing peers from ring: %s\n", err)
 			os.Exit(1)
