@@ -29,9 +29,9 @@ _testmain.go
 *.swo
 
 # Binaries in root dir
-torus
+torusd
 torusctl
-torusblock
+torusblk
 
 # local-cluster information
 /local-cluster

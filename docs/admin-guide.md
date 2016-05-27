@@ -17,13 +17,13 @@ See contrib/kubernetes/README.md
 The default path for installing flexvolume plugins is `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` -- so on every node running the kubelet, you'll need to create the subfolder:
 
 ```
-mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/coreoos.com~torus/
+mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/coreos.com~torus/
 ```
 
-The `torusblock` binary itself conforms as to the flexVolume api, so you'll want to copy it, named `torus`, inside that directory (as per the [Kubernetes repo](https://github.com/kubernetes/kubernetes/tree/master/examples/flexvolume)):
+The `torusblk` binary itself conforms as to the flexVolume api, so you'll want to copy it, named `torus`, inside that directory (as per the [Kubernetes repo](https://github.com/kubernetes/kubernetes/tree/master/examples/flexvolume)):
 
 ```
-cp ./torusblock /usr/libexec/kubernetes/kubelet-plugins/volume/exec/coreoos.com~torus/torus 
+cp ./torusblk /usr/libexec/kubernetes/kubelet-plugins/volume/exec/coreos.com~torus/torus 
 ```
 
 And restart the kubelet so that it registers the new plugin, eg (on systemd systems):
@@ -45,7 +45,7 @@ torusctl volume list
 #### Provision a new block volume
 
 ```
-torusblock volume create VOLUME_NAME SIZE
+torusblk volume create VOLUME_NAME SIZE
 ```
 
 Where VOLUME_NAME is whatever you prefer, as long as there's not already one named the same. 
@@ -61,16 +61,16 @@ torusctl volume delete VOLUME_NAME
 #### Attach a block volume
 
 ``
-torusblock nbd VOLUME_NAME [NBD_DEVICE]
+torusblk nbd VOLUME_NAME [NBD_DEVICE]
 ``
 
 NBD_DEVICE is optional. Other options for serving or attaching a block device may appear here in the future.
 
-`torusblock nbd` will block until it recieves a signaL, which will disconnect the volume from the device. It's recommended to run this under an init process if you wish to detach it from your terminal.
+`torusblk nbd` will block until it recieves a signal, which will disconnect the volume from the device. It's recommended to run this under an init process if you wish to detach it from your terminal.
 
 #### Mount/format a block volume
 
-Once attached to a device (which is reported when `torusblock nbd` starts), it works like any block device; so standard tools like `mkfs` and `mount` will work.
+Once attached to a device (which is reported when `torusblk nbd` starts), it works like any block device; so standard tools like `mkfs` and `mount` will work.
 
 ### Modify my cluster
 
@@ -83,7 +83,7 @@ Again, all the following commands take an optional `-C HOST:PORT` for your etcd 
 The `--auto-join` flag is there for this reason. When we start the node with it, eg:
 
 ```
-./torus --etcd 127.0.0.1:2379 --peer-address http://$MY_IP:40000 --data-dir /path/to/data --size 20GiB --auto-join
+./torusd --etcd 127.0.0.1:2379 --peer-address http://$MY_IP:40000 --data-dir /path/to/data --size 20GiB --auto-join
 ```
 
 it will join the cluster and data will start rebalancing onto this new node.

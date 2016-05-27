@@ -24,9 +24,9 @@ go get -d github.com/coreos/torus
 Then one of:
 
 ```
-go install -v github.com/coreos/torus/cmd/torus
+go install -v github.com/coreos/torus/cmd/torusd
 go install -v github.com/coreos/torus/cmd/torusctl
-go install -v github.com/coreos/torus/cmd/torusblock
+go install -v github.com/coreos/torus/cmd/torusblk
 ```
 
 or 
@@ -36,7 +36,7 @@ cd $GOPATH/src/github.com/coreos/torus
 make
 ```
 
-Either way you'll find the binaries `torus`, `torusctl` and `torusblock`.
+Either way you'll find the binaries `torusd`, `torusctl` and `torusblk`.
 
 ### 1) Get etcd
 You need a *v3.0* [etcd](https://github.com/coreos/etcd), as torus uses the v3 API natively and depends on some fixes therein. 
@@ -77,7 +77,7 @@ will tell you more.
 ### 3) Run some storage nodes
 #### Running manually
 ```
-./torus --etcd 127.0.0.1:2379 --peer-address http://$MY_IP:40000 --data-dir /path/to/data --size 20GiB
+./torusd --etcd 127.0.0.1:2379 --peer-address http://$MY_IP:40000 --data-dir /path/to/data --size 20GiB
 ```
 This runs a storage node without HTTP. Add `--host` and `--port` to open the HTTP endpoint
 
@@ -164,7 +164,7 @@ Even better fault tolerance with erasure codes and parity is an advanced topic T
 ### 6) Create a volume
 
 ```
-torusblock volume create myVolume 10GiB
+torusblk volume create myVolume 10GiB
 ```
 
 This creates a 10GiB virtual blockfile for use. It will be safely replicated and CRC checked, by default. 
@@ -173,7 +173,7 @@ This creates a 10GiB virtual blockfile for use. It will be safely replicated and
 
 ```
 sudo modprobe nbd
-sudo torusblock --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
+sudo torusblk --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
 ```
 
 Specifying `/dev/nbd0` is optional -- it will pick the first available.

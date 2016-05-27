@@ -16,13 +16,13 @@ Implementations of the Blockset interface.
 
 ```
 ├── cmd
-│   ├── torus
-│   ├── torusblock
+│   ├── torusd
+│   ├── torusblk
 │   ├── torusctl
 │   └── ringtool
 ```
 
-The `main` functions that each produce a binary. `torus` is the main server, `torusctl` manipulates and queries multiple servers through etcd, `torusblock` creates, attaches and mounts block devices, and `ringtool` is an experiment for measuring the rebalance properties of multiple rings.
+The `main` functions that each produce a binary. `torusd` is the main server, `torusctl` manipulates and queries multiple servers through etcd, `torusblk` creates, attaches and mounts block devices, and `ringtool` is an experiment for measuring the rebalance properties of multiple rings.
 
 ```
 ├── contrib
