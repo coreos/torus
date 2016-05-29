@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+	"time"
 )
 
 const (
@@ -23,6 +24,7 @@ const (
 	// Defined in <linux/nbd.h>:
 	ioctlSetSock       = 43776
 	ioctlSetBlockSize  = 43777
+	ioctlSetSize       = 43778
 	ioctlDoIt          = 43779
 	ioctlClearSock     = 43780
 	ioctlClearQueue    = 43781
@@ -107,18 +109,22 @@ func (nbd *NBD) Size() int64 {
 	return nbd.size
 }
 
-func (nbd *NBD) SetSize(size, blocksize int64) error {
+func (nbd *NBD) SetSize(size int64) error {
+	if err := ioctl(nbd.nbd.Fd(), ioctlSetSize, uintptr(size)); err != nil {
+		return &os.PathError{
+			Path: nbd.nbd.Name(),
+			Op:   "ioctl NBD_SET_SIZE",
+			Err:  err,
+		}
+	}
+	return nil
+}
+
+func (nbd *NBD) SetBlockSize(blocksize int64) error {
 	if err := ioctl(nbd.nbd.Fd(), ioctlSetBlockSize, uintptr(blocksize)); err != nil {
 		return &os.PathError{
 			Path: nbd.nbd.Name(),
 			Op:   "ioctl NBD_SET_BLKSIZE",
-			Err:  err,
-		}
-	}
-	if err := ioctl(nbd.nbd.Fd(), ioctlSetSizeBlocks, uintptr(size/blocksize)); err != nil {
-		return &os.PathError{
-			Path: nbd.nbd.Name(),
-			Op:   "ioctl NBD_SET_SIZE_BLOCKS",
 			Err:  err,
 		}
 	}
@@ -164,8 +170,18 @@ func (nbd *NBD) OpenDevice(dev string) (string, error) {
 }
 
 func (nbd *NBD) Serve() error {
-	if err := nbd.SetSize(nbd.size, nbd.blocksize); err != nil {
+	blksized := true
+	if err := nbd.SetSize(nbd.size); err != nil {
 		return err // already set by nbd.Size()
+	}
+	if err := nbd.SetBlockSize(nbd.blocksize); err != nil {
+		// This is a hack around the changes made to the kernel in 4.6
+		// (particularly commit 37091fdd831f28a6509008542174ed324dd645bc)
+		// -- because the size of the device is cached at 0, the blocksize can't change
+		// until connected. So we'll do a workaround on newer kernels, but man, it'd be
+		// nice to fix this. There needs to be a little better logic kernel-side around changing size
+		// even when disconnected. Changing it only when connected is fine -- but keep my intent.
+		blksized = false
 	}
 	if err := ioctl(nbd.nbd.Fd(), ioctlSetFlags, uintptr(flagSendFlush|flagSendTrim)); err != nil {
 		return &os.PathError{
@@ -187,6 +203,18 @@ func (nbd *NBD) Serve() error {
 	wg.Add(n)
 	for i := 0; i < n; i++ {
 		go c.serveLoop(nbd.device, wg)
+	}
+	if !blksized {
+		// Back to the hack.
+		go func(nbd *NBD) {
+			// Hopefully we'll be connected in 500 millis.
+			// If not, we'll proceed with the standard blocksize of 1K.
+			time.Sleep(time.Microsecond * 500)
+			err := nbd.SetBlockSize(nbd.blocksize)
+			if err != nil {
+				log.Printf("Couldn't upgrade blocksize: %s", err)
+			}
+		}(nbd)
 	}
 	if err := waitDisconnect(nbd.nbd); err != nil {
 		return err

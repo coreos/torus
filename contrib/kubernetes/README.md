@@ -24,7 +24,7 @@ kubectl create -f torus-k8s-oneshot.yaml
 
 And you're done.
 
-## 4) Connect, look around, create a volume
+## 4) Connect, look around
 
 Grab the [latest release](https://github.com/coreos/torus/releases) and use the included `torusctl` tool. Or just build it from source.
 
@@ -32,13 +32,17 @@ Grab the [latest release](https://github.com/coreos/torus/releases) and use the 
 torusctl -C $IP_IN_CLUSTER:32379 list-peers
 ```
 
-Which should tell you everything about the cluster. Create a volume, eg:
+Which should tell you everything about the cluster. 
+
+## 5) Create a volume
+
+Create a volume, eg:
 
 ```
 torusblk -C $IP_IN_CLUSTER:32379 volume create pg1 2GiB
 ```
 
-## 5) Run Postgres
+## 6) Run Postgres
 
 And now use this volume in any other kubernetes pods, for example:
 
@@ -46,7 +50,7 @@ And now use this volume in any other kubernetes pods, for example:
 kubectl create -f postgres-oneshot.yaml
 ```
 
-## 6) Put some data into postgres
+## 7) Put some data into postgres
 
 ```
 TORUSPOD=$(kubectl get pods -l app=postgres-torus -o name | cut -d/ -f2)
@@ -54,7 +58,7 @@ kubectl exec $TORUSPOD -- psql postgres -U postgres < test-data.sql
 kubectl exec $TORUSPOD -- psql postgres -U postgres -c 'select * from films'
 ```
 
-## 7) Move postgres to another node
+## 8) Move postgres to another node
 
 First lets cordon off the node postgres is currently on, so that when we kill
 it, it doesn't go to the same node.
