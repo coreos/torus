@@ -7,8 +7,8 @@ import (
 	"github.com/coreos/torus"
 
 	// Import all the protocols we understand
-	_ "github.com/coreos/torus/distributor/protocols/adp"
 	_ "github.com/coreos/torus/distributor/protocols/grpc"
+	_ "github.com/coreos/torus/distributor/protocols/tdp"
 )
 
 // ListenReplication opens the internal networking port and connects to the cluster

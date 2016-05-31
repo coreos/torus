@@ -30,14 +30,6 @@ spec:
     name: etcd-torus
 ---
 apiVersion: v1
-kind: Secret
-metadata:
-  name: quay-torus
-data:
-  .dockerconfigjson: ewogICJhdXRocyI6IHsKICAgICJxdWF5LmlvIjogewogICAgICAiYXV0aCI6ICJZMjl5Wlc5ekszUnZjblZ6T2xGT1NFODFUMDVCVEVwUU0xSk1UVWxXVkVjNE0xcExWMVpMUlRKWVJUTldOMUpLT1VRNE5qVTBUelZXU2tJMU1ERlVPVFZKU2t4Sk9FazVVVmRFTmxRPSIsCiAgICAgICJlbWFpbCI6ICIiCiAgICB9CiAgfQp9
-type: kubernetes.io/dockerconfigjson
----
-apiVersion: v1
 kind: Pod
 metadata:
   labels:

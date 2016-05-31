@@ -1,4 +1,4 @@
-package adp
+package tdp
 
 import (
 	"errors"
@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "adp")
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "tdp")
 
 var serverReadTimeout = 5 * time.Second
 

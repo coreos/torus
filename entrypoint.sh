@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-: ${LISTEN_HOST:=0.0.0.0}
-: ${LISTEN_PEER_PORT:=40000}
+: ${LISTEN_HOST:=127.0.0.1}
+: ${PEER_ADDRESS:="http://$LISTEN_HOST:40000"}
 : ${LISTEN_HTTP_PORT:=4321}
 : ${ETCD_HOST:=127.0.0.1}
 : ${ETCD_PORT:=2379}
@@ -35,4 +35,4 @@ if [ "${LOG_FLAGS}" != "" ]; then
   TORUS_FLAGS="$TORUS_FLAGS --logpkg=${LOG_FLAGS}"
 fi
 
-torusd --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port $LISTEN_HTTP_PORT --datadir /data --peer-address http://$LISTEN_HOST:$LISTEN_PEER_PORT --size $STORAGE_SIZE $TORUS_FLAGS
+torusd --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port $LISTEN_HTTP_PORT --data-dir /data --peer-address $PEER_ADDRESS --size $STORAGE_SIZE $TORUS_FLAGS

@@ -14,7 +14,7 @@ import (
 
 var aoeCommand = &cobra.Command{
 	Use:   "aoe VOLUME INTERFACE",
-	Short: "serve a volume over AoE",
+	Short: "serve a volume over AoE [EXPERIMENTAL]",
 	Run:   aoeAction,
 }
 

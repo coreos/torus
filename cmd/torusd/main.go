@@ -55,11 +55,11 @@ var rootCommand = &cobra.Command{
 }
 
 func init() {
-	rootCommand.PersistentFlags().StringVarP(&dataDir, "datadir", "", "/tmp/torus", "Path to the data directory")
+	rootCommand.PersistentFlags().StringVarP(&dataDir, "data-dir", "", "/tmp/torus", "Path to the data directory")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
 	rootCommand.PersistentFlags().BoolVarP(&debugInit, "debug-init", "", false, "Run a default init for the MDS if one doesn't exist")
-	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "", "", "Address for talking to etcd")
-	rootCommand.PersistentFlags().StringVarP(&host, "host", "", "127.0.0.1", "Host to listen on for HTTP")
+	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "", "Address for talking to etcd")
+	rootCommand.PersistentFlags().StringVarP(&host, "host", "", "", "Host to listen on for HTTP")
 	rootCommand.PersistentFlags().IntVarP(&port, "port", "", 4321, "Port to listen on for HTTP")
 	rootCommand.PersistentFlags().StringVarP(&peerAddress, "peer-address", "", "", "Address to listen on for intra-cluster data")
 	rootCommand.PersistentFlags().StringVarP(&sizeStr, "size", "", "1GiB", "How much disk space to use for this storage node")
@@ -100,7 +100,9 @@ func configureServer(cmd *cobra.Command, args []string) {
 		rl.SetLogLevel(llc)
 	}
 
-	httpAddress = fmt.Sprintf("%s:%d", host, port)
+	if host != "" {
+		httpAddress = fmt.Sprintf("%s:%d", host, port)
+	}
 
 	var err error
 	readCacheSize, err = humanize.ParseBytes(readCacheSizeStr)
@@ -189,6 +191,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	mainClose := make(chan bool)
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 
@@ -207,6 +210,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	go func() {
 		for _ = range signalChan {
 			fmt.Println("\nReceived an interrupt, stopping services...")
+			close(mainClose)
 			os.Exit(0)
 		}
 	}()
@@ -215,7 +219,11 @@ func runServer(cmd *cobra.Command, args []string) {
 		fmt.Println("couldn't use server:", err)
 		os.Exit(1)
 	}
-	http.ServeHTTP(httpAddress, srv)
+	if httpAddress != "" {
+		http.ServeHTTP(httpAddress, srv)
+	}
+	// Wait
+	<-mainClose
 }
 
 func doAutojoin(s *torus.Server) error {

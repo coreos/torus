@@ -64,9 +64,9 @@
               "expr": "sum(torus_storage_blocks{storage=\"current\"} * on(instance) up{}) * scalar(min(torus_storage_block_bytes))",
               "intervalFactor": 2,
               "legendFormat": "Used",
+              "metric": "",
               "refId": "A",
-              "step": 2,
-              "metric": ""
+              "step": 2
             },
             {
               "expr": "sum(torus_storage_blocks_total{storage=\"current\"} * on(instance) up{}) * scalar(min(torus_storage_block_bytes))",
@@ -82,15 +82,37 @@
           "timeShift": null,
           "title": "Total Storage",
           "tooltip": {
+            "msResolution": false,
             "shared": true,
             "value_type": "cumulative"
           },
           "type": "graph",
           "x-axis": true,
+          "xaxis": {
+            "show": true
+          },
           "y-axis": true,
           "y_formats": [
             "bytes",
             "bytes"
+          ],
+          "yaxes": [
+            {
+              "format": "bytes",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
           ]
         },
         {
@@ -155,19 +177,41 @@
           "timeShift": null,
           "title": "Individual Storage",
           "tooltip": {
+            "msResolution": false,
             "shared": true,
             "value_type": "cumulative"
           },
           "type": "graph",
           "x-axis": true,
+          "xaxis": {
+            "show": true
+          },
           "y-axis": true,
           "y_formats": [
             "bytes",
             "short"
+          ],
+          "yaxes": [
+            {
+              "format": "bytes",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
           ]
         }
       ],
-      "title": "Row"
+      "title": "Storage Usage"
     },
     {
       "collapse": false,
@@ -212,7 +256,16 @@
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [],
+          "seriesOverrides": [
+            {
+              "alias": "Total Write",
+              "fill": 0
+            },
+            {
+              "alias": "Total Read",
+              "fill": 0
+            }
+          ],
           "span": 12,
           "stack": false,
           "steppedLine": false,
@@ -233,464 +286,544 @@
               "legendFormat": "{{instance}} - write",
               "refId": "B",
               "step": 4
+            },
+            {
+              "expr": "sum(rate(torus_storage_read_blocks[10s])) * scalar(min(torus_storage_block_bytes))",
+              "intervalFactor": 2,
+              "legendFormat": "Total Read",
+              "refId": "D",
+              "step": 2
+            },
+            {
+              "expr": "sum(rate(torus_storage_written_blocks[10s])) * scalar(min(torus_storage_block_bytes))",
+              "intervalFactor": 2,
+              "legendFormat": "Total Write",
+              "refId": "C",
+              "step": 2
             }
           ],
           "timeFrom": null,
           "timeShift": null,
           "title": "R/W Throughput to Storage (10s)",
           "tooltip": {
+            "msResolution": false,
             "shared": true,
             "value_type": "cumulative"
           },
           "type": "graph",
           "x-axis": true,
+          "xaxis": {
+            "show": true
+          },
           "y-axis": true,
           "y_formats": [
             "Bps",
             "Bps"
+          ],
+          "yaxes": [
+            {
+              "format": "Bps",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
           ]
         }
       ],
       "title": "New row"
     },
     {
-      "title": "New row",
-      "height": "250px",
-      "editable": true,
       "collapse": false,
+      "editable": true,
+      "height": "250px",
       "panels": [
         {
-          "title": "Block Requests",
-          "error": false,
-          "span": 4,
-          "editable": true,
-          "type": "graph",
-          "isNew": true,
-          "id": 4,
+          "aliasColors": {},
+          "bars": false,
           "datasource": null,
-          "renderer": "flot",
-          "x-axis": true,
-          "y-axis": true,
-          "y_formats": [
-            "short",
-            "short"
-          ],
+          "editable": true,
+          "error": false,
+          "fill": 1,
           "grid": {
             "leftLogBase": 1,
             "leftMax": null,
-            "rightMax": null,
             "leftMin": null,
-            "rightMin": null,
             "rightLogBase": 1,
+            "rightMax": null,
+            "rightMin": null,
             "threshold1": null,
-            "threshold2": null,
             "threshold1Color": "rgba(216, 200, 27, 0.27)",
+            "threshold2": null,
             "threshold2Color": "rgba(234, 112, 112, 0.22)"
           },
-          "lines": true,
-          "fill": 1,
-          "linewidth": 2,
-          "points": false,
-          "pointradius": 5,
-          "bars": false,
-          "stack": false,
-          "percentage": false,
+          "id": 4,
+          "isNew": true,
           "legend": {
-            "show": true,
-            "values": false,
-            "min": false,
-            "max": false,
+            "avg": false,
             "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
             "total": false,
-            "avg": false
+            "values": false
           },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
           "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "span": 4,
+          "stack": false,
           "steppedLine": false,
-          "tooltip": {
-            "value_type": "cumulative",
-            "shared": true
-          },
-          "timeFrom": null,
-          "timeShift": null,
           "targets": [
             {
-              "refId": "A",
               "expr": "sum(rate(torus_distributor_block_requests_total{}[10s]))",
               "intervalFactor": 2,
               "legendFormat": "All Requests",
+              "refId": "A",
               "step": 2
             },
             {
-              "refId": "B",
               "expr": "sum(rate(torus_distributor_block_request_failures{}[10s]))",
               "intervalFactor": 2,
-              "step": 2,
-              "legendFormat": "All Failures"
+              "legendFormat": "All Failures",
+              "refId": "B",
+              "step": 2
             }
           ],
-          "aliasColors": {},
-          "seriesOverrides": [],
-          "links": []
-        },
-        {
-          "title": "Hits",
-          "error": false,
-          "span": 4,
-          "editable": true,
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Block Requests",
+          "tooltip": {
+            "msResolution": false,
+            "shared": true,
+            "value_type": "cumulative"
+          },
           "type": "graph",
-          "isNew": true,
-          "id": 5,
-          "datasource": null,
-          "renderer": "flot",
           "x-axis": true,
+          "xaxis": {
+            "show": true
+          },
           "y-axis": true,
           "y_formats": [
             "short",
             "short"
           ],
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "datasource": null,
+          "editable": true,
+          "error": false,
+          "fill": 5,
           "grid": {
             "leftLogBase": 1,
             "leftMax": null,
-            "rightMax": null,
             "leftMin": null,
-            "rightMin": null,
             "rightLogBase": 1,
+            "rightMax": null,
+            "rightMin": null,
             "threshold1": null,
-            "threshold2": null,
             "threshold1Color": "rgba(216, 200, 27, 0.27)",
+            "threshold2": null,
             "threshold2Color": "rgba(234, 112, 112, 0.22)"
           },
-          "lines": true,
-          "fill": 5,
-          "linewidth": 0,
-          "points": false,
-          "pointradius": 5,
-          "bars": false,
-          "stack": true,
-          "percentage": true,
+          "id": 5,
+          "isNew": true,
           "legend": {
-            "show": true,
-            "values": false,
-            "min": false,
-            "max": false,
+            "avg": false,
             "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
             "total": false,
-            "avg": false
+            "values": false
           },
+          "lines": true,
+          "linewidth": 0,
+          "links": [],
           "nullPointMode": "connected",
+          "percentage": true,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "span": 4,
+          "stack": true,
           "steppedLine": false,
-          "tooltip": {
-            "value_type": "individual",
-            "shared": true
-          },
-          "timeFrom": null,
-          "timeShift": null,
           "targets": [
             {
-              "refId": "C",
               "expr": "sum(rate(torus_distributor_block_local_blocks{}[10s]))",
               "intervalFactor": 2,
               "legendFormat": "Local",
+              "refId": "C",
               "step": 2
             },
             {
-              "refId": "A",
               "expr": "sum(rate(torus_distributor_block_cached_blocks{}[10s]))",
+              "interval": "",
               "intervalFactor": 2,
-              "step": 2,
               "legendFormat": "Caches",
-              "interval": ""
+              "refId": "A",
+              "step": 2
             },
             {
-              "refId": "B",
               "expr": "sum(rate(torus_distributor_block_peer_blocks[10s])) by (peer)",
               "intervalFactor": 2,
-              "step": 2,
               "legendFormat": "Peers {{peer}}",
-              "metric": ""
+              "metric": "",
+              "refId": "B",
+              "step": 2
             }
           ],
-          "aliasColors": {},
-          "seriesOverrides": [],
-          "links": []
-        },
-        {
-          "title": "Failures",
-          "error": false,
-          "span": 4,
-          "editable": true,
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Hits",
+          "tooltip": {
+            "msResolution": false,
+            "shared": true,
+            "value_type": "individual"
+          },
           "type": "graph",
-          "isNew": true,
-          "id": 6,
-          "datasource": null,
-          "renderer": "flot",
           "x-axis": true,
+          "xaxis": {
+            "show": true
+          },
           "y-axis": true,
           "y_formats": [
             "short",
             "short"
           ],
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "datasource": null,
+          "editable": true,
+          "error": false,
+          "fill": 1,
           "grid": {
             "leftLogBase": 1,
             "leftMax": null,
-            "rightMax": null,
             "leftMin": null,
-            "rightMin": null,
             "rightLogBase": 1,
+            "rightMax": null,
+            "rightMin": null,
             "threshold1": null,
-            "threshold2": null,
             "threshold1Color": "rgba(216, 200, 27, 0.27)",
+            "threshold2": null,
             "threshold2Color": "rgba(234, 112, 112, 0.22)"
           },
-          "lines": true,
-          "fill": 1,
-          "linewidth": 2,
-          "points": false,
-          "pointradius": 5,
-          "bars": false,
-          "stack": false,
-          "percentage": false,
+          "id": 6,
+          "isNew": true,
           "legend": {
-            "show": true,
-            "values": false,
-            "min": false,
-            "max": false,
+            "avg": false,
             "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
             "total": false,
-            "avg": false
+            "values": false
           },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
           "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "span": 4,
+          "stack": false,
           "steppedLine": false,
-          "tooltip": {
-            "value_type": "cumulative",
-            "shared": true
-          },
-          "timeFrom": null,
-          "timeShift": null,
           "targets": [
             {
-              "refId": "A",
               "expr": "rate(torus_distributor_block_peer_block_fails{}[10s])",
               "intervalFactor": 2,
-              "step": 2,
-              "legendFormat": "{{instance}} -- {{peer}}"
+              "legendFormat": "{{instance}} -- {{peer}}",
+              "refId": "A",
+              "step": 2
             }
           ],
-          "aliasColors": {},
-          "seriesOverrides": [],
-          "links": []
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Failures",
+          "tooltip": {
+            "msResolution": false,
+            "shared": true,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "x-axis": true,
+          "xaxis": {
+            "show": true
+          },
+          "y-axis": true,
+          "y_formats": [
+            "short",
+            "short"
+          ],
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
         }
-      ]
+      ],
+      "title": "Caching"
     },
     {
-      "title": "New row",
-      "height": "250px",
-      "editable": true,
       "collapse": false,
+      "editable": true,
+      "height": "250px",
       "panels": [
         {
-          "title": "Put Blocks",
-          "error": false,
-          "span": 12,
-          "editable": true,
-          "type": "graph",
-          "isNew": true,
-          "id": 7,
+          "aliasColors": {},
+          "bars": false,
           "datasource": null,
-          "renderer": "flot",
-          "x-axis": true,
-          "y-axis": true,
-          "y_formats": [
-            "short",
-            "short"
-          ],
+          "editable": true,
+          "error": false,
+          "fill": 1,
           "grid": {
             "leftLogBase": 1,
             "leftMax": null,
-            "rightMax": null,
             "leftMin": null,
-            "rightMin": null,
             "rightLogBase": 1,
+            "rightMax": null,
+            "rightMin": null,
             "threshold1": null,
-            "threshold2": null,
             "threshold1Color": "rgba(216, 200, 27, 0.27)",
+            "threshold2": null,
             "threshold2Color": "rgba(234, 112, 112, 0.22)"
           },
-          "lines": true,
-          "fill": 1,
-          "linewidth": 2,
-          "points": false,
-          "pointradius": 5,
-          "bars": false,
-          "stack": false,
-          "percentage": false,
+          "id": 7,
+          "isNew": true,
           "legend": {
-            "show": true,
-            "values": false,
-            "min": false,
-            "max": false,
+            "avg": false,
             "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
             "total": false,
-            "avg": false
+            "values": false
           },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
           "nullPointMode": "null",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "span": 12,
+          "stack": false,
           "steppedLine": false,
-          "tooltip": {
-            "value_type": "cumulative",
-            "shared": true
-          },
-          "timeFrom": null,
-          "timeShift": null,
           "targets": [
             {
-              "refId": "A",
               "expr": "rate(torus_distributor_put_block_rpcs_total[10s]) * on(instance) up{}",
               "intervalFactor": 2,
-              "step": 2,
-              "legendFormat": "{{instance}}"
+              "legendFormat": "{{instance}}",
+              "refId": "A",
+              "step": 2
             }
           ],
-          "aliasColors": {},
-          "seriesOverrides": [],
-          "links": []
-        },
-        {
-          "title": "Blocks",
-          "error": false,
-          "span": 12,
-          "editable": true,
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Put Blocks",
+          "tooltip": {
+            "msResolution": false,
+            "shared": true,
+            "value_type": "cumulative"
+          },
           "type": "graph",
-          "isNew": true,
-          "id": 8,
-          "datasource": null,
-          "renderer": "flot",
           "x-axis": true,
+          "xaxis": {
+            "show": true
+          },
           "y-axis": true,
           "y_formats": [
             "short",
             "short"
           ],
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "datasource": null,
+          "editable": true,
+          "error": false,
+          "fill": 1,
           "grid": {
             "leftLogBase": 1,
             "leftMax": null,
-            "rightMax": null,
             "leftMin": null,
-            "rightMin": null,
             "rightLogBase": 1,
+            "rightMax": null,
+            "rightMin": null,
             "threshold1": null,
-            "threshold2": null,
             "threshold1Color": "rgba(216, 200, 27, 0.27)",
+            "threshold2": null,
             "threshold2Color": "rgba(234, 112, 112, 0.22)"
           },
-          "lines": true,
-          "fill": 1,
-          "linewidth": 2,
-          "points": false,
-          "pointradius": 5,
-          "bars": false,
-          "stack": false,
-          "percentage": false,
+          "id": 8,
+          "isNew": true,
           "legend": {
-            "show": true,
-            "values": false,
-            "min": false,
-            "max": false,
+            "avg": false,
             "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
             "total": false,
-            "avg": false
+            "values": false
           },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
           "nullPointMode": "null",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "span": 12,
+          "stack": false,
           "steppedLine": false,
-          "tooltip": {
-            "value_type": "cumulative",
-            "shared": true
-          },
-          "timeFrom": null,
-          "timeShift": null,
           "targets": [
             {
-              "refId": "A",
               "expr": "rate(torus_distributor_block_rpcs_total[10s]) * on(instance) up{}",
               "intervalFactor": 2,
-              "step": 2,
-              "legendFormat": "{{instance}}"
+              "legendFormat": "{{instance}}",
+              "refId": "A",
+              "step": 2
             }
           ],
-          "aliasColors": {},
-          "seriesOverrides": [],
-          "links": []
-        },
-        {
-          "title": "Rebalance RPCs",
-          "error": false,
-          "span": 12,
-          "editable": true,
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Fetch Blocks",
+          "tooltip": {
+            "msResolution": false,
+            "shared": true,
+            "value_type": "cumulative"
+          },
           "type": "graph",
-          "isNew": true,
-          "id": 9,
-          "datasource": null,
-          "renderer": "flot",
           "x-axis": true,
+          "xaxis": {
+            "show": true
+          },
           "y-axis": true,
           "y_formats": [
             "short",
             "short"
           ],
-          "grid": {
-            "leftLogBase": 1,
-            "leftMax": null,
-            "rightMax": null,
-            "leftMin": null,
-            "rightMin": null,
-            "rightLogBase": 1,
-            "threshold1": null,
-            "threshold2": null,
-            "threshold1Color": "rgba(216, 200, 27, 0.27)",
-            "threshold2Color": "rgba(234, 112, 112, 0.22)"
-          },
-          "lines": true,
-          "fill": 1,
-          "linewidth": 2,
-          "points": false,
-          "pointradius": 5,
-          "bars": false,
-          "stack": false,
-          "percentage": false,
-          "legend": {
-            "show": true,
-            "values": false,
-            "min": false,
-            "max": false,
-            "current": false,
-            "total": false,
-            "avg": false
-          },
-          "nullPointMode": "null",
-          "steppedLine": false,
-          "tooltip": {
-            "value_type": "cumulative",
-            "shared": true
-          },
-          "timeFrom": null,
-          "timeShift": null,
-          "targets": [
+          "yaxes": [
             {
-              "refId": "A",
-              "expr": "rate(torus_distributor_rebalance_rpcs_total[10s]) * on(instance) up{}",
-              "intervalFactor": 2,
-              "step": 2,
-              "legendFormat": "{{instance}}"
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
             }
-          ],
-          "aliasColors": {},
-          "seriesOverrides": [],
-          "links": []
+          ]
         }
-      ]
+      ],
+      "title": "Request Counts"
     }
   ],
   "time": {
-    "from": "now-5m",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {
@@ -726,7 +859,7 @@
     "list": []
   },
   "refresh": false,
-  "schemaVersion": 8,
-  "version": 20,
+  "schemaVersion": 12,
+  "version": 7,
   "links": []
 }
