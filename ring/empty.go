@@ -32,7 +32,7 @@ func (e *empty) Describe() string {
 	return "Ring: Empty"
 }
 func (e *empty) Type() torus.RingType { return Empty }
-func (e *empty) Version() int        { return e.version }
+func (e *empty) Version() int         { return e.version }
 
 func (e *empty) Marshal() ([]byte, error) {
 	var out models.Ring

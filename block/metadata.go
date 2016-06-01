@@ -3,9 +3,9 @@ package block
 import (
 	"errors"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/models"
-	"github.com/coreos/pkg/capnslog"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "block")

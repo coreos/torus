@@ -12,6 +12,8 @@ install:
   - glide install
 
 script:
+  - go fmt $(glide novendor)
+  - go vet $(glide novendor)
   - go test $(glide novendor)
   - make
 

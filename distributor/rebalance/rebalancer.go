@@ -1,10 +1,10 @@
 package rebalance
 
 import (
+	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/gc"
 	"github.com/coreos/torus/models"
-	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 )
 

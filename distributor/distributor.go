@@ -4,11 +4,11 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/distributor/protocols"
 	"github.com/coreos/torus/distributor/rebalance"
 	"github.com/coreos/torus/gc"
-	"github.com/coreos/pkg/capnslog"
 )
 
 var (

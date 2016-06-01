@@ -239,7 +239,7 @@ func BenchmarkLoadOne(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		input := bytes.NewReader(data)
-		volname := fmt.Sprintf("testvol-%d")
+		volname := fmt.Sprintf("testvol-%d", i)
 
 		err = block.CreateBlockVolume(client.MDS, volname, uint64(size))
 		if err != nil {
@@ -292,7 +292,7 @@ func BenchmarkLoadThree(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		input := bytes.NewReader(data)
-		volname := fmt.Sprintf("testvol-%d")
+		volname := fmt.Sprintf("testvol-%d", i)
 
 		err = block.CreateBlockVolume(client.MDS, volname, uint64(size))
 		if err != nil {

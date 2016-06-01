@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/torus/models"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/coreos/torus/models"
 )
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "torus")
