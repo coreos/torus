@@ -42,7 +42,7 @@ Contributions, currently containing a guide for setting up torus on kubernetes
 Distributor is the package that implements the storage interface, but takes care of all the network requests and distribution. Therefore, it understands various peer-to-peer protocols, and how to rebalance data between other peers. 
 
 ```
-├── docs
+├── Documentation
 ```
 
 You are here!
