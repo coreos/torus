@@ -49,7 +49,7 @@ type CreateBlocksetFunc func(opts string, store torus.BlockStore, subLayer block
 
 var blocklayerRegistry map[torus.BlockLayerKind]CreateBlocksetFunc
 
-// RegisterBlockset is the hook used for implementions of
+// RegisterBlockset is the hook used for implementations of
 // blocksets to register themselves to the system. This is usually
 // called in the init() of the package that implements the blockset.
 func RegisterBlockset(b torus.BlockLayerKind, newFunc CreateBlocksetFunc) {
