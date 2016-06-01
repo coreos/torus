@@ -12,6 +12,7 @@ install:
   - glide install
 
 script:
+  - go vet $(glide novendor)
   - go test $(glide novendor)
   - make
 
