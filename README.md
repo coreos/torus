@@ -10,7 +10,7 @@ Sharding is done via a consistent hash function, controlled in the simple case b
 
 ## Project Status
 
-Torus is at an early stage and under active development. We do not recommend its use in production, but we encourage you to try out Torus and provide feedback via issues and pull requests. 
+Torus is at an early stage and under active development. We do not recommend its use in production, but we encourage you to try out Torus and provide feedback via issues and pull requests. Consequently, speed, while nice to have, is a secondary concern to stability at this time. 
 
 ## Trying out Torus
 
