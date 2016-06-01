@@ -57,7 +57,7 @@ func (k *ketama) Describe() string {
 	return s
 }
 func (k *ketama) Type() torus.RingType { return Ketama }
-func (k *ketama) Version() int        { return k.version }
+func (k *ketama) Version() int         { return k.version }
 
 func (k *ketama) Marshal() ([]byte, error) {
 	var out models.Ring

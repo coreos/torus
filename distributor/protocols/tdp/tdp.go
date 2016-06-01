@@ -6,8 +6,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/coreos/torus"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/coreos/torus"
 	"golang.org/x/net/context"
 )
 

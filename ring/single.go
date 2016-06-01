@@ -41,7 +41,7 @@ func (s *single) Describe() string {
 	return fmt.Sprintf("Ring: Single\nUUID: %s", s.peer.UUID)
 }
 func (s *single) Type() torus.RingType { return Single }
-func (s *single) Version() int        { return s.version }
+func (s *single) Version() int         { return s.version }
 
 func (s *single) Marshal() ([]byte, error) {
 	var out models.Ring

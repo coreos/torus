@@ -58,7 +58,7 @@ func (m *mod) Describe() string {
 	return s
 }
 func (m *mod) Type() torus.RingType { return Mod }
-func (m *mod) Version() int        { return m.version }
+func (m *mod) Version() int         { return m.version }
 
 func (m *mod) Marshal() ([]byte, error) {
 	var out models.Ring
