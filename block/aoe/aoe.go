@@ -26,7 +26,32 @@ type Server struct {
 	minor uint8
 }
 
-func NewServer(b *block.BlockVolume) (*Server, error) {
+// ServerOptions specifies options for a Server.
+type ServerOptions struct {
+	// Major and Minor specify the major and minor address of an AoE server.
+	// Typically, all AoE devices on a single server will share the same
+	// major address, but have different minor addresses.
+	//
+	// It is important to note that all AoE servers on the same layer 2
+	// network must have different major and minor addresses.
+	Major uint16
+	Minor uint8
+}
+
+// DefaultServerOptions is the default ServerOptions configuration used
+// by NewServer when none is specified.
+var DefaultServerOptions = &ServerOptions{
+	Major: 1,
+	Minor: 1,
+}
+
+// NewServer creates a new Server which utilizes the specified block volume.
+// If options is nil, DefaultServerOptions will be used.
+func NewServer(b *block.BlockVolume, options *ServerOptions) (*Server, error) {
+	if options == nil {
+		options = DefaultServerOptions
+	}
+
 	f, err := b.OpenBlockFile()
 	if err != nil {
 		return nil, err
@@ -39,8 +64,8 @@ func NewServer(b *block.BlockVolume) (*Server, error) {
 	as := &Server{
 		dfs:   b,
 		dev:   fd,
-		major: 1,
-		minor: 1,
+		major: options.Major,
+		minor: options.Minor,
 	}
 
 	return as, nil
