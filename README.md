@@ -19,7 +19,7 @@ To get started quicky using Torus for the first time, start with the guide to [r
 ## Contributing to Torus
 
 Torus is an open source project and contributors are welcome!
-Join us on IRC at [#coreos on freenode.net](http://webchat.freenode.net/?channels=%23coreos&uio=d4), [file an issue](https://github.com/coreos/torus/issues) here on Github, check out bigger plans on the [kind/design](https://github.com/coreos/torus/labels/kind%2Fdesign) tag, contribute on bugs that are [low hanging fruit](https://github.com/coreos/etcd/labels/low%20hanging%20fruit) for issue ideas and check the [project layout](Documentation/project-layout.md) for a guide to the sections that might interest you.
+Join us on IRC at [#coreos on freenode.net](http://webchat.freenode.net/?channels=%23coreos&uio=d4), [file an issue](https://github.com/coreos/torus/issues) here on Github, check out bigger plans on the [kind/design](https://github.com/coreos/torus/labels/kind%2Fdesign) tag, contribute on bugs that are [low hanging fruit](https://github.com/coreos/torus/labels/low%20hanging%20fruit) for issue ideas and check the [project layout](Documentation/project-layout.md) for a guide to the sections that might interest you.
 
 ## Licensing
 
