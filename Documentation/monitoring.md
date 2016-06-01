@@ -33,4 +33,4 @@ scrape_configs:
 
 ## 3) Using grafana
 
-If you're also using [grafana](http://grafana.org/) to build dashboards on your Prometheus metrics, then you can import the default torus dashboard from the repository: https://github.com/coreos/torus/blob/master/grafana.json, and customize to fit your use cases.
+If you're also using [grafana](http://grafana.org/) to build dashboards on your Prometheus metrics, then you can import the default torus dashboard from the repository or release; [it lives in contrib/grafana](../contrib/grafana/grafana.json) , and customize to fit your use cases.

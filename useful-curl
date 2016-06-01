@@ -1,1 +1,0 @@
-curl -X PUT --upload-file file localhost:4321/file/foo/bar
