@@ -154,7 +154,7 @@ sudo torusblk --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
 
 Specifying `/dev/nbd0` is optional -- it will pick the first available device if unspecified.
 
-The mount process is similar to FUSE for a block device; it will disconnect when killed, so make sure it's synced and unmounted. The m
+The mount process is similar to FUSE for a block device; it will disconnect when killed, so make sure it's synced and unmounted.
 
 At this point, you have a replicated, highly-available block device connected to your machine. You can format it and mount it using the standard tools you expect:
 
