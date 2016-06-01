@@ -143,6 +143,17 @@ func (s *Server) Serve(iface *Interface) error {
 func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, error) {
 	hdr := &f.Header
 
+	// Ignore client requests that are not being broadcast or sent to
+	// our major/minor address combination.
+	if hdr.Major != aoe.BroadcastMajor && hdr.Major != s.major {
+		clog.Debugf("ignoring header with major address %d", hdr.Major)
+		return 0, nil
+	}
+	if hdr.Minor != aoe.BroadcastMinor && hdr.Minor != s.minor {
+		clog.Debugf("ignoring header with minor address %d", hdr.Minor)
+		return 0, nil
+	}
+
 	sender := &FrameSender{
 		orig:  f,
 		dst:   from.(*raw.Addr).HardwareAddr,
