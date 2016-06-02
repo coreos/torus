@@ -8,27 +8,18 @@ Releases are available at http://github.com/coreos/torus/releases
 
 #### Build from master
 
-Either checkout the project manually, or use the `go` tool to get it.
+For builds, Torus assumes a Go installation and a correctly configured [GOPATH](https://golang.org/doc/code.html#Organization). Simply checkout the repo and use the Makefile to build.
 
 ```
-go get -d github.com/coreos/torus
-```
-
-Get glide if not already installed:
-
-```
-go get github.com/Masterminds/glide
-```
-
-Then build using
-
-```
+git clone git@github.com/coreos/torus $GOPATH/src/github.com/coreos/torus
 cd $GOPATH/src/github.com/coreos/torus
 glide install
 make
 ```
 
-Which will create the binaries `torusd`, `torusctl` and `torusblk`.
+This will create the binaries `torusd`, `torusctl` and `torusblk` in the "bin" directory.
+
+On first build Torus will use [glide](https://github.com/Masterminds/glide) to download its dependenices.
 
 ### 1) Get etcd
 You need a *v3.0* or higher [etcd](https://github.com/coreos/etcd) instance, as torus uses the v3 API natively and uses the latest client. You might try [etcd v3.0.0-beta.0](https://github.com/coreos/etcd/releases/tag/v3.0.0-beta.0). 
@@ -46,7 +37,7 @@ etcd --data-dir /tmp/etcd
 We need to initialize Torus in etcd. This sets the global settings for the storage cluster, analogous to "formatting the cluster". The default settings are useful for most deployments.
 
 ```
-torusctl init
+./bin/torusctl init
 ```
 
 And you're ready!
@@ -54,22 +45,22 @@ And you're ready!
 If `torusctl` can't connect to etcd, it takes the `-C` flag, just like `etcdctl`
 
 ```
-torusctl -C $ETCD_IP:2379 init
+./bin/torusctl -C $ETCD_IP:2379 init
 ```
 
 (This remains true for all uses of torus binaries)
 
 If you're curious about the other settings, 
 ```
-torusctl init --help
+./bin/torusctl init --help
 ```
 will tell you more, check the docs, or feel free to ask in IRC.
 
 ### 3) Run some storage nodes
 #### Running manually
 ```
-./torusd --etcd 127.0.0.1:2379 --peer-address http://127.0.0.1:40000 --data-dir /tmp/torus1 --size 20GiB
-./torusd --etcd 127.0.0.1:2379 --peer-address http://127.0.0.1:40001 --data-dir /tmp/torus2 --size 20GiB
+./bin/torusd --etcd 127.0.0.1:2379 --peer-address http://127.0.0.1:40000 --data-dir /tmp/torus1 --size 20GiB
+./bin/torusd --etcd 127.0.0.1:2379 --peer-address http://127.0.0.1:40001 --data-dir /tmp/torus2 --size 20GiB
 ```
 This runs a storage node without HTTP. Add `--host` and `--port` to open the HTTP endpoint for [monitoring](monitoring.md).
 
@@ -103,7 +94,7 @@ quay.io/coreos/torus
 
 ### 4) Check that everything is reporting in
 ```
-torusctl list-peers
+./bin/torusctl list-peers
 ```
 
 Should show your data nodes and their reporting status. Eg:
@@ -120,24 +111,24 @@ Balanced: true Usage:  0.00%
 ### 5) Activate storage on the peers
 
 ```
-torusctl peer add --all-peers
+./bin/torusctl peer add --all-peers
 ```
 
 You'll notice if you run `torusctl list-peers` again, the `MEMBER` column will have changed from `Avail` to `OK`. These nodes are now storing data. Peers can be added one (or a couple) at a time via:
 
 ```
-torusctl peer add $PEER_ADDRESS [$PEER_UUID...]
+./bin/torusctl peer add $PEER_ADDRESS [$PEER_UUID...]
 ```
 
 To see which peers are in service (and other sharding details):
 
 ```
-torusctl ring get
+./bin/torusctl ring get
 ```
 
 To remove a node from service:
 ```
-torusctl peer remove $PEER_ADDRESS
+./bin/torusctl peer remove $PEER_ADDRESS
 ```
 
 Draining of peers will happen automatically. If this is a hard removal (ie, the node is gone forever) just remove it, and data will re-replicate automatically. Doing multiple hard removals above the replication threshold may result in data loss. However, this is common practice if you're familiar with [RAID levels.](https://en.wikipedia.org/wiki/Standard_RAID_levels#Comparison).
@@ -147,7 +138,7 @@ Even better fault tolerance with erasure codes and parity is on the roadmap.
 ### 6) Create a volume
 
 ```
-torusblk volume create myVolume 10GiB
+./bin/torusblk volume create myVolume 10GiB
 ```
 
 This creates a 10GiB virtual blockfile for use. It will be safely replicated and CRC checked, by default. 
@@ -156,7 +147,7 @@ This creates a 10GiB virtual blockfile for use. It will be safely replicated and
 
 ```
 sudo modprobe nbd
-sudo torusblk --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
+sudo ./bin/torusblk --etcd 127.0.0.1:2379 nbd myVolume /dev/nbd0
 ```
 
 Specifying `/dev/nbd0` is optional -- it will pick the first available device if unspecified.
