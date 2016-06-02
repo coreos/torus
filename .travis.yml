@@ -7,15 +7,13 @@ go:
   - tip
 
 install:
-  # Install our tracked dependencies
-  - go get github.com/Masterminds/glide
-  - glide install
+  - make vendor
 
 script:
-  - go fmt $(glide novendor)
-  - go vet $(glide novendor)
-  - go test $(glide novendor)
-  - make
+  - make fmt
+  - make vet
+  - make test
+  - make build
 
 matrix:
   allow_failures:
