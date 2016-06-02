@@ -36,4 +36,11 @@ import:
   subpackages:
   - http2
   - lex/httplex
+  - context
+  - bpf
+  - trace
+  - http2/hpack
+  - internal/timeseries
+  repo: https://go.googlesource.com/net
+  version: master
 - package: google.golang.org/grpc
