@@ -1,6 +1,7 @@
 package aoe
 
 import (
+	"fmt"
 	"net"
 	"syscall"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/mdlayher/aoe"
 	"github.com/mdlayher/raw"
+	"golang.org/x/net/bpf"
 )
 
 var (
@@ -91,6 +93,14 @@ func (s *Server) advertise(iface *Interface) error {
 }
 
 func (s *Server) Serve(iface *Interface) error {
+	err := raw.AttachBPF(
+		iface.PacketConn,
+		s.mustAssembleBPF(iface.MTU),
+	)
+	if err != nil {
+		return err
+	}
+
 	clog.Tracef("beginning server loop on %+v", iface)
 
 	// cheap sync proc, should stop when server is shut off
@@ -142,17 +152,6 @@ func (s *Server) Serve(iface *Interface) error {
 
 func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, error) {
 	hdr := &f.Header
-
-	// Ignore client requests that are not being broadcast or sent to
-	// our major/minor address combination.
-	if hdr.Major != aoe.BroadcastMajor && hdr.Major != s.major {
-		clog.Debugf("ignoring header with major address %d", hdr.Major)
-		return 0, nil
-	}
-	if hdr.Minor != aoe.BroadcastMinor && hdr.Minor != s.minor {
-		clog.Debugf("ignoring header with minor address %d", hdr.Minor)
-		return 0, nil
-	}
 
 	sender := &FrameSender{
 		orig:  f,
@@ -210,4 +209,93 @@ func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, er
 
 func (s *Server) Close() error {
 	return s.dev.Close()
+}
+
+// mustAssembleBPF assembles a BPF program to filter out packets not bound
+// for this server.
+func (s *Server) mustAssembleBPF(mtu int) []bpf.RawInstruction {
+	// This BPF program filters out packets that are not bound for this server
+	// by checking against both the AoE broadcast addresses and this server's
+	// major/minor address combination.  The structure of the incoming ethernet
+	// frame and AoE header is as follows:
+	//
+	// Offset | Length | Comment
+	// -------------------------
+	//   00   |   06   | Ethernet destination MAC address
+	//   06   |   06   | Ethernet source MAC address
+	//   12   |   02   | Ethernet EtherType
+	// -------------------------
+	//   14   |   01   | AoE version + flags
+	//   15   |   01   | AoE error
+	//   16   |   02   | AoE major address
+	//   18   |   01   | AoE minor address
+	//
+	// Thus, our BPF program needs to check for:
+	//  - major address: offset 16, length 2
+	//  - minor address: offset 18, length 1
+	const (
+		majorOffset = 16
+		majorLen    = 2
+		minorOffset = 18
+		minorLen    = 1
+	)
+
+	// TODO(mdlayher): this routine likely belongs in package AoE, once the server
+	// component is more complete.
+
+	prog, err := bpf.Assemble([]bpf.Instruction{
+		// Load major address value from AoE header
+		bpf.LoadAbsolute{
+			Off:  majorOffset,
+			Size: majorLen,
+		},
+		// If major address is equal to broadcast address, jump to minor address
+		// filtering
+		bpf.JumpIf{
+			Cond:     bpf.JumpEqual,
+			Val:      uint32(aoe.BroadcastMajor),
+			SkipTrue: 2,
+		},
+		// If major address is equal to our server's, jump to minor address
+		// filtering
+		bpf.JumpIf{
+			Cond:     bpf.JumpEqual,
+			Val:      uint32(s.major),
+			SkipTrue: 1,
+		},
+		// Major address is not our server's or broadcast address
+		bpf.RetConstant{
+			Val: 0,
+		},
+		// Load minor address value from AoE header
+		bpf.LoadAbsolute{
+			Off:  minorOffset,
+			Size: minorLen,
+		},
+		// If minor address is equal to broadcast address, jump to accept packet
+		bpf.JumpIf{
+			Cond:     bpf.JumpEqual,
+			Val:      uint32(aoe.BroadcastMinor),
+			SkipTrue: 2,
+		},
+		// If minor address is equal to our server's, jump to accept packet
+		bpf.JumpIf{
+			Cond:     bpf.JumpEqual,
+			Val:      uint32(s.minor),
+			SkipTrue: 1,
+		},
+		// Minor address is not our server's or broadcast address
+		bpf.RetConstant{
+			Val: 0,
+		},
+		// Accept the packet bytes up to the interface's MTU
+		bpf.RetConstant{
+			Val: uint32(mtu),
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to assemble BPF program: %v", err))
+	}
+
+	return prog
 }
