@@ -11,14 +11,20 @@ type BlockFile struct {
 	vol *BlockVolume
 }
 
-func (s *BlockVolume) OpenBlockFile() (*BlockFile, error) {
+func (s *BlockVolume) OpenBlockFile() (file *BlockFile, err error) {
 	if s.volume.Type != VolumeType {
 		panic("Wrong type")
 	}
-	err := s.mds.Lock(s.srv.Lease())
-	if err != nil {
+	if err = s.mds.Lock(s.srv.Lease()); err != nil {
 		return nil, err
 	}
+	defer func() {
+		// If this function returns an error, attempt to release the lock.
+		// TODO: Log unlock errors?
+		if err != nil {
+			s.mds.Unlock()
+		}
+	}()
 	ref, err := s.mds.GetINode()
 	if err != nil {
 		return nil, err
@@ -79,16 +85,20 @@ func (s *BlockVolume) OpenSnapshot(name string) (*BlockFile, error) {
 	}, nil
 }
 
-func (f *BlockFile) Close() error {
-	err := f.Sync()
-	if err != nil {
+func (f *BlockFile) Close() (err error) {
+	defer func() {
+		// No matter what attempt to release the lock.
+		unlockErr := f.vol.mds.Unlock()
+		if err == nil {
+			// TODO: Log unlock errors if err is not nil?
+			err = unlockErr
+		}
+	}()
+
+	if err = f.Sync(); err != nil {
 		return err
 	}
-	err = f.File.Close()
-	if err != nil {
-		return err
-	}
-	return f.vol.mds.Unlock()
+	return f.File.Close()
 }
 
 func (f *BlockFile) inodeContext() context.Context {
