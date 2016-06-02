@@ -14,10 +14,17 @@ Either checkout the project manually, or use the `go` tool to get it.
 go get -d github.com/coreos/torus
 ```
 
+Get glide if not already installed:
+
+```
+go get github.com/Masterminds/glide
+```
+
 Then build using
 
 ```
 cd $GOPATH/src/github.com/coreos/torus
+glide install
 make
 ```
 
