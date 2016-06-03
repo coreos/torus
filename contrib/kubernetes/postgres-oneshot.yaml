@@ -11,20 +11,20 @@ spec:
       targetPort: postgres-client
       nodePort: 30432
   selector:
-    name: postgres-torus
+    app: postgres-torus
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: postgres-torus
   labels:
-    name: postgres-torus
+    app: postgres-torus
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        name: postgres-torus
+        app: postgres-torus
     spec:
       containers:
       - image: postgres
