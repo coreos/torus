@@ -53,7 +53,6 @@ var versionCommand = &cobra.Command{
 
 func init() {
 	rootCommand.AddCommand(aoeCommand)
-	rootCommand.AddCommand(nbdCommand)
 	rootCommand.AddCommand(volumeCommand)
 	rootCommand.AddCommand(versionCommand)
 
