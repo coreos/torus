@@ -92,13 +92,23 @@ func (s *Server) advertise(iface *Interface) error {
 	return err
 }
 
+// A bpfPacketConn is a net.PacketConn which can have a BPF program attached
+// to it for kernel-level filtering.
+type bpfPacketConn interface {
+	net.PacketConn
+	SetBPF(filter []bpf.RawInstruction) error
+}
+
+// raw.Conn is a bpfPacketConn.
+var _ bpfPacketConn = &raw.Conn{}
+
 func (s *Server) Serve(iface *Interface) error {
-	err := raw.AttachBPF(
-		iface.PacketConn,
-		s.mustAssembleBPF(iface.MTU),
-	)
-	if err != nil {
-		return err
+	// If available, attach a BPF filter to net.PacketConn.
+	if bp, ok := iface.PacketConn.(bpfPacketConn); ok {
+		clog.Debugf("attaching BPF program to %T", bp)
+		if err := bp.SetBPF(s.mustAssembleBPF(iface.MTU)); err != nil {
+			return err
+		}
 	}
 
 	clog.Tracef("beginning server loop on %+v", iface)
