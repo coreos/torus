@@ -24,7 +24,7 @@ spec:
   template:
     metadata:
       labels:
-        app: postgres-torus
+        name: postgres-torus
     spec:
       containers:
       - image: postgres
