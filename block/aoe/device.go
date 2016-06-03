@@ -15,11 +15,11 @@ var (
 )
 
 type Device interface {
+	io.Closer
 	io.ReadWriteSeeker
 	io.ReaderAt
 	io.WriterAt
 	Sync() error
-	Close() error
 	aoe.Identifier
 }
 
