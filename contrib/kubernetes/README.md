@@ -58,7 +58,7 @@ kubectl create -f postgres-oneshot.yaml
 
 ```
 TORUSPOD=$(kubectl get pods -l app=postgres-torus -o name | cut -d/ -f2)
-kubectl exec $TORUSPOD -- psql postgres -U postgres < test-data.sql
+kubectl exec -i $TORUSPOD -- psql postgres -U postgres < test-data.sql
 kubectl exec $TORUSPOD -- psql postgres -U postgres -c 'select * from films'
 ```
 
