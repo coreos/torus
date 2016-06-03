@@ -109,12 +109,12 @@ func TestBlock(t *testing.T) {
 	m := &mockBlockRPC{
 		data: test,
 	}
-	s, err := Serve("localhost:40000", m, m.BlockSize())
+	s, err := Serve("localhost:0", m, m.BlockSize())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	c, err := Dial("localhost:40000", time.Second, m.BlockSize())
+	c, err := Dial(s.ListenAddr().String(), time.Second, m.BlockSize())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,12 +169,12 @@ func TestPutBlock(t *testing.T) {
 	m := &mockBlockRPC{
 		data: test,
 	}
-	s, err := Serve("localhost:40000", m, m.BlockSize())
+	s, err := Serve("localhost:0", m, m.BlockSize())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	c, err := Dial("localhost:40000", time.Second, m.BlockSize())
+	c, err := Dial(s.ListenAddr().String(), time.Second, m.BlockSize())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,12 +233,12 @@ func TestRebalanceCheck(t *testing.T) {
 		test[i].Index = 3
 		test[i].INodeRef = torus.NewINodeRef(1, torus.INodeID(rand.Intn(40)))
 	}
-	s, err := Serve("localhost:40000", m, m.BlockSize())
+	s, err := Serve("localhost:0", m, m.BlockSize())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	c, err := Dial("localhost:40000", time.Second, m.BlockSize())
+	c, err := Dial(s.ListenAddr().String(), time.Second, m.BlockSize())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,12 +338,12 @@ func BenchmarkPutBlock(b *testing.B) {
 	m := &mockBlockRPC{
 		data: test,
 	}
-	s, err := Serve("localhost:40000", m, m.BlockSize())
+	s, err := Serve("localhost:0", m, m.BlockSize())
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer s.Close()
-	c, err := Dial("localhost:40000", time.Second, m.BlockSize())
+	c, err := Dial(s.ListenAddr().String(), time.Second, m.BlockSize())
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -414,12 +414,12 @@ func BenchmarkRebalanceCheck(b *testing.B) {
 		test[i].Index = 3
 		test[i].INodeRef = torus.NewINodeRef(1, torus.INodeID(rand.Intn(40)))
 	}
-	s, err := Serve("localhost:40000", m, m.BlockSize())
+	s, err := Serve("localhost:0", m, m.BlockSize())
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer s.Close()
-	c, err := Dial("localhost:40000", time.Second, m.BlockSize())
+	c, err := Dial(s.ListenAddr().String(), time.Second, m.BlockSize())
 	if err != nil {
 		b.Fatal(err)
 	}
