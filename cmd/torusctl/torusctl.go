@@ -38,6 +38,7 @@ func init() {
 	rootCommand.AddCommand(peerCommand)
 	rootCommand.AddCommand(volumeCommand)
 	rootCommand.AddCommand(versionCommand)
+	rootCommand.AddCommand(wipeCommand)
 }
 
 func main() {

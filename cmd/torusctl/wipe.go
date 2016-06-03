@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -29,6 +30,7 @@ func wipeAction(cmd *cobra.Command, args []string) {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Println("This will wipe all metadata for torus.\nPlease type `YES`, all caps to confirm: ")
 		text, _ := reader.ReadString('\n')
+		text = strings.TrimSpace(text)
 		if text != "YES" {
 			fmt.Println("`YES` not entered, exiting")
 			os.Exit(1)
