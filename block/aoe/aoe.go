@@ -3,6 +3,7 @@ package aoe
 import (
 	"fmt"
 	"net"
+	"sync"
 	"syscall"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/mdlayher/aoe"
 	"github.com/mdlayher/raw"
 	"golang.org/x/net/bpf"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -23,6 +25,10 @@ type Server struct {
 	dfs *block.BlockVolume
 
 	dev Device
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     *sync.WaitGroup
 
 	major uint16
 	minor uint8
@@ -59,15 +65,23 @@ func NewServer(b *block.BlockVolume, options *ServerOptions) (*Server, error) {
 		return nil, err
 	}
 
-	f.Sync()
+	if err := f.Sync(); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := &sync.WaitGroup{}
 
 	fd := &FileDevice{f}
 
 	as := &Server{
-		dfs:   b,
-		dev:   fd,
-		major: options.Major,
-		minor: options.Minor,
+		dfs:    b,
+		dev:    fd,
+		ctx:    ctx,
+		cancel: cancel,
+		wg:     wg,
+		major:  options.Major,
+		minor:  options.Minor,
 	}
 
 	return as, nil
@@ -113,14 +127,22 @@ func (s *Server) Serve(iface *Interface) error {
 
 	clog.Tracef("beginning server loop on %+v", iface)
 
-	// cheap sync proc, should stop when server is shut off
+	// Start goroutine to sync device at regular intervals, and halt when
+	// the Server's Close method is called.
+	s.wg.Add(1)
 	go func() {
 		for {
 			if err := s.dev.Sync(); err != nil {
 				clog.Warningf("failed to sync %s: %v", s.dev, err)
 			}
 
-			time.Sleep(5 * time.Second)
+			select {
+			case <-time.After(5 * time.Second):
+			case <-s.ctx.Done():
+				clog.Debugf("stopping device sync goroutine")
+				s.wg.Done()
+				return
+			}
 		}
 	}()
 
@@ -218,6 +240,10 @@ func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, er
 }
 
 func (s *Server) Close() error {
+	clog.Debugf("canceling background goroutines")
+	s.cancel()
+	clog.Debugf("waiting for background goroutines to stop")
+	s.wg.Wait()
 	return s.dev.Close()
 }
 
