@@ -18,7 +18,7 @@ kind: Deployment
 metadata:
   name: postgres-torus
   labels:
-    name: postgres-torus
+    app: postgres-torus
 spec:
   replicas: 1
   template:
