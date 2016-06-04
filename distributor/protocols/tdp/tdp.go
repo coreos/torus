@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -35,9 +36,11 @@ var (
 type Server struct {
 	handler   Handler
 	lst       net.Listener
-	conns     []net.Conn
-	closed    bool
 	blocksize uint64
+
+	mu     sync.RWMutex // protects fields below
+	closed bool
+	conns  []net.Conn
 }
 
 type Handler interface {
@@ -71,12 +74,16 @@ func (s *Server) serve() {
 	for {
 		conn, err := s.lst.Accept()
 		if err != nil {
-			if !s.closed {
+			if !s.isClosed() {
 				clog.Errorf("error listening: %v", err)
 			}
 			return
 		}
+
+		s.mu.Lock()
 		s.conns = append(s.conns, conn)
+		s.mu.Unlock()
+
 		go s.handle(conn)
 	}
 }
@@ -93,7 +100,7 @@ func (s *Server) handle(conn net.Conn) {
 				conn.Close()
 				return
 			}
-			if !s.closed {
+			if !s.isClosed() {
 				clog.Errorf("Error handling: %v", err)
 				conn.Close()
 			}
@@ -115,7 +122,7 @@ func (s *Server) handle(conn net.Conn) {
 			err = errors.New("unknown message on the data port")
 		}
 		if err != nil {
-			if !s.closed {
+			if !s.isClosed() {
 				clog.Errorf("Error handling putblock: %v", err)
 				conn.Close()
 			}
@@ -210,17 +217,29 @@ func (s *Server) handleRebalanceCheck(conn net.Conn, len int, refbuf []byte) err
 	return nil
 }
 
+func (s *Server) isClosed() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.closed
+}
+
 func (s *Server) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.closed = true
 	err := s.lst.Close()
 	if err != nil {
 		return err
 	}
+
 	for _, x := range s.conns {
 		err := x.Close()
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
