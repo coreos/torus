@@ -24,10 +24,25 @@ On first build Torus will use [glide](https://github.com/Masterminds/glide) to d
 ### 1) Get etcd
 You need a *v3.0* or higher [etcd](https://github.com/coreos/etcd) instance, as torus uses the v3 API natively and uses the latest client. You might try [etcd v3.0.0-beta.0](https://github.com/coreos/etcd/releases/tag/v3.0.0-beta.0). 
 
+#### Running etcd manually
 To run a single node cluster locally:
 
 ```
 etcd --data-dir /tmp/etcd
+```
+
+#### Running etcd using rkt
+To run a single node cluster locally, execute:
+```
+$ rkt fetch coreos.com/etcd:v3.0.0-beta.0
+$ mkdir /tmp/etcd
+$ rkt run coreos.com/etcd:v3.0.0-beta.0 \
+     --volume=data-dir,kind=host,source=/tmp/etcd,readOnly=false \
+     -- \
+    -advertise-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+    -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+    -listen-peer-urls http://0.0.0.0:2380
+$ export ETCD_IP=$(rkt l --full=true --no-legend=true | grep 'etcd.*running' | cut -f8 | cut -d'=' -f2)
 ```
 
 [Clustering etcd for high availability](https://github.com/coreos/etcd/blob/master/Documentation/op-guide/clustering.md) and setting up a production etcd are covered by the etcd team.
@@ -65,6 +80,19 @@ will tell you more, check the docs, or feel free to ask in IRC.
 This runs a storage node without HTTP. Add `--host` and `--port` to open the HTTP endpoint for [monitoring](monitoring.md).
 
 Multiple instances can be run, so long as the ports don't conflict and you keep separate data dirs.
+
+#### Running with rkt
+The following will start a local three node torus cluster::
+```
+$ rkt fetch quay.io/coreos/torus
+$ mkdir -p /tmp/torus/{1,2,3}
+$ rkt run --volume=volume-data,kind=host,source=/tmp/torus/1" \
+    --set-env LISTEN_HOST=0.0.0.0 \
+    --set-env PEER_ADDRESS=http://0.0.0.0:40000 \
+    --set-env ETCD_HOST="${ETCD_IP}" quay.io/coreos/torus
+```
+
+Start two additional instances of torus replacing `--volume=...source=/tmp/torus/{1,2,3}`.
 
 #### Running with Docker
 ##### With Host Networking
