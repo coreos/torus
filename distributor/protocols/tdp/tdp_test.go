@@ -165,9 +165,11 @@ func TestBlockGRPC(t *testing.T) {
 }
 
 func TestPutBlock(t *testing.T) {
-	test := makeTestData(512 * 1024)
+	stest := makeTestData(512 * 1024)
+	ctest := append([]byte(nil), stest...)
+
 	m := &mockBlockRPC{
-		data: test,
+		data: stest,
 	}
 	s, err := Serve("localhost:0", m, m.BlockSize())
 	if err != nil {
@@ -182,7 +184,7 @@ func TestPutBlock(t *testing.T) {
 	err = c.PutBlock(context.TODO(), torus.BlockRef{
 		INodeRef: torus.NewINodeRef(1, 2),
 		Index:    3,
-	}, test)
+	}, ctest)
 	if err != nil {
 		t.Fatal(err)
 	}
