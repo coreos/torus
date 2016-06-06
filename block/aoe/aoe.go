@@ -214,17 +214,7 @@ func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, er
 
 		switch cfgarg.Command {
 		case aoe.ConfigCommandRead:
-			hdr.Arg = &aoe.ConfigArg{
-				// if < 2, linux aoe handles it poorly
-				BufferCount:     2,
-				FirmwareVersion: 0,
-				// naive, but works.
-				SectorCount:  uint8(iface.MTU / 512),
-				Version:      1,
-				Command:      aoe.ConfigCommandRead,
-				StringLength: 0,
-				String:       []byte{},
-			}
+			hdr.Arg = defaultConfig(iface.MTU)
 
 			return sender.Send(hdr)
 		}
@@ -245,6 +235,21 @@ func (s *Server) Close() error {
 	clog.Debugf("waiting for background goroutines to stop")
 	s.wg.Wait()
 	return s.dev.Close()
+}
+
+// defaultConfig is the default AoE server configuration.
+func defaultConfig(mtu int) *aoe.ConfigArg {
+	return &aoe.ConfigArg{
+		// if < 2, linux aoe handles it poorly
+		BufferCount:     2,
+		FirmwareVersion: 0,
+		// naive, but works.
+		SectorCount:  uint8(mtu / 512),
+		Version:      aoe.Version,
+		Command:      aoe.ConfigCommandRead,
+		StringLength: 0,
+		String:       []byte{},
+	}
 }
 
 // mustAssembleBPF assembles a BPF program to filter out packets not bound
