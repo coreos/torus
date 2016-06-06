@@ -69,7 +69,7 @@ imports:
 - name: github.com/mdlayher/ethernet
   version: 28018267bba4d651e8e0fcbca8aae7c13f4ce4ae
 - name: github.com/mdlayher/raw
-  version: 8ddcb3ee361776f9baed3b452263cd5c1393f853
+  version: fdf613f61f3de9179afc320f976042aef061ce57
 - name: github.com/olekukonko/tablewriter
   version: 8d0265a48283795806b872b4728c67bf5c777f20
 - name: github.com/pborman/uuid

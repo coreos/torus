@@ -6,7 +6,7 @@ WORKDIR /go/src/github.com/coreos/torus
 
 # Add and install torus
 ADD . .
-RUN go get -d ./...
+RUN make vendor
 RUN go install -v github.com/coreos/torus/cmd/torusd
 RUN go install -v github.com/coreos/torus/cmd/torusctl
 RUN go install -v github.com/coreos/torus/cmd/torusblk
