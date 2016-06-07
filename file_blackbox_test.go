@@ -145,7 +145,7 @@ func TestWriteAtBulk(t *testing.T) {
 		t.Fatalf("can't sync: %v", err)
 	}
 
-	// Weird, non-
+	// Odd-shape to stress block edges.
 	big := makeTestData(549)
 	n, err := f.WriteAt(big, 7)
 	if err != nil || n != len(big) {

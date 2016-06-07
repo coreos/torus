@@ -72,7 +72,7 @@ type File struct {
 	blocks   Blockset
 	replaces uint64
 	changed  map[string]bool
-	cache    *fileCache
+	cache    fileCache
 
 	writeINodeRef INodeRef
 	writeOpen     bool
@@ -98,7 +98,7 @@ func (s *Server) CreateFile(volume *models.Volume, inode *models.INode, blocks B
 		srv:     s,
 		blocks:  blocks,
 		blkSize: int64(md.BlockSize),
-		cache:   newFileCache(blocks, md.BlockSize),
+		cache:   newSingleBlockCache(blocks, md.BlockSize),
 	}, nil
 }
 
