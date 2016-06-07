@@ -41,6 +41,7 @@ var (
 func init() {
 	torus.RegisterMetadataService("etcd", newEtcdMetadata)
 	torus.RegisterMetadataInit("etcd", initEtcdMetadata)
+	torus.RegisterMetadataWipe("etcd", wipeEtcdMetadata)
 	torus.RegisterSetRing("etcd", setRing)
 
 	prometheus.MustRegister(promAtomicRetries)
