@@ -16,7 +16,7 @@ Torus is at an early stage and under active development. We do not recommend its
 
 ## Trying out Torus
 
-To get started quicky using Torus for the first time, start with the guide to [running your first Torus cluster](Documentation/getting-started.md), or learn more about setting up Torus on Kubernetes using FlexVolumes [in contrib](contrib/kubernetes).
+To get started quicky using Torus for the first time, start with the guide to [running your first Torus cluster](Documentation/getting-started.md), learn more about setting up Torus on Kubernetes using FlexVolumes [in contrib](contrib/kubernetes), or create a Torus cluster on [bare metal](https://github.com/coreos/coreos-baremetal/blob/master/Documentation/torus.md).
 
 ## Contributing to Torus
 
