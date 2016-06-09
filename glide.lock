@@ -1,5 +1,5 @@
-hash: 600f9bccc64e435d5f19687f42a8304f690cf961e90f183c2a9cd24848ae2533
-updated: 2016-06-02T13:17:43.759643711-07:00
+hash: 1a8f9ce91ec93454e953a2db2357e97d299dd42aae5c93d6a68ed34a1297545a
+updated: 2016-06-09T12:14:57.730504027-04:00
 imports:
 - name: github.com/barakmich/mmap-go
   version: c4bd255520e591ff7549ab916c59206da5735e56
@@ -66,6 +66,8 @@ imports:
   - pbutil
 - name: github.com/mdlayher/aoe
   version: 63bdfd7f5c50809059b7b6de1cf37c2e330c5f81
+- name: github.com/mdlayher/bpftest
+  version: eb43252a412e18bf0b21603ba9f4d593a4fd2d7a
 - name: github.com/mdlayher/ethernet
   version: 28018267bba4d651e8e0fcbca8aae7c13f4ce4ae
 - name: github.com/mdlayher/raw
