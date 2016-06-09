@@ -20,8 +20,10 @@ import (
 	_ "github.com/coreos/torus/storage"
 
 	"github.com/mdlayher/aoe"
+	"github.com/mdlayher/bpftest"
 	"github.com/mdlayher/ethernet"
 	"github.com/mdlayher/raw"
+	"golang.org/x/net/bpf"
 )
 
 const (
@@ -56,6 +58,110 @@ func TestServeCommandQueryConfigInformation(t *testing.T) {
 	if want, got := wantArg, arg; !reflect.DeepEqual(want, got) {
 		t.Fatalf("unexpected AoE config arg:\n - want: %+v\n-  got: %+v", want, got)
 	}
+}
+
+func TestBPFProgramWrongMajorAddress(t *testing.T) {
+	s := &Server{
+		major: 1,
+		minor: 1,
+	}
+
+	h := &aoe.Header{
+		Major: 2,
+		Minor: 1,
+	}
+
+	if testBPFProgram(t, s, h) {
+		t.Fatal("BPF program should have filtered incorrect AoE major address")
+	}
+}
+
+func TestBPFProgramWrongMinorAddress(t *testing.T) {
+	s := &Server{
+		major: 1,
+		minor: 1,
+	}
+
+	h := &aoe.Header{
+		Major: 1,
+		Minor: 2,
+	}
+
+	if testBPFProgram(t, s, h) {
+		t.Fatal("BPF program should have filtered incorrect AoE minor address")
+	}
+}
+
+func TestBPFProgramOK(t *testing.T) {
+	s := &Server{
+		major: 2,
+		minor: 2,
+	}
+
+	h := &aoe.Header{
+		Major: 2,
+		Minor: 2,
+	}
+
+	if !testBPFProgram(t, s, h) {
+		t.Fatal("BPF program should not have filtered correct AoE header")
+	}
+}
+
+func TestBPFProgramBroadcastOK(t *testing.T) {
+	s := &Server{
+		major: 1,
+		minor: 1,
+	}
+
+	h := &aoe.Header{
+		Major: aoe.BroadcastMajor,
+		Minor: aoe.BroadcastMinor,
+	}
+
+	if !testBPFProgram(t, s, h) {
+		t.Fatal("BPF program should not have filtered correct AoE broadcast header")
+	}
+}
+
+// testBPFProgram builds a BPF program for the input server and compares the
+// output of the program against the input AoE header, returning whether or
+// not the header was accepted by the filter.
+func testBPFProgram(t *testing.T, s *Server, h *aoe.Header) bool {
+	filter, ok := bpf.Disassemble(s.mustAssembleBPF(testMTU))
+	if !ok {
+		t.Fatal("failed to decode all BPF instructions")
+	}
+
+	vm := bpftest.New(filter)
+
+	// Fill in empty AoE header fields not relevant to this test
+	h.Version = aoe.Version
+	h.Command = aoe.CommandQueryConfigInformation
+	h.Arg = &aoe.ConfigArg{
+		Command: aoe.ConfigCommandRead,
+	}
+
+	hb, err := h.MarshalBinary()
+	if err != nil {
+		t.Fatalf("failed to marshal AoE header to binary: %v", err)
+	}
+
+	f := &ethernet.Frame{
+		EtherType: aoe.EtherType,
+		Payload:   hb,
+	}
+	fb, err := f.MarshalBinary()
+	if err != nil {
+		t.Fatalf("failed to marshal Ethernet frame to binary: %v", err)
+	}
+
+	_, ok, err = vm.Run(fb)
+	if err != nil {
+		t.Fatalf("failed to run BPF program: %v", err)
+	}
+
+	return ok
 }
 
 // testRequest performs a single AoE request using the input request
