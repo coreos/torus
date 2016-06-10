@@ -62,4 +62,7 @@ var (
 
 	// ErrLocked is returned if the resource is locked.
 	ErrLocked = errors.New("torus: locked")
+
+	// ErrLeaseNotFound is returned if the lease cannot be found.
+	ErrLeaseNotFound = errors.New("torus: lease not found")
 )

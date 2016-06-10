@@ -12,6 +12,7 @@ import (
 	"github.com/coreos/torus/ring"
 
 	etcdv3 "github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
@@ -190,11 +191,6 @@ func (c *etcdCtx) RegisterPeer(lease int64, p *models.PeerInfo) error {
 	}
 
 	lid := etcdv3.LeaseID(lease)
-	resp, err := c.etcd.Client.KeepAliveOnce(c.getContext(), lid)
-	if err != nil {
-		return err
-	}
-	clog.Tracef("updated lease for %d, TTL %d", resp.ID, resp.TTL)
 	_, err = c.etcd.Client.Put(
 		c.getContext(), MkKey("nodes", p.UUID), string(data), etcdv3.WithLease(lid))
 	return err
@@ -345,6 +341,18 @@ func (c *etcdCtx) GetLease() (int64, error) {
 	return int64(resp.ID), nil
 }
 
+func (c *etcdCtx) RenewLease(lease int64) error {
+	lid := etcdv3.LeaseID(lease)
+	resp, err := c.etcd.Client.KeepAliveOnce(c.getContext(), lid)
+	if err != nil {
+		if err == rpctypes.ErrLeaseNotFound {
+			return torus.ErrLeaseNotFound
+		}
+		return err
+	}
+	clog.Tracef("updated lease for %d, TTL %d", resp.ID, resp.TTL)
+	return nil
+}
 func (c *etcdCtx) GetRing() (torus.Ring, error) {
 	r, _, err := c.getRing()
 	return r, err

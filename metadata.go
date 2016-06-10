@@ -41,6 +41,7 @@ type MetadataService interface {
 	WithContext(ctx context.Context) MetadataService
 
 	GetLease() (int64, error)
+	RenewLease(int64) error
 	RegisterPeer(lease int64, pi *models.PeerInfo) error
 	GetPeers() (PeerInfoList, error)
 

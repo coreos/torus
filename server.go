@@ -40,13 +40,31 @@ type Server struct {
 	peerInfo      *models.PeerInfo
 	ctx           context.Context
 
-	lease            int64
+	lease    int64
+	leaseMut sync.Mutex
+
 	heartbeating     bool
 	ReplicationOpen  bool
 	timeoutCallbacks []func(string)
 }
 
+func (s *Server) createOrRenewLease(ctx context.Context) error {
+	s.infoMut.Lock()
+	defer s.infoMut.Unlock()
+	if s.lease != 0 {
+		err := s.MDS.WithContext(ctx).RenewLease(s.lease)
+		if err == nil {
+			return nil
+		}
+	}
+	var err error
+	s.lease, err = s.MDS.WithContext(ctx).GetLease()
+	return err
+}
+
 func (s *Server) Lease() int64 {
+	s.infoMut.Lock()
+	defer s.infoMut.Unlock()
 	return s.lease
 }
 
