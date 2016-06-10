@@ -66,7 +66,7 @@ type CreateMetadataServiceFunc func(cfg Config) (MetadataService, error)
 
 var metadataServices map[string]CreateMetadataServiceFunc
 
-// RegisterMetadataService is the hook used for implementions of
+// RegisterMetadataService is the hook used for implementations of
 // MetadataServices to register themselves to the system. This is usually
 // called in the init() of the package that implements the MetadataService.
 // A similar pattern is used in database/sql of the standard library.
@@ -99,7 +99,7 @@ type InitMDSFunc func(cfg Config, gmd GlobalMetadata, ringType RingType) error
 
 var initMDSFuncs map[string]InitMDSFunc
 
-// RegisterMetadataInit is the hook used for implementions of
+// RegisterMetadataInit is the hook used for implementations of
 // MetadataServices to register their ways of creating base metadata to the system.
 func RegisterMetadataInit(name string, newFunc InitMDSFunc) {
 	if initMDSFuncs == nil {
@@ -123,7 +123,7 @@ type WipeMDSFunc func(cfg Config) error
 
 var wipeMDSFuncs map[string]WipeMDSFunc
 
-// RegisterMetadataWipe is the hook used for implementions of
+// RegisterMetadataWipe is the hook used for implementations of
 // MetadataServices to register their ways of deleting their metadata from the consistent store
 func RegisterMetadataWipe(name string, newFunc WipeMDSFunc) {
 	if wipeMDSFuncs == nil {
@@ -146,7 +146,7 @@ type SetRingFunc func(cfg Config, r Ring) error
 
 var setRingFuncs map[string]SetRingFunc
 
-// RegisterSetRing is the hook used for implementions of MetadataServices to
+// RegisterSetRing is the hook used for implementations of MetadataServices to
 // register their ways of creating base metadata to the system.
 func RegisterSetRing(name string, newFunc SetRingFunc) {
 	if setRingFuncs == nil {

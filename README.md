@@ -1,5 +1,6 @@
 # Torus
 [![Build Status](https://travis-ci.org/coreos/torus.svg?branch=master)](https://travis-ci.org/coreos/torus)
+[![Go Report Card](https://goreportcard.com/badge/github.com/coreos/torus)](https://goreportcard.com/report/github.com/coreos/torus)
 [![GoDoc](https://godoc.org/github.com/coreos/torus?status.svg)](https://godoc.org/github.com/coreos/torus)
 
 Torus is an open source project for distributed storage coordinated through [etcd](https://github.com/coreos/etcd).
