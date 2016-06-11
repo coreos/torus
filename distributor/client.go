@@ -52,10 +52,11 @@ func (d *distClient) onPeerTimeout(uuid string) {
 }
 func (d *distClient) getConn(uuid string) protocols.RPC {
 	d.mut.Lock()
-	defer d.mut.Unlock()
 	if conn, ok := d.openConns[uuid]; ok {
+		d.mut.Unlock()
 		return conn
 	}
+	d.mut.Unlock()
 	pm := d.dist.srv.GetPeerMap()
 	pi := pm[uuid]
 	if pi == nil {
@@ -80,9 +81,9 @@ func (d *distClient) getConn(uuid string) protocols.RPC {
 		clog.Errorf("couldn't get GMD: %s", err)
 		return nil
 	}
-	d.mut.Unlock()
 	conn, err := protocols.DialRPC(uri, connectTimeout, gmd)
 	d.mut.Lock()
+	defer d.mut.Unlock()
 	if err != nil {
 		clog.Errorf("couldn't dial: %v", err)
 		return nil
