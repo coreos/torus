@@ -123,7 +123,7 @@ func peerRemoveAction(cmd *cobra.Command, args []string) {
 		die("current ring type cannot support removal")
 	}
 	if err != nil {
-		die("couldn't add peer to ring: %v", err)
+		die("couldn't remove peer from ring: %v", err)
 	}
 	err = mds.SetRing(newRing)
 	if err != nil {
