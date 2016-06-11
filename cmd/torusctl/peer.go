@@ -25,14 +25,14 @@ var peerListCommand = &cobra.Command{
 }
 
 var peerAddCommand = &cobra.Command{
-	Use:    "add",
+	Use:    "add ADDRESS|UUID",
 	Short:  "add a peer to the cluster",
 	PreRun: peerChangePreRun,
 	Run:    peerAddAction,
 }
 
 var peerRemoveCommand = &cobra.Command{
-	Use:    "remove",
+	Use:    "remove ADDRESS|UUID",
 	Short:  "remove a peer from the cluster",
 	PreRun: peerChangePreRun,
 	Run:    peerRemoveAction,
