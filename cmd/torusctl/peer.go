@@ -25,14 +25,14 @@ var peerListCommand = &cobra.Command{
 }
 
 var peerAddCommand = &cobra.Command{
-	Use:    "add",
+	Use:    "add ADDRESS|UUID",
 	Short:  "add a peer to the cluster",
 	PreRun: peerChangePreRun,
 	Run:    peerAddAction,
 }
 
 var peerRemoveCommand = &cobra.Command{
-	Use:    "remove",
+	Use:    "remove ADDRESS|UUID",
 	Short:  "remove a peer from the cluster",
 	PreRun: peerChangePreRun,
 	Run:    peerRemoveAction,
@@ -123,7 +123,7 @@ func peerRemoveAction(cmd *cobra.Command, args []string) {
 		die("current ring type cannot support removal")
 	}
 	if err != nil {
-		die("couldn't add peer to ring: %v", err)
+		die("couldn't remove peer from ring: %v", err)
 	}
 	err = mds.SetRing(newRing)
 	if err != nil {
