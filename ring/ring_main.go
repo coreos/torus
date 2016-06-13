@@ -1,9 +1,12 @@
 package ring
 
 import (
+	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/models"
 )
+
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "ring")
 
 const (
 	Empty torus.RingType = iota
