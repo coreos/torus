@@ -67,7 +67,7 @@ imports:
 - name: github.com/mdlayher/aoe
   version: 63bdfd7f5c50809059b7b6de1cf37c2e330c5f81
 - name: github.com/mdlayher/bpftest
-  version: eb43252a412e18bf0b21603ba9f4d593a4fd2d7a
+  version: 8ae8a42d6a3a54f815cfb0f207256d37ebcd8843
 - name: github.com/mdlayher/ethernet
   version: 28018267bba4d651e8e0fcbca8aae7c13f4ce4ae
 - name: github.com/mdlayher/raw

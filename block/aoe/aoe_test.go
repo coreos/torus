@@ -133,7 +133,10 @@ func testBPFProgram(t *testing.T, s *Server, h *aoe.Header) bool {
 		t.Fatal("failed to decode all BPF instructions")
 	}
 
-	vm := bpftest.New(filter)
+	vm, err := bpftest.New(filter)
+	if !ok {
+		t.Fatalf("failed to load BPF program: %v", err)
+	}
 
 	// Fill in empty AoE header fields not relevant to this test
 	h.Version = aoe.Version
