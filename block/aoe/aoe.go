@@ -3,6 +3,7 @@ package aoe
 import (
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"syscall"
 	"time"
@@ -32,6 +33,8 @@ type Server struct {
 
 	major uint16
 	minor uint8
+
+	usingBPF bool
 }
 
 // ServerOptions specifies options for a Server.
@@ -95,6 +98,10 @@ func (s *Server) advertise(iface *Interface) error {
 
 	fr := &Frame{
 		Header: aoe.Header{
+			// Must specify our server's major/minor address or else
+			// the request will be filtered
+			Major:   s.major,
+			Minor:   s.minor,
 			Command: aoe.CommandQueryConfigInformation,
 			Arg: &aoe.ConfigArg{
 				Command: aoe.ConfigCommandRead,
@@ -121,7 +128,16 @@ func (s *Server) Serve(iface *Interface) error {
 	if bp, ok := iface.PacketConn.(bpfPacketConn); ok {
 		clog.Debugf("attaching BPF program to %T", bp)
 		if err := bp.SetBPF(s.mustAssembleBPF(iface.MTU)); err != nil {
-			return err
+			// If user does not have permission to attach a BPF filter to an
+			// interface, continue without one
+			if !os.IsPermission(err) {
+				return err
+			}
+
+			clog.Debugf("permission denied, continuing with BPF filter disabled")
+		} else {
+			clog.Debugf("BPF filter enabled")
+			s.usingBPF = true
 		}
 	}
 
@@ -184,6 +200,21 @@ func (s *Server) Serve(iface *Interface) error {
 
 func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, error) {
 	hdr := &f.Header
+
+	// If a BPF filter cannot be used, filter requests not bound for
+	// this server in userspace.
+	if !s.usingBPF {
+		// Ignore client requests that are not being broadcast or sent to
+		// our major/minor address combination.
+		if hdr.Major != aoe.BroadcastMajor && hdr.Major != s.major {
+			clog.Debugf("ignoring header with major address %d", hdr.Major)
+			return 0, nil
+		}
+		if hdr.Minor != aoe.BroadcastMinor && hdr.Minor != s.minor {
+			clog.Debugf("ignoring header with minor address %d", hdr.Minor)
+			return 0, nil
+		}
+	}
 
 	sender := &FrameSender{
 		orig:  f,
