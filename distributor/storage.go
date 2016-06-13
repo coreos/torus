@@ -229,7 +229,8 @@ func (d *Distributor) WriteBlock(ctx context.Context, i torus.BlockRef, data []b
 			}
 		}
 		if toWrite == peers.Replication {
-			return err
+			clog.Noticef("error WriteAll to all peers")
+			return torus.ErrNoPeer
 		}
 		clog.Warningf("only wrote block to %d/%d peers", toWrite, peers.Replication)
 	}
