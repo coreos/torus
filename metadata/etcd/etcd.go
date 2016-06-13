@@ -224,7 +224,7 @@ func (c *etcdCtx) GetPeers() (torus.PeerInfoList, error) {
 // state of a key's value `in`, returns the new state of the key `out`, and
 // `data` to be returned to the calling function on success, or an `err`.
 //
-// This function may be run mulitple times, if the value has changed in the time
+// This function may be run multiple times, if the value has changed in the time
 // between getting the data and setting the new value.
 type AtomicModifyFunc func(in []byte) (out []byte, data interface{}, err error)
 

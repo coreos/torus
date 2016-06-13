@@ -12,7 +12,7 @@ var (
 	ErrINodeUnavailable = errors.New("torus: inode cannot be retrieved")
 
 	// ErrBlockNotExist is returned when a function attempts to manipulate a
-	// non-existant block.
+	// non-existent block.
 	ErrBlockNotExist = errors.New("torus: block doesn't exist")
 
 	// ErrClosed is returned when a function attempts to manipulate a Store
@@ -57,7 +57,7 @@ var (
 	ErrWrongVolumeType = errors.New("torus: wrong volume type")
 
 	// ErrNotSupported is returned if the interface doesn't implement the
-	// requested subfuntionality.
+	// requested subfunctionality.
 	ErrNotSupported = errors.New("torus: not supported")
 
 	// ErrLocked is returned if the resource is locked.
