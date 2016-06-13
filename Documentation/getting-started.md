@@ -13,13 +13,12 @@ For builds, Torus assumes a Go installation and a correctly configured [GOPATH](
 ```
 git clone git@github.com:coreos/torus $GOPATH/src/github.com/coreos/torus
 cd $GOPATH/src/github.com/coreos/torus
-glide install
 make
 ```
 
 This will create the binaries `torusd`, `torusctl` and `torusblk` in the "bin" directory.
 
-On first build Torus will use [glide](https://github.com/Masterminds/glide) to download its dependenices.
+On first build Torus will install and use [glide](https://github.com/Masterminds/glide) locally to download its dependenices.
 
 ### 1) Get etcd
 You need a *v3.0* or higher [etcd](https://github.com/coreos/etcd) instance, as torus uses the v3 API natively and uses the latest client. You might try [etcd v3.0.0-beta.0](https://github.com/coreos/etcd/releases/tag/v3.0.0-beta.0). 
