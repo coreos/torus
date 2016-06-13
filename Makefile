@@ -20,7 +20,7 @@ fmt: bin/glide
 	go fmt $(shell ./bin/glide novendor)
 
 run:
-	./bin/torusd --etcd 127.0.0.1:2379 --debug --debug-init --peer-address 127.0.0.1:40000
+	./bin/torusd --etcd 127.0.0.1:2379 --debug --debug-init --peer-address http://127.0.0.1:40000
 
 clean:
 	rm -rf ./local-cluster ./bin/torus*
