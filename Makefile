@@ -1,5 +1,5 @@
 ifeq ($(origin VERSION), undefined)
-  VERSION != git rev-parse --short HEAD
+	VERSION != git rev-parse --short HEAD
 endif
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
