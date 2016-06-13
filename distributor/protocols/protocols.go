@@ -1,6 +1,7 @@
 package protocols
 
 import (
+	"fmt"
 	"net/url"
 	"time"
 
@@ -42,6 +43,10 @@ func RegisterRPCListener(scheme string, newFunc RPCListenerFunc) {
 }
 
 func ListenRPC(url *url.URL, handler RPC, gmd torus.GlobalMetadata) (RPCServer, error) {
+	if rpcListeners[url.Scheme] == nil {
+		return nil, fmt.Errorf("Unknown ListenRPC protocol '%s'", url.Scheme)
+	}
+
 	return rpcListeners[url.Scheme](url, handler, gmd)
 }
 
@@ -58,5 +63,9 @@ func RegisterRPCDialer(scheme string, newFunc RPCDialerFunc) {
 }
 
 func DialRPC(url *url.URL, timeout time.Duration, gmd torus.GlobalMetadata) (RPC, error) {
+	if rpcDialers[url.Scheme] == nil {
+		return nil, fmt.Errorf("Unknown DialRPC protocol '%s'", url.Scheme)
+	}
+
 	return rpcDialers[url.Scheme](url, timeout, gmd)
 }
