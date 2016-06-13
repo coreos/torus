@@ -52,7 +52,7 @@ func (s *Server) BeginHeartbeat(addr *url.URL) error {
 		s.peerInfo.Address = advertiseURI.String()
 	}
 	var err error
-	s.lease, err = s.MDS.GetLease()
+	err = s.createOrRenewLease(context.Background())
 	if err != nil {
 		return err
 	}
@@ -89,11 +89,15 @@ func (s *Server) oneHeartbeat() {
 	s.peerInfo.UsedBlocks = s.Blocks.UsedBlocks()
 	s.mut.Unlock()
 
-	s.infoMut.Lock()
-	defer s.infoMut.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), heartbeatTimeout)
 	defer cancel()
-	err := s.MDS.WithContext(ctx).RegisterPeer(s.lease, s.peerInfo)
+	err := s.createOrRenewLease(ctx)
+	if err != nil {
+		clog.Warningf("failed to create or renew lease: %s", err)
+	}
+	s.infoMut.Lock()
+	defer s.infoMut.Unlock()
+	err = s.MDS.WithContext(ctx).RegisterPeer(s.lease, s.peerInfo)
 	if err != nil {
 		clog.Warningf("couldn't register heartbeat: %s", err)
 	}

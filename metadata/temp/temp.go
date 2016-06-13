@@ -90,7 +90,9 @@ func (t *Client) UUID() string {
 	return t.uuid
 }
 
-func (t *Client) GetLease() (int64, error) { return 1, nil }
+func (t *Client) GetLease() (int64, error)     { return 1, nil }
+func (t *Client) RenewLease(lease int64) error { return nil }
+
 func (t *Client) GetPeers() (torus.PeerInfoList, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
