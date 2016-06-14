@@ -4,12 +4,14 @@ import (
 	"os"
 
 	"github.com/coreos/torus"
+	"github.com/coreos/torus/models"
 	"github.com/spf13/cobra"
 )
 
 var (
 	newPeers torus.PeerInfoList
 	allPeers bool
+	force    bool
 )
 
 var peerCommand = &cobra.Command{
@@ -41,6 +43,7 @@ var peerRemoveCommand = &cobra.Command{
 func init() {
 	peerCommand.AddCommand(peerAddCommand, peerRemoveCommand, peerListCommand)
 	peerAddCommand.Flags().BoolVar(&allPeers, "all-peers", false, "add all peers")
+	peerRemoveCommand.PersistentFlags().BoolVar(&force, "force", false, "force-remove or force-add a UUID")
 }
 
 func peerAction(cmd *cobra.Command, args []string) {
@@ -72,7 +75,12 @@ func peerChangePreRun(cmd *cobra.Command, args []string) {
 			}
 		}
 		if !found {
-			die("peer %s not currently healthy", arg)
+			if !force {
+				die("peer %s not currently healthy. To remove, use `--force`", arg)
+			}
+			out = out.Union(torus.PeerInfoList{&models.PeerInfo{
+				UUID: arg,
+			}})
 		}
 	}
 	if allPeers {
