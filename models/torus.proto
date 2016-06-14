@@ -46,6 +46,10 @@ message PeerInfo {
   bool timed_out = 6;
 
   RebalanceInfo rebalance_info = 7;
+
+  // ProtocolVersion is set by each peer to know if we're out of date or if a
+  // protocol migration has occured.
+  uint64 protocol_version = 8;
 }
 
 message RebalanceInfo {
