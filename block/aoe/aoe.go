@@ -1,3 +1,4 @@
+// aoe provides the implementation of an ATA over Ethernet server, backed by a Torus block volume.
 package aoe
 
 import (

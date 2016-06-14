@@ -1,3 +1,8 @@
+// storage is the package which implements the underlying, on-disk storage
+// API for Torus servers. A single node can be tested with just a storage
+// implementation, but the distributor replaces it as a virtual implementation
+// of a much larger storage pool, provided by the cluster. This is storage
+// underneath a single node.
 package storage
 
 import (

@@ -1,3 +1,6 @@
+// gc provides the Torus interface for how garbage collection is implemented.
+// Volumes implement a garbage collector and the controller in this package runs
+// them.
 package gc
 
 import (

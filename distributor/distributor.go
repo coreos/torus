@@ -1,3 +1,6 @@
+// distributor is a complex implementation of a Torus storage interface, that
+// understands rebalancing it's underlying storage and fetching data from peers,
+// as necessary.
 package distributor
 
 import (

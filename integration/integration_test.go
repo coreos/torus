@@ -1,4 +1,5 @@
-package torus
+// integration is the package for integration tests.
+package integration
 
 import (
 	"bytes"

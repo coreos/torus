@@ -1,3 +1,7 @@
+// blockset provides a registry of BlockLayers, that can be (Un)Marshaled
+// and retrieve blocks from a Torus storage interface. This is the package
+// which allows abstractions atop individual files, such as error correction,
+// redundancy checking, further replication, and the like.
 package blockset
 
 import (
