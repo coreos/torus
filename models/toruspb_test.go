@@ -2,29 +2,6 @@
 // source: torus.proto
 // DO NOT EDIT!
 
-/*
-Package models is a generated protocol buffer package.
-
-It is generated from these files:
-	torus.proto
-	rpc.proto
-
-It has these top-level messages:
-	INode
-	BlockLayer
-	Volume
-	PeerInfo
-	RebalanceInfo
-	Ring
-	BlockRef
-	INodeRef
-	BlockRequest
-	BlockResponse
-	PutBlockRequest
-	PutResponse
-	RebalanceCheckRequest
-	RebalanceCheckResponse
-*/
 package models
 
 import testing "testing"

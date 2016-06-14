@@ -13,6 +13,9 @@ import (
 )
 
 const (
+	currentProtocolVersion = 1
+	minProtocolVersion     = 0
+
 	heartbeatTimeout  = 1 * time.Second
 	heartbeatInterval = 5 * time.Second
 )
@@ -38,6 +41,18 @@ func (s *Server) BeginHeartbeat(addr *url.URL) error {
 	if s.heartbeating {
 		return nil
 	}
+
+	// Test the cluster's version on startup.
+	peers := s.UpdatePeerMap()
+	for uuid, p := range peers {
+		if p.ProtocolVersion < minProtocolVersion {
+			// Fail to start.
+			return fmt.Errorf("cluster too old: peer %s has protocol version %d (minimum is %d, current is %d)", uuid, p.ProtocolVersion, minProtocolVersion, currentProtocolVersion)
+		}
+	}
+
+	// Update our data.
+	s.peerInfo.ProtocolVersion = currentProtocolVersion
 	if addr != nil {
 		ipaddr, port, err := net.SplitHostPort(addr.Host)
 		if err != nil {
@@ -110,6 +125,7 @@ func (s *Server) updatePeerMap() {
 	peers, err := s.MDS.WithContext(ctxget).GetPeers()
 	if err != nil {
 		clog.Warningf("couldn't update peerlist: %s", err)
+		return
 	}
 	promServerPeers.Set(float64(len(peers)))
 
