@@ -188,8 +188,7 @@ func (d *Distributor) WriteBlock(ctx context.Context, i torus.BlockRef, data []b
 			return nil
 		}
 		clog.Tracef("Couldn't write locally; writing to cluster")
-		// fallthrough is evil
-		return d.WriteBlock(context.WithValue(ctx, torus.CtxWriteLevel, torus.WriteOne), i, data)
+		fallthrough
 	case torus.WriteOne:
 		for _, p := range peers.Peers[:peers.Replication] {
 			// If we're one of the desired peers, we count, write here first.
