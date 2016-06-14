@@ -106,6 +106,9 @@ func (f *File) openWrite() error {
 	if f.ReadOnly {
 		return ErrLocked
 	}
+	if f.writeOpen {
+		return nil
+	}
 	f.srv.writeableLock.RLock()
 	defer f.srv.writeableLock.RUnlock()
 	vid := VolumeID(f.volume.Id)

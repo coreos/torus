@@ -23,9 +23,10 @@ type singleBlockCache struct {
 
 	blocks Blockset
 
-	readData []byte
 	readIdx  int
-	blkSize  uint64
+	readData []byte
+
+	blkSize uint64
 }
 
 func newSingleBlockCache(bs Blockset, blkSize uint64) *singleBlockCache {
@@ -45,15 +46,26 @@ func (sb *singleBlockCache) openBlock(ctx context.Context, i int) error {
 	if sb.openIdx == i && sb.openData != nil {
 		return nil
 	}
-	if sb.openData != nil {
+	if sb.openWrote {
 		err := sb.sync(ctx)
 		if err != nil {
 			return err
 		}
 	}
-	if sb.blocks.Length() == i {
+	if i == sb.blocks.Length() {
 		sb.openData = make([]byte, sb.blkSize)
 		sb.openIdx = i
+		return nil
+	}
+	if i > sb.blocks.Length() {
+		panic("writing beyond the end of a file without calling Truncate")
+	}
+
+	if sb.readIdx == i {
+		sb.openIdx = i
+		sb.openData = sb.readData
+		sb.readData = nil
+		sb.readIdx = -1
 		return nil
 	}
 	start := time.Now()
@@ -61,7 +73,7 @@ func (sb *singleBlockCache) openBlock(ctx context.Context, i int) error {
 	if err != nil {
 		return err
 	}
-	delta := time.Now().Sub(start)
+	delta := time.Since(start)
 	promFileBlockRead.Observe(float64(delta.Nanoseconds()) / 1000)
 	sb.openData = d
 	sb.openIdx = i
@@ -69,13 +81,13 @@ func (sb *singleBlockCache) openBlock(ctx context.Context, i int) error {
 }
 
 func (sb *singleBlockCache) writeToBlock(ctx context.Context, i, from, to int, data []byte) (int, error) {
-	sb.openWrote = true
 	if sb.openIdx != i {
 		err := sb.openBlock(ctx, i)
 		if err != nil {
 			return 0, err
 		}
 	}
+	sb.openWrote = true
 	if (to - from) != len(data) {
 		panic("server: different write lengths?")
 	}
@@ -88,13 +100,9 @@ func (sb *singleBlockCache) sync(ctx context.Context) error {
 	}
 	start := time.Now()
 	err := sb.blocks.PutBlock(ctx, sb.ref, sb.openIdx, sb.openData)
-	delta := time.Now().Sub(start)
+	delta := time.Since(start)
 	promFileBlockWrite.Observe(float64(delta.Nanoseconds()) / 1000)
-	sb.openIdx = -1
-	sb.openData = nil
 	sb.openWrote = false
-	sb.readIdx = -1
-	sb.readData = nil
 	return err
 }
 
@@ -104,7 +112,7 @@ func (sb *singleBlockCache) openRead(ctx context.Context, i int) error {
 	if err != nil {
 		return err
 	}
-	delta := time.Now().Sub(start)
+	delta := time.Since(start)
 	promFileBlockRead.Observe(float64(delta.Nanoseconds()) / 1000)
 	sb.readData = d
 	sb.readIdx = i
