@@ -112,6 +112,8 @@ func (m *mfileBlock) numBlocks() uint64 {
 }
 
 func (m *mfileBlock) UsedBlocks() uint64 {
+	m.mut.RLock()
+	defer m.mut.RUnlock()
 	return uint64(len(m.refIndex))
 }
 

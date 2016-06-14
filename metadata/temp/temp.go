@@ -96,7 +96,9 @@ func (t *Client) RenewLease(lease int64) error { return nil }
 func (t *Client) GetPeers() (torus.PeerInfoList, error) {
 	t.srv.mut.Lock()
 	defer t.srv.mut.Unlock()
-	return t.srv.peers, nil
+	peers := make(torus.PeerInfoList, len(t.srv.peers))
+	copy(peers, t.srv.peers)
+	return peers, nil
 }
 
 func (t *Client) RegisterPeer(_ int64, pi *models.PeerInfo) error {

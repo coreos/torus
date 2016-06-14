@@ -11,7 +11,7 @@ build: vendor
 	go build -o bin/torusblk -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusblk
 
 test: bin/glide
-	go test $(shell ./bin/glide novendor)
+	go test --race $(shell ./bin/glide novendor)
 
 vet: bin/glide
 	go vet $(shell ./bin/glide novendor)
