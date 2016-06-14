@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"runtime/debug"
 
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/models"
@@ -31,7 +30,6 @@ func makeKetama(r *models.Ring) (torus.Ring, error) {
 	pi := torus.PeerInfoList(r.Peers)
 	if rep > len(pi) {
 		clog.Warningf("Using ring that requests replication level %d, but has only %d peers. Add nodes to match replication.", rep, len(pi))
-		debug.PrintStack()
 	}
 	return &ketama{
 		version: int(r.Version),
