@@ -29,7 +29,7 @@ func makeKetama(r *models.Ring) (torus.Ring, error) {
 	}
 	pi := torus.PeerInfoList(r.Peers)
 	if rep > len(pi) {
-		clog.Warningf("Using ring that requests replication level %d, but has only %d peers. Add nodes to match replication.", rep, len(pi))
+		clog.Noticef("Using ring that requests replication level %d, but has only %d peers. Add nodes to match replication.", rep, len(pi))
 	}
 	return &ketama{
 		version: int(r.Version),
