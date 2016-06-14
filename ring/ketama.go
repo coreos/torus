@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/models"
@@ -28,6 +29,10 @@ func makeKetama(r *models.Ring) (torus.Ring, error) {
 		rep = 1
 	}
 	pi := torus.PeerInfoList(r.Peers)
+	if rep > len(pi) {
+		clog.Warningf("Using ring that requests replication level %d, but has only %d peers. Add nodes to match replication.", rep, len(pi))
+		debug.PrintStack()
+	}
 	return &ketama{
 		version: int(r.Version),
 		peers:   pi,
@@ -39,11 +44,35 @@ func makeKetama(r *models.Ring) (torus.Ring, error) {
 func (k *ketama) GetPeers(key torus.BlockRef) (torus.PeerPermutation, error) {
 	s, ok := k.ring.GetNodes(string(key.ToBytes()), len(k.peers))
 	if !ok {
+		if len(s) == 0 {
+			return torus.PeerPermutation{}, errors.New("couldn't get any nodes")
+		}
+		for _, x := range k.peers {
+			has := false
+			for _, y := range s {
+				if y == x.UUID {
+					has = true
+					break
+				}
+			}
+			if !has {
+				s = append(s, x.UUID)
+			}
+		}
+	}
+
+	if len(s) != len(k.peers) {
 		return torus.PeerPermutation{}, errors.New("couldn't get sufficient nodes")
 	}
+
+	rep := k.rep
+	if len(k.peers) < k.rep {
+		rep = len(k.peers)
+	}
+
 	return torus.PeerPermutation{
 		Peers:       s,
-		Replication: k.rep,
+		Replication: rep,
 	}, nil
 }
 
