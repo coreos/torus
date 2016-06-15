@@ -85,6 +85,32 @@ func (s *BlockVolume) OpenSnapshot(name string) (*BlockFile, error) {
 	}, nil
 }
 
+func (s *BlockVolume) RestoreSnapshot(name string) (err error) {
+	if s.volume.Type != VolumeType {
+		panic("Wrong type")
+	}
+	if err = s.mds.Lock(s.srv.Lease()); err != nil {
+		return err
+	}
+	defer s.mds.Unlock()
+	snaps, err := s.mds.GetSnapshots()
+	if err != nil {
+		return err
+	}
+	var found Snapshot
+	for _, x := range snaps {
+		if x.Name == name {
+			found = x
+			break
+		}
+	}
+	if found.Name != name {
+		return torus.ErrNotExist
+	}
+	ref := torus.INodeRefFromBytes(found.INodeRef)
+	return s.mds.SyncINode(ref)
+}
+
 func (f *BlockFile) Close() (err error) {
 	defer func() {
 		// No matter what attempt to release the lock.

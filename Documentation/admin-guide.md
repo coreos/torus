@@ -45,7 +45,11 @@ torusctl volume list
 #### Provision a new block volume
 
 ```
-torusblk volume create VOLUME_NAME SIZE
+torusctl volume create-block VOLUME_NAME SIZE
+```
+or equivalently
+```
+torusctl block create VOLUME_NAME SIZE
 ```
 
 Where VOLUME_NAME is whatever you prefer, as long as there's not already one named the same. 

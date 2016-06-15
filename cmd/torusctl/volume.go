@@ -27,9 +27,17 @@ var volumeListCommand = &cobra.Command{
 	Run:   volumeListAction,
 }
 
+var volumeCreateBlockCommand = &cobra.Command{
+	Use:   "create-block NAME SIZE",
+	Short: "create a block volume in the cluster",
+	Long:  "creates a block volume named NAME of size SIZE bytes (G,GiB,M,MiB,etc suffixes accepted)",
+	Run:   volumeCreateBlockAction,
+}
+
 func init() {
 	volumeCommand.AddCommand(volumeDeleteCommand)
 	volumeCommand.AddCommand(volumeListCommand)
+	volumeCommand.AddCommand(volumeCreateBlockCommand)
 	volumeListCommand.Flags().BoolVarP(&outputAsCSV, "csv", "", false, "output as csv instead")
 }
 
@@ -53,12 +61,13 @@ func volumeListAction(cmd *cobra.Command, args []string) {
 		table.SetBorder(false)
 		table.SetColumnSeparator(",")
 	} else {
-		table.SetHeader([]string{"Volume Name", "Size"})
+		table.SetHeader([]string{"Volume Name", "Size", "Type"})
 	}
 	for _, x := range vols {
 		table.Append([]string{
 			x.Name,
 			humanize.IBytes(x.MaxBytes),
+			x.Type,
 		})
 	}
 	table.Render()
@@ -83,5 +92,21 @@ func volumeDeleteAction(cmd *cobra.Command, args []string) {
 	}
 	if err != nil {
 		die("cannot delete volume: %v", err)
+	}
+}
+
+func volumeCreateBlockAction(cmd *cobra.Command, args []string) {
+	mds := mustConnectToMDS()
+	if len(args) != 2 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+	size, err := humanize.ParseBytes(args[1])
+	if err != nil {
+		die("error parsing size %s: %v", args[1], err)
+	}
+	err = block.CreateBlockVolume(mds, args[0], size)
+	if err != nil {
+		die("error creating volume %s: %v", args[0], err)
 	}
 }

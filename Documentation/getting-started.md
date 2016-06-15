@@ -16,7 +16,7 @@ cd $GOPATH/src/github.com/coreos/torus
 make
 ```
 
-This will create the binaries `torusd`, `torusctl` and `torusblk` in the "bin" directory.
+This will create the binaries `torusd`, `torusctl` and `torusblk` in the "bin" directory. You can think of `torusd` as the storage daemon, `torusctl` as the administrative tool, and `torusblk` as the client daemon that mounts volumes on a host or exposes them through NBD, AoE, or similar.
 
 On first build Torus will install and use [glide](https://github.com/Masterminds/glide) locally to download its dependenices.
 
@@ -165,7 +165,7 @@ Even better fault tolerance with erasure codes and parity is on the roadmap.
 ### 6) Create a volume
 
 ```
-./bin/torusblk volume create myVolume 10GiB
+./bin/torusctl volume create-block myVolume 10GiB
 ```
 
 This creates a 10GiB virtual blockfile for use. It will be safely replicated and CRC checked, by default. 
