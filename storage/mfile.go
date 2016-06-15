@@ -118,6 +118,12 @@ func (m *mfileBlock) UsedBlocks() uint64 {
 }
 
 func (m *mfileBlock) Flush() error {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	return m.flush()
+}
+
+func (m *mfileBlock) flush() error {
 	err := m.dataFile.Flush()
 
 	if err != nil {
@@ -138,7 +144,7 @@ func (m *mfileBlock) Close() error {
 }
 
 func (m *mfileBlock) close() error {
-	m.Flush()
+	m.flush()
 	if m.closed {
 		return nil
 	}
