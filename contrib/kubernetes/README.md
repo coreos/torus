@@ -43,7 +43,7 @@ Which should tell you everything about the cluster.
 Create a volume, eg:
 
 ```
-torusblk -C $IP_IN_CLUSTER:32379 volume create pg1 2GiB
+torusctl -C $IP_IN_CLUSTER:32379 volume create-block pg1 2GiB
 ```
 
 ### 6) Run Postgres

@@ -22,7 +22,7 @@ Implementations of the Blockset interface.
 │   └── ringtool
 ```
 
-The `main` functions that each produce a binary. `torusd` is the main server, `torusctl` manipulates and queries multiple servers through etcd, `torusblk` creates, attaches and mounts block devices, and `ringtool` is an experiment for measuring the rebalance properties of multiple rings.
+The `main` functions that each produce a binary. `torusd` is the main server, `torusctl` manipulates and queries multiple servers through etcd, organizes volumes, and manages snapshots.  `torusblk` attaches and mounts block devices, and `ringtool` is an experiment for measuring the rebalance properties of multiple rings.
 
 ```
 ├── contrib

@@ -38,7 +38,7 @@ var (
 
 	bsnapRestoreCommand = &cobra.Command{
 		Use:   "restore VOLUME@SNAPSHOT_NAME",
-		Short: "delete a snapshot for a block volume",
+		Short: "restore VOLUME to the state it had as of SNAPSHOT_NAME",
 		Run:   bsnapRestoreAction,
 	}
 )
