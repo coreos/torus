@@ -3,6 +3,7 @@ package block
 import (
 	"encoding/json"
 	"errors"
+	"time"
 
 	etcdv3 "github.com/coreos/etcd/clientv3"
 	"golang.org/x/net/context"
@@ -162,6 +163,7 @@ func (b *blockEtcd) SaveSnapshot(name string) error {
 		v := resp.Responses[0].GetResponseRange().Kvs[0]
 		inode := Snapshot{
 			Name:     name,
+			When:     time.Now(),
 			INodeRef: v.Value,
 		}
 		bytes, err := json.Marshal(inode)

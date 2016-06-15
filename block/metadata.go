@@ -2,6 +2,7 @@ package block
 
 import (
 	"errors"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/torus"
@@ -12,6 +13,7 @@ var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "block")
 
 type Snapshot struct {
 	Name     string
+	When     time.Time
 	INodeRef []byte
 }
 

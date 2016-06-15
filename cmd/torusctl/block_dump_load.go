@@ -47,6 +47,7 @@ func blockDumpAction(cmd *cobra.Command, args []string) {
 		die("couldn't open output: %v", err)
 	}
 	srv := createServer()
+	defer srv.Close()
 	blockvol, err := block.OpenBlockVolume(srv, args[0])
 	if err != nil {
 		die("couldn't open block volume %s: %v", args[0], err)

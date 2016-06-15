@@ -7,6 +7,10 @@ import (
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/distributor"
 	"github.com/coreos/torus/internal/flagconfig"
+
+	// Register all the drivers.
+	_ "github.com/coreos/torus/metadata/etcd"
+	_ "github.com/coreos/torus/storage"
 )
 
 func die(why string, args ...interface{}) {

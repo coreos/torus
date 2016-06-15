@@ -2,6 +2,7 @@ package block
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/metadata/temp"
@@ -120,6 +121,7 @@ func (b *blockTempMetadata) SaveSnapshot(name string) error {
 	}
 	snap := Snapshot{
 		Name:     name,
+		When:     time.Now(),
 		INodeRef: d.id.ToBytes(),
 	}
 	d.snaps = append(d.snaps, snap)
