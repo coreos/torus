@@ -38,6 +38,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2379", "hostname:port to the etcd instance storing the metadata")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "enable debug logging")
 	rootCommand.AddCommand(initCommand)
+	rootCommand.AddCommand(blockCommand)
 	rootCommand.AddCommand(listPeersCommand)
 	rootCommand.AddCommand(ringCommand)
 	rootCommand.AddCommand(peerCommand)

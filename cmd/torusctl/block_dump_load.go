@@ -15,29 +15,29 @@ import (
 )
 
 var (
-	dumpCommand = &cobra.Command{
+	blockDumpCommand = &cobra.Command{
 		Use:   "dump VOLUME OUTPUT_FILE",
-		Short: "dump the contents of a volume to an output file",
-		Run:   dumpAction,
+		Short: "dump the contents of a block volume to an output file",
+		Run:   blockDumpAction,
 	}
 
-	loadCommand = &cobra.Command{
+	blockLoadCommand = &cobra.Command{
 		Use:   "load INPUT_FILE VOLUME [SIZE]",
-		Short: "load the contents of a file into a new volume",
-		Run:   loadAction,
+		Short: "load the contents of a file into a new block volume",
+		Run:   blockLoadAction,
 	}
 
 	progress bool
 )
 
 func init() {
-	dumpCommand.Flags().BoolVarP(&progress, "progress", "p", false, "show progress")
-	rootCommand.AddCommand(dumpCommand)
-	loadCommand.Flags().BoolVarP(&progress, "progress", "p", false, "show progress")
-	rootCommand.AddCommand(loadCommand)
+	blockDumpCommand.Flags().BoolVarP(&progress, "progress", "p", false, "show progress")
+	blockCommand.AddCommand(blockDumpCommand)
+	blockLoadCommand.Flags().BoolVarP(&progress, "progress", "p", false, "show progress")
+	blockCommand.AddCommand(blockLoadCommand)
 }
 
-func dumpAction(cmd *cobra.Command, args []string) {
+func blockDumpAction(cmd *cobra.Command, args []string) {
 	if len(args) != 2 {
 		cmd.Usage()
 		os.Exit(1)
@@ -98,7 +98,7 @@ func getWriterFromArg(arg string) (io.Writer, error) {
 	return os.Create(arg)
 }
 
-func loadAction(cmd *cobra.Command, args []string) {
+func blockLoadAction(cmd *cobra.Command, args []string) {
 	if len(args) != 2 && len(args) != 3 {
 		cmd.Usage()
 		os.Exit(1)
