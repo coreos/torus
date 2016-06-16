@@ -60,6 +60,32 @@ func TestServeCommandQueryConfigInformation(t *testing.T) {
 	}
 }
 
+func TestServeCommandMACMaskList(t *testing.T) {
+	// Request that the server send its current MAC mask list
+	req := &aoe.Header{
+		Version: aoe.Version,
+		Major:   1,
+		Minor:   1,
+		Command: aoe.CommandMACMaskList,
+		Tag:     [4]byte{0xde, 0xad, 0xbe, 0xef},
+		Arg: &aoe.MACMaskArg{
+			Command: aoe.MACMaskCommandRead,
+		},
+	}
+
+	res := testRequest(t, req)
+
+	// At this time, MAC mask lists are not implemented in the AoE server.
+	err := *req
+	err.FlagResponse = true
+	err.FlagError = true
+	err.Error = aoe.ErrorUnrecognizedCommandCode
+
+	if want, got := err, *res; !headersEqual(got, want) {
+		t.Fatalf("unexpected AoE header:\n - want: %+v\n-  got: %+v", want, got)
+	}
+}
+
 func TestBPFProgramWrongMajorAddress(t *testing.T) {
 	s := &Server{
 		major: 1,
