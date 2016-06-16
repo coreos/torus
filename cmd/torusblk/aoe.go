@@ -16,7 +16,7 @@ import (
 
 var aoeCommand = &cobra.Command{
 	Use:   "aoe VOLUME INTERFACE MAJOR MINOR",
-	Short: "serve a volume over AoE [EXPERIMENTAL]",
+	Short: "serve a volume over AoE",
 	Long: strings.TrimSpace(`
 Serve a volume over AoE using the specified network interface and AoE
 major and minor addresses.
