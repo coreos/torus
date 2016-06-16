@@ -30,6 +30,41 @@ const (
 	testMTU = 9000
 )
 
+func TestServeCommandIssueATACommand(t *testing.T) {
+	// Request that the server identify its ATA device
+	req := &aoe.Header{
+		Version: aoe.Version,
+		Major:   1,
+		Minor:   1,
+		Command: aoe.CommandIssueATACommand,
+		Tag:     [4]byte{0xde, 0xad, 0xbe, 0xef},
+		Arg: &aoe.ATAArg{
+			// Must be 1 for identify request
+			SectorCount: 1,
+			CmdStatus:   aoe.ATACmdStatusIdentify,
+		},
+	}
+
+	res := testRequest(t, req)
+	arg, ok := res.Arg.(*aoe.ATAArg)
+	if !ok {
+		t.Fatalf("incorrect argument type for configuration request: %T", res.Arg)
+	}
+
+	if want, got := *req, *res; !headersEqual(got, want) {
+		t.Fatalf("unexpected AoE header:\n - want: %+v\n-  got: %+v", want, got)
+	}
+
+	// TODO(mdlayher): do deeper inspection of returned ATA identification data
+	if want, got := aoe.ATACmdStatusReadyStatus, arg.CmdStatus; want != got {
+		t.Fatalf("unexpected ATA CmdStatus:\n - want: %v\n-  got: %v", want, got)
+	}
+	// Expect 512 bytes (1 sector) of data
+	if want, got := 512, len(arg.Data); want != got {
+		t.Fatalf("unexpected ATA data length:\n - want: %v\n-  got: %v", want, got)
+	}
+}
+
 func TestServeCommandQueryConfigInformation(t *testing.T) {
 	// Request that the server send its current configuration
 	req := &aoe.Header{
