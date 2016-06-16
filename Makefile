@@ -36,7 +36,7 @@ run3:
 
 release:
 	mkdir -p release
-	goxc -d ./release -tasks-=go-vet,go-test -os="linux darwin" -pv=$(VERSION) -build-ldflags="-X $(REPOPATH).Version=$(VERSION)" -resources-include="README.md,docs,LICENSE,contrib" -main-dirs-exclude="vendor,cmd/ringtool"
+	goxc -d ./release -tasks-=go-vet,go-test -os="linux darwin" -pv=$(VERSION) -build-ldflags="-X $(REPOPATH).Version=$(VERSION)" -resources-include="README.md,Documentation,LICENSE,contrib" -main-dirs-exclude="vendor,cmd/ringtool"
 
 vendor: bin/glide
 	./bin/glide install
