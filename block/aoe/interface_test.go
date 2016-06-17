@@ -1,13 +1,14 @@
 package aoe
 
 import (
+	"net"
 	"sync"
 	"syscall"
 	"testing"
 )
 
 func TestInterfaceClose(t *testing.T) {
-	ai, err := NewInterface("lo")
+	ai, err := NewInterface(findLoopbackInterface(t))
 	if err != nil {
 		if err == syscall.EPERM {
 			t.Skipf("test must be run as root: %v", err)
@@ -35,4 +36,15 @@ func TestInterfaceClose(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func findLoopbackInterface(t *testing.T) string {
+	for _, name := range []string{"lo", "lo0"} {
+		if _, err := net.InterfaceByName(name); err == nil {
+			return name
+		}
+	}
+
+	t.Skip("could not find suitable loopback interface for test")
+	return ""
 }
