@@ -30,6 +30,7 @@ import:
 - package: github.com/prometheus/client_golang
   subpackages:
   - prometheus
+- package: github.com/ricochet2200/go-disk-usage
 - package: github.com/serialx/hashring
 - package: github.com/spf13/cobra
 - package: golang.org/x/net

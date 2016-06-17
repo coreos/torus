@@ -1,16 +1,18 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"os/signal"
-	"strings"
+	"path/filepath"
 	"strconv"
-	"syscall"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/dustin/go-humanize"
+	"github.com/ricochet2200/go-disk-usage/du"
 	"github.com/spf13/cobra"
 
 	"github.com/coreos/torus"
@@ -114,27 +116,22 @@ func configureServer(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	if strings.Contains(sizeStr, "%") {
-		var stat syscall.Statfs_t
-		sizePercent := strings.Split(sizeStr, "%")[0]
-		sizeNumber, err := strconv.Atoi(sizePercent)
+
+		percent, err := parsePercentage(sizeStr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
 			os.Exit(1)
 		}
-		if sizeNumber < 1 || sizeNumber > 100 {
-			fmt.Fprintf(os.Stderr, "invalid size; must be between 1%% and 100%%\n")
-			os.Exit(1)
-		}
+
 		directory := dataDir
 		if dataDir == "" {
 			directory, _ = os.Getwd()
+		} else {
+			directory, _ = filepath.Abs(dataDir)
 		}
-		err = syscall.Statfs(directory, &stat)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error getting volume for data-dir: %s\n", directory)
-			os.Exit(1)
-		}
-		size = stat.Blocks * uint64(stat.Bsize) * uint64(sizeNumber) / 100
+
+		size = du.NewDiskUsage(directory).Size() * percent / 100
+
 	} else {
 		size, err = humanize.ParseBytes(sizeStr)
 		if err != nil {
@@ -176,6 +173,18 @@ func configureServer(cmd *cobra.Command, args []string) {
 		WriteLevel:      wl,
 		ReadLevel:       rl,
 	}
+}
+
+func parsePercentage(percentString string) (uint64, error) {
+	sizePercent := strings.Split(percentString, "%")[0]
+	sizeNumber, err := strconv.Atoi(sizePercent)
+	if err != nil {
+		return 0, err
+	}
+	if sizeNumber < 1 || sizeNumber > 100 {
+		return 0, errors.New("invalid size; must be between 1%% and 100%%\n")
+	}
+	return uint64(sizeNumber), nil
 }
 
 func runServer(cmd *cobra.Command, args []string) {
