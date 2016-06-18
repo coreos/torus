@@ -23,7 +23,6 @@ import:
   - proto
 - package: github.com/kardianos/osext
 - package: github.com/mdlayher/aoe
-- package: github.com/mdlayher/bpftest
 - package: github.com/mdlayher/ethernet
 - package: github.com/mdlayher/raw
 - package: github.com/olekukonko/tablewriter

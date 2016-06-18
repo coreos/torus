@@ -20,7 +20,6 @@ import (
 	_ "github.com/coreos/torus/storage"
 
 	"github.com/mdlayher/aoe"
-	"github.com/mdlayher/bpftest"
 	"github.com/mdlayher/ethernet"
 	"github.com/mdlayher/raw"
 	"golang.org/x/net/bpf"
@@ -194,7 +193,7 @@ func testBPFProgram(t *testing.T, s *Server, h *aoe.Header) bool {
 		t.Fatal("failed to decode all BPF instructions")
 	}
 
-	vm, err := bpftest.New(filter)
+	vm, err := bpf.NewVM(filter)
 	if !ok {
 		t.Fatalf("failed to load BPF program: %v", err)
 	}
@@ -220,12 +219,12 @@ func testBPFProgram(t *testing.T, s *Server, h *aoe.Header) bool {
 		t.Fatalf("failed to marshal Ethernet frame to binary: %v", err)
 	}
 
-	_, ok, err = vm.Run(fb)
+	out, err := vm.Run(fb)
 	if err != nil {
 		t.Fatalf("failed to run BPF program: %v", err)
 	}
 
-	return ok
+	return out > 0
 }
 
 // testRequest performs a single AoE request using the input request
