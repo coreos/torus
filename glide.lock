@@ -66,8 +66,6 @@ imports:
   - pbutil
 - name: github.com/mdlayher/aoe
   version: 63bdfd7f5c50809059b7b6de1cf37c2e330c5f81
-- name: github.com/mdlayher/bpftest
-  version: 8ae8a42d6a3a54f815cfb0f207256d37ebcd8843
 - name: github.com/mdlayher/ethernet
   version: 28018267bba4d651e8e0fcbca8aae7c13f4ce4ae
 - name: github.com/mdlayher/raw
@@ -105,7 +103,7 @@ imports:
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: c4c3ea71919de159c9e246d7be66deb7f0a39a58
+  version: 1961d9def2b2d7a28d7958926d2457d05a178ecd
   repo: https://go.googlesource.com/net
   subpackages:
   - http2
