@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
+	"crypto/rand"
 	"net/url"
 	"os"
 	"testing"
