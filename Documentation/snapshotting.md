@@ -19,12 +19,9 @@ torusctl block snapshot list myVolume
 Which will return something like:
 ```
 Volume: myVolume
-+---------------+---------------------------+
-| SNAPSHOT NAME |         TIMESTAMP         |
-+---------------+---------------------------+
-| bar           | 2016-06-15T16:31:58-07:00 |
-| foo           | 2016-06-15T16:31:56-07:00 |
-+---------------+---------------------------+
+SNAPSHOT NAME  TIMESTAMP
+bar            2016-06-22T13:31:06-07:00
+foo            2016-06-22T13:31:04-07:00
 ```
 
 ## Delete a snapshot
