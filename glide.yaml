@@ -25,7 +25,6 @@ import:
 - package: github.com/mdlayher/aoe
 - package: github.com/mdlayher/ethernet
 - package: github.com/mdlayher/raw
-- package: github.com/olekukonko/tablewriter
 - package: github.com/pborman/uuid
 - package: github.com/prometheus/client_golang
   subpackages:

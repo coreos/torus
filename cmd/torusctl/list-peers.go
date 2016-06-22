@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -40,13 +39,8 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 		die("couldn't get ring: %v", err)
 	}
 	members := ring.Members()
-	table := tablewriter.NewWriter(os.Stdout)
-	if outputAsCSV {
-		table.SetBorder(false)
-		table.SetColumnSeparator(",")
-	} else {
-		table.SetHeader([]string{"Address", "UUID", "Size", "Used", "Member", "Updated", "Reb/Rep Data"})
-	}
+	table := NewTableWriter(os.Stdout)
+	table.SetHeader([]string{"Address", "UUID", "Size", "Used", "Member", "Updated", "Reb/Rep Data"})
 	rebalancing := false
 	for _, x := range peers {
 		ringStatus := "Avail"
@@ -94,6 +88,10 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 			"",
 		})
 	}
-	table.Render()
-	fmt.Printf("Balanced: %v Usage: %5.2f%%\n", !rebalancing, (float64(usedStorage) / float64(totalStorage) * 100.0))
+	if outputAsCSV {
+		table.RenderCSV()
+	} else {
+		table.Render()
+		fmt.Printf("Balanced: %v Usage: %5.2f%%\n", !rebalancing, (float64(usedStorage) / float64(totalStorage) * 100.0))
+	}
 }

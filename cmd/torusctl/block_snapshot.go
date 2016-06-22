@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/coreos/torus/block"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -81,13 +80,8 @@ func bsnapListAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't get snapshots for block volume %s: %v", vol, err)
 	}
-	table := tablewriter.NewWriter(os.Stdout)
-	if outputAsCSV {
-		table.SetBorder(false)
-		table.SetColumnSeparator(",")
-	} else {
-		table.SetHeader([]string{"Snapshot Name", "Timestamp"})
-	}
+	table := NewTableWriter(os.Stdout)
+	table.SetHeader([]string{"Snapshot Name", "Timestamp"})
 	for _, x := range snaps {
 		table.Append([]string{
 			x.Name,
@@ -96,8 +90,10 @@ func bsnapListAction(cmd *cobra.Command, args []string) {
 	}
 	if !outputAsCSV {
 		fmt.Printf("Volume: %s\n", vol)
+		table.Render()
+	} else {
+		table.RenderCSV()
 	}
-	table.Render()
 }
 
 func bsnapCreateAction(cmd *cobra.Command, args []string) {
