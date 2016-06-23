@@ -5,7 +5,6 @@ import (
 
 	"github.com/coreos/torus/block"
 	"github.com/dustin/go-humanize"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -56,19 +55,18 @@ func volumeListAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("error listing volumes: %v\n", err)
 	}
-	table := tablewriter.NewWriter(os.Stdout)
-	if outputAsCSV {
-		table.SetBorder(false)
-		table.SetColumnSeparator(",")
-	} else {
-		table.SetHeader([]string{"Volume Name", "Size", "Type"})
-	}
+	table := NewTableWriter(os.Stdout)
+	table.SetHeader([]string{"Volume Name", "Size", "Type"})
 	for _, x := range vols {
 		table.Append([]string{
 			x.Name,
 			humanize.IBytes(x.MaxBytes),
 			x.Type,
 		})
+	}
+	if outputAsCSV {
+		table.RenderCSV()
+		return
 	}
 	table.Render()
 }
