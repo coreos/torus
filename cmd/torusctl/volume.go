@@ -33,10 +33,18 @@ var volumeCreateBlockCommand = &cobra.Command{
 	Run:   volumeCreateBlockAction,
 }
 
+var volumeResizeBlockCommand = &cobra.Command{
+	Use:   "resize-block NAME SIZE",
+	Short: "resize a block volume in the cluster",
+	Long:  "resize a block volume named NAME of size SIZE bytes (G,GiB,M,MiB,etc suffixes accepted)",
+	Run:   volumeResizeBlockAction,
+}
+
 func init() {
 	volumeCommand.AddCommand(volumeDeleteCommand)
 	volumeCommand.AddCommand(volumeListCommand)
 	volumeCommand.AddCommand(volumeCreateBlockCommand)
+	volumeCommand.AddCommand(volumeResizeBlockCommand)
 	volumeListCommand.Flags().BoolVarP(&outputAsCSV, "csv", "", false, "output as csv instead")
 }
 
@@ -78,6 +86,7 @@ func volumeDeleteAction(cmd *cobra.Command, args []string) {
 	}
 	name := args[0]
 	mds := mustConnectToMDS()
+
 	vol, err := mds.GetVolume(name)
 	if err != nil {
 		die("cannot get volume %s (perhaps it doesn't exist): %v", name, err)
@@ -106,5 +115,37 @@ func volumeCreateBlockAction(cmd *cobra.Command, args []string) {
 	err = block.CreateBlockVolume(mds, args[0], size)
 	if err != nil {
 		die("error creating volume %s: %v", args[0], err)
+	}
+}
+
+func volumeResizeBlockAction(cmd *cobra.Command, args []string) {
+	mds := mustConnectToMDS()
+	if len(args) != 2 {
+		cmd.Usage()
+		os.Exit(1)
+	}
+	name := args[0]
+	size, err := humanize.ParseBytes(args[1])
+	if err != nil {
+		die("error parsing size %s: %v", args[1], err)
+	}
+	vol, err := mds.GetVolume(name)
+	if err != nil {
+		die("cannot get volume %s (perhaps it doesn't exist): %v", name, err)
+	}
+	switch vol.Type {
+	case "block":
+		srv := createServer()
+		defer srv.Close()
+		blockvol, err := block.OpenBlockVolume(srv, vol.Name)
+		if err != nil {
+			die("couldn't open block volume %s: %v", vol.Name, err)
+		}
+		err = blockvol.ResizeBlockVolume(mds, args[0], size)
+	default:
+		die("unknown volume type %s", vol.Type)
+	}
+	if err != nil {
+		die("error resizing volume %s: %v", name, err)
 	}
 }

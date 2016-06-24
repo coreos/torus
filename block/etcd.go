@@ -69,6 +69,37 @@ func (b *blockEtcd) DeleteVolume() error {
 
 }
 
+func (b *blockEtcd) ResizeVolume(size uint64) error {
+	vid := uint64(b.vid)
+	volumeKey := etcd.MkKey("volumeid", etcd.Uint64ToHex(vid))
+	resp, err := b.Etcd.Client.Get(b.getContext(), volumeKey)
+	if err != nil {
+		return err
+	}
+	var version int64
+	var value []byte
+	kv := resp.Kvs[0]
+	version = kv.Version
+	value = kv.Value
+	var volume models.Volume
+	err = volume.Unmarshal(value)
+	volume.MaxBytes = size
+	vbytes, err := volume.Marshal()
+	tx := b.Etcd.Client.Txn(b.getContext()).If(
+		etcdv3.Compare(etcdv3.Version(volumeKey), "=", version),
+	).Then(
+		etcdv3.OpPut(etcd.MkKey("volumeid", etcd.Uint64ToHex(vid)), string(vbytes)),
+	)
+	txresp, err := tx.Commit()
+	if err != nil {
+		return err
+	}
+	if !txresp.Succeeded {
+		return torus.ErrCompareFailed
+	}
+	return nil
+}
+
 func (b *blockEtcd) getContext() context.Context {
 	return context.TODO()
 }

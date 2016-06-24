@@ -106,6 +106,21 @@ func (b *blockTempMetadata) DeleteVolume() error {
 	return b.Client.DeleteVolume(b.name)
 }
 
+func (b *blockTempMetadata) ResizeVolume(size uint64) error {
+	b.LockData()
+	defer b.UnlockData()
+	v, ok := b.GetData(fmt.Sprint(b.vid))
+	if !ok {
+		return torus.ErrNotExist
+	}
+	d := v.(*blockTempVolumeData)
+	if d.locked != b.UUID() {
+		return torus.ErrLocked
+	}
+	return b.Client.ResizeVolume(b.name, size)
+
+}
+
 func (b *blockTempMetadata) SaveSnapshot(name string) error {
 	b.LockData()
 	defer b.UnlockData()
