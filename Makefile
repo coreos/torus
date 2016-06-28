@@ -50,3 +50,7 @@ bin/glide:
 	curl -L https://github.com/Masterminds/glide/releases/download/0.10.2/glide-0.10.2-$(GOOS)-$(GOARCH).tar.gz | tar -xz -C bin
 	mv bin/$(GOOS)-$(GOARCH)/glide bin/glide
 	rm -r bin/$(GOOS)-$(GOARCH)
+
+help:
+	@echo "Influential make variables"
+	@echo "  V                 - Build verbosity {0,1,2}."
