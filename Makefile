@@ -5,10 +5,13 @@ GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 REPOPATH = github.com/coreos/torus
 
+VERBOSE_1 := -v
+VERBOSE_2 := -v -x
+
 build: vendor
-	go build -o bin/torusd -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusd
-	go build -o bin/torusctl -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusctl
-	go build -o bin/torusblk -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusblk
+	go build $(VERBOSE_$(V)) -o bin/torusd -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusd
+	go build $(VERBOSE_$(V)) -o bin/torusctl -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusctl
+	go build $(VERBOSE_$(V)) -o bin/torusblk -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusblk
 
 test: bin/glide
 	go test --race $(shell ./bin/glide novendor)
