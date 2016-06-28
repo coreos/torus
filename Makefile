@@ -1,8 +1,8 @@
 ifeq ($(origin VERSION), undefined)
 	VERSION != git rev-parse --short HEAD
 endif
-GOOS=$(shell go env GOOS)
-GOARCH=$(shell go env GOARCH)
+HOST_GOOS=$(shell go env GOOS)
+HOST_GOARCH=$(shell go env GOARCH)
 REPOPATH = github.com/coreos/torus
 
 VERBOSE_1 := -v
@@ -47,9 +47,9 @@ vendor: bin/glide
 bin/glide:
 	@echo "Downloading glide"
 	mkdir -p bin
-	curl -L https://github.com/Masterminds/glide/releases/download/0.10.2/glide-0.10.2-$(GOOS)-$(GOARCH).tar.gz | tar -xz -C bin
-	mv bin/$(GOOS)-$(GOARCH)/glide bin/glide
-	rm -r bin/$(GOOS)-$(GOARCH)
+	curl -L https://github.com/Masterminds/glide/releases/download/0.10.2/glide-0.10.2-$(HOST_GOOS)-$(HOST_GOARCH).tar.gz | tar -xz -C bin
+	mv bin/$(HOST_GOOS)-$(HOST_GOARCH)/glide bin/glide
+	rm -r bin/$(HOST_GOOS)-$(HOST_GOARCH)
 
 help:
 	@echo "Influential make variables"
