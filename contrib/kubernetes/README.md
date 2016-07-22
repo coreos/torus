@@ -107,6 +107,8 @@ kubectl uncordon $PGNODE
 
 ## Installing the Torus FlexVolume plugin on generic Kubernetes installations
 
+NOTICE: The FlexVolume functionality currently uses systemd to manage its lifecycle. Running as a FlexVolume on non-systemd systems is TBD
+
 Kubernetes v1.2 supports FlexVolumes by placing a plugin binary in a specific location. By default, that is
 
 ```
