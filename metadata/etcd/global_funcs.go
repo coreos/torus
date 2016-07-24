@@ -29,7 +29,7 @@ func initEtcdMetadata(cfg torus.Config, gmd torus.GlobalMetadata, ringType torus
 		return err
 	}
 
-	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}})
+	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}, TLS: cfg.TLS})
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func initEtcdMetadata(cfg torus.Config, gmd torus.GlobalMetadata, ringType torus
 }
 
 func wipeEtcdMetadata(cfg torus.Config) error {
-	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}})
+	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}, TLS: cfg.TLS})
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func wipeEtcdMetadata(cfg torus.Config) error {
 }
 
 func setRing(cfg torus.Config, r torus.Ring) error {
-	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}})
+	client, err := etcdv3.New(etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}, TLS: cfg.TLS})
 	if err != nil {
 		return err
 	}

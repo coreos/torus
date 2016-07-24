@@ -5,6 +5,7 @@ import (
 
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/blockset"
+	"github.com/coreos/torus/internal/flagconfig"
 	"github.com/coreos/torus/ring"
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
@@ -56,9 +57,7 @@ func initAction(cmd *cobra.Command, args []string) {
 		die("error parsing block-spec: %v", err)
 	}
 
-	cfg := torus.Config{
-		MetadataAddress: etcdAddress,
-	}
+	cfg := flagconfig.BuildConfigFromFlags()
 	ringType := ring.Ketama
 	if noMakeRing {
 		ringType = ring.Empty

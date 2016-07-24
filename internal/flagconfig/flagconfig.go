@@ -2,8 +2,13 @@
 package flagconfig
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/coreos/torus"
 	"github.com/dustin/go-humanize"
@@ -17,6 +22,10 @@ var (
 	readCacheSize     uint64
 	readLevel         string
 	writeLevel        string
+	etcdAddress       string
+	etcdCertFile      string
+	etcdKeyFile       string
+	etcdCAFile        string
 )
 
 func AddConfigFlags(set *flag.FlagSet) {
@@ -24,6 +33,11 @@ func AddConfigFlags(set *flag.FlagSet) {
 	set.StringVarP(&readCacheSizeStr, "read-cache-size", "", "50MiB", "Amount of memory to use for read cache")
 	set.StringVarP(&readLevel, "read-level", "", "block", "Read replication level")
 	set.StringVarP(&writeLevel, "write-level", "", "all", "Write replication level")
+	set.StringVarP(&etcdAddress, "etcd", "C", "", "Address for talking to etcd")
+	set.StringVarP(&etcdCertFile, "etcd-cert-file", "", "", "Certificate to use to authenticate against etcd")
+	set.StringVarP(&etcdKeyFile, "etcd-key-file", "", "", "Key for Certificate")
+	set.StringVarP(&etcdCAFile, "etcd-ca-file", "", "", "CA to authenticate etcd against")
+
 }
 
 func BuildConfigFromFlags() torus.Config {
@@ -58,10 +72,38 @@ func BuildConfigFromFlags() torus.Config {
 		os.Exit(1)
 	}
 
-	return torus.Config{
-		StorageSize:   localBlockSize,
-		ReadCacheSize: readCacheSize,
-		WriteLevel:    wl,
-		ReadLevel:     rl,
+	cfg := torus.Config{
+		StorageSize:     localBlockSize,
+		ReadCacheSize:   readCacheSize,
+		WriteLevel:      wl,
+		ReadLevel:       rl,
+		MetadataAddress: etcdAddress,
 	}
+	etcdURL, err := url.Parse(etcdAddress)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid etcd address: %s", err)
+		os.Exit(1)
+	}
+
+	if etcdCertFile != "" {
+		etcdCert, err := tls.LoadX509KeyPair(etcdCertFile, etcdKeyFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "couldn't load cert/key: %s", err)
+			os.Exit(1)
+		}
+		caPem, err := ioutil.ReadFile(etcdCAFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "couldn't load trusted CA cert: %s", err)
+			os.Exit(1)
+		}
+		etcdCertPool := x509.NewCertPool()
+		etcdCertPool.AppendCertsFromPEM(caPem)
+		cfg.TLS = &tls.Config{
+			Certificates: []tls.Certificate{etcdCert},
+			RootCAs:      etcdCertPool,
+			ServerName:   strings.Split(etcdURL.Host, ":")[0],
+		}
+	}
+
+	return cfg
 }

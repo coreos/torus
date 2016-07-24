@@ -13,6 +13,7 @@ import (
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/blockset"
 	"github.com/coreos/torus/distributor"
+	"github.com/coreos/torus/internal/flagconfig"
 	"github.com/coreos/torus/internal/http"
 	"github.com/coreos/torus/models"
 	"github.com/coreos/torus/ring"
@@ -26,7 +27,6 @@ import (
 
 var (
 	dataDir          string
-	etcdAddress      string
 	httpAddress      string
 	peerAddress      string
 	readCacheSize    uint64
@@ -58,17 +58,14 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&dataDir, "data-dir", "", "", "Path to the data directory")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
 	rootCommand.PersistentFlags().BoolVarP(&debugInit, "debug-init", "", false, "Run a default init for the MDS if one doesn't exist")
-	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "", "Address for talking to etcd")
 	rootCommand.PersistentFlags().StringVarP(&host, "host", "", "", "Host to listen on for HTTP")
 	rootCommand.PersistentFlags().IntVarP(&port, "port", "", 4321, "Port to listen on for HTTP")
 	rootCommand.PersistentFlags().StringVarP(&peerAddress, "peer-address", "", "", "Address to listen on for intra-cluster data")
 	rootCommand.PersistentFlags().StringVarP(&sizeStr, "size", "", "1GiB", "How much disk space to use for this storage node")
-	rootCommand.PersistentFlags().StringVarP(&readCacheSizeStr, "read-cache-size", "", "20MiB", "Amount of memory to use for read cache")
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
-	rootCommand.PersistentFlags().StringVarP(&readLevel, "readlevel", "", "block", "Read replication level")
-	rootCommand.PersistentFlags().StringVarP(&writeLevel, "writelevel", "", "all", "Write replication level")
 	rootCommand.PersistentFlags().BoolVarP(&autojoin, "auto-join", "", false, "Automatically join the storage pool")
 	rootCommand.PersistentFlags().BoolVarP(&version, "version", "", false, "Print version info and exit")
+	flagconfig.AddConfigFlags(rootCommand.PersistentFlags())
 }
 
 func main() {
@@ -104,51 +101,15 @@ func configureServer(cmd *cobra.Command, args []string) {
 		httpAddress = fmt.Sprintf("%s:%d", host, port)
 	}
 
-	var err error
-	readCacheSize, err = humanize.ParseBytes(readCacheSizeStr)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing read-cache-size: %s\n", err)
-		os.Exit(1)
-	}
-	size, err = humanize.ParseBytes(sizeStr)
+	size, err := humanize.ParseBytes(sizeStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
 		os.Exit(1)
 	}
 
-	var rl torus.ReadLevel
-	switch readLevel {
-	case "spread":
-		rl = torus.ReadSpread
-	case "seq":
-		rl = torus.ReadSequential
-	case "block":
-		rl = torus.ReadBlock
-	default:
-		fmt.Fprintf(os.Stderr, "invalid readlevel; use one of 'spread', 'seq', or 'block'")
-		os.Exit(1)
-	}
-
-	var wl torus.WriteLevel
-	switch writeLevel {
-	case "all":
-		wl = torus.WriteAll
-	case "one":
-		wl = torus.WriteOne
-	case "local":
-		wl = torus.WriteLocal
-	default:
-		fmt.Fprintf(os.Stderr, "invalid writelevel; use one of 'one', 'all', or 'local'")
-		os.Exit(1)
-	}
-	cfg = torus.Config{
-		DataDir:         dataDir,
-		StorageSize:     size,
-		MetadataAddress: etcdAddress,
-		ReadCacheSize:   readCacheSize,
-		WriteLevel:      wl,
-		ReadLevel:       rl,
-	}
+	cfg = flagconfig.BuildConfigFromFlags()
+	cfg.DataDir = dataDir
+	cfg.StorageSize = size
 }
 
 func runServer(cmd *cobra.Command, args []string) {
@@ -158,7 +119,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		err error
 	)
 	switch {
-	case etcdAddress == "":
+	case cfg.MetadataAddress == "":
 		srv, err = torus.NewServer(cfg, "temp", "mfile")
 	case debugInit:
 		err = torus.InitMDS("etcd", cfg, torus.GlobalMetadata{
