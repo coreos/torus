@@ -1,5 +1,5 @@
-hash: 1a8f9ce91ec93454e953a2db2357e97d299dd42aae5c93d6a68ed34a1297545a
-updated: 2016-06-09T12:14:57.730504027-04:00
+hash: 67b55b4123ce4fa39a1e88facd8b5b375ad1b0ad024a08d67549b2c818464ede
+updated: 2016-07-13T17:04:27.159050594-07:00
 imports:
 - name: github.com/barakmich/mmap-go
   version: c4bd255520e591ff7549ab916c59206da5735e56
@@ -13,8 +13,8 @@ imports:
   version: d8f325dabf429c449e0beb8cde843d4a8f53211d
   subpackages:
   - clientv3
-  - auth/authpb
   - etcdserver/api/v3rpc/rpctypes
+  - auth/authpb
   - etcdserver/etcdserverpb
   - mvcc/mvccpb
   - pkg/tlsutil
@@ -58,8 +58,6 @@ imports:
   version: 29ae4ffbc9a6fe9fb2bc5029050ce6996ea1d3bc
 - name: github.com/manucorporat/sse
   version: ee05b128a739a0fb76c7ebd3ae4810c1de808d6d
-- name: github.com/mattn/go-runewidth
-  version: d6bea18f789704b5f83375793155289da36a3c7f
 - name: github.com/matttproud/golang_protobuf_extensions
   version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:
@@ -101,7 +99,7 @@ imports:
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: 1961d9def2b2d7a28d7958926d2457d05a178ecd
+  version: a728288923b47049b2ce791836767ffbe964a5bd
   repo: https://go.googlesource.com/net
   subpackages:
   - http2

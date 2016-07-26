@@ -1,0 +1,74 @@
+package torustcmu
+
+import (
+	"fmt"
+
+	"github.com/coreos/go-tcmu"
+	"github.com/coreos/go-tcmu/scsi"
+	"github.com/coreos/torus/block"
+)
+
+const defaultBlockSize = 4 * 1024
+
+func ConnectAndServe(f *block.BlockFile, name string, closer chan bool) error {
+	wwn := tcmu.NaaWWN{
+		// TODO(barakmich): CoreOS OUI here
+		OUI:      "000000",
+		VendorID: tcmu.GenerateSerial(name),
+	}
+	h := &tcmu.SCSIHandler{
+		HBA:        30,
+		LUN:        0,
+		WWN:        wwn,
+		VolumeName: name,
+		// 1GiB, 1K
+		DataSizes: tcmu.DataSizes{
+			VolumeSize: int64(f.Size()),
+			BlockSize:  defaultBlockSize,
+		},
+		DevReady: tcmu.MultiThreadedDevReady(
+			&torusHandler{
+				file: f,
+				inq: &tcmu.InquiryInfo{
+					VendorID:   "CoreOS",
+					ProductID:  "TorusBlk",
+					ProductRev: "0001",
+				},
+			}, 1),
+	}
+	d, err := tcmu.OpenTCMUDevice("/dev/torus", h)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	fmt.Printf("go-tcmu attached to %s/%s\n", "/dev/torus", name)
+	<-closer
+	return nil
+}
+
+type torusHandler struct {
+	file *block.BlockFile
+	inq  *tcmu.InquiryInfo
+}
+
+func (h *torusHandler) HandleCommand(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, error) {
+	switch cmd.Command() {
+	case scsi.Inquiry:
+		return tcmu.EmulateInquiry(cmd, h.inq)
+	case scsi.TestUnitReady:
+		return tcmu.EmulateTestUnitReady(cmd)
+	case scsi.ServiceActionIn16:
+		return tcmu.EmulateServiceActionIn(cmd)
+	case scsi.ModeSense, scsi.ModeSense10:
+		return tcmu.EmulateModeSense(cmd)
+	case scsi.ModeSelect, scsi.ModeSelect10:
+		return tcmu.EmulateModeSelect(cmd)
+	case scsi.Read6, scsi.Read10, scsi.Read12, scsi.Read16:
+		return tcmu.EmulateRead(cmd, h.file)
+	case scsi.Write6, scsi.Write10, scsi.Write12, scsi.Write16:
+		return tcmu.EmulateWrite(cmd, h.file)
+	default:
+		fmt.Printf("Ignore unknown SCSI command 0x%x\n", cmd.Command())
+	}
+	return cmd.NotHandled(), nil
+}
