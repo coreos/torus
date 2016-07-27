@@ -5,10 +5,13 @@ import (
 
 	"github.com/coreos/go-tcmu"
 	"github.com/coreos/go-tcmu/scsi"
+	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/torus/block"
 )
 
 const defaultBlockSize = 4 * 1024
+
+var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "tcmu")
 
 func ConnectAndServe(f *block.BlockFile, name string, closer chan bool) error {
 	wwn := tcmu.NaaWWN{
@@ -29,6 +32,7 @@ func ConnectAndServe(f *block.BlockFile, name string, closer chan bool) error {
 		DevReady: tcmu.MultiThreadedDevReady(
 			&torusHandler{
 				file: f,
+				name: name,
 				inq: &tcmu.InquiryInfo{
 					VendorID:   "CoreOS",
 					ProductID:  "TorusBlk",
@@ -48,6 +52,7 @@ func ConnectAndServe(f *block.BlockFile, name string, closer chan bool) error {
 
 type torusHandler struct {
 	file *block.BlockFile
+	name string
 	inq  *tcmu.InquiryInfo
 }
 
@@ -60,15 +65,19 @@ func (h *torusHandler) HandleCommand(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, erro
 	case scsi.ServiceActionIn16:
 		return tcmu.EmulateServiceActionIn(cmd)
 	case scsi.ModeSense, scsi.ModeSense10:
-		return tcmu.EmulateModeSense(cmd)
+		return tcmu.EmulateModeSense(cmd, true)
 	case scsi.ModeSelect, scsi.ModeSelect10:
-		return tcmu.EmulateModeSelect(cmd)
+		return tcmu.EmulateModeSelect(cmd, true)
 	case scsi.Read6, scsi.Read10, scsi.Read12, scsi.Read16:
 		return tcmu.EmulateRead(cmd, h.file)
 	case scsi.Write6, scsi.Write10, scsi.Write12, scsi.Write16:
 		return tcmu.EmulateWrite(cmd, h.file)
+	case scsi.SynchronizeCache, scsi.SynchronizeCache16:
+		return h.handleSyncCommand(cmd)
+	case scsi.MaintenanceIn:
+		return h.handleReportDeviceID(cmd)
 	default:
-		fmt.Printf("Ignore unknown SCSI command 0x%x\n", cmd.Command())
+		clog.Debugf("Ignore unknown SCSI command 0x%x\n", cmd.Command())
 	}
 	return cmd.NotHandled(), nil
 }
