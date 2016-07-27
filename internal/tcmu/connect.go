@@ -71,7 +71,7 @@ func (h *torusHandler) HandleCommand(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, erro
 	case scsi.Read6, scsi.Read10, scsi.Read12, scsi.Read16:
 		return tcmu.EmulateRead(cmd, h.file)
 	case scsi.Write6, scsi.Write10, scsi.Write12, scsi.Write16:
-		return tcmu.EmulateWrite(cmd, h.file)
+		return h.handleWrite(cmd)
 	case scsi.SynchronizeCache, scsi.SynchronizeCache16:
 		return h.handleSyncCommand(cmd)
 	case scsi.MaintenanceIn:
