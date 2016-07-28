@@ -1,6 +1,7 @@
 package tdp
 
 import (
+	crand "crypto/rand"
 	"bytes"
 	"errors"
 	"math/rand"
@@ -97,7 +98,7 @@ func (g *mockBlockGRPC) RebalanceCheck(ctx context.Context, req *models.Rebalanc
 
 func makeTestData(size int) []byte {
 	out := make([]byte, size)
-	_, err := rand.Read(out)
+	_, err := crand.Read(out)
 	if err != nil {
 		panic(err)
 	}
