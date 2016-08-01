@@ -1,5 +1,5 @@
-hash: 1a8f9ce91ec93454e953a2db2357e97d299dd42aae5c93d6a68ed34a1297545a
-updated: 2016-06-09T12:14:57.730504027-04:00
+hash: fa517585ba8b08cdb1ef58cd1c72dcb94ad5c4c2677967fafb2d6b624d09b8c2
+updated: 2016-07-27T16:58:59.868768007-07:00
 imports:
 - name: github.com/barakmich/mmap-go
   version: c4bd255520e591ff7549ab916c59206da5735e56
@@ -13,8 +13,8 @@ imports:
   version: d8f325dabf429c449e0beb8cde843d4a8f53211d
   subpackages:
   - clientv3
-  - auth/authpb
   - etcdserver/api/v3rpc/rpctypes
+  - auth/authpb
   - etcdserver/etcdserverpb
   - mvcc/mvccpb
   - pkg/tlsutil
@@ -24,6 +24,10 @@ imports:
   - dbus
   - unit
   - journal
+- name: github.com/coreos/go-tcmu
+  version: 923e3cfd67c68888f5df027c06049de143c9f0d7
+  subpackages:
+  - scsi
 - name: github.com/coreos/pkg
   version: 7f080b6c11ac2d2347c3cd7521e810207ea1a041
   subpackages:
@@ -58,8 +62,6 @@ imports:
   version: 29ae4ffbc9a6fe9fb2bc5029050ce6996ea1d3bc
 - name: github.com/manucorporat/sse
   version: ee05b128a739a0fb76c7ebd3ae4810c1de808d6d
-- name: github.com/mattn/go-runewidth
-  version: d6bea18f789704b5f83375793155289da36a3c7f
 - name: github.com/matttproud/golang_protobuf_extensions
   version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:
@@ -84,6 +86,7 @@ imports:
   version: a3a8fe85f2579bcfec713dbfacbdd0797a792f3a
   subpackages:
   - expfmt
+  - log
   - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
@@ -92,6 +95,8 @@ imports:
   version: db18267a1ca5d1d4c9a91c23d585b1ce8e255e45
 - name: github.com/serialx/hashring
   version: 75d57fa264ad17fd929304dfdb02c8e278c5c01c
+- name: github.com/Sirupsen/logrus
+  version: a283a10442df8dc09befd873fab202bf8a253d6a
 - name: github.com/spf13/cobra
   version: f368244301305f414206f889b1735a54cfc8bde8
 - name: github.com/spf13/pflag
@@ -101,7 +106,7 @@ imports:
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: 1961d9def2b2d7a28d7958926d2457d05a178ecd
+  version: 6a513affb38dc9788b449d59ffed099b8de18fa0
   repo: https://go.googlesource.com/net
   subpackages:
   - http2
@@ -111,6 +116,10 @@ imports:
   - trace
   - http2/hpack
   - internal/timeseries
+- name: golang.org/x/sys
+  version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
+  subpackages:
+  - unix
 - name: golang.org/x/time
   version: a4bde12657593d5e90d0533a3e4fd95e635124cb
   subpackages:

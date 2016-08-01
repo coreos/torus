@@ -32,6 +32,8 @@ import:
 - package: github.com/serialx/hashring
 - package: github.com/spf13/cobra
 - package: golang.org/x/net
+  version: master
+  repo: https://go.googlesource.com/net
   subpackages:
   - http2
   - lex/httplex
@@ -40,6 +42,5 @@ import:
   - trace
   - http2/hpack
   - internal/timeseries
-  repo: https://go.googlesource.com/net
-  version: master
 - package: google.golang.org/grpc
+- package: github.com/coreos/go-tcmu
