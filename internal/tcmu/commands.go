@@ -17,13 +17,17 @@ func (h *torusHandler) handleSyncCommand(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, 
 
 func (h *torusHandler) handleReportDeviceID(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, error) {
 	v := h.name
+	// The SCSI spec only allows lengths representable in one byte (byte 3). We
+	// also need some overhead; reporting the device came from Torus Therefore, we
+	// need to truncate the length of the name to something less than 255. Let's
+	// truncate it to 240.
 	if len(h.name) > 240 {
 		v = v[:240]
 	}
-	data := make([]byte, 4+len(v)+6)
-	data[3] = byte(len(v) + 6)
-	copy(data[4:], []byte("torus:"))
-	copy(data[10:], []byte(v))
+	name := []byte("torus:" + v)
+	data := make([]byte, 4+len(name))
+	data[3] = byte(len(name))
+	copy(data[4:], name)
 	n, err := cmd.Write(data)
 	if err != nil {
 		clog.Errorf("reportDeviceID failed: %v", err)
@@ -43,7 +47,8 @@ func (h *torusHandler) handleWrite(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, error)
 		cmd.Buf = make([]byte, length)
 	}
 	if len(cmd.Buf) < int(length) {
-		//realloc
+		// Realloc; the buffer can be reused. See io.Copy() in the
+		// stdlib for precedent.
 		cmd.Buf = make([]byte, length)
 	}
 	n, err := cmd.Read(cmd.Buf[:int(length)])
@@ -66,9 +71,15 @@ func (h *torusHandler) handleWrite(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, error)
 	}
 	if cmd.Command() != scsi.Write6 {
 		cdbinfo := cmd.GetCDB(1)
-		if cdbinfo&0xc != 0 {
+		// Write10/Write12 CDB 1 is defined as follows:
+		// Bits --->
+		// |   7   |   6   |   5   |   4   |   3   |   2   |   1   |   0   |
+		// |       WRPROTECT       |  DPO  |  FUA  | resvd | FUANV | resvd |
+		// So 0x08 represents the Force Unit Access bit being set, which, by
+		// spec, requires a sync and not to return until it's been written.
+		if cdbinfo&0x08 != 0 {
 			// FUA is set
-			err := h.file.Sync()
+			err = h.file.Sync()
 			if err != nil {
 				clog.Errorf("sync failed: %v", err)
 				return cmd.MediumError(), nil

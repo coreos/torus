@@ -9,8 +9,9 @@ import (
 
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/block"
-	"github.com/coreos/torus/internal/tcmu"
 	"github.com/spf13/cobra"
+
+	"github.com/coreos/torus/internal/tcmu"
 )
 
 var (
@@ -38,7 +39,7 @@ func tcmuAction(cmd *cobra.Command, args []string) {
 
 	closer := make(chan bool)
 	go func() {
-		for _ = range signalChan {
+		for range signalChan {
 			fmt.Println("\nReceived an interrupt, disconnecting...")
 			close(closer)
 		}
@@ -62,6 +63,6 @@ func tcmuAction(cmd *cobra.Command, args []string) {
 	defer f.Close()
 	err = torustcmu.ConnectAndServe(f, args[0], closer)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		fmt.Fprintf(os.Stderr, "failed to serve volume using SCSI: %s\n", err)
 	}
 }

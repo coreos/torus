@@ -9,7 +9,10 @@ import (
 	"github.com/coreos/torus/block"
 )
 
-const defaultBlockSize = 4 * 1024
+const (
+	defaultBlockSize = 4 * 1024
+	devPath          = "/dev/torus"
+)
 
 var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "tcmu")
 
@@ -40,12 +43,12 @@ func ConnectAndServe(f *block.BlockFile, name string, closer chan bool) error {
 				},
 			}, 1),
 	}
-	d, err := tcmu.OpenTCMUDevice("/dev/torus", h)
+	d, err := tcmu.OpenTCMUDevice(devPath, h)
 	if err != nil {
 		return err
 	}
 	defer d.Close()
-	fmt.Printf("go-tcmu attached to %s/%s\n", "/dev/torus", name)
+	fmt.Printf("go-tcmu attached to %s/%s\n", devPath, name)
 	<-closer
 	return nil
 }
