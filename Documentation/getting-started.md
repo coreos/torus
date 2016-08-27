@@ -85,7 +85,7 @@ The following will start a local three node torus cluster::
 ```
 $ rkt fetch quay.io/coreos/torus
 $ mkdir -p /tmp/torus/{1,2,3}
-$ rkt run --volume=volume-data,kind=host,source=/tmp/torus/1" \
+$ rkt run --volume=volume-data,kind=host,source=/tmp/torus/1 \
     --set-env LISTEN_HOST=0.0.0.0 \
     --set-env PEER_ADDRESS=http://0.0.0.0:40000 \
     --set-env ETCD_HOST="${ETCD_IP}" quay.io/coreos/torus
