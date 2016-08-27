@@ -127,9 +127,9 @@ quay.io/coreos/torus
 Should show your data nodes and their reporting status. Eg:
 ```
 ADDRESS                 UUID                                  SIZE     USED  MEMBER  UPDATED       REB/REP DATA
-http://127.0.0.1:40000  b2a2cbe6-38b7-11e6-ab37-5ce0c5527cf4  5.0 GiB  0 B   OK      1 second ago  0 B/sec
-http://127.0.0.1:40002  b2a2cbf8-38b7-11e6-9404-5ce0c5527cf4  5.0 GiB  0 B   OK      1 second ago  0 B/sec
-http://127.0.0.1:40001  b2a2cc9e-38b7-11e6-b607-5ce0c5527cf4  5.0 GiB  0 B   OK      1 second ago  0 B/sec
+http://127.0.0.1:40000  b2a2cbe6-38b7-11e6-ab37-5ce0c5527cf4  5.0 GiB  0 B   Avail   1 second ago  0 B/sec
+http://127.0.0.1:40002  b2a2cbf8-38b7-11e6-9404-5ce0c5527cf4  5.0 GiB  0 B   Avail   1 second ago  0 B/sec
+http://127.0.0.1:40001  b2a2cc9e-38b7-11e6-b607-5ce0c5527cf4  5.0 GiB  0 B   Avail   1 second ago  0 B/sec
 Balanced: true Usage:  0.00%
 ```
 ### 5) Activate storage on the peers
