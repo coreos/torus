@@ -182,6 +182,7 @@ At this point, you have a replicated, highly-available block device connected to
 
 ```
 sudo mkfs.ext4 /dev/nbd0
+sudo mkdir -p /mnt/torus
 sudo mount /dev/nbd0 -o discard,noatime /mnt/torus
 ```
 
