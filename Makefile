@@ -8,10 +8,12 @@ REPOPATH = github.com/coreos/torus
 VERBOSE_1 := -v
 VERBOSE_2 := -v -x
 
+WHAT := torusd torusctl torusblk
+
 build: vendor
-	$(BUILD_ENV_FLAGS) go build $(VERBOSE_$(V)) -o bin/torusd -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusd
-	$(BUILD_ENV_FLAGS) go build $(VERBOSE_$(V)) -o bin/torusctl -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusctl
-	$(BUILD_ENV_FLAGS) go build $(VERBOSE_$(V)) -o bin/torusblk -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/torusblk
+	for target in $(WHAT); do \
+		$(BUILD_ENV_FLAGS) go build $(VERBOSE_$(V)) -o bin/$$target -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/$$target; \
+	done
 
 test: tools/glide
 	go test --race $(shell ./tools/glide novendor)
@@ -55,3 +57,4 @@ help:
 	@echo "Influential make variables"
 	@echo "  V                 - Build verbosity {0,1,2}."
 	@echo "  BUILD_ENV_FLAGS   - Environment added to 'go build'."
+	@echo "  WHAT              - Command to build. (e.g. WHAT=torusctl)"
