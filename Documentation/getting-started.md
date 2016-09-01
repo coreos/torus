@@ -85,7 +85,7 @@ The following will start a local three node torus cluster::
 ```
 $ rkt fetch quay.io/coreos/torus
 $ mkdir -p /tmp/torus/{1,2,3}
-$ rkt run --volume=volume-data,kind=host,source=/tmp/torus/1" \
+$ rkt run --volume=volume-data,kind=host,source=/tmp/torus/1 \
     --set-env LISTEN_HOST=0.0.0.0 \
     --set-env PEER_ADDRESS=http://0.0.0.0:40000 \
     --set-env ETCD_HOST="${ETCD_IP}" quay.io/coreos/torus
@@ -127,9 +127,9 @@ quay.io/coreos/torus
 Should show your data nodes and their reporting status. Eg:
 ```
 ADDRESS                 UUID                                  SIZE     USED  MEMBER  UPDATED       REB/REP DATA
-http://127.0.0.1:40000  b2a2cbe6-38b7-11e6-ab37-5ce0c5527cf4  5.0 GiB  0 B   OK      1 second ago  0 B/sec
-http://127.0.0.1:40002  b2a2cbf8-38b7-11e6-9404-5ce0c5527cf4  5.0 GiB  0 B   OK      1 second ago  0 B/sec
-http://127.0.0.1:40001  b2a2cc9e-38b7-11e6-b607-5ce0c5527cf4  5.0 GiB  0 B   OK      1 second ago  0 B/sec
+http://127.0.0.1:40000  b2a2cbe6-38b7-11e6-ab37-5ce0c5527cf4  5.0 GiB  0 B   Avail   1 second ago  0 B/sec
+http://127.0.0.1:40002  b2a2cbf8-38b7-11e6-9404-5ce0c5527cf4  5.0 GiB  0 B   Avail   1 second ago  0 B/sec
+http://127.0.0.1:40001  b2a2cc9e-38b7-11e6-b607-5ce0c5527cf4  5.0 GiB  0 B   Avail   1 second ago  0 B/sec
 Balanced: true Usage:  0.00%
 ```
 ### 5) Activate storage on the peers
@@ -182,6 +182,7 @@ At this point, you have a replicated, highly-available block device connected to
 
 ```
 sudo mkfs.ext4 /dev/nbd0
+sudo mkdir -p /mnt/torus
 sudo mount /dev/nbd0 -o discard,noatime /mnt/torus
 ```
 
