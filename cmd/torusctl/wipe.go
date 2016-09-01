@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/coreos/torus"
+	"github.com/coreos/torus/internal/flagconfig"
 	_ "github.com/coreos/torus/metadata/etcd"
 )
 
@@ -36,9 +37,7 @@ func wipeAction(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 	}
-	cfg := torus.Config{
-		MetadataAddress: etcdAddress,
-	}
+	cfg := flagconfig.BuildConfigFromFlags()
 	err := torus.WipeMDS("etcd", cfg)
 	if err != nil {
 		die("error wiping metadata: %v", err)

@@ -18,10 +18,9 @@ import (
 )
 
 var (
-	etcdAddress string
-	logpkg      string
-	httpAddr    string
-	cfg         torus.Config
+	logpkg   string
+	httpAddr string
+	cfg      torus.Config
 
 	debug bool
 )
@@ -58,7 +57,6 @@ func init() {
 	rootCommand.AddCommand(unmountCommand)
 	rootCommand.AddCommand(flexprepvolCommand)
 
-	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2379", "hostname:port to the etcd instance storing the metadata")
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
 	rootCommand.PersistentFlags().StringVarP(&httpAddr, "http", "", "", "HTTP endpoint for debug and stats")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
@@ -84,7 +82,6 @@ func configureServer(cmd *cobra.Command, args []string) {
 	}
 
 	cfg = flagconfig.BuildConfigFromFlags()
-	cfg.MetadataAddress = etcdAddress
 }
 
 func createServer() *torus.Server {

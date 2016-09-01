@@ -1,5 +1,5 @@
 torus1: ./bin/torusd --etcd 127.0.0.1:2379 --debug --debug-init --port 4321 --data-dir local-cluster/torus1  --peer-address http://127.0.0.1:40000 --size 5GiB --auto-join --host 127.0.0.1
-torus2: ./bin/torusd --etcd 127.0.0.1:2379 --debug --debug-init --port 4322 --data-dir local-cluster/torus2 --peer-address http://127.0.0.1:40001 --size 5GiB --writelevel one --auto-join --host 127.0.0.1
+torus2: ./bin/torusd --etcd 127.0.0.1:2379 --debug --debug-init --port 4322 --data-dir local-cluster/torus2 --peer-address http://127.0.0.1:40001 --size 5GiB --write-level one --auto-join --host 127.0.0.1
 torus3: ./bin/torusd --etcd 127.0.0.1:2379 --debug --debug-init --port 4323 --data-dir local-cluster/torus3 --peer-address http://127.0.0.1:40002 --size 5GiB --read-cache-size=200MiB --auto-join --host 127.0.0.1
 #torus4: ./bin/torusd --etcd 127.0.0.1:2379 --debug --debug-init --port 4324 --data-dir local-cluster/torus4 --peer-address 127.0.0.1:40003 --size 5GiB --read-cache-size=200MiB --auto-join
 #torus5: ./bin/torusd --etcd 127.0.0.1:2379 --debug --debug-init --port 4325 --data-dir local-cluster/torus5 --peer-address 127.0.0.1:40004 --size 5GiB --read-cache-size=200MiB --auto-join
