@@ -15,7 +15,7 @@ var volumeCommand = &cobra.Command{
 }
 
 var volumeDeleteCommand = &cobra.Command{
-	Use:   "delete",
+	Use:   "delete NAME",
 	Short: "delete a volume in the cluster",
 	Run:   volumeDeleteAction,
 }
