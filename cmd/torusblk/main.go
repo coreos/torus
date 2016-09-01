@@ -21,8 +21,9 @@ var (
 	etcdAddress string
 	logpkg      string
 	httpAddr    string
+	cfg         torus.Config
 
-	cfg torus.Config
+	debug bool
 )
 
 var rootCommand = &cobra.Command{
@@ -60,12 +61,19 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2379", "hostname:port to the etcd instance storing the metadata")
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
 	rootCommand.PersistentFlags().StringVarP(&httpAddr, "http", "", "", "HTTP endpoint for debug and stats")
+	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
 	flagconfig.AddConfigFlags(rootCommand.PersistentFlags())
 }
 
 func configureServer(cmd *cobra.Command, args []string) {
-	capnslog.SetGlobalLogLevel(capnslog.NOTICE)
+	switch {
+	case debug:
+		capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+	default:
+		capnslog.SetGlobalLogLevel(capnslog.INFO)
+	}
 	if logpkg != "" {
+		capnslog.SetGlobalLogLevel(capnslog.NOTICE)
 		rl := capnslog.MustRepoLogger("github.com/coreos/torus")
 		llc, err := rl.ParseLogLevelConfig(logpkg)
 		if err != nil {
