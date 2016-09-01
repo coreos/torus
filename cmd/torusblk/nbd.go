@@ -96,14 +96,12 @@ func connectNBD(srv *torus.Server, f *block.BlockFile, target string, closer cha
 	if target == "" {
 		target, err = nbd.FindDevice()
 		if err != nil {
-			fmt.Println(err)
 			return err
 		}
 	}
 
 	dev, err := handle.OpenDevice(target)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	fmt.Println("Connected to", dev)
