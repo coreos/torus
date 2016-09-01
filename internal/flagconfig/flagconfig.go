@@ -33,7 +33,7 @@ func AddConfigFlags(set *flag.FlagSet) {
 	set.StringVarP(&readCacheSizeStr, "read-cache-size", "", "50MiB", "Amount of memory to use for read cache")
 	set.StringVarP(&readLevel, "read-level", "", "block", "Read replication level")
 	set.StringVarP(&writeLevel, "write-level", "", "all", "Write replication level")
-	set.StringVarP(&etcdAddress, "etcd", "C", "", "Address for talking to etcd")
+	set.StringVarP(&etcdAddress, "etcd", "C", "127.0.0.1:2379", "Address for talking to etcd")
 	set.StringVarP(&etcdCertFile, "etcd-cert-file", "", "", "Certificate to use to authenticate against etcd")
 	set.StringVarP(&etcdKeyFile, "etcd-key-file", "", "", "Key for Certificate")
 	set.StringVarP(&etcdCAFile, "etcd-ca-file", "", "", "CA to authenticate etcd against")
