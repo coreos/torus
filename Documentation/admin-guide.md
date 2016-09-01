@@ -144,4 +144,3 @@ Will show the options.
 * `--uuids` is a comma-separated list of the UUIDs with associated data dirs.
 
 Join us in IRC if you'd like to chat about ring design.
-

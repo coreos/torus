@@ -19,9 +19,7 @@ func die(why string, args ...interface{}) {
 }
 
 func mustConnectToMDS() torus.MetadataService {
-	cfg := torus.Config{
-		MetadataAddress: etcdAddress,
-	}
+	cfg := flagconfig.BuildConfigFromFlags()
 	mds, err := torus.CreateMetadataService("etcd", cfg)
 	if err != nil {
 		die("couldn't connect to etcd: %v", err)
@@ -31,7 +29,6 @@ func mustConnectToMDS() torus.MetadataService {
 
 func createServer() *torus.Server {
 	cfg := flagconfig.BuildConfigFromFlags()
-	cfg.MetadataAddress = etcdAddress
 	srv, err := torus.NewServer(cfg, "etcd", "temp")
 	if err != nil {
 		die("Couldn't start: %s\n", err)

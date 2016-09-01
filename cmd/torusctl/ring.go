@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/coreos/torus"
+	"github.com/coreos/torus/internal/flagconfig"
 	"github.com/coreos/torus/models"
 	"github.com/coreos/torus/ring"
 	"github.com/spf13/cobra"
@@ -111,9 +112,7 @@ func ringChangeAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("couldn't create new ring: %v", err)
 	}
-	cfg := torus.Config{
-		MetadataAddress: etcdAddress,
-	}
+	cfg := flagconfig.BuildConfigFromFlags()
 	err = torus.SetRing("etcd", cfg, newRing)
 	if err != nil {
 		die("couldn't set new ring: %v", err)

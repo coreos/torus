@@ -74,7 +74,7 @@ func newEtcdMetadata(cfg torus.Config) (torus.MetadataService, error) {
 		return nil, err
 	}
 
-	v3cfg := etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}}
+	v3cfg := etcdv3.Config{Endpoints: []string{cfg.MetadataAddress}, TLS: cfg.TLS}
 	client, err := etcdv3.New(v3cfg)
 	if err != nil {
 		return nil, err
