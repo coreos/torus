@@ -52,13 +52,13 @@ func peerAction(cmd *cobra.Command, args []string) {
 }
 
 func peerChangePreRun(cmd *cobra.Command, args []string) {
+	if allPeers && len(args) > 0 {
+		die("can't have both --all-peers and a list of peers")
+	}
 	mds = mustConnectToMDS()
 	peers, err := mds.GetPeers()
 	if err != nil {
 		die("couldn't get peer list: %v", err)
-	}
-	if allPeers && len(args) > 0 {
-		die("can't have both --all-peers and a list of peers")
 	}
 	var out torus.PeerInfoList
 	for _, arg := range args {
@@ -94,6 +94,9 @@ func peerChangePreRun(cmd *cobra.Command, args []string) {
 }
 
 func peerAddAction(cmd *cobra.Command, args []string) {
+	if !allPeers && len(args) == 0 {
+		die("need to specify one of peer's address, uuid or --all-peers")
+	}
 	if mds == nil {
 		mds = mustConnectToMDS()
 	}
