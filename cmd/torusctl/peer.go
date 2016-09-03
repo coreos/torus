@@ -43,7 +43,7 @@ var peerRemoveCommand = &cobra.Command{
 func init() {
 	peerCommand.AddCommand(peerAddCommand, peerRemoveCommand, peerListCommand)
 	peerAddCommand.Flags().BoolVar(&allPeers, "all-peers", false, "add all peers")
-	peerRemoveCommand.PersistentFlags().BoolVar(&force, "force", false, "force-remove or force-add a UUID")
+	peerRemoveCommand.PersistentFlags().BoolVar(&force, "force", false, "force-remove a UUID")
 }
 
 func peerAction(cmd *cobra.Command, args []string) {
