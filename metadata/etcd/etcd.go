@@ -3,6 +3,7 @@ package etcd
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -314,7 +315,8 @@ func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
 		return nil, errors.New("implement me")
 	}
 	if len(resp.Kvs) == 0 {
-		return nil, errors.New("etcd: no such volume exists")
+		return nil, errors.New(fmt.Sprintf("etcd: volume %q not found", volume))
+
 	}
 	vid := BytesToUint64(resp.Kvs[0].Value)
 	resp, err = c.etcd.Client.Get(c.getContext(), MkKey("volumeid", Uint64ToHex(vid)))
@@ -322,7 +324,8 @@ func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
 		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return nil, errors.New("etcd: no such volume ID exists")
+		return nil, errors.New(fmt.Sprintf("etcd: volume ID %q not found", Uint64ToHex(vid)))
+
 	}
 	v := &models.Volume{}
 	err = v.Unmarshal(resp.Kvs[0].Value)
