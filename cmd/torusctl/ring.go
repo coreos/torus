@@ -28,7 +28,7 @@ var ringCommand = &cobra.Command{
 }
 
 var ringChangeReplicationCommand = &cobra.Command{
-	Use:   "set-replication [AMOUNT]",
+	Use:   "set-replication AMOUNT",
 	Short: "set the replication count for the cluster",
 	Run:   ringChangeReplicationAction,
 }
@@ -164,6 +164,10 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 }
 
 func ringChangeReplicationAction(cmd *cobra.Command, args []string) {
+	if len(args) != 1 {
+		cmd.Usage()
+		os.Exit(1)
+	}
 	amount, err := strconv.Atoi(args[0])
 	if err != nil {
 		die("not an integer number of replicas: %s", args[0])
