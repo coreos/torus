@@ -2,6 +2,7 @@ package temp
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -155,7 +156,7 @@ func (t *Client) GetVolume(volume string) (*models.Volume, error) {
 	if vol, ok := t.srv.volIndex[volume]; ok {
 		return vol, nil
 	}
-	return nil, errors.New("temp: no such volume exists")
+	return nil, errors.New(fmt.Sprintf("temp: volume %q not found", volume))
 }
 
 func (t *Client) GetRing() (torus.Ring, error) {
