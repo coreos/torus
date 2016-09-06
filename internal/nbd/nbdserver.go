@@ -187,6 +187,9 @@ func (c *NBDConn) options() error {
 
 		switch opt.opt {
 		case nbdOptExportName:
+			if len(opt.data) == 0 {
+				return fmt.Errorf("nbdserve doesn't support empty volume name. client needs to specify it")
+			}
 			dev, err := c.finder.FindDevice(string(opt.data))
 			if err != nil {
 				// terminate the connection on failure
