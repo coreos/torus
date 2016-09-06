@@ -64,9 +64,9 @@ func blockDumpAction(cmd *cobra.Command, args []string) {
 
 	size := int64(bf.Size())
 	if progress {
-		pb := new(progressutil.CopyProgressPrinter)
+		pb := progressutil.NewCopyProgressPrinter()
 		pb.AddCopy(bf, path.Base(args[0]), size, output)
-		err := pb.PrintAndWait(os.Stdout, 500*time.Millisecond, nil)
+		err := pb.PrintAndWait(os.Stderr, 500*time.Millisecond, nil)
 		if err != nil {
 			die("couldn't copy: %v", err)
 		}
@@ -143,9 +143,9 @@ func blockLoadAction(cmd *cobra.Command, args []string) {
 	}
 
 	if progress {
-		pb := new(progressutil.CopyProgressPrinter)
+		pb := progressutil.NewCopyProgressPrinter()
 		pb.AddCopy(input, path.Base(args[0]), fi.Size(), f)
-		err := pb.PrintAndWait(os.Stdout, 500*time.Millisecond, nil)
+		err := pb.PrintAndWait(os.Stderr, 500*time.Millisecond, nil)
 		if err != nil {
 			die("couldn't copy: %v", err)
 		}
