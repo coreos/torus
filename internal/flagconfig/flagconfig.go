@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/coreos/torus"
@@ -19,7 +20,7 @@ import (
 )
 
 const (
-	defaultTorusConfig = "/.torus/config"
+	defaultTorusConfig = "/.torus/config.json"
 	defaultEtcdAddress = "127.0.0.1:2379"
 )
 
@@ -47,23 +48,24 @@ func AddConfigFlags(set *flag.FlagSet) {
 	set.StringVarP(&etcdCertFile, "etcd-cert-file", "", "", "Certificate to use to authenticate against etcd")
 	set.StringVarP(&etcdKeyFile, "etcd-key-file", "", "", "Key for Certificate")
 	set.StringVarP(&etcdCAFile, "etcd-ca-file", "", "", "CA to authenticate etcd against")
-	set.StringVarP(&config, "config", "", "", "path to cli config file")
-	set.StringVarP(&profile, "profile", "", "default", "profile to use in cli config file")
-
+	set.StringVarP(&config, "config", "", "", "path to torus config file")
+	set.StringVarP(&profile, "profile", "", "default", "profile to use in torus config file")
 }
 
-func defaultConfig() string {
+func defaultConfigPath() string {
 	usr, err := user.Current()
 	if err == nil {
-		_, err = os.Stat(usr.HomeDir + defaultTorusConfig)
+		_, err = os.Stat(filepath.Join(usr.HomeDir, defaultTorusConfig))
 		if err == nil {
-			return usr.HomeDir + defaultTorusConfig
+			return filepath.Join(usr.HomeDir, defaultTorusConfig)
 		}
 	}
+	// Even if user home .torus/config didn't find, not return error
+	// since commands uses default etcd address.
 	return ""
 }
 
-func loadCliConfig(config string) (*cli.TorusConfig, error) {
+func LoadConfigFile(config string) (*cli.TorusConfig, error) {
 	rdata, err := ioutil.ReadFile(config)
 	if err != nil {
 		return nil, fmt.Errorf("error reading %s: %s\n", config, err)
@@ -80,10 +82,10 @@ func loadCliConfig(config string) (*cli.TorusConfig, error) {
 func BuildConfigFromFlags() torus.Config {
 	var err error
 	if config == "" {
-		config = defaultConfig()
+		config = defaultConfigPath()
 	}
 	if config != "" {
-		conf, err := loadCliConfig(config)
+		conf, err := LoadConfigFile(config)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, err.Error())
 			os.Exit(1)
@@ -98,7 +100,7 @@ func BuildConfigFromFlags() torus.Config {
 			etcdKeyFile = conf.EtcdConfig[profile].EtcdKeyFile
 		}
 		if etcdCAFile == "" {
-			etcdCAFile = conf.EtcdConfig[profile].EtcdCaFile
+			etcdCAFile = conf.EtcdConfig[profile].EtcdCAFile
 		}
 	}
 
@@ -132,7 +134,9 @@ func BuildConfigFromFlags() torus.Config {
 		os.Exit(1)
 	}
 
-	etcdAddress = defaultEtcdAddress
+	if etcdAddress == "" {
+		etcdAddress = defaultEtcdAddress
+	}
 
 	cfg := torus.Config{
 		StorageSize:     localBlockSize,
