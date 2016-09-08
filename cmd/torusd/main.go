@@ -1,13 +1,18 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/dustin/go-humanize"
+	"github.com/ricochet2200/go-disk-usage/du"
 	"github.com/spf13/cobra"
 
 	"github.com/coreos/torus"
@@ -101,15 +106,52 @@ func configureServer(cmd *cobra.Command, args []string) {
 		httpAddress = fmt.Sprintf("%s:%d", host, port)
 	}
 
-	size, err := humanize.ParseBytes(sizeStr)
+	var err error
+	readCacheSize, err = humanize.ParseBytes(readCacheSizeStr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
+		fmt.Fprintf(os.Stderr, "error parsing read-cache-size: %s\n", err)
 		os.Exit(1)
+	}
+	if strings.Contains(sizeStr, "%") {
+
+		percent, err := parsePercentage(sizeStr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
+			os.Exit(1)
+		}
+
+		directory := dataDir
+		if dataDir == "" {
+			directory, _ = os.Getwd()
+		} else {
+			directory, _ = filepath.Abs(dataDir)
+		}
+
+		size = du.NewDiskUsage(directory).Size() * percent / 100
+
+	} else {
+		size, err = humanize.ParseBytes(sizeStr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	cfg = flagconfig.BuildConfigFromFlags()
 	cfg.DataDir = dataDir
 	cfg.StorageSize = size
+}
+
+func parsePercentage(percentString string) (uint64, error) {
+	sizePercent := strings.Split(percentString, "%")[0]
+	sizeNumber, err := strconv.Atoi(sizePercent)
+	if err != nil {
+		return 0, err
+	}
+	if sizeNumber < 1 || sizeNumber > 100 {
+		return 0, errors.New("invalid size; must be between 1%% and 100%%\n")
+	}
+	return uint64(sizeNumber), nil
 }
 
 func runServer(cmd *cobra.Command, args []string) {

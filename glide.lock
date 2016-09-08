@@ -91,6 +91,8 @@ imports:
   - model
 - name: github.com/prometheus/procfs
   version: abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
+- name: github.com/ricochet2200/go-disk-usage
+  version: f0d1b743428fc09792f93233d9412f89f88fa2ab
 - name: github.com/RoaringBitmap/roaring
   version: db18267a1ca5d1d4c9a91c23d585b1ce8e255e45
 - name: github.com/serialx/hashring

@@ -42,6 +42,12 @@ func NewServer(cfg Config, metadataServiceKind, blockStoreKind string) (*Server,
 		return nil, err
 	}
 
+	offset := cfg.StorageSize % global.BlockSize
+	if offset != 0 {
+		cfg.StorageSize = cfg.StorageSize - offset
+		clog.Infof("resizing to %v bytes to make an even multiple of blocksize: %v\n", cfg.StorageSize, global.BlockSize)
+	}
+
 	blocks, err := CreateBlockStore(blockStoreKind, "current", cfg, global)
 	if err != nil {
 		return nil, err
