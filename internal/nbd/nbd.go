@@ -217,9 +217,9 @@ func (nbd *NBD) Serve() error {
 			}
 		}(nbd)
 	}
-	if err := waitDisconnect(nbd.nbd); err != nil {
-		return err
-	}
+
+	waitDisconnect(nbd.nbd)
+
 	wg.Wait()
 	return nil
 }
@@ -247,33 +247,23 @@ func (nbd *NBD) Disconnect() error {
 	return nil
 }
 
-func waitDisconnect(f *os.File) error {
+func waitDisconnect(f *os.File) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
 	// NBD_DO_IT does not return until disconnect
 	if err := ioctl(f.Fd(), ioctlDoIt, 0); err != nil {
-		return &os.PathError{
-			Path: f.Name(),
-			Op:   "ioctl NBD_DO_IT",
-			Err:  err,
-		}
+		clog.Errorf("error %s: ioctl returned %v", f.Name(), err)
 	}
+
+	clog.Debugf("Running disconnection to %s", f.Name())
+
 	if err := ioctl(f.Fd(), ioctlClearQueue, 0); err != nil {
-		return &os.PathError{
-			Path: f.Name(),
-			Op:   "ioctl NBD_CLEAR_QUEUE",
-			Err:  err,
-		}
+		clog.Errorf("error clear queue for %s. ioctl returned: %v", f.Name(), err)
 	}
 	if err := ioctl(f.Fd(), ioctlClearSock, 0); err != nil {
-		return &os.PathError{
-			Path: f.Name(),
-			Op:   "ioctl NBD_CLEAR_SOCK",
-			Err:  err,
-		}
+		clog.Errorf("error clear socket for %s. ioctl returned: %v", f.Name(), err)
 	}
-	return nil
 }
 
 type serverConn struct {
