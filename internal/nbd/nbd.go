@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"runtime"
 	"sync"
@@ -214,7 +213,7 @@ func (nbd *NBD) Serve() error {
 			time.Sleep(time.Microsecond * 500)
 			err := nbd.SetBlockSize(nbd.blocksize)
 			if err != nil {
-				log.Printf("Couldn't upgrade blocksize: %s", err)
+				clog.Printf("Couldn't upgrade blocksize: %s", err)
 			}
 		}(nbd)
 	}
@@ -329,19 +328,19 @@ func (c *serverConn) serveLoop(dev Device, wg *sync.WaitGroup) error {
 			buf = buf[:16]
 		case cmdTrim:
 			if err := dev.Trim(hdr.offset(), int64(hdr.length())); err != nil {
-				log.Printf("nbd: trim error: %s", err)
+				clog.Printf("trim error: %s", err)
 			}
 			fallthrough
 		case cmdFlush:
 			if err := dev.Sync(); err != nil {
-				log.Printf("nbd: sync error: %s", err)
+				clog.Printf("sync error: %s", err)
 			}
 			hdr.putReplyHeader(buf, 0)
 			buf = buf[:16]
 		case cmdDisc:
 			// FIXME: We're actually supposed to wait for outstanding requests to finish.
 			if err := dev.Sync(); err != nil {
-				log.Printf("nbd: sync error: %s", err)
+				clog.Printf("sync error: %s", err)
 			}
 			return c.rw.Close()
 		default:
