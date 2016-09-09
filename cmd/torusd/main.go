@@ -31,21 +31,19 @@ import (
 )
 
 var (
-	dataDir          string
-	httpAddress      string
-	peerAddress      string
-	readCacheSize    uint64
-	readCacheSizeStr string
-	sizeStr          string
-	size             uint64
-	host             string
-	port             int
-	debugInit        bool
-	autojoin         bool
-	logpkg           string
-	readLevel        string
-	writeLevel       string
-	cfg              torus.Config
+	dataDir     string
+	httpAddress string
+	peerAddress string
+	sizeStr     string
+	size        uint64
+	host        string
+	port        int
+	debugInit   bool
+	autojoin    bool
+	logpkg      string
+	readLevel   string
+	writeLevel  string
+	cfg         torus.Config
 
 	debug   bool
 	version bool
@@ -107,11 +105,6 @@ func configureServer(cmd *cobra.Command, args []string) {
 	}
 
 	var err error
-	readCacheSize, err = humanize.ParseBytes(readCacheSizeStr)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing read-cache-size: %s\n", err)
-		os.Exit(1)
-	}
 	if strings.Contains(sizeStr, "%") {
 
 		percent, err := parsePercentage(sizeStr)
