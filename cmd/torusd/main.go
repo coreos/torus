@@ -41,8 +41,6 @@ var (
 	debugInit   bool
 	autojoin    bool
 	logpkg      string
-	readLevel   string
-	writeLevel  string
 	cfg         torus.Config
 
 	debug   bool
