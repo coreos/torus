@@ -104,26 +104,17 @@ func configureServer(cmd *cobra.Command, args []string) {
 
 	var err error
 	if strings.Contains(sizeStr, "%") {
-
 		percent, err := parsePercentage(sizeStr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
+			fmt.Fprintf(os.Stderr, "error parsing size %s: %s\n", sizeStr, err)
 			os.Exit(1)
 		}
-
-		directory := dataDir
-		if dataDir == "" {
-			directory, _ = os.Getwd()
-		} else {
-			directory, _ = filepath.Abs(dataDir)
-		}
-
+		directory, _ := filepath.Abs(dataDir)
 		size = du.NewDiskUsage(directory).Size() * percent / 100
-
 	} else {
 		size, err = humanize.ParseBytes(sizeStr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing size: %s\n", err)
+			fmt.Fprintf(os.Stderr, "error parsing size %s: %s\n", sizeStr, err)
 			os.Exit(1)
 		}
 	}
@@ -140,7 +131,7 @@ func parsePercentage(percentString string) (uint64, error) {
 		return 0, err
 	}
 	if sizeNumber < 1 || sizeNumber > 100 {
-		return 0, errors.New("invalid size; must be between 1%% and 100%%\n")
+		return 0, errors.New(fmt.Sprintf("invalid size %d; must be between 1%% and 100%%", sizeNumber))
 	}
 	return uint64(sizeNumber), nil
 }
