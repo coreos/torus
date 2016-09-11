@@ -218,51 +218,45 @@ func (nbd *NBD) Serve() error {
 		}(nbd)
 	}
 
-	waitDisconnect(nbd.nbd)
+	// NBD_DO_IT does not return until disconnect
+	if err := ioctl(nbd.nbd.Fd(), ioctlDoIt, 0); err != nil {
+		clog.Errorf("error %s: ioctl returned %v", nbd.nbd.Name(), err)
+	}
 
 	wg.Wait()
 	return nil
 }
 
-func (nbd *NBD) Close() error {
-	// FIXME: Now I understand what these did, and it terrifies me.
-	// syscall.Write(nbd.setsocket, make([]byte, 28))
-	// syscall.Close(nbd.setsocket)
-	nbd.Disconnect()
-	syscall.Close(nbd.socket)
-	return nbd.nbd.Close()
-}
-
-func (nbd *NBD) Disconnect() error {
+func (nbd *NBD) Disconnect() {
+	var err error
 	if nbd.nbd == nil {
-		return nil
+		return
 	}
-	if err := ioctl(nbd.nbd.Fd(), ioctlDisconnect, 0); err != nil {
-		return &os.PathError{
-			Path: nbd.nbd.Name(),
-			Op:   "ioctl NBD_DISCONNECT",
-			Err:  err,
-		}
-	}
-	return nil
-}
 
-func waitDisconnect(f *os.File) {
+	clog.Infof("Running disconnection to %s", nbd.nbd.Name())
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	// NBD_DO_IT does not return until disconnect
-	if err := ioctl(f.Fd(), ioctlDoIt, 0); err != nil {
-		clog.Errorf("error %s: ioctl returned %v", f.Name(), err)
+	err = ioctl(nbd.nbd.Fd(), ioctlDisconnect, 0)
+	if err != nil {
+		clog.Errorf("error disconnecting %s. ioctl returned: %v", nbd.nbd.Name(), err)
 	}
-
-	clog.Debugf("Running disconnection to %s", f.Name())
-
-	if err := ioctl(f.Fd(), ioctlClearQueue, 0); err != nil {
-		clog.Errorf("error clear queue for %s. ioctl returned: %v", f.Name(), err)
+	err = ioctl(nbd.nbd.Fd(), ioctlClearSock, 0)
+	if err != nil {
+		clog.Errorf("error clear socket for %s. ioctl returned: %v", nbd.nbd.Name(), err)
 	}
-	if err := ioctl(f.Fd(), ioctlClearSock, 0); err != nil {
-		clog.Errorf("error clear socket for %s. ioctl returned: %v", f.Name(), err)
+	err = ioctl(nbd.nbd.Fd(), ioctlClearQueue, 0)
+	if err != nil {
+		clog.Errorf("error clear queue for %s. ioctl returned: %v", nbd.nbd.Name(), err)
+	}
+	err = ioctl(nbd.nbd.Fd(), ioctlClearQueue, 0)
+	if err != nil {
+		clog.Errorf("error clear queue for %s. ioctl returned: %v", nbd.nbd.Name(), err)
+	}
+	err = nbd.nbd.Close()
+	if err != nil {
+		clog.Errorf("error close nbd device %s. ioctl returned: %v", nbd.nbd.Name(), err)
 	}
 }
 

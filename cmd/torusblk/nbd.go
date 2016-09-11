@@ -116,7 +116,7 @@ func connectNBD(srv *torus.Server, f *block.BlockFile, target string, closer cha
 		fmt.Fprintf(os.Stderr, "error from nbd server: %s\n", err)
 		os.Exit(1)
 	}
-	return handle.Close()
+	return nil
 }
 
 type finder struct {
