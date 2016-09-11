@@ -12,23 +12,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var nbdCommand = &cobra.Command{
-	Use:   "nbd",
-	Short: "manage NBD device",
-	Run:   nbdAction,
-}
-
 var (
-	nbdAttachCommand = &cobra.Command{
-		Use:   "attach VOLUME [NBD-DEV]",
+	nbdCommand = &cobra.Command{
+		Use:   "nbd VOLUME [NBD-DEV]",
 		Short: "attach a block volume to an NBD device",
-		Run:   nbdAttachAction,
-	}
-
-	nbdDetachCommand = &cobra.Command{
-		Use:   "detach NBD-DEV",
-		Short: "detach an NBD device from a block volume",
-		Run:   nbdDetachAction,
+		Run:   nbdAction,
 	}
 
 	nbdServeCommand = &cobra.Command{
@@ -36,25 +24,29 @@ var (
 		Short: "serve a block volume over the NBD protocol",
 		Run:   nbdServeAction,
 	}
+)
 
+var (
 	serveListenAddress string
+	detachDevice       string
 )
 
 func init() {
 	rootCommand.AddCommand(nbdCommand)
-	nbdCommand.AddCommand(nbdAttachCommand)
-	nbdCommand.AddCommand(nbdDetachCommand)
-	nbdCommand.AddCommand(nbdServeCommand)
+	rootCommand.AddCommand(nbdServeCommand)
 
+	nbdCommand.Flags().StringVarP(&detachDevice, "detach", "d", "", "detach an NBD device from a block volume. (e.g. torsublk nbd -d /dev/nbd0)")
 	nbdServeCommand.Flags().StringVarP(&serveListenAddress, "listen", "l", "0.0.0.0:10809", "nbd server listen address")
 }
 
 func nbdAction(cmd *cobra.Command, args []string) {
-	cmd.Usage()
-	os.Exit(1)
-}
+	if len(detachDevice) > 0 && len(args) == 0 {
+		if err := nbd.Detach(detachDevice); err != nil {
+			die("failed to detach: %v", err)
+		}
+		os.Exit(0)
+	}
 
-func nbdAttachAction(cmd *cobra.Command, args []string) {
 	if len(args) != 1 && len(args) != 2 {
 		cmd.Usage()
 		os.Exit(1)
@@ -98,16 +90,6 @@ func nbdAttachAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
-	}
-}
-
-func nbdDetachAction(cmd *cobra.Command, args []string) {
-	if len(args) != 1 {
-		cmd.Usage()
-		os.Exit(1)
-	}
-	if err := nbd.Detach(args[0]); err != nil {
-		die("failed to detach: %v", err)
 	}
 }
 
