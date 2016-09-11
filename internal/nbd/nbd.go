@@ -227,6 +227,16 @@ func (nbd *NBD) Serve() error {
 	return nil
 }
 
+func Detach(dev string) error {
+	f, err := os.Open(dev)
+	if err != nil {
+		return err
+	}
+	n := &NBD{nbd: f}
+	n.Disconnect()
+	return nil
+}
+
 func (nbd *NBD) Disconnect() {
 	var err error
 	if nbd.nbd == nil {
