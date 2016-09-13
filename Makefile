@@ -39,9 +39,19 @@ etcdrun:
 run3:
 	goreman start
 
-release:
-	mkdir -p release
-	goxc -d ./release -tasks-=go-vet,go-test -os="linux darwin" -pv=$(VERSION) -build-ldflags="-X $(REPOPATH).Version=$(VERSION)" -resources-include="README.md,Documentation,LICENSE,contrib" -main-dirs-exclude="vendor,cmd/ringtool"
+release: releasetar
+	goxc -d ./release -tasks-=go-vet,go-test -os="linux darwin" -pv=$(VERSION)  -arch="386 amd64 arm arm64" -build-ldflags="-X $(REPOPATH).Version=$(VERSION)" -resources-include="README.md,Documentation,LICENSE,contrib" -main-dirs-exclude="vendor,cmd/ringtool"
+
+releasetar:
+	mkdir -p release/$(VERSION)
+	glide install --strip-vcs --strip-vendor --update-vendored --delete
+	glide-vc --only-code --no-tests --keep="**/*.json.in"
+	git ls-files > /tmp/torusbuild
+	find vendor >> /tmp/torusbuild
+	tar -cvf release/$(VERSION)/torus_$(VERSION).src.tar -T /tmp/torusbuild
+	rm /tmp/torusbuild
+	gzip release/$(VERSION)/torus_$(VERSION).src.tar
+
 
 vendor: tools/glide
 	./tools/glide install
