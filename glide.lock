@@ -1,5 +1,5 @@
-hash: fa517585ba8b08cdb1ef58cd1c72dcb94ad5c4c2677967fafb2d6b624d09b8c2
-updated: 2016-07-27T16:58:59.868768007-07:00
+hash: 8dc3ff33163e7f9359ee29508d8e76134716538ea7e04c872e4e14d2f73cfcea
+updated: 2016-09-12T12:06:28.162286855-07:00
 imports:
 - name: github.com/barakmich/mmap-go
   version: c4bd255520e591ff7549ab916c59206da5735e56
@@ -25,7 +25,7 @@ imports:
   - unit
   - journal
 - name: github.com/coreos/go-tcmu
-  version: 923e3cfd67c68888f5df027c06049de143c9f0d7
+  version: a6fc46a3b7d2cf28ecdf7b797241b1bf6723459d
   subpackages:
   - scsi
 - name: github.com/coreos/pkg
@@ -93,12 +93,14 @@ imports:
   version: abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
 - name: github.com/ricochet2200/go-disk-usage
   version: f0d1b743428fc09792f93233d9412f89f88fa2ab
+  subpackages:
+  - du
 - name: github.com/RoaringBitmap/roaring
   version: db18267a1ca5d1d4c9a91c23d585b1ce8e255e45
 - name: github.com/serialx/hashring
   version: 75d57fa264ad17fd929304dfdb02c8e278c5c01c
 - name: github.com/Sirupsen/logrus
-  version: a283a10442df8dc09befd873fab202bf8a253d6a
+  version: 3ec0642a7fb6488f65b06f9040adc67e3990296a
 - name: github.com/spf13/cobra
   version: f368244301305f414206f889b1735a54cfc8bde8
 - name: github.com/spf13/pflag
@@ -108,7 +110,7 @@ imports:
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: 6a513affb38dc9788b449d59ffed099b8de18fa0
+  version: 749a502dd1eaf3e5bfd4f8956748c502357c0bbe
   repo: https://go.googlesource.com/net
   subpackages:
   - http2
@@ -118,8 +120,9 @@ imports:
   - trace
   - http2/hpack
   - internal/timeseries
+  - idna
 - name: golang.org/x/sys
-  version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
+  version: 30de6d19a3bd89a5f38ae4028e23aaa5582648af
   subpackages:
   - unix
 - name: golang.org/x/time
