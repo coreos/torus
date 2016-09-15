@@ -48,7 +48,7 @@ releasetar:
 	glide-vc --only-code --no-tests --keep="**/*.json.in"
 	git ls-files > /tmp/torusbuild
 	find vendor >> /tmp/torusbuild
-	tar -cvf release/$(VERSION)/torus_$(VERSION)_src.tar -T /tmp/torusbuild
+	tar -cvf release/$(VERSION)/torus_$(VERSION)_src.tar -T /tmp/torusbuild --transform 's,^,torus_$(VERSION)/,'
 	rm /tmp/torusbuild
 	gzip release/$(VERSION)/torus_$(VERSION)_src.tar
 
