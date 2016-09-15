@@ -24,18 +24,29 @@ var (
 		Short: "serve a block volume over the NBD protocol",
 		Run:   nbdServeAction,
 	}
+)
 
+var (
 	serveListenAddress string
+	detachDevice       string
 )
 
 func init() {
 	rootCommand.AddCommand(nbdCommand)
-
-	nbdServeCommand.Flags().StringVarP(&serveListenAddress, "listen", "l", "0.0.0.0:10809", "nbd server listen address")
 	rootCommand.AddCommand(nbdServeCommand)
+
+	nbdCommand.Flags().StringVarP(&detachDevice, "detach", "d", "", "detach an NBD device from a block volume. (e.g. torsublk nbd -d /dev/nbd0)")
+	nbdServeCommand.Flags().StringVarP(&serveListenAddress, "listen", "l", "0.0.0.0:10809", "nbd server listen address")
 }
 
 func nbdAction(cmd *cobra.Command, args []string) {
+	if len(detachDevice) > 0 && len(args) == 0 {
+		if err := nbd.Detach(detachDevice); err != nil {
+			die("failed to detach: %v", err)
+		}
+		os.Exit(0)
+	}
+
 	if len(args) != 1 && len(args) != 2 {
 		cmd.Usage()
 		os.Exit(1)
@@ -116,7 +127,7 @@ func connectNBD(srv *torus.Server, f *block.BlockFile, target string, closer cha
 		fmt.Fprintf(os.Stderr, "error from nbd server: %s\n", err)
 		os.Exit(1)
 	}
-	return handle.Close()
+	return nil
 }
 
 type finder struct {
