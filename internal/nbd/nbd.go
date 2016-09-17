@@ -185,10 +185,23 @@ func (nbd *NBD) Serve() error {
 		blksized = false
 	}
 	if err := ioctl(nbd.nbd.Fd(), ioctlSetFlags, uintptr(flagSendFlush|flagSendTrim)); err != nil {
-		return &os.PathError{
-			Path: nbd.nbd.Name(),
-			Op:   "ioctl NBD_SET_FLAGS",
-			Err:  err,
+		switch err {
+		case syscall.ENOTTY:
+			clog.Error(fmt.Sprintf("ioctl returned: %v. kernel version may be old. flush thread will run every 30sec", err))
+			go func() {
+				for {
+					time.Sleep(30 * time.Second)
+					if err := nbd.device.Sync(); err != nil {
+						clog.Printf("sync error: %s", err)
+					}
+				}
+			}()
+		default:
+			return &os.PathError{
+				Path: nbd.nbd.Name(),
+				Op:   "ioctl NBD_SET_FLAGS",
+				Err:  err,
+			}
 		}
 	}
 
