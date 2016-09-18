@@ -48,6 +48,7 @@ var versionCommand = &cobra.Command{
 func init() {
 	rootCommand.AddCommand(aoeCommand)
 	rootCommand.AddCommand(versionCommand)
+	rootCommand.AddCommand(completionCommand)
 
 	// Flexvolume commands
 	rootCommand.AddCommand(initCommand)
