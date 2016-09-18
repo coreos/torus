@@ -45,6 +45,7 @@ func init() {
 	rootCommand.AddCommand(versionCommand)
 	rootCommand.AddCommand(wipeCommand)
 	rootCommand.AddCommand(configCommand)
+	rootCommand.AddCommand(completionCommand)
 	flagconfig.AddConfigFlags(rootCommand.PersistentFlags())
 }
 
