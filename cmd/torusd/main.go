@@ -43,8 +43,9 @@ var (
 	logpkg      string
 	cfg         torus.Config
 
-	debug   bool
-	version bool
+	debug      bool
+	version    bool
+	completion bool
 )
 
 var rootCommand = &cobra.Command{
@@ -66,6 +67,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
 	rootCommand.PersistentFlags().BoolVarP(&autojoin, "auto-join", "", false, "Automatically join the storage pool")
 	rootCommand.PersistentFlags().BoolVarP(&version, "version", "", false, "Print version info and exit")
+	rootCommand.PersistentFlags().BoolVarP(&completion, "completion", "", false, "Output bash completion code")
 	flagconfig.AddConfigFlags(rootCommand.PersistentFlags())
 }
 
@@ -137,6 +139,10 @@ func parsePercentage(percentString string) (uint64, error) {
 }
 
 func runServer(cmd *cobra.Command, args []string) {
+	if completion {
+		cmd.Root().GenBashCompletion(os.Stdout)
+		os.Exit(0)
+	}
 
 	var (
 		srv *torus.Server
