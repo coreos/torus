@@ -2,7 +2,6 @@ package distributor
 
 import (
 	"net/url"
-	"strings"
 
 	"github.com/coreos/torus"
 
@@ -37,12 +36,4 @@ func openReplication(s *torus.Server, addr *url.URL) error {
 	}
 	s.ReplicationOpen = true
 	return nil
-}
-
-func addrToUri(addr string) (*url.URL, error) {
-	if strings.Contains(addr, "://") {
-		// Looks like a full uri
-		return url.Parse(addr)
-	}
-	return url.Parse("http://" + addr)
 }
