@@ -31,10 +31,7 @@ func makeFile(name string, t *testing.T) (*torus.Server, *torus.File) {
 		Id:   3,
 		Type: "test",
 	}
-	globals, err := srv.MDS.GlobalMetadata()
-	if err != nil {
-		t.Fatal(err)
-	}
+	globals := srv.MDS.GlobalMetadata()
 	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, srv.Blocks)
 	if err != nil {
 		t.Fatal(err)

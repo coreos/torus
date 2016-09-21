@@ -76,11 +76,7 @@ func (d *distClient) getConn(uuid string) protocols.RPC {
 		clog.Errorf("couldn't parse address: %s", pi.Address)
 		return nil
 	}
-	gmd, err := d.dist.srv.MDS.GlobalMetadata()
-	if err != nil {
-		clog.Errorf("couldn't get GMD: %s", err)
-		return nil
-	}
+	gmd := d.dist.srv.MDS.GlobalMetadata()
 	conn, err := protocols.DialRPC(uri, connectTimeout, gmd)
 	d.mut.Lock()
 	defer d.mut.Unlock()

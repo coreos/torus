@@ -172,8 +172,8 @@ func (c *etcdCtx) Close() error {
 	return c.etcd.Close()
 }
 
-func (c *etcdCtx) GlobalMetadata() (torus.GlobalMetadata, error) {
-	return c.etcd.global, nil
+func (c *etcdCtx) GlobalMetadata() torus.GlobalMetadata {
+	return c.etcd.global
 }
 
 func (c *etcdCtx) UUID() string {

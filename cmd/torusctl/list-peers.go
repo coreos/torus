@@ -26,10 +26,7 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 	var usedStorage uint64
 
 	mds := mustConnectToMDS()
-	gmd, err := mds.GlobalMetadata()
-	if err != nil {
-		die("couldn't get global metadata: %v", err)
-	}
+	gmd := mds.GlobalMetadata()
 	peers, err := mds.GetPeers()
 	if err != nil {
 		die("couldn't get peers: %v", err)

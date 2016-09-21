@@ -83,8 +83,8 @@ func (t *Client) Kind() torus.MetadataKind {
 	return torus.TempMetadata
 }
 
-func (t *Client) GlobalMetadata() (torus.GlobalMetadata, error) {
-	return t.srv.global, nil
+func (t *Client) GlobalMetadata() torus.GlobalMetadata {
+	return t.srv.global
 }
 
 func (t *Client) UUID() string {

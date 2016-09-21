@@ -37,10 +37,7 @@ func NewServer(cfg Config, metadataServiceKind, blockStoreKind string) (*Server,
 		return nil, err
 	}
 
-	global, err := mds.GlobalMetadata()
-	if err != nil {
-		return nil, err
-	}
+	global := mds.GlobalMetadata()
 
 	offset := cfg.StorageSize % global.BlockSize
 	if offset != 0 {

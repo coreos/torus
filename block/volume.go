@@ -75,10 +75,7 @@ func (s *BlockVolume) getOrCreateBlockINode(ref torus.INodeRef) (*models.INode, 
 	if ref.INode != 1 {
 		return s.srv.INodes.GetINode(s.getContext(), ref)
 	}
-	globals, err := s.mds.GlobalMetadata()
-	if err != nil {
-
-	}
+	globals := s.mds.GlobalMetadata()
 	bs, err := blockset.CreateBlocksetFromSpec(globals.DefaultBlockSpec, nil)
 	if err != nil {
 		return nil, err
