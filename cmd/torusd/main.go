@@ -92,8 +92,7 @@ func configureServer(cmd *cobra.Command, args []string) {
 		rl := capnslog.MustRepoLogger("github.com/coreos/torus")
 		llc, err := rl.ParseLogLevelConfig(logpkg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing logpkg: %s\n", err)
-			os.Exit(1)
+			die("error parsing logpkg: %s", err)
 		}
 		rl.SetLogLevel(llc)
 	}
@@ -109,16 +108,14 @@ func configureServer(cmd *cobra.Command, args []string) {
 	if strings.Contains(sizeStr, "%") {
 		percent, err := parsePercentage(sizeStr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing size %s: %s\n", sizeStr, err)
-			os.Exit(1)
+			die("error parsing size %s: %s", sizeStr, err)
 		}
 		directory, _ := filepath.Abs(dataDir)
 		size = du.NewDiskUsage(directory).Size() * percent / 100
 	} else {
 		size, err = humanize.ParseBytes(sizeStr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing size %s: %s\n", sizeStr, err)
-			os.Exit(1)
+			die("error parsing size %s: %s", sizeStr, err)
 		}
 	}
 
@@ -161,8 +158,7 @@ func runServer(cmd *cobra.Command, args []string) {
 			if err == torus.ErrExists {
 				fmt.Println("debug-init: Already exists")
 			} else {
-				fmt.Printf("Couldn't debug-init: %s\n", err)
-				os.Exit(1)
+				die("Couldn't debug-init: %s", err)
 			}
 		}
 		fallthrough
@@ -170,15 +166,13 @@ func runServer(cmd *cobra.Command, args []string) {
 		srv, err = torus.NewServer(cfg, "etcd", "mfile")
 	}
 	if err != nil {
-		fmt.Printf("Couldn't start: %s\n", err)
-		os.Exit(1)
+		die("Couldn't start: %s\n", err)
 	}
 
 	if autojoin {
 		err = doAutojoin(srv)
 		if err != nil {
-			fmt.Printf("Couldn't auto-join: %s\n", err)
-			os.Exit(1)
+			die("Couldn't auto-join: %s", err)
 		}
 	}
 
@@ -191,13 +185,11 @@ func runServer(cmd *cobra.Command, args []string) {
 
 		u, err = url.Parse(peerAddress)
 		if err != nil {
-			fmt.Printf("Couldn't parse peer address %s: %s\n", peerAddress, err)
-			os.Exit(1)
+			die("Couldn't parse peer address %s: %s", peerAddress, err)
 		}
 
 		if u.Scheme == "" {
-			fmt.Printf("Peer address %s does not have URL scheme (http:// or tdp://)\n", peerAddress)
-			os.Exit(1)
+			die("Peer address %s does not have URL scheme (http:// or tdp://)", peerAddress)
 		}
 
 		err = distributor.ListenReplication(srv, u)
@@ -215,8 +207,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	}()
 
 	if err != nil {
-		fmt.Println("couldn't use server: %s", err)
-		os.Exit(1)
+		die("couldn't use server: %s", err)
 	}
 	if httpAddress != "" {
 		http.ServeHTTP(httpAddress, srv)
@@ -256,4 +247,9 @@ func doAutojoin(s *torus.Server) error {
 		}
 		return err
 	}
+}
+
+func die(why string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, why+"\n", args...)
+	os.Exit(1)
 }
