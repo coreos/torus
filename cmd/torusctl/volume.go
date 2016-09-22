@@ -54,7 +54,7 @@ func volumeListAction(cmd *cobra.Command, args []string) {
 	mds := mustConnectToMDS()
 	vols, _, err := mds.GetVolumes()
 	if err != nil {
-		die("error listing volumes: %v\n", err)
+		die("error listing volumes: %v", err)
 	}
 	table := NewTableWriter(os.Stdout)
 	table.SetHeader([]string{"Volume Name", "Size", "Type", "Status"})

@@ -166,7 +166,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		srv, err = torus.NewServer(cfg, "etcd", "mfile")
 	}
 	if err != nil {
-		die("Couldn't start: %s\n", err)
+		die("Couldn't start: %s", err)
 	}
 
 	if autojoin {
