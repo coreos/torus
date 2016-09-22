@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -135,7 +134,7 @@ func parsePercentage(percentString string) (uint64, error) {
 		return 0, err
 	}
 	if sizeNumber < 1 || sizeNumber > 100 {
-		return 0, errors.New(fmt.Sprintf("invalid size %d; must be between 1%% and 100%%", sizeNumber))
+		return 0, fmt.Errorf("invalid size %d; must be between 1%% and 100%%", sizeNumber)
 	}
 	return uint64(sizeNumber), nil
 }
@@ -216,7 +215,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	}()
 
 	if err != nil {
-		fmt.Println("couldn't use server:", err)
+		fmt.Println("couldn't use server: %s", err)
 		os.Exit(1)
 	}
 	if httpAddress != "" {
@@ -230,8 +229,7 @@ func doAutojoin(s *torus.Server) error {
 	for {
 		ring, err := s.MDS.GetRing()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "couldn't get ring: %v\n", err)
-			return err
+			return fmt.Errorf("couldn't get ring: %v", err)
 		}
 		var newRing torus.Ring
 		if r, ok := ring.(torus.RingAdder); ok {
@@ -242,16 +240,14 @@ func doAutojoin(s *torus.Server) error {
 				},
 			})
 		} else {
-			fmt.Fprintf(os.Stderr, "current ring type cannot support auto-adding\n")
-			return err
+			return fmt.Errorf("current ring type cannot support auto-adding")
 		}
 		if err == torus.ErrExists {
 			// We're already a member; we're coming back up.
 			return nil
 		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "couldn't add peer to ring: %v", err)
-			return err
+			return fmt.Errorf("couldn't add peer to ring: %v", err)
 		}
 		err = s.MDS.SetRing(newRing)
 		if err == torus.ErrNonSequentialRing || err == torus.ErrAgain {
