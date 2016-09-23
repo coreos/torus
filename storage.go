@@ -198,7 +198,6 @@ const (
 )
 
 func ParseWriteLevel(s string) (wl WriteLevel, err error) {
-	wl = WriteAll
 	switch s {
 	case "all":
 		wl = WriteAll
@@ -217,6 +216,20 @@ const (
 	ReadSequential
 	ReadSpread
 )
+
+func ParseReadLevel(s string) (rl ReadLevel, err error) {
+	switch s {
+	case "spread":
+		rl = ReadSpread
+	case "seq":
+		rl = ReadSequential
+	case "block":
+		rl = ReadBlock
+	default:
+		err = errors.New("invalid readlevel; use one of 'spread', 'seq', or 'block'")
+	}
+	return
+}
 
 // BlockStore is the interface representing the standardized methods to
 // interact with something storing blocks.
