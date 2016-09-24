@@ -157,7 +157,7 @@ func (nbd *NBD) OpenDevice(dev string) (string, error) {
 
 	// possible candidate
 	ioctl(f.Fd(), BLKROSET, 0) // I'm really sorry about this
-	pair, err := syscall.Socketpair(syscall.SOCK_STREAM, syscall.AF_UNIX, 0)
+	pair, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
 	if err != nil {
 		return "", err
 	}
