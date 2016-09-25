@@ -16,11 +16,12 @@ import (
 )
 
 var (
-	blockSize    uint64
-	blockSizeStr string
-	blockSpec    string
-	noMakeRing   bool
-	metaView     bool
+	blockSize        uint64
+	blockSizeStr     string
+	blockSpec        string
+	inodeReplication int
+	metaView         bool
+	initRingType     string
 )
 
 var initCommand = &cobra.Command{
@@ -33,8 +34,9 @@ var initCommand = &cobra.Command{
 func init() {
 	initCommand.Flags().StringVarP(&blockSizeStr, "block-size", "", "512KiB", "size of all data blocks in this storage cluster")
 	initCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this storage cluster")
-	initCommand.Flags().BoolVar(&noMakeRing, "no-ring", false, "do not create the default ring as part of init")
+	initCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
 	initCommand.Flags().BoolVar(&metaView, "view", false, "view metadata configured in this storage cluster")
+	initCommand.Flags().StringVar(&initRingType, "type", "ketama", "type of ring to create (empty, single, mod or ketama)")
 }
 
 func initPreRun(cmd *cobra.Command, args []string) {
@@ -63,10 +65,21 @@ func initAction(cmd *cobra.Command, args []string) {
 	}
 
 	cfg := flagconfig.BuildConfigFromFlags()
-	ringType := ring.Ketama
-	if noMakeRing {
+
+	var ringType torus.RingType
+	switch initRingType {
+	case "empty":
 		ringType = ring.Empty
+	case "single":
+		ringType = ring.Single
+	case "mod":
+		ringType = ring.Mod
+	case "ketama":
+		ringType = ring.Ketama
+	default:
+		die(`invalid ring type %s (try "empty", "mod", "single" or "ketama")`, initRingType)
 	}
+
 	err = torus.InitMDS("etcd", cfg, md, ringType)
 	if err != nil {
 		die("error writing metadata: %v", err)
