@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/torus"
 	"github.com/coreos/torus/block"
 	"github.com/spf13/cobra"
 )
@@ -20,25 +21,57 @@ var (
 	bsnapListCommand = &cobra.Command{
 		Use:   "list VOLUME",
 		Short: "list snapshots for a block volume",
-		Run:   bsnapListAction,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := bsnapListAction(cmd, args)
+			if err == torus.ErrUsage {
+				cmd.Usage()
+				os.Exit(1)
+			} else if err != nil {
+				die("%v", err)
+			}
+		},
 	}
 
 	bsnapCreateCommand = &cobra.Command{
 		Use:   "create VOLUME@SNAPSHOT_NAME",
 		Short: "create a snapshot for a block volume",
-		Run:   bsnapCreateAction,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := bsnapCreateAction(cmd, args)
+			if err == torus.ErrUsage {
+				cmd.Usage()
+				os.Exit(1)
+			} else if err != nil {
+				die("%v", err)
+			}
+		},
 	}
 
 	bsnapDeleteCommand = &cobra.Command{
 		Use:   "delete VOLUME@SNAPSHOT_NAME",
 		Short: "delete a snapshot for a block volume",
-		Run:   bsnapDeleteAction,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := bsnapDeleteAction(cmd, args)
+			if err == torus.ErrUsage {
+				cmd.Usage()
+				os.Exit(1)
+			} else if err != nil {
+				die("%v", err)
+			}
+		},
 	}
 
 	bsnapRestoreCommand = &cobra.Command{
 		Use:   "restore VOLUME@SNAPSHOT_NAME",
 		Short: "restore VOLUME to the state it had as of SNAPSHOT_NAME",
-		Run:   bsnapRestoreAction,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := bsnapRestoreAction(cmd, args)
+			if err == torus.ErrUsage {
+				cmd.Usage()
+				os.Exit(1)
+			} else if err != nil {
+				die("%v", err)
+			}
+		},
 	}
 )
 
@@ -64,21 +97,20 @@ func init() {
 	bsnapListCommand.Flags().BoolVarP(&outputAsCSV, "csv", "", false, "output as csv instead")
 }
 
-func bsnapListAction(cmd *cobra.Command, args []string) {
+func bsnapListAction(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
-		cmd.Usage()
-		os.Exit(1)
+		return torus.ErrUsage
 	}
 	vol := args[0]
 	srv := createServer()
 	defer srv.Close()
 	blockvol, err := block.OpenBlockVolume(srv, vol)
 	if err != nil {
-		die("couldn't open block volume %s: %v", vol, err)
+		return fmt.Errorf("couldn't open block volume %s: %v", vol, err)
 	}
 	snaps, err := blockvol.GetSnapshots()
 	if err != nil {
-		die("couldn't get snapshots for block volume %s: %v", vol, err)
+		return fmt.Errorf("couldn't get snapshots for block volume %s: %v", vol, err)
 	}
 	table := NewTableWriter(os.Stdout)
 	table.SetHeader([]string{"Snapshot Name", "Timestamp"})
@@ -94,67 +126,68 @@ func bsnapListAction(cmd *cobra.Command, args []string) {
 	} else {
 		table.RenderCSV()
 	}
+	return nil
 }
 
-func bsnapCreateAction(cmd *cobra.Command, args []string) {
+func bsnapCreateAction(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
-		cmd.Usage()
-		os.Exit(1)
+		return torus.ErrUsage
 	}
 	vol := ParseSnapName(args[0])
 	if vol.Snapshot == "" {
-		die("can't create snapshot without a name, please use the form VOLUME@SNAPSHOT_NAME")
+		return fmt.Errorf("can't create snapshot without a name, please use the form VOLUME@SNAPSHOT_NAME")
 	}
 	srv := createServer()
 	defer srv.Close()
 	blockvol, err := block.OpenBlockVolume(srv, vol.Volume)
 	if err != nil {
-		die("couldn't open block volume %s: %v", vol.Volume, err)
+		return fmt.Errorf("couldn't open block volume %s: %v", vol.Volume, err)
 	}
 	err = blockvol.SaveSnapshot(vol.Snapshot)
 	if err != nil {
-		die("couldn't snapshot: %v", err)
+		return fmt.Errorf("couldn't snapshot: %v", err)
 	}
+	return nil
 }
 
-func bsnapDeleteAction(cmd *cobra.Command, args []string) {
+func bsnapDeleteAction(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
-		cmd.Usage()
-		os.Exit(1)
+		return torus.ErrUsage
 	}
 	vol := ParseSnapName(args[0])
 	if vol.Snapshot == "" {
-		die("can't delete a snapshot without a name, please use the form VOLUME@SNAPSHOT_NAME")
+		return fmt.Errorf("can't delete a snapshot without a name, please use the form VOLUME@SNAPSHOT_NAME")
 	}
 	srv := createServer()
 	defer srv.Close()
 	blockvol, err := block.OpenBlockVolume(srv, vol.Volume)
 	if err != nil {
-		die("couldn't open block volume %s: %v", vol.Volume, err)
+		return fmt.Errorf("couldn't open block volume %s: %v", vol.Volume, err)
 	}
 	err = blockvol.DeleteSnapshot(vol.Snapshot)
 	if err != nil {
-		die("couldn't delete snapshot: %v", err)
+		return fmt.Errorf("couldn't delete snapshot: %v", err)
 	}
+	return nil
 }
 
-func bsnapRestoreAction(cmd *cobra.Command, args []string) {
+func bsnapRestoreAction(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
-		cmd.Usage()
-		os.Exit(1)
+		return torus.ErrUsage
 	}
 	vol := ParseSnapName(args[0])
 	if vol.Snapshot == "" {
-		die("can't restore a snapshot without a name, please use the form VOLUME@SNAPSHOT_NAME")
+		return fmt.Errorf("can't restore a snapshot without a name, please use the form VOLUME@SNAPSHOT_NAME")
 	}
 	srv := createServer()
 	defer srv.Close()
 	blockvol, err := block.OpenBlockVolume(srv, vol.Volume)
 	if err != nil {
-		die("couldn't open block volume %s: %v", vol.Volume, err)
+		return fmt.Errorf("couldn't open block volume %s: %v", vol.Volume, err)
 	}
 	err = blockvol.RestoreSnapshot(vol.Snapshot)
 	if err != nil {
-		die("couldn't restore snapshot: %v", err)
+		return fmt.Errorf("couldn't restore snapshot: %v", err)
 	}
+	return nil
 }
