@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 
@@ -40,6 +41,15 @@ func init() {
 }
 
 func nbdAction(cmd *cobra.Command, args []string) {
+
+	exitNbdAction := func(exitStatus int, resources ...io.Closer) int {
+		for _, resource := range resources {
+			resource.Close()
+		}
+
+		return exitStatus
+	}
+
 	if len(detachDevice) > 0 && len(args) == 0 {
 		if err := nbd.Detach(detachDevice); err != nil {
 			die("failed to detach: %v", err)
@@ -73,7 +83,7 @@ func nbdAction(cmd *cobra.Command, args []string) {
 	blockvol, err := block.OpenBlockVolume(srv, args[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "server doesn't support block volumes: %s\n", err)
-		os.Exit(1)
+		os.Exit(exitNbdAction(1, srv))
 	}
 
 	f, err := blockvol.OpenBlockFile()
@@ -83,13 +93,13 @@ func nbdAction(cmd *cobra.Command, args []string) {
 		} else {
 			fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
 		}
-		os.Exit(1)
+		os.Exit(exitNbdAction(1, srv, f))
 	}
 	defer f.Close()
 	err = connectNBD(srv, f, knownDev, closer)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+		os.Exit(exitNbdAction(1, srv, f))
 	}
 }
 
