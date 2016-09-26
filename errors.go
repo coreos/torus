@@ -65,4 +65,7 @@ var (
 
 	// ErrLeaseNotFound is returned if the lease cannot be found.
 	ErrLeaseNotFound = errors.New("torus: lease not found")
+
+	// ErrUsage is returned if the command usage is wrong.
+	ErrUsage = errors.New("torus: wrong command usage")
 )

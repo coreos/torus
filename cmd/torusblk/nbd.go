@@ -16,13 +16,29 @@ var (
 	nbdCommand = &cobra.Command{
 		Use:   "nbd VOLUME [NBD-DEV]",
 		Short: "attach a block volume to an NBD device",
-		Run:   nbdAction,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := nbdAction(cmd, args)
+			if err == torus.ErrUsage {
+				cmd.Usage()
+				os.Exit(1)
+			} else if err != nil {
+				die("%v", err)
+			}
+		},
 	}
 
 	nbdServeCommand = &cobra.Command{
 		Use:   "nbdserve",
 		Short: "serve a block volume over the NBD protocol",
-		Run:   nbdServeAction,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := nbdServeAction(cmd, args)
+			if err == torus.ErrUsage {
+				cmd.Usage()
+				os.Exit(1)
+			} else if err != nil {
+				die("%v", err)
+			}
+		},
 	}
 )
 
@@ -39,17 +55,16 @@ func init() {
 	nbdServeCommand.Flags().StringVarP(&serveListenAddress, "listen", "l", "0.0.0.0:10809", "nbd server listen address")
 }
 
-func nbdAction(cmd *cobra.Command, args []string) {
+func nbdAction(cmd *cobra.Command, args []string) error {
 	if len(detachDevice) > 0 && len(args) == 0 {
 		if err := nbd.Detach(detachDevice); err != nil {
-			die("failed to detach: %v", err)
+			return fmt.Errorf("failed to detach: %v", err)
 		}
-		os.Exit(0)
+		return nil
 	}
 
 	if len(args) != 1 && len(args) != 2 {
-		cmd.Usage()
-		os.Exit(1)
+		return torus.ErrUsage
 	}
 
 	var knownDev string
@@ -72,25 +87,22 @@ func nbdAction(cmd *cobra.Command, args []string) {
 	defer srv.Close()
 	blockvol, err := block.OpenBlockVolume(srv, args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "server doesn't support block volumes: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("server doesn't support block volumes: %s", err)
 	}
 
 	f, err := blockvol.OpenBlockFile()
 	if err != nil {
 		if err == torus.ErrLocked {
-			fmt.Fprintf(os.Stderr, "volume %s is already mounted on another host\n", args[0])
-		} else {
-			fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
+			return fmt.Errorf("volume %s is already mounted on another host", args[0])
 		}
-		os.Exit(1)
+		return fmt.Errorf("can't open block volume: %s", err)
 	}
 	defer f.Close()
 	err = connectNBD(srv, f, knownDev, closer)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("%s", err)
 	}
+	return nil
 }
 
 func connectNBD(srv *torus.Server, f *block.BlockFile, target string, closer chan bool) error {
@@ -124,8 +136,7 @@ func connectNBD(srv *torus.Server, f *block.BlockFile, target string, closer cha
 
 	err = handle.Serve()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error from nbd server: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error from nbd server: %s", err)
 	}
 	return nil
 }
@@ -158,10 +169,9 @@ func (f *finder) ListDevices() ([]string, error) {
 	return volnames, nil
 }
 
-func nbdServeAction(cmd *cobra.Command, args []string) {
+func nbdServeAction(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
-		cmd.Usage()
-		os.Exit(1)
+		return torus.ErrUsage
 	}
 
 	srv := createServer()
@@ -173,7 +183,7 @@ func nbdServeAction(cmd *cobra.Command, args []string) {
 	devfinder := &finder{srv}
 	server, err := nbd.NewNBDServer(serveListenAddress, devfinder)
 	if err != nil {
-		die("can't start server: %v", err)
+		return fmt.Errorf("can't start server: %v", err)
 	}
 
 	// TODO: sync all conns
@@ -184,6 +194,7 @@ func nbdServeAction(cmd *cobra.Command, args []string) {
 	}()
 
 	if err := server.Serve(); err != nil {
-		die("server exited: %v", err)
+		return fmt.Errorf("server exited: %v", err)
 	}
+	return nil
 }
