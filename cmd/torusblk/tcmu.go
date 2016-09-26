@@ -18,7 +18,15 @@ var (
 	tcmuCommand = &cobra.Command{
 		Use:   "tcmu VOLUME",
 		Short: "attach a torus block volume via SCSI",
-		Run:   tcmuAction,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := tcmuAction(cmd, args)
+			if err == torus.ErrUsage {
+				cmd.Usage()
+				os.Exit(1)
+			} else if err != nil {
+				die("%v", err)
+			}
+		},
 	}
 )
 
@@ -26,10 +34,9 @@ func init() {
 	rootCommand.AddCommand(tcmuCommand)
 }
 
-func tcmuAction(cmd *cobra.Command, args []string) {
+func tcmuAction(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
-		cmd.Usage()
-		os.Exit(1)
+		return torus.ErrUsage
 	}
 
 	srv := createServer()
@@ -47,22 +54,20 @@ func tcmuAction(cmd *cobra.Command, args []string) {
 	defer srv.Close()
 	blockvol, err := block.OpenBlockVolume(srv, args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "server doesn't support block volumes: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("server doesn't support block volumes: %s", err)
 	}
 
 	f, err := blockvol.OpenBlockFile()
 	if err != nil {
 		if err == torus.ErrLocked {
-			fmt.Fprintf(os.Stderr, "volume %s is already mounted on another host\n", args[0])
-		} else {
-			fmt.Fprintf(os.Stderr, "can't open block volume: %s\n", err)
+			return fmt.Errorf("volume %s is already mounted on another host", args[0])
 		}
-		os.Exit(1)
+		return fmt.Errorf("can't open block volume: %s", err)
 	}
 	defer f.Close()
 	err = torustcmu.ConnectAndServe(f, args[0], closer)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to serve volume using SCSI: %s\n", err)
+		return fmt.Errorf("failed to serve volume using SCSI: %s", err)
 	}
+	return nil
 }
