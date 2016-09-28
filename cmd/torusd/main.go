@@ -32,6 +32,7 @@ import (
 
 var (
 	dataDir     string
+	blockDevice string
 	httpAddress string
 	peerAddress string
 	sizeStr     string
@@ -57,6 +58,7 @@ var rootCommand = &cobra.Command{
 }
 
 func init() {
+	rootCommand.PersistentFlags().StringVarP(&blockDevice, "block-device", "", "/dev/thing", "Path to a torus formatted block device")
 	rootCommand.PersistentFlags().StringVarP(&dataDir, "data-dir", "", "torus-data", "Path to the data directory")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Turn on debug output")
 	rootCommand.PersistentFlags().BoolVarP(&debugInit, "debug-init", "", false, "Run a default init for the MDS if one doesn't exist")
@@ -123,6 +125,7 @@ func configureServer(cmd *cobra.Command, args []string) {
 
 	cfg = flagconfig.BuildConfigFromFlags()
 	cfg.DataDir = dataDir
+	cfg.BlockDevice = blockDevice
 	cfg.StorageSize = size
 }
 
@@ -166,6 +169,8 @@ func runServer(cmd *cobra.Command, args []string) {
 			}
 		}
 		fallthrough
+	case blockDevice != "":
+		srv, err = torus.NewServer(cfg, "etcd", "block_device")
 	default:
 		srv, err = torus.NewServer(cfg, "etcd", "mfile")
 	}
