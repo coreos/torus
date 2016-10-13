@@ -37,7 +37,7 @@ func init() {
 
 func initPreRun(cmd *cobra.Command, args []string) {
 	// We *always* need base.
-	if !strings.HasSuffix(blockSpec, ",base") {
+	if !strings.HasSuffix(blockSpec, ",base") && !strings.HasPrefix(blockSpec, "base") {
 		blockSpec += ",base"
 	}
 	var err error
