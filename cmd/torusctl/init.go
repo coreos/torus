@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/coreos/torus"
@@ -19,6 +21,7 @@ var (
 	blockSpec        string
 	inodeReplication int
 	noMakeRing       bool
+	metaView         bool
 )
 
 var initCommand = &cobra.Command{
@@ -33,9 +36,14 @@ func init() {
 	initCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this storage cluster")
 	initCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
 	initCommand.Flags().BoolVar(&noMakeRing, "no-ring", false, "do not create the default ring as part of init")
+	initCommand.Flags().BoolVar(&metaView, "view", false, "view metadata configured in this storage cluster")
 }
 
 func initPreRun(cmd *cobra.Command, args []string) {
+	if metaView {
+		viewMetadata()
+		os.Exit(0)
+	}
 	// We *always* need base.
 	if !strings.HasSuffix(blockSpec, ",base") {
 		blockSpec += ",base"
@@ -66,4 +74,22 @@ func initAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("error writing metadata: %v", err)
 	}
+}
+
+func viewMetadata() {
+	mds := mustConnectToMDS()
+	md, _ := mds.GlobalMetadata()
+
+	var blockSpecToStrings = []string{
+		blockset.Base:        "base",
+		blockset.CRC:         "crc",
+		blockset.Replication: "rep",
+	}
+	blockSpec := ""
+	for _, x := range md.DefaultBlockSpec {
+		blockSpec += blockSpecToStrings[x.Kind] + " "
+	}
+	fmt.Printf("Block size: %d byte\n", md.BlockSize)
+	fmt.Printf("Block spec: %s\n", blockSpec)
+	fmt.Printf("Inode replication: %d \n", md.INodeReplication)
 }
