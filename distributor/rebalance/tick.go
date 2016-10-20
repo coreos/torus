@@ -101,7 +101,7 @@ func (r *rebalancer) Tick() (int, error) {
 			}
 			err := r.bs.DeleteBlock(context.TODO(), k)
 			if err != nil {
-				clog.Error("couldn't delete local block")
+				clog.Errorf("couldn't delete replicated local block %s", k)
 				return n, err
 			}
 		}
@@ -114,7 +114,7 @@ func (r *rebalancer) Tick() (int, error) {
 			}
 			err := r.bs.DeleteBlock(context.TODO(), k)
 			if err != nil {
-				clog.Error("couldn't delete local block")
+				clog.Errorf("couldn't delete dead local block %s", k)
 				return n, err
 			}
 		}
