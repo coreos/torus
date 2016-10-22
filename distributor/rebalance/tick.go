@@ -121,9 +121,8 @@ func (r *rebalancer) Tick() (int, error) {
 	}
 	r.bs.Flush()
 
-	var outerr error
 	if itDone {
-		outerr = io.EOF
+		return n, io.EOF
 	}
-	return n, outerr
+	return n, nil
 }
