@@ -147,17 +147,11 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 		return
 	case "single":
 		if len(peers) != 1 {
-			die("require one uuid (use --uuids)\n")
+			die("single needs one peer (use --uuids)\n")
 		}
 		return
 	case "mod":
-		if len(peers) == 0 {
-			die("need one of --uuids or --all-peers")
-		}
 	case "ketama":
-		if len(peers) == 0 {
-			die("need one of --uuids or --all-peers")
-		}
 	default:
 		die(`invalid ring type %s (try "empty", "mod" or "single")`, ringType)
 	}
