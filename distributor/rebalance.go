@@ -54,7 +54,7 @@ exit:
 		for _, x := range volset {
 			err := d.rebalancer.PrepVolume(x)
 			if err != nil {
-				clog.Errorf("gc prep failed: %s", err)
+				clog.Errorf("gc prep for %s failed: %s", x.Name, err)
 			}
 		}
 	ratelimit:
