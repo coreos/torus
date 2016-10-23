@@ -31,6 +31,7 @@ func (e *Etcd) watchRing(r torus.Ring) {
 			newRing, err := ring.Unmarshal(ev.Kv.Value)
 			if err != nil {
 				clog.Debugf("corrupted ring: %#v", ev.Kv.Value)
+				clog.Errorf("Failed to unmarshal ring: %s", err)
 				clog.Error("corrupted ring? Continuing with current ring")
 				continue
 			}
