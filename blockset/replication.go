@@ -21,11 +21,12 @@ type replicationBlockset struct {
 
 var _ blockset = &replicationBlockset{}
 
+const defaultReplication = 2
+
 func init() {
 	RegisterBlockset(Replication, func(opt string, bs torus.BlockStore, sub blockset) (blockset, error) {
 		if opt == "" {
-			clog.Debugf("using default replication (0) to unmarshal")
-			return newReplicationBlockset(sub, bs, 0), nil
+			return newReplicationBlockset(sub, bs, defaultReplication), nil
 		}
 		r, err := strconv.Atoi(opt)
 		if err != nil {
@@ -197,6 +198,9 @@ func (b *replicationBlockset) Trim(from, to int) error {
 	}
 	for i := from; i < to; i++ {
 		for _, blist := range b.repBlocks {
+			if len(blist) == 0 {
+				continue
+			}
 			blist[i] = torus.ZeroBlock()
 		}
 	}
