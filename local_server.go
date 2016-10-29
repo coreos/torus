@@ -1,6 +1,7 @@
 package torus
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -43,6 +44,9 @@ func NewServer(cfg Config, metadataServiceKind, blockStoreKind string) (*Server,
 	}
 
 	offset := cfg.StorageSize % global.BlockSize
+	if offset == cfg.StorageSize {
+		return nil, fmt.Errorf("Storage size %v could not make an even multiple of blocksize %v", cfg.StorageSize, global.BlockSize)
+	}
 	if offset != 0 {
 		cfg.StorageSize = cfg.StorageSize - offset
 		clog.Infof("resizing to %v bytes to make an even multiple of blocksize: %v\n", cfg.StorageSize, global.BlockSize)
