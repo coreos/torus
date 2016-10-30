@@ -386,6 +386,9 @@ func (c *etcdCtx) UnsubscribeNewRings(ch chan torus.Ring) {
 
 func (c *etcdCtx) SetRing(ring torus.Ring) error {
 	oldr, etcdver, err := c.getRing()
+	if err != nil {
+		return err
+	}
 	if oldr.Version() != ring.Version()-1 {
 		return torus.ErrNonSequentialRing
 	}
