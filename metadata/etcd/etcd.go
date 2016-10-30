@@ -406,7 +406,7 @@ func (c *etcdCtx) SetRing(ring torus.Ring) error {
 	if resp.Succeeded {
 		return nil
 	}
-	return torus.ErrNonSequentialRing
+	return torus.ErrAgain
 }
 
 func (c *etcdCtx) CommitINodeIndex(vid torus.VolumeID) (torus.INodeID, error) {
