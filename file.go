@@ -114,9 +114,6 @@ func (f *File) openWrite() error {
 	vid := VolumeID(f.volume.Id)
 	newINode, err := f.srv.MDS.CommitINodeIndex(vid)
 	if err != nil {
-		if err == ErrAgain {
-			return f.openWrite()
-		}
 		return err
 	}
 	f.writeINodeRef = NewINodeRef(VolumeID(vid), newINode)
