@@ -386,6 +386,9 @@ func (c *etcdCtx) UnsubscribeNewRings(ch chan torus.Ring) {
 
 func (c *etcdCtx) SetRing(ring torus.Ring) error {
 	oldr, etcdver, err := c.getRing()
+	if err != nil {
+		return err
+	}
 	if oldr.Version() != ring.Version()-1 {
 		return torus.ErrNonSequentialRing
 	}
@@ -406,7 +409,7 @@ func (c *etcdCtx) SetRing(ring torus.Ring) error {
 	if resp.Succeeded {
 		return nil
 	}
-	return torus.ErrNonSequentialRing
+	return torus.ErrAgain
 }
 
 func (c *etcdCtx) CommitINodeIndex(vid torus.VolumeID) (torus.INodeID, error) {

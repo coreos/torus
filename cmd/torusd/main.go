@@ -253,7 +253,8 @@ func doAutojoin(s *torus.Server) error {
 			return err
 		}
 		err = s.MDS.SetRing(newRing)
-		if err == torus.ErrNonSequentialRing {
+		if err == torus.ErrNonSequentialRing || err == torus.ErrAgain {
+			fmt.Fprintf(os.Stderr, "failed to set ring, try again: %v", err)
 			continue
 		}
 		return err
