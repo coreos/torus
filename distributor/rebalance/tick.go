@@ -119,7 +119,10 @@ func (r *rebalancer) Tick() (int, error) {
 			}
 		}
 	}
-	r.bs.Flush()
+	err := r.bs.Flush()
+	if err != nil {
+		clog.Errorf("Failed to flush: %v", err)
+	}
 
 	if itDone {
 		return n, io.EOF
