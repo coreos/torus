@@ -27,8 +27,6 @@ type mfileBlock struct {
 	refIndex  map[torus.BlockRef]int
 	closed    bool
 	lastFree  int
-	dfilename string
-	mfilename string
 	name      string
 	blocksize uint64
 
@@ -89,8 +87,6 @@ func newMFileBlockStore(name string, cfg torus.Config, meta torus.GlobalMetadata
 		dataFile:  d,
 		refFile:   m,
 		refIndex:  refIndex,
-		dfilename: dpath,
-		mfilename: mpath,
 		name:      name,
 		blocksize: meta.BlockSize,
 	}, nil
