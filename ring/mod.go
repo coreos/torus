@@ -11,11 +11,9 @@ import (
 )
 
 type mod struct {
-	version  int
-	rep      int
-	peers    torus.PeerInfoList
-	peerlist []string
-	npeers   int
+	version int
+	rep     int
+	peers   torus.PeerInfoList
 }
 
 func init() {
@@ -29,19 +27,19 @@ func makeMod(r *models.Ring) (torus.Ring, error) {
 	}
 	pil := torus.PeerInfoList(r.Peers)
 	return &mod{
-		version:  int(r.Version),
-		peers:    pil,
-		peerlist: sort.StringSlice([]string(pil.PeerList())),
-		rep:      rep,
+		version: int(r.Version),
+		peers:   pil,
+		rep:     rep,
 	}, nil
 }
 
 func (m *mod) GetPeers(key torus.BlockRef) (torus.PeerPermutation, error) {
-	permute := make([]string, len(m.peerlist))
+	peerlist := sort.StringSlice([]string(m.peers.PeerList()))
+	permute := make([]string, len(peerlist))
 	crc := crc32.ChecksumIEEE(key.ToBytes())
 	sum := int(crc) % len(m.peers)
-	copy(permute, m.peerlist[sum:])
-	copy(permute[len(m.peerlist)-sum:], m.peerlist[:sum])
+	copy(permute, peerlist[sum:])
+	copy(permute[len(peerlist)-sum:], peerlist[:sum])
 	return torus.PeerPermutation{
 		Peers:       permute,
 		Replication: m.rep,
@@ -52,7 +50,7 @@ func (m *mod) Members() torus.PeerList { return m.peers.PeerList() }
 
 func (m *mod) Describe() string {
 	s := fmt.Sprintf("Ring: Mod\nReplication:%d\nPeers:", m.rep)
-	for _, x := range m.peerlist {
+	for _, x := range m.peers {
 		s += fmt.Sprintf("\n\t%s", x)
 	}
 	return s
@@ -76,11 +74,9 @@ func (m *mod) AddPeers(peers torus.PeerInfoList) (torus.Ring, error) {
 		return nil, torus.ErrExists
 	}
 	newm := &mod{
-		version:  m.version + 1,
-		rep:      m.rep,
-		peers:    newPeers,
-		peerlist: sort.StringSlice([]string(newPeers.PeerList())),
-		npeers:   len(newPeers),
+		version: m.version + 1,
+		rep:     m.rep,
+		peers:   newPeers,
 	}
 	return newm, nil
 }
@@ -92,22 +88,18 @@ func (m *mod) RemovePeers(pl torus.PeerList) (torus.Ring, error) {
 	}
 
 	newm := &mod{
-		version:  m.version + 1,
-		rep:      m.rep,
-		peers:    newPeers,
-		peerlist: sort.StringSlice([]string(newPeers.PeerList())),
-		npeers:   len(newPeers),
+		version: m.version + 1,
+		rep:     m.rep,
+		peers:   newPeers,
 	}
 	return newm, nil
 }
 
 func (m *mod) ChangeReplication(r int) (torus.Ring, error) {
 	newm := &mod{
-		version:  m.version + 1,
-		rep:      r,
-		peers:    m.peers,
-		peerlist: sort.StringSlice([]string(m.peers.PeerList())),
-		npeers:   len(m.peers),
+		version: m.version + 1,
+		rep:     r,
+		peers:   m.peers,
 	}
 	return newm, nil
 }
