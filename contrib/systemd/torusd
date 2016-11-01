@@ -1,0 +1,15 @@
+##
+# torusd system config. Please refer to "torusd -h" for more details.
+##
+
+# Address to listen on for intra-cluster data
+TORUSD_PEER_ADDRESS="--peer-address=http://127.0.0.1:4000"
+
+# Etcd configuration. Specify cert/key files
+TORUSD_ETCD="--etcd=127.0.0.1:2379"
+
+# Path to the data directory
+DATA_DIR="--data-dir=/var/lib/torusd/"
+
+# Other torud options
+TORUSD_OPTIONS="--host=127.0.0.1 --port=4321 --auto-join"

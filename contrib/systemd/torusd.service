@@ -1,0 +1,13 @@
+[Unit]
+Description=Torusd distributed storage server
+
+[Service]
+EnvironmentFile=/etc/sysconfig/torusd
+ExecStart=/usr/bin/torusd $TORUSD_PEER_ADDRESS $TORUSD_ETCD $DATA_DIR $TORUSD_OPTIONS
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+#User=torus
+#Group=torus
+
+[Install]
+WantedBy=multi-user.target
