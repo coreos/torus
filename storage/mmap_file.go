@@ -15,11 +15,19 @@ type MFile struct {
 }
 
 func CreateOrOpenMFile(path string, size uint64, blkSize uint64) (*MFile, error) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	finfo, err := os.Stat(path)
+	if os.IsNotExist(err) {
 		err := CreateMFile(path, size)
 		if err != nil {
 			return nil, err
 		}
+	}
+	if finfo != nil && finfo.Size() != int64(size) {
+		if finfo.Size() > int64(size) {
+			return nil, fmt.Errorf("Specified size %d is smaller than current size %d.", size, finfo.Size())
+		}
+		clog.Debugf("mfile: expand %s %d to %d", path, finfo.Size(), size)
+		os.Truncate(path, int64(size))
 	}
 	return OpenMFile(path, blkSize)
 }
