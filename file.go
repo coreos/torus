@@ -87,10 +87,7 @@ func (f *File) Replaces() uint64 {
 }
 
 func (s *Server) CreateFile(volume *models.Volume, inode *models.INode, blocks Blockset) (*File, error) {
-	md, err := s.MDS.GlobalMetadata()
-	if err != nil {
-		return nil, err
-	}
+	md := s.MDS.GlobalMetadata()
 	clog.Tracef("Creating File For Inode %d:%d", inode.Volume, inode.INode)
 	return &File{
 		volume:  volume,

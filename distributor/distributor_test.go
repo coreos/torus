@@ -17,7 +17,7 @@ func newServer(md *temp.Server) *torus.Server {
 		StorageSize: 100 * 1024 * 1024,
 	}
 	mds := temp.NewClient(cfg, md)
-	gmd, _ := mds.GlobalMetadata()
+	gmd := mds.GlobalMetadata()
 	blocks, _ := torus.CreateBlockStore("temp", "current", cfg, gmd)
 	s, _ := torus.NewServerByImpl(cfg, mds, blocks)
 	return s

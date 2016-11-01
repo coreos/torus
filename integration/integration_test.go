@@ -35,7 +35,7 @@ func newServer(t testing.TB, md *temp.Server) *torus.Server {
 		DataDir:     dir,
 	}
 	mds := temp.NewClient(cfg, md)
-	gmd, _ := mds.GlobalMetadata()
+	gmd := mds.GlobalMetadata()
 	blocks, err := torus.CreateBlockStore("mfile", "current", cfg, gmd)
 	if err != nil {
 		t.Fatal(err)

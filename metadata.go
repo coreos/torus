@@ -27,7 +27,10 @@ type MetadataService interface {
 	NewVolumeID() (VolumeID, error)
 	Kind() MetadataKind
 
-	GlobalMetadata() (GlobalMetadata, error)
+	// GlobalMetadata backing struct must be instantiated upon the
+	// service creation. If it can not be created the MetadataService
+	// creation must fail.
+	GlobalMetadata() GlobalMetadata
 
 	// Returns a UUID based on the underlying datadir. Should be
 	// unique for every created datadir.

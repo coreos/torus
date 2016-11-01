@@ -40,10 +40,7 @@ func newDistributor(srv *torus.Server, addr *url.URL) (*Distributor, error) {
 		blocks: srv.Blocks,
 		srv:    srv,
 	}
-	gmd, err := d.srv.MDS.GlobalMetadata()
-	if err != nil {
-		return nil, err
-	}
+	gmd := d.srv.MDS.GlobalMetadata()
 	if addr != nil {
 		d.rpcSrv, err = protocols.ListenRPC(addr, d, gmd)
 		if err != nil {

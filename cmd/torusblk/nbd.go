@@ -97,18 +97,16 @@ func connectNBD(srv *torus.Server, f *block.BlockFile, target string, closer cha
 	defer f.Close()
 	size := f.Size()
 
-	gmd, err := srv.MDS.GlobalMetadata()
-	if err != nil {
-		return err
-	}
+	gmd := srv.MDS.GlobalMetadata()
 
 	handle := nbd.Create(f, int64(size), int64(gmd.BlockSize))
 
 	if target == "" {
-		target, err = nbd.FindDevice()
+		t, err := nbd.FindDevice()
 		if err != nil {
 			return err
 		}
+		target = t
 	}
 
 	dev, err := handle.OpenDevice(target)
