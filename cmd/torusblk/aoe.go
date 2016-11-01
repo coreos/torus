@@ -30,13 +30,20 @@ eth0 network interface:
 	torusblk aoe vol01 eth0 1 1
 	torusblk aoe vol02 eth0 1 2
 `),
-	Run: aoeAction,
+	Run: func(cmd *cobra.Command, args []string) {
+		err := aoeAction(cmd, args)
+		if err == torus.ErrUsage {
+			cmd.Usage()
+			os.Exit(1)
+		} else if err != nil {
+			die("%v", err)
+		}
+	},
 }
 
-func aoeAction(cmd *cobra.Command, args []string) {
+func aoeAction(cmd *cobra.Command, args []string) error {
 	if len(args) != 4 {
-		cmd.Usage()
-		os.Exit(1)
+		return torus.ErrUsage
 	}
 
 	srv := createServer()
@@ -48,24 +55,22 @@ func aoeAction(cmd *cobra.Command, args []string) {
 
 	major, err := strconv.ParseUint(maj, 10, 16)
 	if err != nil {
-		die("Failed to parse major address %q: %v\n", maj, err)
+		return fmt.Errorf("Failed to parse major address %q: %v", maj, err)
 	}
 
 	minor, err := strconv.ParseUint(min, 10, 8)
 	if err != nil {
-		die("Failed to parse minor address %q: %v\n", min, err)
+		return fmt.Errorf("Failed to parse minor address %q: %v", min, err)
 	}
 
 	blockvol, err := block.OpenBlockVolume(srv, vol)
 	if err != nil {
-		fmt.Println("server doesn't support block volumes:", err)
-		os.Exit(1)
+		return fmt.Errorf("server doesn't support block volumes: %v", err)
 	}
 
 	ai, err := aoe.NewInterface(ifname)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to set up interface %q: %v\n", ifname, err)
-		os.Exit(1)
+		return fmt.Errorf("Failed to set up interface %q: %v", ifname, err)
 	}
 
 	as, err := aoe.NewServer(blockvol, &aoe.ServerOptions{
@@ -73,8 +78,7 @@ func aoeAction(cmd *cobra.Command, args []string) {
 		Minor: uint8(minor),
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to crate AoE server: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Failed to crate AoE server: %v", err)
 	}
 
 	signalChan := make(chan os.Signal, 1)
@@ -92,7 +96,7 @@ func aoeAction(cmd *cobra.Command, args []string) {
 	}(srv, ai)
 
 	if err = as.Serve(ai); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to serve AoE: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Failed to serve AoE: %v", err)
 	}
+	return nil
 }
