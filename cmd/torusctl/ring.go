@@ -52,7 +52,7 @@ func init() {
 	ringCommand.AddCommand(ringGetCommand)
 	ringChangeCommand.Flags().StringSliceVar(&uuids, "uuids", []string{}, "uuids to incorporate in the ring")
 	ringChangeCommand.Flags().BoolVar(&allUUIDs, "all-peers", false, "use all peers in the ring")
-	ringChangeCommand.Flags().StringVar(&ringType, "type", "single", "type of ring to create")
+	ringChangeCommand.Flags().StringVar(&ringType, "type", "ketama", "type of ring to create (empty, single, mod or ketama)")
 	ringChangeCommand.Flags().IntVarP(&repFactor, "replication", "r", 2, "number of replicas")
 }
 
@@ -153,7 +153,7 @@ func ringChangePreRun(cmd *cobra.Command, args []string) {
 	case "mod":
 	case "ketama":
 	default:
-		die(`invalid ring type %s (try "empty", "mod" or "single")`, ringType)
+		die(`invalid ring type %s (try "empty", "mod", "single" or "ketama")`, ringType)
 	}
 }
 
