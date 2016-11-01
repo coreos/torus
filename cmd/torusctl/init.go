@@ -78,7 +78,7 @@ func initAction(cmd *cobra.Command, args []string) {
 
 func viewMetadata() {
 	mds := mustConnectToMDS()
-	md, _ := mds.GlobalMetadata()
+	md := mds.GlobalMetadata()
 
 	var blockSpecToStrings = []string{
 		blockset.Base:        "base",
