@@ -231,10 +231,10 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s torus.BlockRef, data []byte
 	}
 	if v := m.findIndex(s); v != -1 {
 		// we already have it
-		clog.Debug("mfile: block already exists", s)
+		clog.Debug("mfile: block already exists: ", s)
 		olddata := m.dataFile.GetBlock(uint64(v))
 		if !bytes.Equal(olddata, data) {
-			clog.Error("getting wrong data for block", s)
+			clog.Error("getting wrong data for block: ", s)
 			clog.Errorf("%s, %s", olddata[:10], data[:10])
 			return torus.ErrExists
 		}
@@ -269,7 +269,7 @@ func (m *mfileBlock) WriteBuf(_ context.Context, s torus.BlockRef) ([]byte, erro
 	}
 	if v := m.findIndex(s); v != -1 {
 		// we already have it
-		clog.Debug("mfile: block already exists", s)
+		clog.Debug("mfile: block already exists: ", s)
 		// Not an error, if we already have it
 		return nil, torus.ErrExists
 	}
