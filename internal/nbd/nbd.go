@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"runtime"
 	"sync"
@@ -367,8 +368,7 @@ func (h *reqHeader) magic() uint32 {
 }
 
 func (h *reqHeader) offset() int64 {
-	const maxInt64 = (^uint64(0) >> 1) + 1
-	if u := binary.BigEndian.Uint64(h[16:24]); u <= maxInt64 {
+	if u := binary.BigEndian.Uint64(h[16:24]); u <= math.MaxInt64 {
 		return int64(u)
 	}
 	panic("nbd: offset overflow")
