@@ -35,7 +35,6 @@ var (
 	httpAddress string
 	peerAddress string
 	sizeStr     string
-	size        uint64
 	host        string
 	port        int
 	debugInit   bool
@@ -104,7 +103,10 @@ func configureServer(cmd *cobra.Command, args []string) {
 		httpAddress = fmt.Sprintf("%s:%d", host, port)
 	}
 
-	var err error
+	var (
+		err  error
+		size uint64
+	)
 	if strings.Contains(sizeStr, "%") {
 		percent, err := parsePercentage(sizeStr)
 		if err != nil {
