@@ -9,7 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var outputAsCSV bool
+var (
+	outputAsCSV bool
+	outputAsSI  bool
+)
 
 var listPeersCommand = &cobra.Command{
 	Use:   "list-peers",
@@ -19,6 +22,7 @@ var listPeersCommand = &cobra.Command{
 
 func init() {
 	listPeersCommand.Flags().BoolVarP(&outputAsCSV, "csv", "", false, "output as csv instead")
+	listPeersCommand.Flags().BoolVarP(&outputAsSI, "si", "", false, "output sizes in powers of 1000")
 }
 
 func listPeersAction(cmd *cobra.Command, args []string) {
@@ -50,11 +54,11 @@ func listPeersAction(cmd *cobra.Command, args []string) {
 		table.Append([]string{
 			x.Address,
 			x.UUID,
-			humanize.IBytes(x.TotalBlocks * gmd.BlockSize),
-			humanize.IBytes(x.UsedBlocks * gmd.BlockSize),
+			bytesOrIbytes(x.TotalBlocks*gmd.BlockSize, outputAsSI),
+			bytesOrIbytes(x.UsedBlocks*gmd.BlockSize, outputAsSI),
 			ringStatus,
 			humanize.Time(time.Unix(0, x.LastSeen)),
-			humanize.IBytes(x.RebalanceInfo.LastRebalanceBlocks*gmd.BlockSize*uint64(time.Second)/uint64(x.LastSeen+1-x.RebalanceInfo.LastRebalanceFinish)) + "/sec",
+			bytesOrIbytes(x.RebalanceInfo.LastRebalanceBlocks*gmd.BlockSize*uint64(time.Second)/uint64(x.LastSeen+1-x.RebalanceInfo.LastRebalanceFinish), outputAsSI) + "/sec",
 		})
 		if x.RebalanceInfo.Rebalancing {
 			rebalancing = true

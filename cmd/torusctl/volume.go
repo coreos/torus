@@ -38,6 +38,7 @@ func init() {
 	volumeCommand.AddCommand(volumeListCommand)
 	volumeCommand.AddCommand(volumeCreateBlockCommand)
 	volumeListCommand.Flags().BoolVarP(&outputAsCSV, "csv", "", false, "output as csv instead")
+	volumeListCommand.Flags().BoolVarP(&outputAsSI, "si", "", false, "output sizes in powers of 1000")
 }
 
 func volumeAction(cmd *cobra.Command, args []string) {
@@ -60,7 +61,7 @@ func volumeListAction(cmd *cobra.Command, args []string) {
 	for _, x := range vols {
 		table.Append([]string{
 			x.Name,
-			humanize.IBytes(x.MaxBytes),
+			bytesOrIbytes(x.MaxBytes, outputAsSI),
 			x.Type,
 		})
 	}
