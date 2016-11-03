@@ -11,6 +11,8 @@ import (
 	// Register all the drivers.
 	_ "github.com/coreos/torus/metadata/etcd"
 	_ "github.com/coreos/torus/storage"
+
+	"github.com/dustin/go-humanize"
 )
 
 func die(why string, args ...interface{}) {
@@ -38,4 +40,11 @@ func createServer() *torus.Server {
 		die("Couldn't start: %s", err)
 	}
 	return srv
+}
+
+func bytesOrIbytes(s uint64, si bool) string {
+	if si {
+		return humanize.Bytes(s)
+	}
+	return humanize.IBytes(s)
 }
