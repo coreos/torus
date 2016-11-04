@@ -100,7 +100,7 @@ func nbdAction(cmd *cobra.Command, args []string) error {
 	defer f.Close()
 	err = connectNBD(srv, f, knownDev, closer)
 	if err != nil {
-		return fmt.Errorf("%s", err)
+		return err
 	}
 	return nil
 }
