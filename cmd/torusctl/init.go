@@ -16,13 +16,12 @@ import (
 )
 
 var (
-	blockSize        uint64
-	blockSizeStr     string
-	blockSpec        string
-	inodeReplication int
-	metaView         bool
-	initRingType     string
-	initRepFactor    int
+	blockSize     uint64
+	blockSizeStr  string
+	blockSpec     string
+	metaView      bool
+	initRingType  string
+	initRepFactor int
 )
 
 var initCommand = &cobra.Command{
@@ -35,7 +34,6 @@ var initCommand = &cobra.Command{
 func init() {
 	initCommand.Flags().StringVarP(&blockSizeStr, "block-size", "", "512KiB", "size of all data blocks in this storage cluster")
 	initCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this storage cluster")
-	initCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
 	initCommand.Flags().BoolVar(&metaView, "view", false, "view metadata configured in this storage cluster")
 	initCommand.Flags().StringVar(&initRingType, "type", "ketama", "type of ring to create (empty, single, mod or ketama)")
 	initCommand.Flags().IntVarP(&initRepFactor, "replication", "r", 2, "number of replicas")
@@ -66,8 +64,6 @@ func initAction(cmd *cobra.Command, args []string) {
 		die("error parsing block-spec: %v", err)
 	}
 
-	cfg := flagconfig.BuildConfigFromFlags()
-
 	var ringType torus.RingType
 	switch initRingType {
 	case "empty":
@@ -76,10 +72,13 @@ func initAction(cmd *cobra.Command, args []string) {
 		}
 		ringType = ring.Empty
 	case "single":
-		if initRepFactor != 1 {
-			die(`invalid number of replicas for single ring. Use "--replication=1"`)
-		}
-		ringType = ring.Single
+		die(`Currently single ring type is not supported by init. Use torusctl ring manual-change after adding one node."`)
+		/*
+			if initRepFactor != 1 {
+				die(`invalid number of replicas for single ring. Use "--replication=1"`)
+			}
+			iRingType = ring.Single
+		*/
 	case "mod":
 		ringType = ring.Mod
 	case "ketama":
@@ -87,11 +86,12 @@ func initAction(cmd *cobra.Command, args []string) {
 	default:
 		die(`invalid ring type %s (try "empty", "mod", "single" or "ketama")`, initRingType)
 	}
-
+	cfg := flagconfig.BuildConfigFromFlags()
 	err = torus.InitMDS("etcd", cfg, md, ringType, initRepFactor)
 	if err != nil {
 		die("error writing metadata: %v", err)
 	}
+
 }
 
 func viewMetadata() {
