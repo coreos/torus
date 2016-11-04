@@ -22,6 +22,7 @@ var (
 	inodeReplication int
 	metaView         bool
 	initRingType     string
+	initRepFactor    int
 )
 
 var initCommand = &cobra.Command{
@@ -37,6 +38,7 @@ func init() {
 	initCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
 	initCommand.Flags().BoolVar(&metaView, "view", false, "view metadata configured in this storage cluster")
 	initCommand.Flags().StringVar(&initRingType, "type", "ketama", "type of ring to create (empty, single, mod or ketama)")
+	initCommand.Flags().IntVarP(&initRepFactor, "replication", "r", 2, "number of replicas")
 }
 
 func initPreRun(cmd *cobra.Command, args []string) {
@@ -69,8 +71,14 @@ func initAction(cmd *cobra.Command, args []string) {
 	var ringType torus.RingType
 	switch initRingType {
 	case "empty":
+		if initRepFactor != 0 {
+			die(`invalid number of replicas for empty ring. Use "--replication=0"`)
+		}
 		ringType = ring.Empty
 	case "single":
+		if initRepFactor != 1 {
+			die(`invalid number of replicas for single ring. Use "--replication=1"`)
+		}
 		ringType = ring.Single
 	case "mod":
 		ringType = ring.Mod
@@ -80,7 +88,7 @@ func initAction(cmd *cobra.Command, args []string) {
 		die(`invalid ring type %s (try "empty", "mod", "single" or "ketama")`, initRingType)
 	}
 
-	err = torus.InitMDS("etcd", cfg, md, ringType)
+	err = torus.InitMDS("etcd", cfg, md, ringType, initRepFactor)
 	if err != nil {
 		die("error writing metadata: %v", err)
 	}

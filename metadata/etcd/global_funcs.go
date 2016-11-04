@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func initEtcdMetadata(cfg torus.Config, gmd torus.GlobalMetadata, ringType torus.RingType) error {
+func initEtcdMetadata(cfg torus.Config, gmd torus.GlobalMetadata, ringType torus.RingType, repFactor int) error {
 	gmdbytes, err := json.Marshal(gmd)
 	if err != nil {
 		return err
@@ -19,7 +19,7 @@ func initEtcdMetadata(cfg torus.Config, gmd torus.GlobalMetadata, ringType torus
 	emptyRing, err := ring.CreateRing(&models.Ring{
 		Type:              uint32(ringType),
 		Version:           1,
-		ReplicationFactor: 2,
+		ReplicationFactor: uint32(repFactor),
 	})
 	if err != nil {
 		return err

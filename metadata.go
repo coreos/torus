@@ -99,7 +99,7 @@ func CreateMetadataService(name string, cfg Config) (MetadataService, error) {
 }
 
 // InitMDSFunc is the signature of a function which preformats a metadata service.
-type InitMDSFunc func(cfg Config, gmd GlobalMetadata, ringType RingType) error
+type InitMDSFunc func(cfg Config, gmd GlobalMetadata, ringType RingType, repFactor int) error
 
 var initMDSFuncs map[string]InitMDSFunc
 
@@ -118,9 +118,9 @@ func RegisterMetadataInit(name string, newFunc InitMDSFunc) {
 }
 
 // InitMDS calls the specific init function provided by a metadata package.
-func InitMDS(name string, cfg Config, gmd GlobalMetadata, ringType RingType) error {
+func InitMDS(name string, cfg Config, gmd GlobalMetadata, ringType RingType, repFactor int) error {
 	clog.Debugf("running InitMDS for service type: %s", name)
-	return initMDSFuncs[name](cfg, gmd, ringType)
+	return initMDSFuncs[name](cfg, gmd, ringType, repFactor)
 }
 
 type WipeMDSFunc func(cfg Config) error

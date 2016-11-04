@@ -157,7 +157,8 @@ func runServer(cmd *cobra.Command, args []string) {
 		err = torus.InitMDS("etcd", cfg, torus.GlobalMetadata{
 			BlockSize:        512 * 1024,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
-		}, ring.Ketama)
+			INodeReplication: 2,
+		}, ring.Ketama, 2)
 		if err != nil {
 			if err == torus.ErrExists {
 				fmt.Println("debug-init: Already exists")
