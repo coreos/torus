@@ -206,6 +206,7 @@ func (nbd *NBD) Serve() error {
 		}
 	}
 
+	fmt.Printf("Attached to %s. Server loop begins ... \n", nbd.nbd.Name())
 	c := &serverConn{
 		rw: os.NewFile(uintptr(nbd.socket), "<nbd socket>"),
 	}
