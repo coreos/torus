@@ -19,8 +19,8 @@ Further abstractions can be built around this, say a POSIX file:
 
 Inodes are, themselves, serialized and stored as blocks in the volume. A special bit is set to identify them as inodes, and to separate their ID space from the blocks of data they represent. To wit:
 
-Type(data) Volume 1, Inode Index 2, Index 1 (first block of data written at index 2)
-Type(inode) Volume 1, Inode Index 2, Index 1 (first block of inode serialization written at index 2)
+* Type(data) Volume 1, Inode Index 2, Index 1 (first block of data written at index 2)
+* Type(inode) Volume 1, Inode Index 2, Index 1 (first block of inode serialization written at index 2)
 
 At this point, the actual data blocks form a traditional sharded KV store. We reconstruct the file by asking for the appropriate keys of the appropriate block ranges (blocks are a fixed size). Replication is handled through successive members in our hash function (which we have opportunity to define).
 
