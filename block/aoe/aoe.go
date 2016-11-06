@@ -193,7 +193,10 @@ func (s *Server) Serve(iface *Interface) error {
 		clog.Debugf("recv %d %s %+v", n, addr, f.Header)
 		//clog.Debugf("recv arg %+v", f.Header.Arg)
 
-		s.handleFrame(addr, iface, &f)
+		_, err = s.handleFrame(addr, iface, &f)
+		if err != nil {
+			clog.Errorf("failed to handle frame: %v", err)
+		}
 	}
 
 	return nil
