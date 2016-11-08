@@ -25,10 +25,10 @@ It is important to note that all AoE servers on the same layer 2 network
 must have different major and minor addresses.
 
 An example of serving two volumes using AoE on the same server over the
-eth0 network interface:
+loopback interface:
 
-	torusblk aoe vol01 eth0 1 1
-	torusblk aoe vol02 eth0 1 2
+	torusblk aoe vol01 lo 1 1
+	torusblk aoe vol02 lo 1 2
 `),
 	Run: func(cmd *cobra.Command, args []string) {
 		err := aoeAction(cmd, args)
