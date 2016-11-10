@@ -310,10 +310,6 @@ func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	if resp.More {
-		// What do?
-		return nil, errors.New("implement me")
-	}
 	if len(resp.Kvs) == 0 {
 		return nil, errors.New(fmt.Sprintf("etcd: volume %q not found", volume))
 
