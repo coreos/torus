@@ -107,6 +107,8 @@ kubectl uncordon $PGNODE
 
 ## Installing the Torus FlexVolume plugin on generic Kubernetes installations
 
+### 1) Install torus(torusblk) in kubelet volume plugin directory
+
 NOTICE: The FlexVolume functionality currently uses systemd to manage its lifecycle. Running as a FlexVolume on non-systemd systems is TBD
 
 Kubernetes v1.2 supports FlexVolumes by placing a plugin binary in a specific location. By default, that is
@@ -125,3 +127,11 @@ cp torusblk /usr/libexec/kubernetes/kubelet-plugins/volume/exec/coreos.com~torus
 Notice that the `cp` command renames `torusblk` as `torus` in the target directory.
 
 After that, restart the kubelet (ie, `systemctl restart kubelet`, or `/etc/init.d/kubelet restart`) -- and the plugin is ready.
+
+### 2) Enable nbd kernel module
+
+Currently the FlexVolume uses nbd kernel module. You have to enable `nbd` kernel module on Node hosts.
+
+```
+modprobe nbd nbds_max=32
+```
