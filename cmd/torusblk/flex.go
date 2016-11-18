@@ -364,7 +364,7 @@ func writeResponse(resp Response) {
 		fmt.Println([]byte(err.Error()))
 		os.Exit(2)
 	}
-	fmt.Println(string(b))
+	fmt.Print(string(b))
 }
 
 func onErr(err error) {
