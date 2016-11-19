@@ -38,8 +38,7 @@ func CreateMFile(path string, size uint64) error {
 		return err
 	}
 	defer f.Close()
-	f.Truncate(int64(size))
-	return nil
+	return f.Truncate(int64(size))
 }
 
 func OpenMFile(path string, blkSize uint64) (*MFile, error) {

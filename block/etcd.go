@@ -20,11 +20,6 @@ type blockEtcd struct {
 }
 
 func (b *blockEtcd) CreateBlockVolume(volume *models.Volume) error {
-	new, err := b.AtomicModifyKey([]byte(etcd.MkKey("meta", "volumeminter")), etcd.BytesAddOne)
-	volume.Id = new.(uint64)
-	if err != nil {
-		return err
-	}
 	vbytes, err := volume.Marshal()
 	if err != nil {
 		return err

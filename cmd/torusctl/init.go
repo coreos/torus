@@ -16,12 +16,11 @@ import (
 )
 
 var (
-	blockSize        uint64
-	blockSizeStr     string
-	blockSpec        string
-	inodeReplication int
-	noMakeRing       bool
-	metaView         bool
+	blockSize    uint64
+	blockSizeStr string
+	blockSpec    string
+	noMakeRing   bool
+	metaView     bool
 )
 
 var initCommand = &cobra.Command{
@@ -34,7 +33,6 @@ var initCommand = &cobra.Command{
 func init() {
 	initCommand.Flags().StringVarP(&blockSizeStr, "block-size", "", "512KiB", "size of all data blocks in this storage cluster")
 	initCommand.Flags().StringVarP(&blockSpec, "block-spec", "", "crc", "default replication/error correction applied to blocks in this storage cluster")
-	initCommand.Flags().IntVarP(&inodeReplication, "inode-replication", "", 3, "default number of times to replicate inodes across the cluster")
 	initCommand.Flags().BoolVar(&noMakeRing, "no-ring", false, "do not create the default ring as part of init")
 	initCommand.Flags().BoolVar(&metaView, "view", false, "view metadata configured in this storage cluster")
 }
@@ -60,7 +58,6 @@ func initAction(cmd *cobra.Command, args []string) {
 	md := torus.GlobalMetadata{}
 	md.BlockSize = blockSize
 	md.DefaultBlockSpec, err = blockset.ParseBlockLayerSpec(blockSpec)
-	md.INodeReplication = inodeReplication
 	if err != nil {
 		die("error parsing block-spec: %v", err)
 	}
@@ -91,5 +88,4 @@ func viewMetadata() {
 	}
 	fmt.Printf("Block size: %d byte\n", md.BlockSize)
 	fmt.Printf("Block spec: %s\n", blockSpec)
-	fmt.Printf("Inode replication: %d \n", md.INodeReplication)
 }

@@ -62,12 +62,20 @@ func loadIndex(m *MFile) (map[torus.BlockRef]int, error) {
 }
 
 func newMFileBlockStore(name string, cfg torus.Config, meta torus.GlobalMetadata) (torus.BlockStore, error) {
-	nBlocks := cfg.StorageSize / meta.BlockSize
+
+	storageSize := cfg.StorageSize
+	offset := cfg.StorageSize % meta.BlockSize
+	if offset != 0 {
+		storageSize = cfg.StorageSize - offset
+		clog.Infof("resizing to %v bytes to make an even multiple of blocksize: %v\n", storageSize, meta.BlockSize)
+	}
+
+	nBlocks := storageSize / meta.BlockSize
 	promBytesPerBlock.Set(float64(meta.BlockSize))
 	promBlocksAvail.WithLabelValues(name).Set(float64(nBlocks))
 	dpath := filepath.Join(cfg.DataDir, "block", fmt.Sprintf("data-%s.blk", name))
 	mpath := filepath.Join(cfg.DataDir, "block", fmt.Sprintf("map-%s.blk", name))
-	d, err := CreateOrOpenMFile(dpath, cfg.StorageSize, meta.BlockSize)
+	d, err := CreateOrOpenMFile(dpath, storageSize, meta.BlockSize)
 	if err != nil {
 		return nil, err
 	}

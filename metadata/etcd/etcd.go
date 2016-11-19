@@ -70,7 +70,13 @@ type Etcd struct {
 }
 
 func newEtcdMetadata(cfg torus.Config) (torus.MetadataService, error) {
-	uuid, err := metadata.MakeOrGetUUID(cfg.DataDir)
+	var uuid string
+	var err error
+	if cfg.DataDir == "" {
+		uuid = metadata.MakeUUID()
+	} else {
+		uuid, err = metadata.GetUUID(cfg.DataDir)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +93,9 @@ func newEtcdMetadata(cfg torus.Config) (torus.MetadataService, error) {
 		volumesCache: make(map[string]*models.Volume),
 		uuid:         uuid,
 	}
+	// We do this so that referring to e, you can either call the functions
+	// directly (with a nil context) or, create another reference using
+	// WithContext(), below.
 	e.etcdCtx.etcd = e
 	err = e.getGlobalMetadata()
 	if err != nil {
@@ -229,6 +238,7 @@ func (c *etcdCtx) GetPeers() (torus.PeerInfoList, error) {
 // between getting the data and setting the new value.
 type AtomicModifyFunc func(in []byte) (out []byte, data interface{}, err error)
 
+// TODO(barakmich): Perhaps make this an etcd client library function.
 func (c *etcdCtx) AtomicModifyKey(k []byte, f AtomicModifyFunc) (interface{}, error) {
 	key := string(k)
 	resp, err := c.etcd.Client.Get(c.getContext(), key)

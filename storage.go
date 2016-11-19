@@ -9,6 +9,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/torus/models"
+	"github.com/lpabon/godbc"
 )
 
 var BlockLog = capnslog.NewPackageLogger("github.com/coreos/torus", "blocklog")
@@ -76,6 +77,7 @@ func (i INodeRef) ToProto() *models.INodeRef {
 }
 
 func NewINodeRef(vol VolumeID, i INodeID) INodeRef {
+	godbc.Require(vol < VolumeMax, vol)
 	return INodeRef{
 		volume: vol & VolumeMax,
 		INode:  i,
