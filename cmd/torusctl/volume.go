@@ -1,8 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"os"
+	"time"
 
+	"github.com/coreos/pkg/progressutil"
+	"github.com/coreos/torus"
 	"github.com/coreos/torus/block"
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
@@ -33,10 +38,27 @@ var volumeCreateBlockCommand = &cobra.Command{
 	Run:   volumeCreateBlockAction,
 }
 
+var volumeCreateBlockFromSnapshotCommand = &cobra.Command{
+	Use:   "from-snapshot VOLUME@SNAPSHOT_NAME NEW_NAME",
+	Short: "create a block volume from snapshot",
+	Long:  "creates a block volume named NAME from snapshot",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := volumeCreateBlockFromSnapshotAction(cmd, args)
+		if err == torus.ErrUsage {
+			cmd.Usage()
+			os.Exit(1)
+		} else if err != nil {
+			die("%v", err)
+		}
+	},
+}
+
 func init() {
 	volumeCommand.AddCommand(volumeDeleteCommand)
 	volumeCommand.AddCommand(volumeListCommand)
 	volumeCommand.AddCommand(volumeCreateBlockCommand)
+	volumeCreateBlockCommand.AddCommand(volumeCreateBlockFromSnapshotCommand)
+	volumeCreateBlockFromSnapshotCommand.Flags().BoolVarP(&progress, "progress", "p", false, "show progress")
 	volumeListCommand.Flags().BoolVarP(&outputAsCSV, "csv", "", false, "output as csv instead")
 	volumeListCommand.Flags().BoolVarP(&outputAsSI, "si", "", false, "output sizes in powers of 1000")
 }
@@ -108,4 +130,68 @@ func volumeCreateBlockAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("error creating volume %s: %v", args[0], err)
 	}
+}
+
+func volumeCreateBlockFromSnapshotAction(cmd *cobra.Command, args []string) error {
+	if len(args) != 2 {
+		return torus.ErrUsage
+	}
+	snapshot := args[0]
+	newVolName := args[1]
+
+	vol := ParseSnapName(snapshot)
+	if vol.Snapshot == "" {
+		return fmt.Errorf("can't restore a snapshot without a name, please use the form VOLUME@SNAPSHOT_NAME")
+	}
+
+	srv := createServer()
+	defer srv.Close()
+
+	// open original snapshot
+	blockvolSrc, err := block.OpenBlockVolume(srv, vol.Volume)
+	if err != nil {
+		return fmt.Errorf("couldn't open block volume %s: %v", vol.Volume, err)
+	}
+	bfsrc, err := blockvolSrc.OpenSnapshot(vol.Snapshot)
+	if err != nil {
+		return fmt.Errorf("couldn't open snapshot: %v", err)
+	}
+	size := bfsrc.Size()
+
+	// create  new volume
+	err = block.CreateBlockVolume(srv.MDS, newVolName, size)
+	if err != nil {
+		return fmt.Errorf("error creating volume %s: %v", newVolName, err)
+	}
+	blockvolDist, err := block.OpenBlockVolume(srv, newVolName)
+	if err != nil {
+		return fmt.Errorf("couldn't open block volume %s: %v", newVolName, err)
+	}
+	bfdist, err := blockvolDist.OpenBlockFile()
+	if err != nil {
+		return fmt.Errorf("couldn't open blockfile %s: %v", newVolName, err)
+	}
+	defer bfdist.Close()
+
+	if progress {
+		pb := progressutil.NewCopyProgressPrinter()
+		pb.AddCopy(bfsrc, newVolName, int64(size), bfdist)
+		err := pb.PrintAndWait(os.Stderr, 500*time.Millisecond, nil)
+		if err != nil {
+			return fmt.Errorf("couldn't copy: %v", err)
+		}
+	} else {
+		n, err := io.Copy(bfdist, bfsrc)
+		if err != nil {
+			return fmt.Errorf("couldn't copy: %v", err)
+		}
+		if n != int64(size) {
+			return fmt.Errorf("copied size %d doesn't match original size %d", n, size)
+		}
+	}
+	err = bfdist.Sync()
+	if err != nil {
+		return fmt.Errorf("couldn't sync: %v", err)
+	}
+	return nil
 }
