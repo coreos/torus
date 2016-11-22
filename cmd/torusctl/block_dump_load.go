@@ -157,6 +157,7 @@ func blockLoadAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("couldn't open blockfile %s: %v", args[1], err)
 	}
+	defer f.Close()
 
 	if progress {
 		pb := progressutil.NewCopyProgressPrinter()
@@ -175,10 +176,6 @@ func blockLoadAction(cmd *cobra.Command, args []string) error {
 	err = f.Sync()
 	if err != nil {
 		return fmt.Errorf("couldn't sync: %v", err)
-	}
-	err = f.Close()
-	if err != nil {
-		return fmt.Errorf("couldn't close: %v", err)
 	}
 	fmt.Printf("copied %d bytes\n", fi.Size())
 	return nil
