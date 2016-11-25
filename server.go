@@ -28,17 +28,16 @@ const (
 
 // Server is the type representing the generic distributed block store.
 type Server struct {
-	mut           sync.RWMutex
-	writeableLock sync.RWMutex
-	infoMut       sync.Mutex
-	Blocks        BlockStore
-	MDS           MetadataService
-	INodes        *INodeStore
-	peersMap      map[string]*models.PeerInfo
-	closeChans    []chan interface{}
-	Cfg           Config
-	peerInfo      *models.PeerInfo
-	ctx           context.Context
+	mut        sync.RWMutex
+	infoMut    sync.Mutex
+	Blocks     BlockStore
+	MDS        MetadataService
+	INodes     *INodeStore
+	peersMap   map[string]*models.PeerInfo
+	closeChans []chan interface{}
+	Cfg        Config
+	peerInfo   *models.PeerInfo
+	ctx        context.Context
 
 	lease    int64
 	leaseMut sync.Mutex
