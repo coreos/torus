@@ -56,6 +56,7 @@ func (s *Server) createOrRenewLease(ctx context.Context) error {
 		if err == nil {
 			return nil
 		}
+		clog.Errorf("Failed to renew, grant new lease for %d: %s", s.lease, err)
 	}
 	var err error
 	s.lease, err = s.MDS.WithContext(ctx).GetLease()
