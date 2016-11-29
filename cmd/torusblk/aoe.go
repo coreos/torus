@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/signal"
@@ -12,6 +13,10 @@ import (
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/block"
 	"github.com/coreos/torus/block/aoe"
+)
+
+const (
+	flushDevice = "/dev/etherd/flush"
 )
 
 var aoeCommand = &cobra.Command{
@@ -41,7 +46,22 @@ eth0 network interface:
 	},
 }
 
+var (
+	aoeFlush string
+)
+
+func init() {
+	aoeCommand.Flags().StringVarP(&aoeFlush, "flush", "", "", "flush AOE device (e.g. torsublk aoe --flush e1.1)")
+}
+
 func aoeAction(cmd *cobra.Command, args []string) error {
+	if len(aoeFlush) > 0 && len(args) == 0 {
+		if err := flush(aoeFlush); err != nil {
+			return fmt.Errorf("failed to flush: %v", err)
+		}
+		return nil
+	}
+
 	if len(args) != 4 {
 		return torus.ErrUsage
 	}
@@ -98,5 +118,20 @@ func aoeAction(cmd *cobra.Command, args []string) error {
 	if err = as.Serve(ai); err != nil {
 		return fmt.Errorf("Failed to serve AoE: %v", err)
 	}
+	return nil
+}
+
+func flush(d string) error {
+	fd, err := os.OpenFile(flushDevice, os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+	writer := bufio.NewWriter(fd)
+	_, err = writer.WriteString(d)
+	if err != nil {
+		return err
+	}
+	writer.Flush()
 	return nil
 }
