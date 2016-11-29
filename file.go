@@ -315,9 +315,8 @@ func (f *File) Close() error {
 	if f == nil {
 		return ErrInvalid
 	}
-	var err error
 	promOpenFiles.WithLabelValues(f.volume.Name).Dec()
-	return err
+	return nil
 }
 
 func (f *File) Truncate(size int64) error {
