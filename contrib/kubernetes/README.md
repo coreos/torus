@@ -105,6 +105,19 @@ Lastly, let's uncordon that node we cordoned in the beginning:
 kubectl uncordon $PGNODE
 ```
 
+### Cleanup deployments
+
+You can cleanup resources you deployed:
+
+```
+kubectl delete pod etcd-torus
+kubectl delete svc etcd-torus etcd-torus-internal
+kubectl delete daemonset torus
+
+kubectl delete svc postgres-torus
+kubectl delete deployment postgres-torus
+```
+
 ## Installing the Torus FlexVolume plugin on generic Kubernetes installations
 
 ### 1) Install torus(torusblk) in kubelet volume plugin directory
