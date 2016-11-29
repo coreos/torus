@@ -41,7 +41,7 @@ type Server struct {
 	ctx           context.Context
 
 	lease    int64
-	leaseMut sync.Mutex
+	leaseMut sync.RWMutex
 
 	heartbeating     bool
 	ReplicationOpen  bool
@@ -49,13 +49,14 @@ type Server struct {
 }
 
 func (s *Server) createOrRenewLease(ctx context.Context) error {
-	s.infoMut.Lock()
-	defer s.infoMut.Unlock()
+	s.leaseMut.Lock()
+	defer s.leaseMut.Unlock()
 	if s.lease != 0 {
 		err := s.MDS.WithContext(ctx).RenewLease(s.lease)
 		if err == nil {
 			return nil
 		}
+		clog.Errorf("Failed to renew, grant new lease for %d: %s", s.lease, err)
 	}
 	var err error
 	s.lease, err = s.MDS.WithContext(ctx).GetLease()
@@ -63,8 +64,8 @@ func (s *Server) createOrRenewLease(ctx context.Context) error {
 }
 
 func (s *Server) Lease() int64 {
-	s.infoMut.Lock()
-	defer s.infoMut.Unlock()
+	s.leaseMut.RLock()
+	defer s.leaseMut.RUnlock()
 	return s.lease
 }
 

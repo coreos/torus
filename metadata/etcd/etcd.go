@@ -27,6 +27,7 @@ var clog = capnslog.NewPackageLogger("github.com/coreos/torus", "etcd")
 const (
 	KeyPrefix      = "/github.com/coreos/torus/"
 	peerTimeoutMax = 50 * time.Second
+	leaseTTL       = 30
 )
 
 var (
@@ -337,10 +338,11 @@ func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
 }
 
 func (c *etcdCtx) GetLease() (int64, error) {
-	resp, err := c.etcd.Client.Grant(c.getContext(), 30)
+	resp, err := c.etcd.Client.Grant(c.getContext(), leaseTTL)
 	if err != nil {
 		return 0, err
 	}
+	clog.Tracef("created new lease for %d, TTL %d", resp.ID, leaseTTL)
 	return int64(resp.ID), nil
 }
 
