@@ -69,7 +69,7 @@ imports:
   subpackages:
   - pbutil
 - name: github.com/mdlayher/aoe
-  version: 63bdfd7f5c50809059b7b6de1cf37c2e330c5f81
+  version: f389bbabc4961d53471c5d3b7e0c3618e638d510
 - name: github.com/mdlayher/ethernet
   version: 28018267bba4d651e8e0fcbca8aae7c13f4ce4ae
 - name: github.com/mdlayher/raw
