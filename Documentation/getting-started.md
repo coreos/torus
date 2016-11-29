@@ -178,7 +178,8 @@ Specifying `/dev/nbd0` is optional -- it will pick the first available device if
 
 The mount process is similar to FUSE for a block device; it will disconnect when killed, so make sure it's synced and unmounted.
 
-At this point, you have a replicated, highly-available block device connected to your machine. You can format it and mount it using the standard tools you expect:
+If you can see the message `Attached to XXX. Server loop begins ... `, then you have a replicated, highly-available block device connected to your machine.
+You can format it and mount it using the standard tools you expect:
 
 ```
 sudo mkfs.ext4 /dev/nbd0

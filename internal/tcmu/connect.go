@@ -48,7 +48,7 @@ func ConnectAndServe(f *block.BlockFile, name string, closer chan bool) error {
 		return err
 	}
 	defer d.Close()
-	fmt.Printf("go-tcmu attached to %s/%s\n", devPath, name)
+	fmt.Printf("Attached to %s/%s. Server loop begins ... \n", devPath, name)
 	<-closer
 	return nil
 }

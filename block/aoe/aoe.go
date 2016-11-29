@@ -131,7 +131,7 @@ func (s *Server) Serve(iface *Interface) error {
 		}
 	}
 
-	clog.Tracef("beginning server loop on %+v", iface)
+	fmt.Printf("Attached to AoE device (%s, Major: %d, Minor: %d). Server loop begins ... \n", iface.Name, s.major, s.minor)
 
 	// Start goroutine to sync device at regular intervals, and halt when
 	// the Server's Close method is called.
