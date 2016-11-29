@@ -32,7 +32,7 @@ func NewGCController(srv *torus.Server, inodes INodeFetcher) GC {
 		clog.Debugf("creating %s gc", k)
 		gc, err := v(srv, inodes)
 		if err != nil {
-			clog.Errorf("cannot create gc %s", k)
+			clog.Errorf("cannot create gc %s: %v", k, err)
 			continue
 		}
 		gcs = append(gcs, gc)

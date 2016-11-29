@@ -30,7 +30,7 @@ func init() {
 		}
 		r, err := strconv.Atoi(opt)
 		if err != nil {
-			clog.Errorf("unknown replication amount %s", opt)
+			clog.Errorf("unknown replication amount %s: %v", opt, err)
 			return nil, errors.New("unknown replication amount: " + opt)
 		}
 		return newReplicationBlockset(sub, bs, r), nil

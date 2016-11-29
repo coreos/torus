@@ -219,7 +219,7 @@ func (c *etcdCtx) GetPeers() (torus.PeerInfoList, error) {
 		err := p.Unmarshal(x.Value)
 		if err != nil {
 			// Intentionally ignore a peer that doesn't unmarshal properly.
-			clog.Errorf("peer at key %s didn't unmarshal correctly", string(x.Key))
+			clog.Errorf("peer at key %s didn't unmarshal correctly: %v", string(x.Key), err)
 			continue
 		}
 		if time.Since(time.Unix(0, p.LastSeen)) > peerTimeoutMax {

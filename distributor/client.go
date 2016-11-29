@@ -73,7 +73,7 @@ func (d *distClient) getConn(uuid string) protocols.RPC {
 	}
 	uri, err := url.Parse(pi.Address)
 	if err != nil {
-		clog.Errorf("couldn't parse address: %s", pi.Address)
+		clog.Errorf("couldn't parse address %s: %v", pi.Address, err)
 		return nil
 	}
 	gmd := d.dist.srv.MDS.GlobalMetadata()
