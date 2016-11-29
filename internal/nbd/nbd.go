@@ -217,7 +217,11 @@ func (nbd *NBD) Serve() error {
 	wg := new(sync.WaitGroup)
 	wg.Add(n)
 	for i := 0; i < n; i++ {
-		go c.serveLoop(nbd.device, wg)
+		go func() {
+			if err := c.serveLoop(nbd.device, wg); err != nil {
+				clog.Errorf("server returned: %s", err)
+			}
+		}()
 	}
 	if !blksized {
 		// Back to the hack.

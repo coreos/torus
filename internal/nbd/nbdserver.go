@@ -163,14 +163,16 @@ func (c *NBDConn) handler() error {
 		rw: c.c,
 	}
 
-	// TODO: don't throw away serveLoop errors.
-	// also see nbd.go's Serve
 	n := 1
 
 	wg := new(sync.WaitGroup)
 	wg.Add(n)
 	for i := 0; i < n; i++ {
-		go srv.serveLoop(c.device, wg)
+		go func() {
+			if err := srv.serveLoop(c.device, wg); err != nil {
+				clog.Errorf("server returned: %s", err)
+			}
+		}()
 	}
 
 	wg.Wait()
