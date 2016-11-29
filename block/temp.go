@@ -127,6 +127,7 @@ func (b *blockTempMetadata) SaveSnapshot(name string) error {
 	d.snaps = append(d.snaps, snap)
 	return nil
 }
+
 func (b *blockTempMetadata) GetSnapshots() ([]Snapshot, error) {
 	b.LockData()
 	defer b.UnlockData()

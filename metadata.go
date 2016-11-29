@@ -52,6 +52,7 @@ type MetadataService interface {
 
 	CommitINodeIndex(VolumeID) (INodeID, error)
 	GetINodeIndex(VolumeID) (INodeID, error)
+	GetLockStatus(vid uint64) string
 }
 
 type DebugMetadataService interface {

@@ -337,6 +337,18 @@ func (c *etcdCtx) GetVolume(volume string) (*models.Volume, error) {
 	return v, nil
 }
 
+func (c *etcdCtx) GetLockStatus(vid uint64) string {
+	resp, err := c.etcd.Client.Get(c.getContext(), MkKey("volumemeta", Uint64ToHex(uint64(vid)), "blocklock"))
+	if err != nil {
+		clog.Debugf("Failed to get lock status: %v", err)
+		return "unknown"
+	}
+	if len(resp.Kvs) == 0 {
+		return "free"
+	}
+	return "in-use"
+}
+
 func (c *etcdCtx) GetLease() (int64, error) {
 	resp, err := c.etcd.Client.Grant(c.getContext(), leaseTTL)
 	if err != nil {

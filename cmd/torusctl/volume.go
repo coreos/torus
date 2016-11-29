@@ -57,12 +57,13 @@ func volumeListAction(cmd *cobra.Command, args []string) {
 		die("error listing volumes: %v\n", err)
 	}
 	table := NewTableWriter(os.Stdout)
-	table.SetHeader([]string{"Volume Name", "Size", "Type"})
+	table.SetHeader([]string{"Volume Name", "Size", "Type", "Status"})
 	for _, x := range vols {
 		table.Append([]string{
 			x.Name,
 			bytesOrIbytes(x.MaxBytes, outputAsSI),
 			x.Type,
+			mds.GetLockStatus(x.Id),
 		})
 	}
 	if outputAsCSV {
