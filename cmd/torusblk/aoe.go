@@ -67,6 +67,7 @@ func aoeAction(cmd *cobra.Command, args []string) error {
 	}
 
 	srv := createServer()
+	defer srv.Close()
 
 	vol := args[0]
 	ifname := args[1]
@@ -100,20 +101,17 @@ func aoeAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to crate AoE server: %v", err)
 	}
+	defer as.Close()
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 
-	go func(sv *torus.Server, iface *aoe.Interface) {
+	go func(iface *aoe.Interface) {
 		for _ = range signalChan {
 			fmt.Println("\nReceived an interrupt, stopping services...")
-
 			iface.Close()
-			sv.Close()
-			as.Close()
-			os.Exit(0)
 		}
-	}(srv, ai)
+	}(ai)
 
 	if err = as.Serve(ai); err != nil {
 		return fmt.Errorf("Failed to serve AoE: %v", err)
