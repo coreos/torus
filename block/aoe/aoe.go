@@ -50,20 +50,9 @@ type ServerOptions struct {
 	Minor uint8
 }
 
-// DefaultServerOptions is the default ServerOptions configuration used
-// by NewServer when none is specified.
-var DefaultServerOptions = &ServerOptions{
-	Major: 1,
-	Minor: 1,
-}
-
 // NewServer creates a new Server which utilizes the specified block volume.
 // If options is nil, DefaultServerOptions will be used.
 func NewServer(b *block.BlockVolume, options *ServerOptions) (*Server, error) {
-	if options == nil {
-		options = DefaultServerOptions
-	}
-
 	f, err := b.OpenBlockFile()
 	if err != nil {
 		return nil, err

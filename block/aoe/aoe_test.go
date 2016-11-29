@@ -298,7 +298,10 @@ func testAoEServer(t *testing.T) (response io.Reader, request io.Writer, run fun
 		t.Fatalf("error opening block volume: %v", err)
 	}
 
-	as, err := NewServer(vol, nil)
+	as, err := NewServer(vol, &ServerOptions{
+		Major: 1,
+		Minor: 1,
+	})
 	if err != nil {
 		t.Fatalf("error opening AoE server: %v", err)
 	}
