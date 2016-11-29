@@ -106,8 +106,6 @@ func (f *File) openWrite() error {
 	if f.writeOpen {
 		return nil
 	}
-	f.srv.writeableLock.RLock()
-	defer f.srv.writeableLock.RUnlock()
 	vid := VolumeID(f.volume.Id)
 	newINode, err := f.srv.MDS.CommitINodeIndex(vid)
 	if err != nil {
