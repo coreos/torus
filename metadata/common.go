@@ -3,6 +3,7 @@
 package metadata
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,9 +11,15 @@ import (
 	"github.com/pborman/uuid"
 )
 
-func MakeOrGetUUID(datadir string) (string, error) {
+func MakeUUID() string {
+	return uuid.NewUUID().String()
+}
+
+// TODO(barakmich): Make into a JSON file?
+// This all should be moved to storage/ because that's where it's really owned.
+func GetUUID(datadir string) (string, error) {
 	if datadir == "" {
-		return uuid.NewUUID().String(), nil
+		return "", errors.New("given a empty datadir and asked to get it's UUID")
 	}
 
 	filename := filepath.Join(datadir, "metadata", "uuid")

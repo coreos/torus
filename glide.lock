@@ -1,5 +1,5 @@
-hash: 8dc3ff33163e7f9359ee29508d8e76134716538ea7e04c872e4e14d2f73cfcea
-updated: 2016-09-12T12:06:28.162286855-07:00
+hash: 9390c3624c7a6ecfe0f7f7290ed9ebf13518e762875eca56b5fc3d14ad43eaeb
+updated: 2016-11-18T16:22:57.538329124-08:00
 imports:
 - name: github.com/barakmich/mmap-go
   version: c4bd255520e591ff7549ab916c59206da5735e56
@@ -60,6 +60,8 @@ imports:
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/kardianos/osext
   version: 29ae4ffbc9a6fe9fb2bc5029050ce6996ea1d3bc
+- name: github.com/lpabon/godbc
+  version: 9577782540c1398b710ddae1b86268ba03a19b0c
 - name: github.com/manucorporat/sse
   version: ee05b128a739a0fb76c7ebd3ae4810c1de808d6d
 - name: github.com/matttproud/golang_protobuf_extensions
@@ -110,7 +112,7 @@ imports:
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: 749a502dd1eaf3e5bfd4f8956748c502357c0bbe
+  version: 4971afdc2f162e82d185353533d3cf16188a9f4e
   repo: https://go.googlesource.com/net
   subpackages:
   - http2

@@ -55,7 +55,6 @@ func NewServer() *Server {
 		global: torus.GlobalMetadata{
 			BlockSize:        256,
 			DefaultBlockSpec: blockset.MustParseBlockLayerSpec("crc,base"),
-			INodeReplication: 2,
 		},
 		ring:  r,
 		keys:  make(map[string]interface{}),
@@ -64,13 +63,9 @@ func NewServer() *Server {
 }
 
 func NewClient(cfg torus.Config, srv *Server) *Client {
-	uuid, err := metadata.MakeOrGetUUID("")
-	if err != nil {
-		return nil
-	}
 	return &Client{
 		cfg:  cfg,
-		uuid: uuid,
+		uuid: metadata.MakeUUID(),
 		srv:  srv,
 	}
 }

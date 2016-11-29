@@ -45,3 +45,4 @@ import:
   - internal/timeseries
 - package: google.golang.org/grpc
 - package: github.com/coreos/go-tcmu
+- package: github.com/lpabon/godbc

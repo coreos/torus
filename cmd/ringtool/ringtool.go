@@ -49,9 +49,8 @@ func main() {
 	}
 	peers = make([]*models.PeerInfo, nPeers)
 	for i := 0; i < nPeers; i++ {
-		u, _ := metadata.MakeOrGetUUID("")
 		peers[i] = &models.PeerInfo{
-			UUID:        u,
+			UUID:        metadata.MakeUUID(),
 			TotalBlocks: 100 * 1024 * 1024 * 1024, // 100giga-blocks for testing
 		}
 	}
