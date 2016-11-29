@@ -3,7 +3,7 @@
 * **Metadata Service (MDS)**
   * A consistent store and distributed lockserver. (etcd)
 * **Data Nodes**
-  * Provide actual storage (torus)                       -
+  * Provide actual storage (torusd)
 * **Client Nodes**
   * Connect to data nodes and the MDS to provide access to the storage (eg, torusblk) 
 
@@ -20,7 +20,7 @@
 * INode
   * A list of blocks written within one index timeframe. 
   * A sync() closes the list, and makes sure the blocks are written. 
-  * A new INode version gets created, and the  
+  * See [files](./files.md) for more details.
 * Blocklayer/Blockset
   * Extra data, per block inside an INode, that appears as a list of blocks to callers, but offer a hook for more features.
   * Eg:
