@@ -179,8 +179,8 @@ func (s *Server) Serve(iface *Interface) error {
 			continue
 		}
 
-		clog.Debugf("recv %d %s %+v", n, addr, f.Header)
-		//clog.Debugf("recv arg %+v", f.Header.Arg)
+		clog.Tracef("recv: %d %s %+v", n, addr, f.Header)
+		clog.Tracef("recv arg: %+v", f.Header.Arg)
 
 		s.handleFrame(addr, iface, &f)
 	}
@@ -231,7 +231,7 @@ func (s *Server) handleFrame(from net.Addr, iface *Interface, f *Frame) (int, er
 		return n, nil
 	case aoe.CommandQueryConfigInformation:
 		cfgarg := f.Header.Arg.(*aoe.ConfigArg)
-		clog.Debugf("cfgarg: %+v", cfgarg)
+		clog.Tracef("cfgarg: %+v", cfgarg)
 
 		switch cfgarg.Command {
 		case aoe.ConfigCommandRead:
