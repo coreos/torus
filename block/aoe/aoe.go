@@ -182,7 +182,10 @@ func (s *Server) Serve(iface *Interface) error {
 		clog.Tracef("recv: %d %s %+v", n, addr, f.Header)
 		clog.Tracef("recv arg: %+v", f.Header.Arg)
 
-		s.handleFrame(addr, iface, &f)
+		_, err = s.handleFrame(addr, iface, &f)
+		if err != nil {
+			clog.Errorf("failed to handle frame: %v", err)
+		}
 	}
 
 	return nil
