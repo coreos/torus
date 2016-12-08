@@ -178,7 +178,7 @@ func (d *Distributor) WriteBlock(ctx context.Context, i torus.BlockRef, data []b
 		return err
 	}
 	if len(peers.Peers) == 0 {
-		return torus.ErrOutOfSpace
+		return ErrNoPeersBlock
 	}
 	d.readCache.Put(string(i.ToBytes()), data)
 	switch d.getWriteFromServer() {
