@@ -32,8 +32,12 @@ func (lru *cache) Put(key string, value interface{}) {
 	}
 	lru.mut.Lock()
 	defer lru.mut.Unlock()
-	if _, ok := lru.get(key); ok {
-		return
+	if v, ok := lru.get(key); ok {
+		if v == value {
+			return
+		} else {
+			lru.priority.Remove(lru.priority.Front())
+		}
 	}
 	if len(lru.cache) == lru.maxSize {
 		lru.removeOldest()
