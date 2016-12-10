@@ -2,11 +2,8 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"time"
 
-	"github.com/coreos/pkg/progressutil"
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/block"
 	"github.com/dustin/go-humanize"
@@ -147,51 +144,5 @@ func volumeCreateBlockFromSnapshotAction(cmd *cobra.Command, args []string) erro
 	srv := createServer()
 	defer srv.Close()
 
-	// open original snapshot
-	blockvolSrc, err := block.OpenBlockVolume(srv, vol.Volume)
-	if err != nil {
-		return fmt.Errorf("couldn't open block volume %s: %v", vol.Volume, err)
-	}
-	bfsrc, err := blockvolSrc.OpenSnapshot(vol.Snapshot)
-	if err != nil {
-		return fmt.Errorf("couldn't open snapshot: %v", err)
-	}
-	size := bfsrc.Size()
-
-	// create  new volume
-	err = block.CreateBlockVolume(srv.MDS, newVolName, size)
-	if err != nil {
-		return fmt.Errorf("error creating volume %s: %v", newVolName, err)
-	}
-	blockvolDist, err := block.OpenBlockVolume(srv, newVolName)
-	if err != nil {
-		return fmt.Errorf("couldn't open block volume %s: %v", newVolName, err)
-	}
-	bfdist, err := blockvolDist.OpenBlockFile()
-	if err != nil {
-		return fmt.Errorf("couldn't open blockfile %s: %v", newVolName, err)
-	}
-	defer bfdist.Close()
-
-	if progress {
-		pb := progressutil.NewCopyProgressPrinter()
-		pb.AddCopy(bfsrc, newVolName, int64(size), bfdist)
-		err := pb.PrintAndWait(os.Stderr, 500*time.Millisecond, nil)
-		if err != nil {
-			return fmt.Errorf("couldn't copy: %v", err)
-		}
-	} else {
-		n, err := io.Copy(bfdist, bfsrc)
-		if err != nil {
-			return fmt.Errorf("couldn't copy: %v", err)
-		}
-		if n != int64(size) {
-			return fmt.Errorf("copied size %d doesn't match original size %d", n, size)
-		}
-	}
-	err = bfdist.Sync()
-	if err != nil {
-		return fmt.Errorf("couldn't sync: %v", err)
-	}
-	return nil
+	return block.CreateBlockFromSnapshot(srv, vol.Volume, vol.Snapshot, newVolName, progress)
 }
