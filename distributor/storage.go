@@ -100,7 +100,6 @@ func (d *Distributor) readSequential(ctx context.Context, i torus.BlockRef, peer
 		// If this peer didn't have it, continue
 		if err == torus.ErrBlockUnavailable || err == torus.ErrNoPeer {
 			clog.Warningf("block %s from %s failed, trying next peer", i, p)
-			promDistBlockPeerFailures.WithLabelValues(p).Inc()
 			continue
 		}
 
@@ -159,6 +158,7 @@ func (d *Distributor) readFromPeer(ctx context.Context, i torus.BlockRef, peer s
 		promDistBlockPeerHits.WithLabelValues(peer).Inc()
 		return blk, nil
 	}
+	promDistBlockPeerFailures.WithLabelValues(peer).Inc()
 	return nil, err
 }
 
