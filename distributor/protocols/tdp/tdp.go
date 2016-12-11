@@ -123,7 +123,7 @@ func (s *Server) handle(conn net.Conn) {
 		}
 		if err != nil {
 			if !s.isClosed() {
-				clog.Errorf("Error handling putblock: %v", err)
+				clog.Errorf("Error handling block: %v", err)
 				conn.Close()
 			}
 			return
@@ -152,6 +152,7 @@ func (s *Server) handleBlock(conn net.Conn, refbuf []byte) error {
 	data, err := s.handler.Block(context.TODO(), ref)
 	respheader := headerOk
 	if err != nil {
+		clog.Warningf("failed to handle block: %v", err)
 		respheader = headerErr
 	}
 	_, err = conn.Write(respheader)
@@ -203,6 +204,7 @@ func (s *Server) handleRebalanceCheck(conn net.Conn, len int, refbuf []byte) err
 	bools, err := s.handler.RebalanceCheck(context.TODO(), refs)
 	respheader := headerOk
 	if err != nil {
+		clog.Warningf("failed to rebalance check: %v", err)
 		respheader = headerErr
 	}
 	_, err = conn.Write(respheader)
