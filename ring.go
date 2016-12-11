@@ -155,7 +155,7 @@ func (pi PeerInfoList) GetWeights() map[string]int {
 	}
 	for _, p := range pi {
 		out[p.UUID] = int(p.TotalBlocks / uint64(gcd.Int64()))
-		clog.Infof("%s: %d", p.UUID, out[p.UUID])
+		clog.Infof("%s: weight %d", p.UUID, out[p.UUID])
 	}
 	return out
 }
