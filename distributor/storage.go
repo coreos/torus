@@ -70,6 +70,7 @@ func (d *Distributor) readWithBackoff(ctx context.Context, ref torus.BlockRef, p
 		if err == nil {
 			return blk, err
 		}
+		clog.Warningf("failed peers, retry count %d: %v", i, err)
 	}
 	return nil, ErrNoPeersBlock
 }
