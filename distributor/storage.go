@@ -84,7 +84,7 @@ func (d *Distributor) readSequential(ctx context.Context, i torus.BlockRef, peer
 				return b, nil
 			}
 			promDistBlockLocalFailures.Inc()
-			clog.Debug("failed local peer (again)")
+			clog.Debugf("failed local peer (again): %s", err)
 			continue
 		}
 		// Fetch block from remote. First pass through peers
@@ -106,7 +106,7 @@ func (d *Distributor) readSequential(ctx context.Context, i torus.BlockRef, peer
 
 		// If there was a more significant error, fail hard.
 		promDistBlockFailures.Inc()
-		clog.Errorf("failed remote peer %s %s %#v", p, err, err)
+		clog.Errorf("failed remote peer %s: %s", p, err)
 		return nil, err
 	}
 	return nil, ErrNoPeersBlock
@@ -142,7 +142,7 @@ func (d *Distributor) readSpread(ctx context.Context, i torus.BlockRef, peers to
 		case blk := <-resch:
 			return blk, nil
 		case err := <-errch:
-			clog.Debugf("spread-read: %s, %s", err, i)
+			clog.Debugf("failed spread-read %s: %s", i, err)
 			count--
 			if count == 0 {
 				return nil, ErrNoPeersBlock
@@ -178,7 +178,7 @@ func (d *Distributor) WriteBlock(ctx context.Context, i torus.BlockRef, data []b
 		return err
 	}
 	if len(peers.Peers) == 0 {
-		return torus.ErrOutOfSpace
+		return ErrNoPeersBlock
 	}
 	d.readCache.Put(string(i.ToBytes()), data)
 	switch d.getWriteFromServer() {
@@ -187,7 +187,7 @@ func (d *Distributor) WriteBlock(ctx context.Context, i torus.BlockRef, data []b
 		if err == nil {
 			return nil
 		}
-		clog.Tracef("Couldn't write locally; writing to cluster")
+		clog.Debugf("Couldn't write locally; writing to cluster: %s", err)
 		fallthrough
 	case torus.WriteOne:
 		for _, p := range peers.Peers[:peers.Replication] {
