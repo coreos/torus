@@ -290,7 +290,6 @@ func mountAction(cmd *cobra.Command, args []string) {
 	_, err = ex.CombinedOutput()
 	if err != nil {
 		onErr(err)
-		os.Exit(1)
 	}
 	writeResponse(Response{
 		Status: "Success",
@@ -313,7 +312,6 @@ func unmountAction(cmd *cobra.Command, args []string) {
 	_, err := exec.Command("umount", mountdir).Output()
 	if err != nil {
 		onErr(err)
-		os.Exit(1)
 	}
 	writeResponse(Response{
 		Status: "Success",
