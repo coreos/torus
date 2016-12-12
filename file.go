@@ -260,7 +260,7 @@ func (f *File) ReadAt(b []byte, off int64) (n int, ferr error) {
 	defer f.mut.RUnlock()
 	toRead := len(b)
 	if clog.LevelAt(capnslog.TRACE) {
-		clog.Tracef("begin read @ %x of size %d", off, toRead)
+		clog.Trace("begin read: offset ", off, " size ", toRead)
 	}
 	n = 0
 	if int64(toRead)+off > int64(f.inode.Filesize) {
