@@ -131,7 +131,7 @@ func (d *distClient) GetBlock(ctx context.Context, uuid string, b torus.BlockRef
 func (d *distClient) PutBlock(ctx context.Context, uuid string, b torus.BlockRef, data []byte) error {
 	conn := d.getConn(uuid)
 	if conn == nil {
-		return torus.ErrBlockUnavailable
+		return torus.ErrNoPeer
 	}
 	err := conn.PutBlock(ctx, b, data)
 	if err != nil {
