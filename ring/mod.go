@@ -26,6 +26,9 @@ func makeMod(r *models.Ring) (torus.Ring, error) {
 		rep = 1
 	}
 	pil := torus.PeerInfoList(r.Peers)
+	if rep > len(pil) {
+		clog.Noticef("Requested replication level %d, but has only %d peers. Add nodes to match replication.", rep, len(pil))
+	}
 	return &mod{
 		version: int(r.Version),
 		peers:   pil,
@@ -35,14 +38,24 @@ func makeMod(r *models.Ring) (torus.Ring, error) {
 
 func (m *mod) GetPeers(key torus.BlockRef) (torus.PeerPermutation, error) {
 	peerlist := sort.StringSlice([]string(m.peers.PeerList()))
+	if len(peerlist) == 0 {
+		return torus.PeerPermutation{}, fmt.Errorf("couldn't get any nodes")
+	}
+	if len(peerlist) != len(m.peers) {
+		return torus.PeerPermutation{}, fmt.Errorf("couldn't get sufficient nodes")
+	}
 	permute := make([]string, len(peerlist))
 	crc := crc32.ChecksumIEEE(key.ToBytes())
 	sum := int(crc) % len(m.peers)
 	copy(permute, peerlist[sum:])
 	copy(permute[len(peerlist)-sum:], peerlist[:sum])
+	rep := m.rep
+	if len(m.peers) < m.rep {
+		rep = len(m.peers)
+	}
 	return torus.PeerPermutation{
 		Peers:       permute,
-		Replication: m.rep,
+		Replication: rep,
 	}, nil
 }
 
