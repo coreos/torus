@@ -43,7 +43,7 @@ func (lru *cache) Put(key string, value interface{}) {
 			if old := lru.find(lru.priority.Front(), v); old != nil {
 				lru.priority.Remove(old)
 			} else {
-				clog.Errorf("read cache is corrupted. Please restart the process.")
+				clog.Fatalf("read cache is corrupted. Please restart the process.")
 			}
 		}
 	}
@@ -79,9 +79,9 @@ func (lru *cache) removeOldest() {
 func (lru *cache) find(e *list.Element, v interface{}) *list.Element {
 	if e == nil {
 		return nil
-	} else if e.Value.(kv).value == v {
-		return e
-	} else {
-		return lru.find(e.Next(), v)
 	}
+	if reflect.DeepEqual(e.Value.(kv).value, v) {
+		return e
+	}
+	return lru.find(e.Next(), v)
 }
