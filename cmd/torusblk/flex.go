@@ -285,7 +285,10 @@ func mountAction(cmd *cobra.Command, args []string) {
 	// 		Device: mountdev,
 	// 	})
 	// }
-	os.MkdirAll(mountdir, os.ModeDir|0555)
+	if err := os.MkdirAll(mountdir, os.ModeDir|0555); err != nil {
+		onErr(err)
+	}
+
 	ex := exec.Command("mount", "-t", vol.FSType, "-o", flags, mountdev, mountdir)
 	_, err = ex.CombinedOutput()
 	if err != nil {
