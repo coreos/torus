@@ -89,8 +89,7 @@ func (c *Conn) Block(_ context.Context, ref torus.BlockRef) ([]byte, error) {
 	ref.ToBytesBuf(c.buf[1:])
 	_, err := c.conn.Write(c.buf)
 	if err != nil {
-		fmt.Println("couldn't write")
-		return nil, err
+		return nil, fmt.Errorf("couldn't write: %v", err)
 	}
 	err = readConnIntoBuffer(c.conn, c.buf[:1])
 	if err != nil {
@@ -118,13 +117,11 @@ func (c *Conn) PutBlock(ctx context.Context, ref torus.BlockRef, data []byte) er
 	ref.ToBytesBuf(c.buf[1:])
 	_, err := c.conn.Write(c.buf)
 	if err != nil {
-		fmt.Println("couldn't write")
-		return err
+		return fmt.Errorf("couldn't write: %v", err)
 	}
 	_, err = c.conn.Write(data)
 	if err != nil {
-		fmt.Println("couldn't write data")
-		return err
+		return fmt.Errorf("couldn't write data: %v", err)
 	}
 	err = readConnIntoBuffer(c.conn, c.buf[:1])
 	if err != nil {
@@ -150,15 +147,13 @@ func (c *Conn) RebalanceCheck(_ context.Context, refs []torus.BlockRef) ([]bool,
 	c.buf[1] = byte(len(refs))
 	_, err := c.conn.Write(c.buf[:2])
 	if err != nil {
-		fmt.Println("couldn't write")
-		return nil, err
+		return nil, fmt.Errorf("couldn't write: %v", err)
 	}
 	for _, ref := range refs {
 		ref.ToBytesBuf(c.buf)
 		_, err = c.conn.Write(c.buf[:torus.BlockRefByteSize])
 		if err != nil {
-			fmt.Println("couldn't write ref")
-			return nil, err
+			return nil, fmt.Errorf("couldn't write ref: %v", err)
 		}
 	}
 	size := ((len(refs) - 1) / 8) + 1
