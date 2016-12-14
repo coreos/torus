@@ -196,7 +196,7 @@ func attachAction(cmd *cobra.Command, args []string) {
 	<-ch
 	status := sysd.wait(svc)
 	if status == "failed" {
-		onErr(errors.New("Couldn't attach"))
+		onErr(errors.New("couldn't attach"))
 	} else if status == "active" {
 		writeResponse(Response{
 			Status: "Success",
@@ -278,7 +278,7 @@ func mountAction(cmd *cobra.Command, args []string) {
 	// }
 	// status := sysd.wait(mountsvc)
 	// if status == "failed" {
-	// 	onErr(errors.New("Couldn't attach"))
+	// 	onErr(errors.New("couldn't attach"))
 	// } else if status == "active" {
 	// 	writeResponse(Response{
 	// 		Status: "Success",

@@ -88,12 +88,12 @@ func configureServer(cmd *cobra.Command, args []string) {
 func createServer() *torus.Server {
 	srv, err := torus.NewServer(cfg, "etcd", "temp")
 	if err != nil {
-		fmt.Printf("Couldn't start: %s\n", err)
+		fmt.Printf("couldn't start: %s\n", err)
 		os.Exit(1)
 	}
 	err = distributor.OpenReplication(srv)
 	if err != nil {
-		fmt.Printf("Couldn't start: %s", err)
+		fmt.Printf("couldn't start: %s", err)
 		os.Exit(1)
 	}
 	if httpAddr != "" {

@@ -163,7 +163,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 			if err == torus.ErrExists {
 				fmt.Println("debug-init: Already exists")
 			} else {
-				return fmt.Errorf("Couldn't debug-init: %s", err)
+				return fmt.Errorf("couldn't debug-init: %s", err)
 			}
 		}
 		fallthrough
@@ -171,13 +171,13 @@ func runServer(cmd *cobra.Command, args []string) error {
 		srv, err = torus.NewServer(cfg, "etcd", "mfile")
 	}
 	if err != nil {
-		return fmt.Errorf("Couldn't start: %s", err)
+		return fmt.Errorf("couldn't start: %s", err)
 	}
 
 	if autojoin {
 		err = doAutojoin(srv)
 		if err != nil {
-			return fmt.Errorf("Couldn't auto-join: %s", err)
+			return fmt.Errorf("couldn't auto-join: %s", err)
 		}
 	}
 
@@ -190,7 +190,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 		u, err = url.Parse(peerAddress)
 		if err != nil {
-			return fmt.Errorf("Couldn't parse peer address %s: %s", peerAddress, err)
+			return fmt.Errorf("couldn't parse peer address %s: %s", peerAddress, err)
 		}
 
 		if u.Scheme == "" {

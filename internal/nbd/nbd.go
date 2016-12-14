@@ -232,7 +232,7 @@ func (nbd *NBD) Serve() error {
 			time.Sleep(time.Microsecond * 500)
 			err := nbd.SetBlockSize(nbd.blocksize)
 			if err != nil {
-				clog.Printf("Couldn't upgrade blocksize: %s", err)
+				clog.Printf("couldn't upgrade blocksize: %s", err)
 			}
 		}(nbd)
 	}

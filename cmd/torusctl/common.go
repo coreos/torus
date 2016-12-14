@@ -33,11 +33,11 @@ func createServer() *torus.Server {
 	cfg := flagconfig.BuildConfigFromFlags()
 	srv, err := torus.NewServer(cfg, "etcd", "temp")
 	if err != nil {
-		die("Couldn't start: %s", err)
+		die("couldn't start: %s", err)
 	}
 	err = distributor.OpenReplication(srv)
 	if err != nil {
-		die("Couldn't start: %s", err)
+		die("couldn't start: %s", err)
 	}
 	return srv
 }
