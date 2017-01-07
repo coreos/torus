@@ -35,4 +35,5 @@ if [ "${LOG_FLAGS}" != "" ]; then
   TORUS_FLAGS="$TORUS_FLAGS --logpkg=${LOG_FLAGS}"
 fi
 
-torusd --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port $LISTEN_HTTP_PORT --data-dir /data --peer-address $PEER_ADDRESS --size $STORAGE_SIZE $TORUS_FLAGS
+exec torusd --etcd $ETCD_HOST:$ETCD_PORT --host $LISTEN_HOST --port $LISTEN_HTTP_PORT --data-dir /data --peer-address $PEER_ADDRESS --size $STORAGE_SIZE $TORUS_FLAGS
+
