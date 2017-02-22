@@ -61,7 +61,7 @@ func init() {
 	rootCommand.PersistentFlags().BoolVarP(&debugInit, "debug-init", "", false, "Run a default init for the MDS if one doesn't exist")
 	rootCommand.PersistentFlags().StringVarP(&host, "host", "", "", "Host to listen on for HTTP")
 	rootCommand.PersistentFlags().IntVarP(&port, "port", "", 4321, "Port to listen on for HTTP")
-	rootCommand.PersistentFlags().StringVarP(&peerAddress, "peer-address", "", "", "Address to listen on for intra-cluster data")
+	rootCommand.PersistentFlags().StringVarP(&peerAddress, "peer-address", "", "", "URL (scheme \"http://\"(default) or \"tdp://\") to listen on for intra-cluster data")
 	rootCommand.PersistentFlags().StringVarP(&sizeStr, "size", "", "1GiB", "How much disk space to use for this storage node")
 	rootCommand.PersistentFlags().StringVarP(&logpkg, "logpkg", "", "", "Specific package logging")
 	rootCommand.PersistentFlags().BoolVarP(&autojoin, "auto-join", "", false, "Automatically join the storage pool")
@@ -189,18 +189,11 @@ func runServer(cmd *cobra.Command, args []string) {
 
 	if peerAddress != "" {
 		var u *url.URL
-
-		u, err = url.Parse(peerAddress)
+		u, err = addrToUri(peerAddress)
 		if err != nil {
 			fmt.Printf("Couldn't parse peer address %s: %s\n", peerAddress, err)
 			os.Exit(1)
 		}
-
-		if u.Scheme == "" {
-			fmt.Printf("Peer address %s does not have URL scheme (http:// or tdp://)\n", peerAddress)
-			os.Exit(1)
-		}
-
 		err = distributor.ListenReplication(srv, u)
 	} else {
 		err = distributor.OpenReplication(srv)
@@ -260,4 +253,12 @@ func doAutojoin(s *torus.Server) error {
 		}
 		return err
 	}
+}
+
+func addrToUri(addr string) (*url.URL, error) {
+	if strings.Contains(addr, "://") {
+		// Looks like a full uri
+		return url.Parse(addr)
+	}
+	return url.Parse("http://" + addr)
 }
