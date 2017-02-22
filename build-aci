@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -e
+
+NAME=${NAME:-torus}
+
+# Show usage if any arguments are given
+if [ $# -gt 0 ]; then
+    echo "Arguments to build-aci are not supported."
+    echo "build-aci attempts to set all variables automatically."
+    echo
+    echo "Overridable environment variables include:"
+    echo "  NAME        Name of the project or program"
+    echo "  DOMAIN      Domain of the organization"
+    echo "  BINARYDIR   $NAME binaries directory"
+    echo "  ACIDIR      ACI output directory"
+    echo "  ACBUILD     Path to alternate acbuild"
+    echo "  BUILDOS     OS $NAME was built for"
+    echo "  BUILDARCH   Architecture $NAME was built for"
+    echo "  VERSION     $NAME version"
+    echo "  TARGETS     List of binaries to copy into the image"
+    exit 1
+fi
+
+DOMAIN=${DOMAIN:-coreos.com}
+BINARYDIR=${BINARYDIR:-bin}
+ACIDIR=${ACIDIR:-bin}
+ACBUILD=${ACBUILD:-acbuild}
+BUILDOS=${BUILDOS:-linux}
+BUILDARCH=${BUILDARCH:-amd64}
+VERSION=${VERSION:-notset}
+TARGETS=${TARGETS:-torusd torusctl torusblk}
+
+# A non-installed acbuild can be used, for example:
+# ACBUILD=../../appc/acbuild/bin/acbuild
+if ! command -v "$ACBUILD" > /dev/null; then
+    echo "acbuild ($ACBUILD) is not executable"
+    exit 1
+fi
+
+# Try to use provided BUILD{OS,ARCH} or go env
+# Otherwise resort to assuming linux-amd64
+if [ -v "$BUILDOS" ] && ! GOHOSTOS="$(go env GOHOSTOS)" ; then
+    BUILDOS=$GOHOSTOS
+fi
+
+if [ ! -v "$BUILDARCH" ] && ! GOHOSTARCH="$(go env GOHOSTARCH)" ; then
+    BUILDARCH=$GOHOSTARCH
+fi
+
+# Try to use provided VERSION
+# Otherwise use exact git tag match
+# Lastly resort to commit ID
+if [ "$VERSION" = "notset" ] && ! VERSION=$(git describe --tags --exact-match 2> /dev/null) ; then
+    VERSION=git$(git rev-parse --short HEAD)
+fi
+
+# Replace dashes with underscores
+VERSION=${VERSION//-/_}
+
+for TARGET in $TARGETS ; do
+    if [ ! -x "$BINARYDIR/$TARGET" ] ; then
+        echo "$BINARYDIR/$TARGET not found. Is it compiled?"
+        exit 1
+    fi
+
+    if (ldd "$BINARYDIR/$TARGET" > /dev/null) ; then
+        echo "$BINARYDIR/$TARGET is not statically linked."
+        echo "Run make BUILD_ENV_FLAGS=\"CGO_ENABLED=0\" and try again."
+        exit 1
+    fi
+done
+
+# Start with a clean acbuild working directory
+[ -d .acbuild ] && rm -rf .acbuild
+
+"$ACBUILD" --debug begin
+
+# In the event of the script exiting, end the build
+trap '{ export EXT=$?; "$ACBUILD" --debug end && exit $EXT; }' EXIT
+
+# Name the ACI
+"$ACBUILD" --debug set-name "$DOMAIN/$NAME"
+
+# Add a version label
+"$ACBUILD" --debug label add version "$VERSION"
+
+# Add binaries to image
+for TARGET in $TARGETS ; do
+    "$ACBUILD" --debug copy "$BINARYDIR/$TARGET" "/$TARGET"
+done
+
+# Add mounts and ports
+"$ACBUILD" --debug mount add data /data
+"$ACBUILD" --debug mount add plugin /plugin
+"$ACBUILD" --debug port add peers tcp 40000
+"$ACBUILD" --debug port add monitor tcp 4321
+
+# Set the exec command
+"$ACBUILD" --debug set-exec -- /torusd --data-dir /data
+
+# Save and override any older ACI
+"$ACBUILD" --debug write --overwrite "$ACIDIR/$NAME-$VERSION-$BUILDOS-$BUILDARCH.aci"
