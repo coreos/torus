@@ -1,6 +1,12 @@
 package block
 
 import (
+	"fmt"
+	"io"
+	"os"
+	"time"
+
+	"github.com/coreos/pkg/progressutil"
 	"github.com/coreos/torus"
 	"github.com/coreos/torus/blockset"
 	"github.com/coreos/torus/models"
@@ -30,6 +36,56 @@ func CreateBlockVolume(mds torus.MetadataService, volume string, size uint64) er
 		Type:     VolumeType,
 		MaxBytes: size,
 	})
+}
+
+func CreateBlockFromSnapshot(srv *torus.Server, origvol, origsnap, newvol string, progress bool) error {
+	// open original snapshot
+	srcVol, err := OpenBlockVolume(srv, origvol)
+	if err != nil {
+		return fmt.Errorf("couldn't open block volume %s: %v", origvol, err)
+	}
+	bfsrc, err := srcVol.OpenSnapshot(origsnap)
+	if err != nil {
+		return fmt.Errorf("couldn't open snapshot: %v", err)
+	}
+	size := bfsrc.Size()
+
+	// create new volume
+	err = CreateBlockVolume(srv.MDS, newvol, size)
+	if err != nil {
+		return fmt.Errorf("error creating volume %s: %v", newvol, err)
+	}
+	blockvolDist, err := OpenBlockVolume(srv, newvol)
+	if err != nil {
+		return fmt.Errorf("couldn't open block volume %s: %v", newvol, err)
+	}
+	bfdist, err := blockvolDist.OpenBlockFile()
+	if err != nil {
+		return fmt.Errorf("couldn't open blockfile %s: %v", newvol, err)
+	}
+	defer bfdist.Close()
+
+	if progress {
+		pb := progressutil.NewCopyProgressPrinter()
+		pb.AddCopy(bfsrc, newvol, int64(size), bfdist)
+		err := pb.PrintAndWait(os.Stderr, 500*time.Millisecond, nil)
+		if err != nil {
+			return fmt.Errorf("couldn't copy: %v", err)
+		}
+	} else {
+		n, err := io.Copy(bfdist, bfsrc)
+		if err != nil {
+			return fmt.Errorf("couldn't copy: %v", err)
+		}
+		if n != int64(size) {
+			return fmt.Errorf("copied size %d doesn't match original size %d", n, size)
+		}
+	}
+	err = bfdist.Sync()
+	if err != nil {
+		return fmt.Errorf("couldn't sync: %v", err)
+	}
+	return nil
 }
 
 func OpenBlockVolume(s *torus.Server, volume string) (*BlockVolume, error) {

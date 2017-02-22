@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
+	"github.com/coreos/torus"
 	"github.com/coreos/torus/block"
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
@@ -33,10 +35,27 @@ var volumeCreateBlockCommand = &cobra.Command{
 	Run:   volumeCreateBlockAction,
 }
 
+var volumeCreateBlockFromSnapshotCommand = &cobra.Command{
+	Use:   "from-snapshot VOLUME@SNAPSHOT_NAME NEW_NAME",
+	Short: "create a block volume from snapshot",
+	Long:  "creates a block volume named NAME from snapshot",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := volumeCreateBlockFromSnapshotAction(cmd, args)
+		if err == torus.ErrUsage {
+			cmd.Usage()
+			os.Exit(1)
+		} else if err != nil {
+			die("%v", err)
+		}
+	},
+}
+
 func init() {
 	volumeCommand.AddCommand(volumeDeleteCommand)
 	volumeCommand.AddCommand(volumeListCommand)
 	volumeCommand.AddCommand(volumeCreateBlockCommand)
+	volumeCreateBlockCommand.AddCommand(volumeCreateBlockFromSnapshotCommand)
+	volumeCreateBlockFromSnapshotCommand.Flags().BoolVarP(&progress, "progress", "p", false, "show progress")
 	volumeListCommand.Flags().BoolVarP(&outputAsCSV, "csv", "", false, "output as csv instead")
 	volumeListCommand.Flags().BoolVarP(&outputAsSI, "si", "", false, "output sizes in powers of 1000")
 }
@@ -109,4 +128,22 @@ func volumeCreateBlockAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("error creating volume %s: %v", args[0], err)
 	}
+}
+
+func volumeCreateBlockFromSnapshotAction(cmd *cobra.Command, args []string) error {
+	if len(args) != 2 {
+		return torus.ErrUsage
+	}
+	snapshot := args[0]
+	newVolName := args[1]
+
+	vol := ParseSnapName(snapshot)
+	if vol.Snapshot == "" {
+		return fmt.Errorf("can't restore a snapshot without a name, please use the form VOLUME@SNAPSHOT_NAME")
+	}
+
+	srv := createServer()
+	defer srv.Close()
+
+	return block.CreateBlockFromSnapshot(srv, vol.Volume, vol.Snapshot, newVolName, progress)
 }
