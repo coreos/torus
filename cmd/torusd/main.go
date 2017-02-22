@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -52,7 +51,12 @@ var rootCommand = &cobra.Command{
 	Short:  "Torus distributed storage",
 	Long:   `The torus distributed storage server.`,
 	PreRun: configureServer,
-	Run:    runServer,
+	Run: func(cmd *cobra.Command, args []string) {
+		err := runServer(cmd, args)
+		if err != nil {
+			die("%v", err)
+		}
+	},
 }
 
 func init() {
@@ -93,8 +97,7 @@ func configureServer(cmd *cobra.Command, args []string) {
 		rl := capnslog.MustRepoLogger("github.com/coreos/torus")
 		llc, err := rl.ParseLogLevelConfig(logpkg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing logpkg: %s\n", err)
-			os.Exit(1)
+			die("error parsing logpkg: %s", err)
 		}
 		rl.SetLogLevel(llc)
 	}
@@ -110,16 +113,14 @@ func configureServer(cmd *cobra.Command, args []string) {
 	if strings.Contains(sizeStr, "%") {
 		percent, err := parsePercentage(sizeStr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing size %s: %s\n", sizeStr, err)
-			os.Exit(1)
+			die("error parsing size %s: %s", sizeStr, err)
 		}
 		directory, _ := filepath.Abs(dataDir)
 		size = du.NewDiskUsage(directory).Size() * percent / 100
 	} else {
 		size, err = humanize.ParseBytes(sizeStr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing size %s: %s\n", sizeStr, err)
-			os.Exit(1)
+			die("error parsing size %s: %s", sizeStr, err)
 		}
 	}
 
@@ -135,12 +136,12 @@ func parsePercentage(percentString string) (uint64, error) {
 		return 0, err
 	}
 	if sizeNumber < 1 || sizeNumber > 100 {
-		return 0, errors.New(fmt.Sprintf("invalid size %d; must be between 1%% and 100%%", sizeNumber))
+		return 0, fmt.Errorf("invalid size %d; must be between 1%% and 100%%", sizeNumber)
 	}
 	return uint64(sizeNumber), nil
 }
 
-func runServer(cmd *cobra.Command, args []string) {
+func runServer(cmd *cobra.Command, args []string) error {
 	if completion {
 		cmd.Root().GenBashCompletion(os.Stdout)
 		os.Exit(0)
@@ -162,8 +163,7 @@ func runServer(cmd *cobra.Command, args []string) {
 			if err == torus.ErrExists {
 				fmt.Println("debug-init: Already exists")
 			} else {
-				fmt.Printf("Couldn't debug-init: %s\n", err)
-				os.Exit(1)
+				return fmt.Errorf("couldn't debug-init: %s", err)
 			}
 		}
 		fallthrough
@@ -171,15 +171,13 @@ func runServer(cmd *cobra.Command, args []string) {
 		srv, err = torus.NewServer(cfg, "etcd", "mfile")
 	}
 	if err != nil {
-		fmt.Printf("Couldn't start: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("couldn't start: %s", err)
 	}
 
 	if autojoin {
 		err = doAutojoin(srv)
 		if err != nil {
-			fmt.Printf("Couldn't auto-join: %s\n", err)
-			os.Exit(1)
+			return fmt.Errorf("couldn't auto-join: %s", err)
 		}
 	}
 
@@ -192,13 +190,11 @@ func runServer(cmd *cobra.Command, args []string) {
 
 		u, err = url.Parse(peerAddress)
 		if err != nil {
-			fmt.Printf("Couldn't parse peer address %s: %s\n", peerAddress, err)
-			os.Exit(1)
+			return fmt.Errorf("couldn't parse peer address %s: %s", peerAddress, err)
 		}
 
 		if u.Scheme == "" {
-			fmt.Printf("Peer address %s does not have URL scheme (http:// or tdp://)\n", peerAddress)
-			os.Exit(1)
+			return fmt.Errorf("Peer address %s does not have URL scheme (http:// or tdp://)", peerAddress)
 		}
 
 		err = distributor.ListenReplication(srv, u)
@@ -216,22 +212,21 @@ func runServer(cmd *cobra.Command, args []string) {
 	}()
 
 	if err != nil {
-		fmt.Println("couldn't use server:", err)
-		os.Exit(1)
+		return fmt.Errorf("couldn't use server: %s", err)
 	}
 	if httpAddress != "" {
 		http.ServeHTTP(httpAddress, srv)
 	}
 	// Wait
 	<-mainClose
+	return nil
 }
 
 func doAutojoin(s *torus.Server) error {
 	for {
 		ring, err := s.MDS.GetRing()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "couldn't get ring: %v\n", err)
-			return err
+			return fmt.Errorf("couldn't get ring: %v", err)
 		}
 		var newRing torus.Ring
 		if r, ok := ring.(torus.RingAdder); ok {
@@ -242,16 +237,14 @@ func doAutojoin(s *torus.Server) error {
 				},
 			})
 		} else {
-			fmt.Fprintf(os.Stderr, "current ring type cannot support auto-adding\n")
-			return err
+			return fmt.Errorf("current ring type cannot support auto-adding")
 		}
 		if err == torus.ErrExists {
 			// We're already a member; we're coming back up.
 			return nil
 		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "couldn't add peer to ring: %v", err)
-			return err
+			return fmt.Errorf("couldn't add peer to ring: %v", err)
 		}
 		err = s.MDS.SetRing(newRing)
 		if err == torus.ErrNonSequentialRing || err == torus.ErrAgain {
@@ -260,4 +253,9 @@ func doAutojoin(s *torus.Server) error {
 		}
 		return err
 	}
+}
+
+func die(why string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, why+"\n", args...)
+	os.Exit(1)
 }

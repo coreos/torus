@@ -188,7 +188,7 @@ func (d *Distributor) WriteBlock(ctx context.Context, i torus.BlockRef, data []b
 		if err == nil {
 			return nil
 		}
-		clog.Debugf("Couldn't write locally; writing to cluster: %s", err)
+		clog.Debugf("couldn't write locally; writing to cluster: %s", err)
 		fallthrough
 	case torus.WriteOne:
 		for _, p := range peers.Peers[:peers.Replication] {
