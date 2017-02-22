@@ -243,7 +243,7 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s torus.BlockRef, data []byte
 		olddata := m.dataFile.GetBlock(uint64(v))
 		if !bytes.Equal(olddata, data) {
 			clog.Error("getting wrong data for block: ", s)
-			clog.Errorf("%s, %s", olddata[:10], data[:10])
+			clog.Errorf("old: %v, new: %v", olddata[:10], data[:10])
 			return torus.ErrExists
 		}
 		// Not an error, if we already have it
