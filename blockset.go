@@ -44,6 +44,12 @@ type Blockset interface {
 	String() string
 }
 
+// BlockReconstructor can reconstruct a block in a Blockset.
+type BlockReconstructor interface {
+	// ReconstructBlock reconstructs the ith block in the Blockset.
+	ReconstructBlock(ctx context.Context, inde INodeRef, i int) error
+}
+
 type BlockLayerKind int
 
 type BlockLayer struct {
