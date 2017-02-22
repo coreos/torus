@@ -8,10 +8,11 @@ REPOPATH = github.com/coreos/torus
 VERBOSE_1 := -v
 VERBOSE_2 := -v -x
 
-WHAT := torusd torusctl torusblk
+WHAT := torusd torusctl torusblk mkfs.torus fsck.torus
 
 build: vendor
 	for target in $(WHAT); do \
+		echo "building $$target..."; \
 		$(BUILD_ENV_FLAGS) go build $(VERBOSE_$(V)) -o bin/$$target -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/$$target; \
 	done
 

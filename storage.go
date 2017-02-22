@@ -137,6 +137,17 @@ func BlockRefFromBytes(b []byte) BlockRef {
 	return ref
 }
 
+func BlockRefFromUint64s(volume, inode, index uint64) BlockRef {
+	ref := BlockRef{
+		INodeRef: INodeRef{
+			volume: VolumeID(volume),
+			INode:  INodeID(inode),
+		},
+		Index: IndexID(index),
+	}
+	return ref
+}
+
 func (b BlockRef) String() string {
 	return fmt.Sprintf("br %x : %x : %x", b.volume, b.INode, b.Index)
 }
