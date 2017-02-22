@@ -181,7 +181,11 @@ func (d *Distributor) WriteBlock(ctx context.Context, i torus.BlockRef, data []b
 	if len(peers.Peers) == 0 {
 		return ErrNoPeersBlock
 	}
-	d.readCache.Put(string(i.ToBytes()), data)
+	defer func() {
+		if err == nil {
+			d.readCache.Put(string(i.ToBytes()), data)
+		}
+	}()
 	switch d.getWriteFromServer() {
 	case torus.WriteLocal:
 		err = d.blocks.WriteBlock(ctx, i, data)
