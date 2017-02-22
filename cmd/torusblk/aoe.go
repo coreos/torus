@@ -116,7 +116,10 @@ func aoeAction(cmd *cobra.Command, args []string) error {
 	if err = as.Serve(ai); err != nil {
 		return fmt.Errorf("Failed to serve AoE: %v", err)
 	}
-	return nil
+
+	// aoe creates the block device as /dev/etherd/e.<MINOR>.<MAJOR>.
+	// Calling flush() here cleans up the device each time process finished.
+	return flush(fmt.Sprintf("e%d.%d", minor, major))
 }
 
 func flush(d string) error {
