@@ -28,6 +28,7 @@ type blockMetadata interface {
 
 	CreateBlockVolume(vol *models.Volume) error
 	DeleteVolume() error
+	ResizeVolume(size uint64) error
 
 	SaveSnapshot(name string) error
 	GetSnapshots() ([]Snapshot, error)

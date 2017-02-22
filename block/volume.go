@@ -60,6 +60,26 @@ func DeleteBlockVolume(mds torus.MetadataService, volume string) error {
 	return bmds.DeleteVolume()
 }
 
+func (s *BlockVolume) ResizeBlockVolume(mds torus.MetadataService, volume string, size uint64) error {
+	vol, err := mds.GetVolume(volume)
+	if err != nil {
+		return err
+	}
+	bmds, err := createBlockMetadata(mds, vol.Name, torus.VolumeID(vol.Id))
+	if err != nil {
+		return err
+	}
+	if err = bmds.Lock(s.srv.Lease()); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			s.mds.Unlock()
+		}
+	}()
+	return bmds.ResizeVolume(size)
+}
+
 func (s *BlockVolume) SaveSnapshot(name string) error    { return s.mds.SaveSnapshot(name) }
 func (s *BlockVolume) GetSnapshots() ([]Snapshot, error) { return s.mds.GetSnapshots() }
 func (s *BlockVolume) DeleteSnapshot(name string) error  { return s.mds.DeleteSnapshot(name) }

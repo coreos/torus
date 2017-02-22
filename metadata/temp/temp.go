@@ -145,6 +145,18 @@ func (t *Client) CreateVolume(volume *models.Volume) error {
 	return nil
 }
 
+func (t *Client) ResizeVolume(name string, size uint64) error {
+	t.srv.mut.Lock()
+	defer t.srv.mut.Unlock()
+	volume, err := t.srv.volIndex[name]
+	if err {
+		return torus.ErrBlockNotExist
+	}
+	volume.MaxBytes = size
+	t.srv.volIndex[volume.Name] = volume
+	return nil
+}
+
 func (t *Client) GetVolume(volume string) (*models.Volume, error) {
 	t.srv.mut.RLock()
 	defer t.srv.mut.RUnlock()
