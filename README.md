@@ -19,7 +19,7 @@ Development on Torus at CoreOS stopped as of Feb 2017. We started [Torus as a pr
 
 If you have immediate storage needs Kubernetes can plugin to [dozens of other storage options](https://kubernetes.io/docs/user-guide/volumes/) including AWS/Azure/Google/OpenStack/etc block storage, Ceph, Gluster, NFS, etc that are external to Kubernetes.
 
-We are also seeing the emergence of projects, like [rook](https://github.com/rook/rook/tree/master/demo/kubernetes), which creates a storage system that is ran on top of Kubernetes, as an [Operator](https://coreos.com/blog/introducing-operators.html). And we expect to see more systems like this in the future because Kubernetes is a platform that is perfect platform for running distributed storage systems.
+We are also seeing the emergence of projects, like [rook](https://github.com/rook/rook/tree/master/demo/kubernetes), which creates a storage system that is ran on top of Kubernetes, as an [Operator](https://coreos.com/blog/introducing-operators.html). We expect to see more systems like this in the future, because Kubernetes is a perfect platform for running distributed storage systems.
 
 If you are interested in continuing the project feel free to fork and continue; we can update this README if a particular fork gets solid traction.
 
