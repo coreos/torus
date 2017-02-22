@@ -52,12 +52,12 @@ func (h *torusHandler) handleWrite(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, error)
 		cmd.Buf = make([]byte, length)
 	}
 	n, err := cmd.Read(cmd.Buf[:int(length)])
-	if n < length {
-		clog.Error("write/read failed: unable to copy enough")
-		return cmd.MediumError(), nil
-	}
 	if err != nil {
 		clog.Errorf("write/read failed: error: %v", err)
+		return cmd.MediumError(), nil
+	}
+	if n < length {
+		clog.Error("write/read failed: unable to copy enough")
 		return cmd.MediumError(), nil
 	}
 	n, err = h.file.WriteAt(cmd.Buf[:length], int64(offset))
