@@ -220,6 +220,18 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s torus.BlockRef, data []byte
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return torus.ErrClosed
 	}
+	if v := m.findIndex(s); v != -1 {
+		// we already have it
+		clog.Debug("mfile: block already exists: ", s)
+		olddata := m.dataFile.GetBlock(uint64(v))
+		if !bytes.Equal(olddata, data) {
+			clog.Error("getting wrong data for block: ", s)
+			clog.Errorf("%v, %v", olddata[:10], data[:10])
+			return torus.ErrExists
+		}
+		// Not an error, if we already have it
+		return nil
+	}
 	index := m.findEmpty()
 	if index == -1 {
 		clog.Error("mfile: out of space")
@@ -237,18 +249,6 @@ func (m *mfileBlock) WriteBlock(_ context.Context, s torus.BlockRef, data []byte
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return err
 	}
-	if v := m.findIndex(s); v != -1 {
-		// we already have it
-		clog.Debug("mfile: block already exists: ", s)
-		olddata := m.dataFile.GetBlock(uint64(v))
-		if !bytes.Equal(olddata, data) {
-			clog.Error("getting wrong data for block: ", s)
-			clog.Errorf("%s, %s", olddata[:10], data[:10])
-			return torus.ErrExists
-		}
-		// Not an error, if we already have it
-		return nil
-	}
 	promBlocks.WithLabelValues(m.name).Inc()
 	m.refIndex[s] = index
 	promBlocksWritten.WithLabelValues(m.name).Inc()
@@ -262,6 +262,12 @@ func (m *mfileBlock) WriteBuf(_ context.Context, s torus.BlockRef) ([]byte, erro
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return nil, torus.ErrClosed
 	}
+	if v := m.findIndex(s); v != -1 {
+		// we already have it
+		clog.Debug("mfile: block already exists: ", s)
+		// Not an error, if we already have it
+		return nil, torus.ErrExists
+	}
 	index := m.findEmpty()
 	if index == -1 {
 		clog.Error("mfile: out of space")
@@ -269,22 +275,15 @@ func (m *mfileBlock) WriteBuf(_ context.Context, s torus.BlockRef) ([]byte, erro
 		return nil, torus.ErrOutOfSpace
 	}
 	clog.Tracef("mfile: writing block at index %d", index)
-	buf := m.dataFile.GetBlock(uint64(index))
 	err := m.refFile.WriteBlock(uint64(index), s.ToBytes())
 	if err != nil {
 		promBlockWritesFailed.WithLabelValues(m.name).Inc()
 		return nil, err
 	}
-	if v := m.findIndex(s); v != -1 {
-		// we already have it
-		clog.Debug("mfile: block already exists: ", s)
-		// Not an error, if we already have it
-		return nil, torus.ErrExists
-	}
 	promBlocks.WithLabelValues(m.name).Inc()
 	m.refIndex[s] = index
 	promBlocksWritten.WithLabelValues(m.name).Inc()
-	return buf, nil
+	return m.dataFile.GetBlock(uint64(index)), nil
 }
 
 func (m *mfileBlock) DeleteBlock(_ context.Context, s torus.BlockRef) error {
