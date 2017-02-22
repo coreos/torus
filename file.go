@@ -177,8 +177,8 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 		if frontlen > toWrite {
 			frontlen = toWrite
 		}
-		wrote, err := f.writeToBlock(blkIndex, int(blkOff), int(blkOff)+frontlen, b[:frontlen])
 		clog.Tracef("head writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
+		wrote, err := f.writeToBlock(blkIndex, int(blkOff), int(blkOff)+frontlen, b[:frontlen])
 		if err != nil {
 			return n, err
 		} else if wrote != frontlen {
@@ -232,10 +232,10 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 		panic("Offset not equal to a block boundary after bulk")
 	}
 	blkIndex = int(off / f.blkSize)
-	wrote, err := f.writeToBlock(blkIndex, 0, toWrite, b)
 	if clog.LevelAt(capnslog.TRACE) {
 		clog.Tracef("tail writing block at index %d, inoderef %s", blkIndex, f.writeINodeRef)
 	}
+	wrote, err := f.writeToBlock(blkIndex, 0, toWrite, b)
 	if err != nil {
 		promFileWrittenBytes.WithLabelValues(f.volume.Name).Add(float64(n))
 		return n, err
