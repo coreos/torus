@@ -2,6 +2,7 @@ package distributor
 
 import (
 	"container/list"
+	"reflect"
 	"sync"
 )
 
@@ -32,8 +33,19 @@ func (lru *cache) Put(key string, value interface{}) {
 	}
 	lru.mut.Lock()
 	defer lru.mut.Unlock()
-	if _, ok := lru.get(key); ok {
-		return
+	if v, ok := lru.get(key); ok {
+		if reflect.DeepEqual(v, value) {
+			return
+		} else {
+			// Actually find() is not necessary, but it makes sure to remove
+			// correct element and the find loop would be finished soon, since
+			// the element is in the front now.
+			if old := lru.find(lru.priority.Front(), v); old != nil {
+				lru.priority.Remove(old)
+			} else {
+				clog.Fatalf("read cache is corrupted. Please restart the process.")
+			}
+		}
 	}
 	if len(lru.cache) == lru.maxSize {
 		lru.removeOldest()
@@ -62,4 +74,14 @@ func (lru *cache) get(key string) (interface{}, bool) {
 func (lru *cache) removeOldest() {
 	last := lru.priority.Remove(lru.priority.Back())
 	delete(lru.cache, last.(kv).key)
+}
+
+func (lru *cache) find(e *list.Element, v interface{}) *list.Element {
+	if e == nil {
+		return nil
+	}
+	if reflect.DeepEqual(e.Value.(kv).value, v) {
+		return e
+	}
+	return lru.find(e.Next(), v)
 }
