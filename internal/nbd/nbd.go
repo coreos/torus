@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
+	//"math"
 	"os"
 	"runtime"
 	"sync"
@@ -124,6 +124,7 @@ func (nbd *NBD) SetSize(size int64) error {
 
 func (nbd *NBD) SetBlockSize(blocksize int64) error {
 	if err := ioctl(nbd.nbd.Fd(), ioctlSetBlockSize, uintptr(blocksize)); err != nil {
+		clog.Printf("SetBlockSize(blocksize int64): uintptr %v, raw %v", uintptr(blocksize), blocksize)
 		return &os.PathError{
 			Path: nbd.nbd.Name(),
 			Op:   "ioctl NBD_SET_BLKSIZE",
@@ -157,8 +158,12 @@ func (nbd *NBD) OpenDevice(dev string) (string, error) {
 	nbd.nbd = f
 
 	// possible candidate
-	ioctl(f.Fd(), BLKROSET, 0) // I'm really sorry about this
-	pair, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err := ioctl(f.Fd(), BLKROSET, 0);err != nil {
+	// I'm really sorry about this
+	clog.Printf("ioctl (f.Fd(), BLKROSET,0 Error: %v", f)
+	}
+	//pair, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	pair, err := syscall.Socketpair(syscall.SOCK_STREAM, syscall.AF_UNIX, 0)
 	if err != nil {
 		return "", err
 	}
@@ -176,6 +181,14 @@ func (nbd *NBD) Serve() error {
 	if err := nbd.SetSize(nbd.size); err != nil {
 		return err // already set by nbd.Size()
 	}
+	clog.Printf("blksized true")
+        //     if err := nbd.SetSize(nbd.size); err != nil {
+        //             clog.Printf("returning error - already set by nbd.SetSize(nbd.size) %v:", nbd.size)
+        //             return err // already set by nbd.Size()
+        //     }  else {
+        //     clog.Printf("nbd.SetSize() worked with ndb.size: %v", nbd.size)
+        //     }
+               clog.Printf("trying ndb.SetBlockSize")
 	if err := nbd.SetBlockSize(nbd.blocksize); err != nil {
 		// This is a hack around the changes made to the kernel in 4.6
 		// (particularly commit 37091fdd831f28a6509008542174ed324dd645bc)
@@ -183,7 +196,18 @@ func (nbd *NBD) Serve() error {
 		// until connected. So we'll do a workaround on newer kernels, but man, it'd be
 		// nice to fix this. There needs to be a little better logic kernel-side around changing size
 		// even when disconnected. Changing it only when connected is fine -- but keep my intent.
+		clog.Printf("workaround for Kernel 4.6 and higher - error at nbd.SetBlockSize(nbd.blocksize): %v", nbd.blocksize)
+		clog.Printf("Workaround for Kernel 4.6 and higher - failed at: %s", err)
 		blksized = false
+	} else {
+		clog.Printf("nbd.SetBlockSize() worked with ndb.blocksize: %v", nbd.blocksize)
+	}
+	clog.Printf("trying ndb.SetSize(nbd.size)")
+	if err := nbd.SetSize(nbd.size); err != nil {
+		clog.Printf("returning error - already set by nbd.SetSize(nbd.size) %v:", nbd.size)
+		return err // already set by nbd.Size()
+	}  else {
+		clog.Printf("nbd.SetSize() worked with ndb.size: %v", nbd.size)
 	}
 	if err := ioctl(nbd.nbd.Fd(), ioctlSetFlags, uintptr(flagSendFlush|flagSendTrim)); err != nil {
 		switch err {
@@ -229,10 +253,13 @@ func (nbd *NBD) Serve() error {
 		go func(nbd *NBD) {
 			// Hopefully we'll be connected in 500 millis.
 			// If not, we'll proceed with the standard blocksize of 1K.
+			clog.Printf("Wait 500 millis")
 			time.Sleep(time.Microsecond * 500)
+			clog.Printf("500 millis should be over")
 			err := nbd.SetBlockSize(nbd.blocksize)
 			if err != nil {
 				clog.Printf("Couldn't upgrade blocksize: %s", err)
+				clog.Printf("nbd.SetBlockSize(nbd.blocksize): %v", nbd.blocksize)
 			}
 		}(nbd)
 	}
@@ -386,7 +413,9 @@ func (h *reqHeader) magic() uint32 {
 }
 
 func (h *reqHeader) offset() int64 {
-	if u := binary.BigEndian.Uint64(h[16:24]); u <= math.MaxInt64 {
+	//if u := binary.BigEndian.Uint64(h[16:24]); u <= math.MaxInt64 {
+		const maxInt64 = (^uint64(0) >> 1) + 1
+		if u := binary.BigEndian.Uint64(h[16:24]); u <= maxInt64 {
 		return int64(u)
 	}
 	panic("nbd: offset overflow")
