@@ -434,8 +434,6 @@ func (c *etcdCtx) SetRing(ring torus.Ring) error {
 
 func (c *etcdCtx) CommitINodeIndex(vid torus.VolumeID) (torus.INodeID, error) {
 	promOps.WithLabelValues("commit-inode-index").Inc()
-	c.etcd.mut.Lock()
-	defer c.etcd.mut.Unlock()
 	k := []byte(MkKey("volumemeta", Uint64ToHex(uint64(vid)), "inode"))
 	newID, err := c.AtomicModifyKey(k, BytesAddOne)
 	if err != nil {
@@ -445,8 +443,6 @@ func (c *etcdCtx) CommitINodeIndex(vid torus.VolumeID) (torus.INodeID, error) {
 }
 
 func (c *etcdCtx) NewVolumeID() (torus.VolumeID, error) {
-	c.etcd.mut.Lock()
-	defer c.etcd.mut.Unlock()
 	k := []byte(MkKey("meta", "volumeminter"))
 	newID, err := c.AtomicModifyKey(k, BytesAddOne)
 	if err != nil {
@@ -457,8 +453,6 @@ func (c *etcdCtx) NewVolumeID() (torus.VolumeID, error) {
 
 func (c *etcdCtx) GetINodeIndex(vid torus.VolumeID) (torus.INodeID, error) {
 	promOps.WithLabelValues("get-inode-index").Inc()
-	c.etcd.mut.Lock()
-	defer c.etcd.mut.Unlock()
 	resp, err := c.etcd.Client.Get(c.getContext(), MkKey("volumemeta", Uint64ToHex(uint64(vid)), "inode"))
 	if err != nil {
 		return torus.INodeID(0), err
