@@ -10,38 +10,41 @@ VERBOSE_2 := -v -x
 
 WHAT := torusd torusctl torusblk
 
+.PHONY: build
 build: vendor
 	for target in $(WHAT); do \
 		$(BUILD_ENV_FLAGS) go build $(VERBOSE_$(V)) -o bin/$$target -ldflags "-X $(REPOPATH).Version=$(VERSION)" ./cmd/$$target; \
 	done
 
+.PHONY: test
 test: tools/glide
 	go test --race $(shell ./tools/glide novendor)
 
+.PHONY: vet
 vet: tools/glide
 	go vet $(shell ./tools/glide novendor)
 
+.PHONY: fmt
 fmt: tools/glide
 	go fmt $(shell ./tools/glide novendor)
 
+.PHONY: run
 run:
 	./bin/torusd --etcd 127.0.0.1:2379 --debug --debug-init --peer-address http://127.0.0.1:40000
 
+.PHONY: clean
 clean:
-	rm -rf ./local-cluster ./bin/torus*
+	rm -rf ./bin/torus*
 
+.PHONY: cleanall
 cleanall: clean
-	rm -rf /tmp/etcd bin tools vendor
+	rm -rf bin tools vendor torus-data
 
-etcdrun:
-	./local/etcd/etcd --data-dir /tmp/etcd
-
-run3:
-	goreman start
-
+.PHONY: release
 release: releasetar
 	goxc -d ./release -tasks-=go-vet,go-test -os="linux darwin" -pv=$(VERSION)  -arch="386 amd64 arm arm64" -build-ldflags="-X $(REPOPATH).Version=$(VERSION)" -resources-include="README.md,Documentation,LICENSE,contrib" -main-dirs-exclude="vendor,cmd/ringtool"
 
+.PHONY: releasetar
 releasetar:
 	mkdir -p release/$(VERSION)
 	glide install --strip-vcs --strip-vendor --update-vendored --delete
@@ -63,6 +66,7 @@ tools/glide:
 	mv tools/$(HOST_GOOS)-$(HOST_GOARCH)/glide tools/glide
 	rm -r tools/$(HOST_GOOS)-$(HOST_GOARCH)
 
+.PHONY: help
 help:
 	@echo "Influential make variables"
 	@echo "  V                 - Build verbosity {0,1,2}."
