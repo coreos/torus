@@ -35,10 +35,11 @@ var versionCommand = &cobra.Command{
 }
 
 func init() {
+	fmt.Println("start to init MDS...")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "", false, "enable debug logging")
 	rootCommand.AddCommand(initCommand)
 	rootCommand.AddCommand(blockCommand)
-	rootCommand.AddCommand(listPeersCommand)
+	//	rootCommand.AddCommand(listPeersCommand)
 	rootCommand.AddCommand(ringCommand)
 	rootCommand.AddCommand(peerCommand)
 	rootCommand.AddCommand(volumeCommand)
@@ -47,6 +48,8 @@ func init() {
 	rootCommand.AddCommand(configCommand)
 	rootCommand.AddCommand(completionCommand)
 	flagconfig.AddConfigFlags(rootCommand.PersistentFlags())
+
+	fmt.Println("MDS init finished...")
 }
 
 func main() {
