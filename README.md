@@ -3,6 +3,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/coreos/torus)](https://goreportcard.com/report/github.com/coreos/torus)
 [![GoDoc](https://godoc.org/github.com/coreos/torus?status.svg)](https://godoc.org/github.com/coreos/torus)
 
+## Torus Overview
+
 Torus is an open source project for distributed storage coordinated through [etcd](https://github.com/coreos/etcd).
 
 Torus provides a resource pool and basic file primitives from a set of daemons running atop multiple nodes. These primitives are made consistent by being append-only and coordinated by [etcd](https://github.com/coreos/etcd). From these primitives, a Torus server can support multiple types of volumes, the semantics of which can be broken into subprojects. It ships with a simple block-device volume plugin, but is extensible to more.
@@ -13,7 +15,15 @@ Sharding is done via a consistent hash function, controlled in the simple case b
 
 ## Project Status
 
-Torus is at an early stage and under active development. We do not recommend its use in production, but we encourage you to try out Torus and provide feedback via issues and pull requests. Consequently, speed, while nice to have, is a secondary concern to stability at this time. 
+Development on Torus at CoreOS stopped as of Feb 2017. We started [Torus as a prototype](https://coreos.com/blog/torus-distributed-storage-by-coreos.html) in June 2016 to build a storage system that could be easily operated on top of Kubernetes. We have proven out that model with this project. But, we didn't achieve the development velocity over the 8 months that we had hoped for when we started out, and as such we didn't achieve the depth of community engagement we had hoped for either.
+
+If you have immediate storage needs Kubernetes can plugin to [dozens of other storage options](https://kubernetes.io/docs/user-guide/volumes/) including AWS/Azure/Google/OpenStack/etc block storage, Ceph, Gluster, NFS, etc that are external to Kubernetes.
+
+We are also seeing the emergence of projects, like [rook](https://github.com/rook/rook/tree/master/demo/kubernetes), which creates a storage system that is ran on top of Kubernetes, as an [Operator](https://coreos.com/blog/introducing-operators.html). We expect to see more systems like this in the future, because Kubernetes is a perfect platform for running distributed storage systems.
+
+If you are interested in continuing the project feel free to fork and continue; we can update this README if a particular fork gets solid traction.
+
+For further questions email brandon.philips@coreos.com.
 
 ## Trying out Torus
 
