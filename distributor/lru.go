@@ -1,3 +1,4 @@
+//implementation the LRU cache
 package distributor
 
 import (
@@ -26,12 +27,15 @@ func newCache(size int) *cache {
 	return &lru
 }
 
+//put a key-value pair into cache, nothing to be done if the key exist
 func (lru *cache) Put(key string, value interface{}) {
 	if lru == nil {
 		return
 	}
 	lru.mut.Lock()
 	defer lru.mut.Unlock()
+
+	//if the key exist, nothing to be done
 	if _, ok := lru.get(key); ok {
 		return
 	}

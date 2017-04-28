@@ -46,7 +46,7 @@ func (d *Distributor) rebalanceTicker(closer chan struct{}) {
 	time.Sleep(time.Duration(250+rand.Intn(250)) * time.Millisecond)
 exit:
 	for {
-		clog.Tracef("starting rebalance/gc cycle")
+		//		clog.Tracef("starting rebalance/gc cycle")
 		volset, _, err := d.srv.MDS.GetVolumes()
 		if err != nil {
 			clog.Error(err)

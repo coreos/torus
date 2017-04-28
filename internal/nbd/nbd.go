@@ -133,6 +133,11 @@ func (nbd *NBD) SetBlockSize(blocksize int64) error {
 	return nil
 }
 
+/**
+*** This method is to find the available nbd* device
+*** according to the device name to find if the /dev folder has this "file"
+*** if the file is exist, then to check the /sys/block/nbd#/pid
+ */
 func FindDevice() (string, error) {
 	// FIXME: Oh god... fixme.
 	// find free nbd device

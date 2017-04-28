@@ -61,8 +61,10 @@ type torusHandler struct {
 
 func (h *torusHandler) HandleCommand(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, error) {
 	switch cmd.Command() {
+	//query the storage basic information: verdor name, product name, product version
 	case scsi.Inquiry:
 		return tcmu.EmulateInquiry(cmd, h.inq)
+	//the signal sent by PC to make sure the storage device is stil alive.
 	case scsi.TestUnitReady:
 		return tcmu.EmulateTestUnitReady(cmd)
 	case scsi.ServiceActionIn16:
@@ -71,8 +73,10 @@ func (h *torusHandler) HandleCommand(cmd *tcmu.SCSICmd) (tcmu.SCSIResponse, erro
 		return tcmu.EmulateModeSense(cmd, true)
 	case scsi.ModeSelect, scsi.ModeSelect10:
 		return tcmu.EmulateModeSelect(cmd, true)
+	//Read10: sent by PC, to query the data from offset and length.
 	case scsi.Read6, scsi.Read10, scsi.Read12, scsi.Read16:
 		return tcmu.EmulateRead(cmd, h.file)
+	//write10:write the data from PC into the specified address[offset, length]
 	case scsi.Write6, scsi.Write10, scsi.Write12, scsi.Write16:
 		return h.handleWrite(cmd)
 	case scsi.SynchronizeCache, scsi.SynchronizeCache16:

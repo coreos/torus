@@ -6,6 +6,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+/**
+**using the torus file as the block device
+**it extend from File and contains the BlockVolume
+ */
 type BlockFile struct {
 	*torus.File
 	vol *BlockVolume
