@@ -19,6 +19,7 @@ const (
 	Ketama
 )
 
+//Deserialization byte array into Ring struct.
 func Unmarshal(b []byte) (torus.Ring, error) {
 	var a models.Ring
 	err := a.Unmarshal(b)
@@ -55,10 +56,12 @@ func registerRing(t torus.RingType, name string, newFunc createRingFunc) {
 	ringNames[name] = t
 }
 
+//call the registed function. also it implementation of createRingFunc
 func CreateRing(r *models.Ring) (torus.Ring, error) {
 	return ringRegistry[torus.RingType(r.Type)](r)
 }
 
+//find the RingType via ring name
 func RingTypeFromString(s string) (torus.RingType, bool) {
 	v, ok := ringNames[s]
 	return v, ok

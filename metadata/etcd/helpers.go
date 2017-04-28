@@ -7,6 +7,12 @@ import (
 	"path"
 )
 
+//this the an util file to do same basic jobs, such as:
+//MkKey(),Uint64ToBytes(),BytesToUint64(),Uint64ToHex()
+
+//combine the strings with a prefix string
+//e.g. it gets "/github.com/freesky/edward" when calling
+//MkKey("freesky","edward") while KeyPrefix="/github.com"
 func MkKey(s ...string) string {
 	s = append([]string{KeyPrefix}, s...)
 	return path.Join(s...)

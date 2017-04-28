@@ -36,6 +36,7 @@ type mfileBlock struct {
 
 var blankRefBytes = make([]byte, torus.BlockRefByteSize)
 
+//load the reference index map which is one of the member of mfileBlock struct data
 func loadIndex(m *MFile) (map[torus.BlockRef]int, error) {
 	clog.Infof("loading block index...")
 	var membefore uint64
@@ -61,6 +62,8 @@ func loadIndex(m *MFile) (map[torus.BlockRef]int, error) {
 	return out, nil
 }
 
+//implementation of blockStore factory method,
+//so that storage knows how to create storage instance.
 func newMFileBlockStore(name string, cfg torus.Config, meta torus.GlobalMetadata) (torus.BlockStore, error) {
 
 	storageSize := cfg.StorageSize
@@ -196,6 +199,7 @@ func (m *mfileBlock) HasBlock(_ context.Context, s torus.BlockRef) (bool, error)
 	return true, nil
 }
 
+//get a blockdata via BlockRef
 func (m *mfileBlock) GetBlock(_ context.Context, s torus.BlockRef) ([]byte, error) {
 	m.mut.RLock()
 	defer m.mut.RUnlock()
@@ -213,6 +217,7 @@ func (m *mfileBlock) GetBlock(_ context.Context, s torus.BlockRef) ([]byte, erro
 	return m.dataFile.GetBlock(uint64(index)), nil
 }
 
+//write a the block data into the file
 func (m *mfileBlock) WriteBlock(_ context.Context, s torus.BlockRef, data []byte) error {
 	m.mut.Lock()
 	defer m.mut.Unlock()

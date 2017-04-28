@@ -11,6 +11,14 @@ import (
 	"golang.org/x/net/context"
 )
 
+//this the etcd global functions, includes three functions
+//**initEtcdMetadata() is to write the basic metadata into Etcd server, include
+//    1. /github.com/coreos/torus/meta/volumeminter
+//    2. /github.com/coreos/torus/meta/globalmetadata
+//    3. /github.com/coreos/torus/meta/the-one-ring
+//**wipeEtcdMetadata() will clean information setted by abover function
+//**setRing() will change the /github.com/coreos/torus/meta/the-one-ring value
+
 func initEtcdMetadata(cfg torus.Config, gmd torus.GlobalMetadata, ringType torus.RingType) error {
 	gmdbytes, err := json.Marshal(gmd)
 	if err != nil {

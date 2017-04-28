@@ -69,10 +69,10 @@ func configureServer(cmd *cobra.Command, args []string) {
 	case debug:
 		capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	default:
-		capnslog.SetGlobalLogLevel(capnslog.INFO)
+		capnslog.SetGlobalLogLevel(capnslog.TRACE)
 	}
 	if logpkg != "" {
-		capnslog.SetGlobalLogLevel(capnslog.NOTICE)
+		capnslog.SetGlobalLogLevel(capnslog.TRACE)
 		rl := capnslog.MustRepoLogger("github.com/coreos/torus")
 		llc, err := rl.ParseLogLevelConfig(logpkg)
 		if err != nil {

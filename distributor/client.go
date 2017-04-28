@@ -48,8 +48,8 @@ func (d *distClient) onPeerTimeout(uuid string) {
 		clog.Errorf("peer timeout err on close: %s", err)
 	}
 	delete(d.openConns, uuid)
-
 }
+
 func (d *distClient) getConn(uuid string) protocols.RPC {
 	d.mut.Lock()
 	if conn, ok := d.openConns[uuid]; ok {

@@ -27,7 +27,8 @@ func MkdirsFor(dir string) error {
 }
 
 func NewServer(cfg Config, metadataServiceKind, blockStoreKind string) (*Server, error) {
-	err := MkdirsFor(cfg.DataDir)
+
+	err := MkdirsFor(cfg.DataDir) //create two folders under the data-dirs, one is "metadata",anther is "block"
 	if err != nil {
 		return nil, err
 	}

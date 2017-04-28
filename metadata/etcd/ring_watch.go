@@ -7,6 +7,8 @@ import (
 	"github.com/coreos/torus/ring"
 )
 
+//watch the ring updation event.
+
 func (e *Etcd) watchRingUpdates() error {
 	r, err := e.GetRing()
 	if err != nil {
