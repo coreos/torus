@@ -71,6 +71,8 @@ func initAction(cmd *cobra.Command, args []string) {
 	if err != nil {
 		die("error writing metadata: %v", err)
 	}
+
+	fmt.Println("this mds init sucessed")
 }
 
 func viewMetadata() {
